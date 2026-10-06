@@ -13,8 +13,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+
+import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
@@ -61,7 +64,8 @@ public class RulesetTests {
 
 	private JsonNode folioSources = null;
 	private JsonNode sierraSources = null;
-	
+	private JsonNode kohaSources = null;
+
 	private JsonNode parseJsonFile ( String fileName ) throws IOException {
 		return mapper.readValue(getRelativeResource(fileName).get(), JsonNode.class);
 	}
@@ -71,9 +75,13 @@ public class RulesetTests {
 		if (folioSources == null) {
 			folioSources = parseJsonFile("folio-source-data.json");
 		}
-		
+
 		if (sierraSources == null) {
 			sierraSources = parseJsonFile("sierra-records.json");
+		}
+
+		if (kohaSources == null) {
+			kohaSources = parseJsonFile("koha-source-data.json");
 		}
 	}
 
@@ -147,6 +155,117 @@ public class RulesetTests {
 		assertEquals(expected, result);
 	}
 	
+	/**
+	 * The shipped Koha default, from application.yml rather than this test's own
+	 * property source - it is what a Koha that names no ruleset of its own gets, so
+	 * it is the thing worth pinning.
+	 * <p>
+	 * True means include. The two flags are independent: 942$n is Koha's own
+	 * OpacSuppression marker ("show this to nobody") and 942$x is DCB's convention
+	 * for "local only", so either alone has to be enough to drop the bib, and a
+	 * catalogue that has never touched either has to be unaffected.
+	 */
+	@ParameterizedTest
+	@CsvSource({
+		"no-942-at-all,true",
+		"942-without-n-or-x,true",
+		"not-suppressed-explicitly,true",
+		"suppressed-with-999-t,true",
+		"hidden-from-everyone,false",
+		"local-only,false",
+		"local-only-yes,false",
+		"both-flags-set,false"})
+	void testKohaDefaultSuppressionFromJSON( String propertyName, boolean expected ) {
+
+		ObjectRuleset ruleset = ruleService.findByName("koha-default").block();
+		assertNotNull(ruleset);
+
+		JsonNode json = kohaSources.get(propertyName);
+		assertNotNull(json);
+
+		ArrayList<String> details = new ArrayList<>();
+		assertEquals(expected, ruleset.test(new AnnotatedObject(json, details)));
+	}
+
+	/**
+	 * The same expectations reached through OaiRecord rather than raw JSON, because
+	 * that is what the ingest path actually hands the ruleset - property resolution
+	 * goes through bean introspection and the marc4j serde instead of JsonObject
+	 * lookups, and the two have to agree.
+	 */
+	@ParameterizedTest
+	@CsvSource({
+		"no-942-at-all,true",
+		"942-without-n-or-x,true",
+		"not-suppressed-explicitly,true",
+		"suppressed-with-999-t,true",
+		"hidden-from-everyone,false",
+		"local-only,false",
+		"local-only-yes,false",
+		"both-flags-set,false"})
+	void testKohaDefaultSuppressionFromObjects( String propertyName, boolean expected ) {
+
+		ObjectRuleset ruleset = ruleService.findByName("koha-default").block();
+		assertNotNull(ruleset);
+
+		JsonNode json = kohaSources.get(propertyName);
+		assertNotNull(json);
+
+		OaiRecord target = conversionService.convertRequired(json, OaiRecord.class);
+		assertNotNull(target);
+
+		ArrayList<String> details = new ArrayList<>();
+		assertEquals(expected, ruleset.test(new AnnotatedObject(target, details)));
+	}
+
+	/**
+	 * The shipped Koha ITEM default, applied by KohaHostLmsClient.getItems.
+	 * <p>
+	 * Pinned separately from the bib ruleset because the subject is a different shape: a
+	 * KohaItem bean rather than a harvested MARC record, so property resolution goes
+	 * through BeanMap and the condition has to name the JAVA property
+	 * ("notForLoanStatus"), not the Koha API's "not_for_loan_status". Getting that wrong
+	 * fails silently - an unresolvable property makes propertyValueAnyOf false, which the
+	 * negation turns into "include", so every item would be contributed and nothing would
+	 * say why. These cases are the only thing standing between that typo and production.
+	 * <p>
+	 * True means include.
+	 */
+	@Test
+	void kohaItemDefaultSuppressesTheLocalOnlyNotForLoanValue() {
+		final var ruleset = ruleService.findByName("koha-item-default").block();
+		assertNotNull(ruleset);
+
+		final var item = KohaItem.builder().itemId(1L).notForLoanStatus(42).build();
+
+		assertEquals(false, ruleset.test(new AnnotatedObject(item, new ArrayList<>())),
+			"not_for_loan_status 42 means local only, so the item must not be contributed");
+	}
+
+	@Test
+	void kohaItemDefaultContributesOtherNotForLoanValues() {
+		final var ruleset = ruleService.findByName("koha-item-default").block();
+		assertNotNull(ruleset);
+
+		// 1 is an ordinary Koha "not for loan" - unavailable, but still the consortium's
+		// business to know about. Only 42 carries the "do not share" meaning.
+		final var item = KohaItem.builder().itemId(2L).notForLoanStatus(1).build();
+
+		assertEquals(true, ruleset.test(new AnnotatedObject(item, new ArrayList<>())));
+	}
+
+	@Test
+	void kohaItemDefaultIsInertOnAnItemWithNoNotForLoanStatus() {
+		final var ruleset = ruleService.findByName("koha-item-default").block();
+		assertNotNull(ruleset);
+
+		// The overwhelmingly common case. An absent property must read as "include",
+		// otherwise turning the ruleset on empties a library's availability.
+		final var item = KohaItem.builder().itemId(3L).build();
+
+		assertEquals(true, ruleset.test(new AnnotatedObject(item, new ArrayList<>())));
+	}
+
 	@ParameterizedTest
 	@CsvSource({"include-present,true", "include-missing,true", "exclude-z,false", "exclude-s,false", "exclude-f,false", "exclude-n,false"})
 	void testSierraTypeRecord( String propertyName, boolean expected ) {

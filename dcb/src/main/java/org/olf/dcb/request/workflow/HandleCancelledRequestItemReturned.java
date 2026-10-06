@@ -32,12 +32,6 @@ import reactor.core.publisher.Mono;
  * leg, so a borrower-item gate fires at park time for anything cancelled during PICKUP_TRANSIT - before
  * the item is anywhere near coming back.
  *
- * <p>A supplier that cannot report the return at all
- * (HostLmsClient.canReportItemReturnedAfterHoldTerminated - FOLIO today, because terminating the hold
- * makes the mod-dcb transaction terminal and it can never report AVAILABLE again) never reaches this
- * transition: waiting on a signal that provably cannot arrive is a permanent stall, so
- * HandleCancelledRequestItemOut cancels those at entry instead of parking them.
- *
  * <p>Terminating as CANCELLED rather than rejoining RETURN_TRANSIT keeps the record honest: nothing was
  * supplied, and Outcome.CANCELLED is what reporting keys off. Rejoining the return leg would land in
  * HandleSupplierItemAvailable and stamp Outcome.SUPPLIED on a request nobody ever received.

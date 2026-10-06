@@ -8,6 +8,13 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.sierra.Paths.patronHoldRequestsPath;
+import static org.olf.dcb.core.interaction.sierra.Paths.patronHoldsPath;
+import static org.olf.dcb.core.interaction.sierra.Paths.patronPath;
+import static org.olf.dcb.core.interaction.sierra.Paths.patronsPath;
+import static org.olf.dcb.test.IdentifierGenerator.generateBarcode;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalId;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasJsonResponseBodyProperty;
@@ -21,14 +28,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
+import org.olf.dcb.core.interaction.sierra.Paths;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.zalando.problem.ThrowableProblem;
 
-import io.micronaut.http.client.HttpClient;
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.holds.SierraPatronHold;
+import services.k_int.interaction.sierra.holds.SierraPatronHoldResultSet;
 import services.k_int.interaction.sierra.patrons.PatronHoldPost;
 import services.k_int.interaction.sierra.patrons.PatronPatch;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
@@ -38,9 +47,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class SierraApiPatronTests {
 	private static final String HOST_LMS_CODE = "sierra-patron-api-tests";
-
-	@Inject
-	private HttpClient client;
+	private static final String ITEM_RECORD_TYPE = "i";
+	private static final String SIERRA_BASE_URL = "https://patron-api-tests.com";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -53,40 +61,61 @@ class SierraApiPatronTests {
 	@BeforeAll
 	public void beforeAll(MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
-		final String BASE_URL = "https://patron-api-tests.com";
 		final String KEY = "patron-key";
 		final String SECRET = "patron-secret";
 
-		SierraTestUtils.mockFor(mockServerClient, BASE_URL)
+		SierraTestUtils.mockFor(mockServerClient, SIERRA_BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
 
-		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient, null);
+		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, SIERRA_BASE_URL, "item");
+	}
+
+	@Test
+	void shouldBeAbleToCreatePatron() {
+		// Arrange
+		final var uniqueId = generateNumericLocalIdAsString();
+		final var patronId = generateNumericLocalId();
+
+		sierraPatronsAPIFixture.postPatronResponse(uniqueId, patronId, SIERRA_BASE_URL);
+
+		// Act
+		final var patronPatch = PatronPatch.builder()
+			.uniqueIds(List.of(uniqueId))
+			.build();
+
+		final var sierraApiClient = getClient();
+
+		var response = singleValueFrom(sierraApiClient.patrons(patronPatch));
+
+		// Assert
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getLink(), is(SIERRA_BASE_URL + patronPath(patronId)));
 	}
 
 	@Test
 	void shouldReportErrorWhenCreatingAPatronRespondsWithBadRequest() {
 		// Arrange
-		final var patronId = "0987654321";
+		final var uniqueId = generateNumericLocalIdAsString();
 
-		final var patronPatch = PatronPatch.builder()
-			.uniqueIds(List.of(patronId))
-			.build();
-
-		sierraPatronsAPIFixture.postPatronErrorResponse(patronId);
-
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
+		sierraPatronsAPIFixture.postPatronErrorResponse(uniqueId);
 
 		// Act
+		final var patronPatch = PatronPatch.builder()
+			.uniqueIds(List.of(uniqueId))
+			.build();
+
+		final var sierraApiClient = getClient();
+
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(sierraApiClient.patrons(patronPatch)));
 
 		// Assert
 		assertThat(problem, allOf(
-			hasMessageForRequest("POST", "/iii/sierra-api/v6/patrons"),
+			hasMessageForRequest("POST", patronsPath()),
 			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("name","Bad JSON/XML Syntax"),
 			hasJsonResponseBodyProperty("description",
@@ -98,85 +127,77 @@ class SierraApiPatronTests {
 	}
 
 	@Test
-	void testPostPatron() {
-		// Arrange
-		final var patronPatch = PatronPatch.builder()
-			.uniqueIds(List.of("1234567890"))
-			.build();
-
-		sierraPatronsAPIFixture.postPatronResponse("1234567890", 2745326);
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
-
-		// Act
-		var response = Mono.from(sierraApiClient.patrons(patronPatch)).block();
-
-		// Assert
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getLink(), is("https://sandbox.iii.com/iii/sierra-api/v6/patrons/2745326"));
-	}
-
-	@Test
 	public void shouldFindPatronByUniqueId() {
 		// Arrange
-		var uniqueId = "1234567890";
+		final var uniqueId = generateNumericLocalIdAsString();
+		final var patronId = generateNumericLocalId();
+		final var patronType = 22;
+		final var name = "Joe Bloggs";
+		final var homeLibraryCode = "testbbb";
 
 		sierraPatronsAPIFixture.patronFoundResponse("u", uniqueId,
 			SierraPatronRecord.builder()
-				.id(1000002)
-				.patronType(22)
-				.names(List.of("Joe Bloggs"))
-				.homeLibraryCode("testbbb")
+				.id(patronId)
+				.patronType(patronType)
+				.names(List.of(name))
+				.homeLibraryCode(homeLibraryCode)
 				.build());
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
-
 		// Act
+		final var sierraApiClient = getClient();
+
 		var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
 
 		// Assert
 		assertThat("Response should not be null", response, is(notNullValue()));
-		assertThat("Should have expected ID", response.getId(), is(1000002));
-		assertThat("Should have expected patron type", response.getPatronType(), is(22));
-		assertThat("Should have expected home library code", response.getHomeLibraryCode(), is("testbbb"));
+		assertThat("Should have expected ID", response.getId(), is(patronId));
+		assertThat("Should have expected patron type", response.getPatronType(), is(patronType));
+		assertThat("Should have expected home library code", response.getHomeLibraryCode(), is(homeLibraryCode));
 		assertThat("Should have no barcodes", response.getBarcodes(), is(nullValue()));
 	}
 
 	@Test
 	public void shouldFindPatronByLocalId() {
 		// Arrange
-		var uniqueId = "6748687";
+		final var patronId = generateNumericLocalId();
+		final var patronBarcode = generateBarcode();
+		final var patronType = 15;
+		final var homeLibraryCode = "home-library-code";
+		final var name = "Bob";
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(uniqueId,
+		sierraPatronsAPIFixture.mockGetPatronById(patronId,
 			SierraPatronRecord.builder()
-				.id(1000002)
-				.patronType(15)
-				.homeLibraryCode("testccc")
-				.barcodes(List.of("647647746"))
-				.names(List.of("Bob"))
+				.id(patronId)
+				.patronType(patronType)
+				.homeLibraryCode(homeLibraryCode)
+				.barcodes(List.of(patronBarcode))
+				.names(List.of(name))
 				.build());
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
-
 		// Act
-		var response = singleValueFrom(sierraApiClient.getPatron(Long.valueOf(uniqueId)));
+		final var sierraApiClient = getClient();
+
+		var response = singleValueFrom(sierraApiClient.getPatron(Long.valueOf(patronId)));
 
 		// Assert
 		assertThat("Response should not be null", response, is(notNullValue()));
-		assertThat("Should have expected ID", response.getId(), is(1000002));
-		assertThat("Should have expected patron type", response.getPatronType(), is(15));
-		assertThat("Should have expected home library code", response.getHomeLibraryCode(), is("testccc"));
-		assertThat("Should have a barcode", response.getBarcodes(), contains("647647746"));
-		assertThat("Should have a name", response.getNames(), contains("Bob"));
+		assertThat("Should have expected ID", response.getId(), is(patronId));
+		assertThat("Should have expected patron type", response.getPatronType(), is(patronType));
+		assertThat("Should have expected home library code", response.getHomeLibraryCode(), is(homeLibraryCode));
+		assertThat("Should have a barcode", response.getBarcodes(), contains(patronBarcode));
+		assertThat("Should have a name", response.getNames(), contains(name));
 	}
 
 	@Test
-	public void testPatronFindReturns107() {
+	public void shouldBeEmptyPublisherWhenPatronFindReceivesNotFoundResponse() {
 		// Arrange
-		final var uniqueId = "018563984";
+		final var uniqueId = generateNumericLocalIdAsString();
+
 		sierraPatronsAPIFixture.patronNotFoundResponse("u", uniqueId);
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 
 		// Act
+		final var sierraApiClient = getClient();
+
 		final var response = singleValueFrom(sierraApiClient.patronFind("u", uniqueId));
 
 		// Assert
@@ -184,52 +205,63 @@ class SierraApiPatronTests {
 	}
 
 	@Test
-	void testPatronHoldRequest() {
+	void shouldBeAbleToGetHoldsForPatron() {
 		// Arrange
-		final var patronLocalId = "018563984";
-		sierraPatronsAPIFixture.mockGetHoldsForPatron(patronLocalId);
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
+		final var patronId = generateNumericLocalIdAsString();
+		final var holdIdLink = SIERRA_BASE_URL + patronHoldRequestsPath(patronId);
+
+		sierraPatronsAPIFixture.mockGetHoldsForPatron(patronId,
+			SierraPatronHoldResultSet.builder()
+				.entries(List.of(
+					SierraPatronHold.builder()
+						.id(holdIdLink)
+						.build()
+				))
+				.build());
 
 		// Act
-		var response = Mono.from(sierraApiClient.patronHolds(patronLocalId)).block();
+		final var sierraApiClient = getClient();
+
+		var response = singleValueFrom(sierraApiClient.patronHolds(patronId));
 
 		// Assert
 		assertThat(response, is(notNullValue()));
-		assertThat(response.entries().get(0), is(notNullValue()));
-		assertThat(response.entries().get(0).id(),
-			is("https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/407557"));
+		assertThat(response.entries().getFirst(), is(notNullValue()));
+		assertThat(response.entries().getFirst().id(), is(holdIdLink));
 	}
 
 	@Test
-	void shouldReturnEmptyPublisherWhenReceiveNotFoundError() {
+	void shouldReturnEmptyPublisherWhenHoldRequestsCannotBeFound() {
 		// Arrange
-		final var patronLocalId = "78585745";
+		final var patronId = generateNumericLocalIdAsString();
 
-		sierraPatronsAPIFixture.patronHoldNotFoundErrorResponse(patronLocalId);
+		sierraPatronsAPIFixture.patronHoldNotFoundErrorResponse(patronId);
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
+		final var sierraApiClient = getClient();
 
 		// Act
-		final var response = singleValueFrom(sierraApiClient.patronHolds(patronLocalId));
+		final var response = singleValueFrom(sierraApiClient.patronHolds(patronId));
 
 		// Assert
 		assertThat("Response should be empty", response, is(nullValue()));
 	}
 
 	@Test
-	void testPatronHoldRequestErrorResponse() {
+	void shouldHandleErrorWhenFetchingPatronHolds() {
 		// Arrange
-		final var patronLocalId = "489365810";
-		sierraPatronsAPIFixture.patronHoldErrorResponse(patronLocalId);
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
+		final var patronId = generateNumericLocalIdAsString();
+
+		sierraPatronsAPIFixture.patronHoldErrorResponse(patronId);
 
 		// Act
+		final var sierraApiClient = getClient();
+
 		final var problem = assertThrows(ThrowableProblem.class,
-			() -> Mono.from(sierraApiClient.patronHolds(patronLocalId)).block());
+			() -> singleValueFrom(sierraApiClient.patronHolds(patronId)));
 
 		// Assert
 		assertThat(problem, allOf(
-			hasMessageForRequest("GET", "/iii/sierra-api/v6/patrons/489365810/holds"),
+			hasMessageForRequest("GET", patronHoldsPath(patronId)),
 			hasResponseStatusCode(400),
 			hasJsonResponseBodyProperty("name","Bad JSON/XML Syntax"),
 			hasJsonResponseBodyProperty("description",
@@ -241,51 +273,57 @@ class SierraApiPatronTests {
 	}
 
 	@Test
-	void testPlacePatronHoldRequest() {
+	void shouldBeAbleToPlaceHoldRequest() {
 		// Arrange
-		final var patronLocalId = "1341234";
-		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(patronLocalId, "i", null);
+		final var patronId = generateNumericLocalIdAsString();
 
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest(patronId, ITEM_RECORD_TYPE, null);
+
+		// Act
 		final var patronHoldPost = PatronHoldPost.builder()
-			.recordNumber(32897458)
-			.recordType("i")
+			.recordNumber(generateNumericLocalId())
+			.recordType(ITEM_RECORD_TYPE)
 			.pickupLocation("pickupLocation")
 			.build();
 
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
+		final var sierraApiClient = getClient();
 
-		// Act
-		var response = Mono.from(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)).block();
+		var response = singleValueFrom(sierraApiClient.placeHoldRequest(patronId, patronHoldPost));
 
 		// Assert
 		assertThat(response, is(nullValue()));
 	}
 
 	@Test
-	void testPlacePatronHoldRequestErrorResponse() {
+	void shouldHandleErrorWhenPlacingHold() {
 		// Arrange
-		final var patronLocalId = "4325435";
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(patronLocalId, "i");
+		final var patronId = generateNumericLocalIdAsString();
+
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(patronId, ITEM_RECORD_TYPE);
 
 		// Act
-		final var sierraApiClient = hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
+		final var sierraApiClient = getClient();
 
 		final var patronHoldPost = PatronHoldPost.builder()
-			.recordNumber(423543254)
-			.recordType("i")
+			.recordNumber(generateNumericLocalId())
+			.recordType(ITEM_RECORD_TYPE)
 			.pickupLocation("pickupLocation")
 			.build();
 
 		final var problem = assertThrows(ThrowableProblem.class,
-			() -> singleValueFrom(sierraApiClient.placeHoldRequest(patronLocalId, patronHoldPost)));
+			() -> singleValueFrom(sierraApiClient.placeHoldRequest(patronId, patronHoldPost)));
 
 		// Assert
 		assertThat(problem, hasMessage("Unexpected response from: %s %s"
-			.formatted("POST", "/iii/sierra-api/v6/patrons/%s/holds/requests".formatted(patronLocalId))));
+			.formatted("POST", patronHoldRequestsPath(patronId))));
 
 		assertThat(problem, hasRequestMethod("POST"));
 		assertThat(problem, hasResponseStatusCode(500));
 		assertThat(problem, hasJsonResponseBodyProperty("code", 109));
 		assertThat(problem, hasJsonResponseBodyProperty("description", "Invalid configuration"));
+	}
+
+	private HostLmsSierraApiClient getClient() {
+		return hostLmsFixture.createLowLevelSierraClient(HOST_LMS_CODE);
 	}
 }

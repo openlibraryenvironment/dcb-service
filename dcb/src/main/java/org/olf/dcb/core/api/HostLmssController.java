@@ -1,5 +1,6 @@
 package org.olf.dcb.core.api;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -14,15 +15,19 @@ import org.slf4j.LoggerFactory;
 
 import io.micronaut.context.event.ApplicationEventPublisher;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.QueryValue;
+import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
@@ -122,8 +127,26 @@ public class HostLmssController {
 
 	@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})
 	@Get("/importIngestDetails")
-	public Mono<List<Map<String, Object>>> getAllImportIngestDetails() {
-		return(hostLmsService.getAllImportIngestDetails());
+	public Mono<List<Map<String, Object>>> getAllImportIngestDetails(
+		@Nullable @QueryValue String hostLmsCodes) {
+
+		final var codes = Arrays.stream(hostLmsCodes == null ? new String[0] : hostLmsCodes.split(","))
+			.map(String::trim)
+			.filter(code -> !code.isEmpty())
+			.distinct()
+			.toList();
+
+		if (codes.isEmpty()) {
+			return hostLmsService.getAllImportIngestDetails();
+		}
+
+		if (codes.size() > HostLmsService.MAX_SCOPED_HOST_LMS) {
+			return Mono.error(new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"At most %d Host LMS codes can be counted at once"
+					.formatted(HostLmsService.MAX_SCOPED_HOST_LMS)));
+		}
+
+		return hostLmsService.getImportIngestDetails(codes);
 	}
 
 	@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})

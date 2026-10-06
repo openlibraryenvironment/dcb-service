@@ -25,6 +25,8 @@ import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -59,6 +61,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -450,7 +453,7 @@ class ApplicationServicesClient {
 			Argument.of(String.class))
 			// remove quotes
 			.map(string -> string.replace("\"", ""))
-			.doOnSuccess(barcode -> log.info("Successfully got patron barcode {} from local id {}", barcode, localId));
+			.doOnSuccess(barcode -> log.info("Got the patron barcode for local id {}", localId));
 	}
 
 	public Mono<String> getPatronIdByIdentifier(String identifier, String identifierType) {
@@ -1482,9 +1485,12 @@ class ApplicationServicesClient {
 //	}
 
 	public Mono<ItemRecordFull> getItem(String identifier, boolean isBarcode) {
-		log.info("Fetching item. Identifier: {}, isBarcode: {}", identifier, isBarcode);
+		log.info("Fetching item by {}", isBarcode ? "barcode" : "id " + identifier);
 
-		final var path = createPath("itemrecords", identifier);
+		// A barcode is free text and becomes one path segment, so it is encoded as one
+		final var path = createPath("itemrecords", isBarcode
+			? URLEncoder.encode(identifier, StandardCharsets.UTF_8).replace("+", "%20")
+			: identifier);
 
 		return client.retrieve(createRequest(GET, path, uri -> {
 			// If it's a barcode, pass the query parameter to tell Polaris
@@ -2399,6 +2405,7 @@ class ApplicationServicesClient {
 		private String phoneVoice3;
 		@JsonProperty("EmailAddress")
 		private String emailAddress;
+		@ToString.Exclude
 		@JsonProperty("Password")
 		private String password;
 		@JsonProperty("EntryDate")

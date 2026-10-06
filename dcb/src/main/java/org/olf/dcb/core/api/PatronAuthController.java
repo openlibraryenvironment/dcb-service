@@ -95,6 +95,7 @@ public class PatronAuthController {
 		@Schema(name = "agencyCode", description = "The agency code associated with the patron", type = "string", example = "ab6")
 		String agencyCode;
 		@Schema(name = "patronPrinciple", description = "Patrons barcode or unique identifier", type = "string", example = "BAR789012")
+		@ToString.Exclude
 		String patronPrinciple;
 		@Schema(name = "secret", description = "Patrons PIN, name or password", type = "string", example = "1234")
 		@ToString.Exclude

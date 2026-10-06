@@ -2,6 +2,7 @@ package org.olf.dcb.core.model;
 
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,7 +19,7 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @Builder
 public class RecordCount {
 
-	@NonNull
+	@Nullable
 	private String value;
 
 	@NonNull

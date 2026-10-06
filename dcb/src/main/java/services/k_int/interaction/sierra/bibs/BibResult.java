@@ -2,9 +2,8 @@ package services.k_int.interaction.sierra.bibs;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
+import java.util.List;
+import java.util.Map;
 
 import org.marc4j.marc.Record;
 
@@ -12,12 +11,13 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
-
-import java.util.Map;
-import java.util.List;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 import services.k_int.interaction.sierra.FixedField;
 import services.k_int.interaction.sierra.VarField;
 
+@Builder
 @Serdeable
 public record BibResult(
 	@NotEmpty String id,

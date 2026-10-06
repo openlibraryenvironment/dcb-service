@@ -51,5 +51,7 @@ public class AlmaBib {
 	String suppressFromExternalSearch;
 	@JsonProperty("suppress_from_metadoor")
 	String suppressFromMetadoor;
+	@JsonProperty("anies")
+	List<String> anies;
 }
 

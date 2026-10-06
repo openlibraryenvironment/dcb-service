@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
@@ -232,12 +233,12 @@ class SierraHostLmsClientPlaceRequestTests {
 		final var patronRequestId = UUID.randomUUID().toString();
 		// Distinct from the patron used by the record-not-available test, so that the
 		// two XCirc hold request mocks cannot match each other's requests
-		final var localPatronId = "567216";
-		final var localBibId = 23423423;
+		final var localPatronId = generateNumericLocalIdAsString();
+		final var localBibId = generateNumericLocalIdAsString();
 
 		sierraPatronsAPIFixture.problemWithLibraryRecordResponse(localPatronId, "b");
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localPatronId,
+		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
 				.id(parseInt(localPatronId))
 				.patronType(15)
@@ -255,7 +256,7 @@ class SierraHostLmsClientPlaceRequestTests {
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
-					.localBibId(Integer.toString(localBibId))
+					.localBibId(localBibId)
 					.localPatronId(localPatronId)
 					.patronRequestId(patronRequestId)
 					.build())));

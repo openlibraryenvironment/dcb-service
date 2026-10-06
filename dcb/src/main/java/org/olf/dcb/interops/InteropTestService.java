@@ -1,6 +1,14 @@
 package org.olf.dcb.interops;
 
+import static org.olf.dcb.core.interaction.MappingAudit.Direction.READ_FROM_SYSTEM;
+import static org.olf.dcb.core.interaction.MappingAudit.Direction.SENT_TO_SYSTEM;
+
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
+import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeoutException;
@@ -16,13 +24,14 @@ import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.svc.BibRecordService;
+import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import services.k_int.interaction.alma.types.error.AlmaException;
 
 /**
  * Service to test interoperability with host library management systems.
@@ -40,11 +49,14 @@ public class InteropTestService {
 
 	private final HostLmsService hostLmsService;
 	private final BibRecordService bibRecordService;
+	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 
 	public InteropTestService(HostLmsService hostLmsService,
-			BibRecordService bibRecordService) {
+			BibRecordService bibRecordService,
+			ReferenceValueMappingRepository referenceValueMappingRepository) {
 		this.hostLmsService = hostLmsService;
 		this.bibRecordService = bibRecordService;
+		this.referenceValueMappingRepository = referenceValueMappingRepository;
 	}
 
 	/**
@@ -213,16 +225,6 @@ public class InteropTestService {
 	}
 
 	private Mono<InteropTestResult> createErrorResult(String stage, String step, Throwable error) {
-
-		if (error instanceof AlmaException) {
-			return Mono.just(InteropTestResult.builder()
-				.stage(stage)
-				.step(step)
-				.result("ERROR")
-				.note(((AlmaException) error).toString())
-				.build());
-		}
-
 		return Mono.just(InteropTestResult.builder()
 			.stage(stage)
 			.step(step)
@@ -548,6 +550,159 @@ public class InteropTestService {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * A Host LMS that cannot be reached reports FAILED; one that cannot be asked reports
+	 * NOT_SUPPORTED from its own adapter. The two must not collapse into one outcome.
+	 */
+	public Mono<ConfigurationReport> checkConfiguration(String systemCode) {
+		return hostLmsService.getClientFor(systemCode)
+			.flatMap(client -> client.checkConfiguration())
+			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(systemCode,
+				"Could not reach " + systemCode + ": " + error.getMessage())));
+	}
+
+	public Mono<MappingValueCheck> checkMappingValue(String systemCode, MappingVocabulary vocabulary,
+		String value) {
+
+		return hostLmsService.getClientFor(systemCode)
+			.flatMap(client -> client.checkMappingValue(vocabulary, value))
+			.onErrorResume(error -> Mono.just(MappingValueCheck.unknown(systemCode, vocabulary, value,
+				"Could not reach " + systemCode + ": " + error.getMessage())));
+	}
+
+	/** The from_category values reference value mappings are stored under, and their vocabulary. */
+	private static final List<Map.Entry<String, MappingVocabulary>> AUDITED_CATEGORIES = List.of(
+		Map.entry("patronType", MappingVocabulary.PATRON_TYPE),
+		Map.entry("ItemType", MappingVocabulary.ITEM_TYPE),
+		Map.entry("Location", MappingVocabulary.LOCATION));
+
+	/**
+	 * Judges every saved mapping involving one Host LMS against what that system holds: the
+	 * values DCB sends to it, and the values it reads from it wherever the adapter says which
+	 * list those come from.
+	 * <p>
+	 * Each vocabulary is read once and every row checked against it in memory: a call per row
+	 * would be one outbound request per mapping, against a system we do not own.
+	 */
+	public Mono<MappingAudit> auditMappings(String systemCode) {
+		return hostLmsService.getClientFor(systemCode)
+			// One system's mappings, both directions: bounded by the consortium's configuration
+			.flatMap(client -> Flux.from(referenceValueMappingRepository.findByContexts(List.of(systemCode)))
+				.filter(mapping -> !Boolean.TRUE.equals(mapping.getDeleted()))
+				.collectList()
+				.flatMap(mappings -> auditMappings(client, systemCode, mappings)))
+			.onErrorResume(error -> Mono.just(MappingAudit.failed(systemCode,
+				"Could not read " + systemCode + ": " + error.getMessage())));
+	}
+
+	private Mono<MappingAudit> auditMappings(HostLmsClient client, String systemCode,
+		List<ReferenceValueMapping> mappings) {
+
+		final var readSide = client.readSideVocabularies();
+
+		final var checks = AUDITED_CATEGORIES.stream()
+			.flatMap(category -> Stream.of(
+				new CategoryCheck(category.getKey(), category.getValue(), SENT_TO_SYSTEM,
+					sentTo(mappings, systemCode, category.getKey())),
+				new CategoryCheck(category.getKey(), readSide.get(category.getKey()), READ_FROM_SYSTEM,
+					readFrom(mappings, systemCode, category.getKey()))))
+			.filter(check -> check.vocabulary() != null && !check.mappings().isEmpty())
+			.toList();
+
+		return Flux.fromIterable(checks.stream().map(CategoryCheck::vocabulary).distinct().toList())
+			.concatMap(vocabulary -> readVocabulary(client, systemCode, vocabulary)
+				.map(entries -> Map.entry(vocabulary, entries)))
+			.collectMap(Map.Entry::getKey, Map.Entry::getValue)
+			.map(vocabularies -> MappingAudit.of(systemCode,
+				checks.stream()
+					.flatMap(check -> rows(systemCode, check, vocabularies.get(check.vocabulary())).stream())
+					.toList(),
+				notChecked(systemCode, mappings, readSide.keySet())));
+	}
+
+	private record CategoryCheck(String category, MappingVocabulary vocabulary,
+		MappingAudit.Direction direction, List<ReferenceValueMapping> mappings) {}
+
+	// Empty Optional: this adapter cannot read the vocabulary. Empty list: it could not be read
+	private static Mono<Optional<List<ConfigurationReport.Entry>>> readVocabulary(HostLmsClient client,
+		String systemCode, MappingVocabulary vocabulary) {
+
+		return client.fetchVocabulary(vocabulary)
+			.map(Optional::of)
+			.defaultIfEmpty(Optional.empty())
+			// An unreadable vocabulary reports UNKNOWN per row, never MISSING: telling an
+			// implementer a value is absent when we could not look sends them to create
+			// one that already exists
+			.onErrorResume(error -> {
+				log.warn("Could not read {} from {}", vocabulary, systemCode, error);
+				return Mono.just(Optional.of(List.of()));
+			});
+	}
+
+	private static List<MappingAudit.Row> rows(String systemCode, CategoryCheck check,
+		Optional<List<ConfigurationReport.Entry>> vocabulary) {
+
+		return check.mappings().stream()
+			.map(mapping -> {
+				final var value = check.direction() == SENT_TO_SYSTEM
+					? mapping.getToValue()
+					: mapping.getFromValue();
+
+				// An adapter that cannot read the vocabulary: dropping the rows made a system that
+				// could not be asked read as one with nothing wrong
+				final var result = vocabulary
+					.map(entries -> MappingValueCheck.against(systemCode, check.vocabulary(), value, entries))
+					.orElseGet(() -> MappingValueCheck.notSupported(systemCode, check.vocabulary(), value));
+
+				return new MappingAudit.Row(check.category(), check.direction(), mapping.getFromContext(),
+					mapping.getFromValue(), mapping.getToValue(), result.result(), result.detail());
+			})
+			.toList();
+	}
+
+	private static List<ReferenceValueMapping> sentTo(List<ReferenceValueMapping> mappings,
+		String systemCode, String category) {
+
+		return mappings.stream()
+			.filter(mapping -> systemCode.equals(mapping.getToContext()))
+			.filter(mapping -> category.equals(mapping.getFromCategory()))
+			.toList();
+	}
+
+	private static List<ReferenceValueMapping> readFrom(List<ReferenceValueMapping> mappings,
+		String systemCode, String category) {
+
+		return mappings.stream()
+			.filter(mapping -> systemCode.equals(mapping.getFromContext()))
+			.filter(mapping -> !systemCode.equals(mapping.getToContext()))
+			.filter(mapping -> category.equals(mapping.getFromCategory()))
+			.toList();
+	}
+
+	// A clean audit must not read as a clean configuration: say what it did not look at
+	private static List<String> notChecked(String systemCode, List<ReferenceValueMapping> mappings,
+		Set<String> checkedReadSideCategories) {
+
+		final var readFromSystem = mappings.stream()
+			.filter(mapping -> systemCode.equals(mapping.getFromContext()))
+			.filter(mapping -> !systemCode.equals(mapping.getToContext()))
+			.filter(mapping -> !checkedReadSideCategories.contains(mapping.getFromCategory()))
+			.count();
+
+		final var notChecked = new ArrayList<String>();
+
+		if (readFromSystem > 0) {
+			notChecked.add("%d mappings from %s's own values into DCB: whether those values exist in %s"
+				.formatted(readFromSystem, systemCode, systemCode));
+		}
+
+		notChecked.add("Mappings under a shared context that %s reads through a context hierarchy"
+			.formatted(systemCode));
+		notChecked.add("Pickup locations: they are DCB location records, not mappings");
+
+		return notChecked;
 	}
 
 	public Mono<InteropTestResult> retrieveConfiguration(String systemCode, ConfigType validatedType) {

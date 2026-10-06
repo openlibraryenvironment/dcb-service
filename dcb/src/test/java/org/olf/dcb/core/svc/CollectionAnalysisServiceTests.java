@@ -1,141 +1,152 @@
 package org.olf.dcb.core.svc;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.api.serde.CollectionProfileStat;
-import org.olf.dcb.core.api.serde.CollectionTotalsStat;
+import org.olf.dcb.core.api.serde.CollectionOverlapStat;
+import org.olf.dcb.core.model.CollectionSnapshotRow;
 import org.olf.dcb.storage.BibRepository;
 
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.exceptions.HttpStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * The two controls that make the catalogue-wide queries safe to expose on demand.
- *
- * <p>Neither is visible functionally: without them these endpoints still return the right
- * numbers, just by starting several 20,000,000-row aggregates at once against the pool request
- * tracking shares. Nothing else in the suite would notice, which is why it is asserted here.
- *
- * <p>The repository is mocked - the gate is under test, not the SQL.
+ * How the catalogue-wide queries are shared between callers. None of it is visible in the
+ * figures - without it the endpoints return the same numbers by starting a 20,000,000-row pass
+ * per caller and per panel - so it is asserted here. The repository is mocked: the sharing is
+ * under test, not the SQL (CollectionAnalysisQueriesTests covers that).
  */
 class CollectionAnalysisServiceTests {
 
-	private static final CollectionTotalsStat TOTALS = new CollectionTotalsStat(1L, 1L, 1L, 1L);
+	private static final UUID LIB_A = UUID.randomUUID();
 
-	private static final CollectionProfileStat PROFILE =
-		new CollectionProfileStat(UUID.randomUUID(), "LIB_A", 1L, 1L);
+	private static final List<CollectionSnapshotRow> ROWS = List.of(
+		new CollectionSnapshotRow("PROFILE", LIB_A, "LIB_A", null, null, 2L, 1L),
+		new CollectionSnapshotRow("FORMAT", LIB_A, "LIB_A", "Book", null, 2L, null),
+		new CollectionSnapshotRow("HOLDERS", null, null, null, 1L, 1L, null),
+		new CollectionSnapshotRow("HOLDERS", null, null, null, 2L, 1L, null),
+		new CollectionSnapshotRow("HOLDINGS", null, null, null, null, 3L, 2L));
 
 	private BibRepository bibRepository;
+	private AtomicInteger snapshotPasses;
 
 	@BeforeEach
 	void beforeEach() {
 		bibRepository = mock(BibRepository.class);
+		snapshotPasses = new AtomicInteger();
+
+		when(bibRepository.setLocalStatementTimeout(anyString())).thenReturn(Mono.just("600000"));
 	}
 
 	private CollectionAnalysisService service() {
-		// A wait budget long enough that nothing queues out during a normal test.
-		return new CollectionAnalysisService(bibRepository, Duration.ofMinutes(15), 1,
-			Duration.ofSeconds(10), Duration.ofMillis(10));
+		return new CollectionAnalysisService(bibRepository, Duration.ofMinutes(15),
+			Duration.ofMinutes(10));
+	}
+
+	private void snapshotTakes(Duration duration) {
+		when(bibRepository.getCollectionSnapshot()).thenReturn(Flux.defer(() -> {
+			snapshotPasses.incrementAndGet();
+			return Flux.fromIterable(ROWS).delaySubscription(duration);
+		}));
+	}
+
+	@Test
+	void theFourConsortiumFiguresShareOnePass() {
+		snapshotTakes(Duration.ofMillis(200));
+
+		final var service = service();
+
+		// A cold dashboard opens every panel at once.
+		Flux.merge(service.totals(), service.profile(), service.clusterSizeDistribution(),
+			service.formatProfile()).blockLast(Duration.ofSeconds(10));
+
+		assertThat(snapshotPasses.get(), equalTo(1));
 	}
 
 	@Test
 	void repeatedCallsInsideTheTtlAskTheDatabaseOnce() {
-		when(bibRepository.getCollectionTotals()).thenReturn(Mono.just(TOTALS));
+		snapshotTakes(Duration.ZERO);
 
 		final var service = service();
 
-		assertThat(service.totals().block(), equalTo(TOTALS));
-		assertThat(service.totals().block(), equalTo(TOTALS));
-		assertThat(service.totals().block(), equalTo(TOTALS));
+		service.totals().block();
+		service.profile().block();
+		service.totals().block();
 
-		// The point of the cache: a page refresh, or a second administrator, costs nothing.
-		verify(bibRepository, times(1)).getCollectionTotals();
+		assertThat(snapshotPasses.get(), equalTo(1));
 	}
 
 	@Test
-	void onlyOneCatalogueQueryRunsAtATime() {
-		final var inFlight = new AtomicInteger();
-		final var peak = new AtomicInteger();
-
-		when(bibRepository.getCollectionTotals())
-			.thenReturn(tracked(inFlight, peak, Mono.just(TOTALS)));
-
-		when(bibRepository.getCollectionProfile())
-			.thenReturn(tracked(inFlight, peak, Mono.just(PROFILE)));
+	void aCallerThatLeavesDoesNotCancelThePass() {
+		snapshotTakes(Duration.ofMillis(300));
 
 		final var service = service();
 
-		// Two DIFFERENT queries, subscribed together. The permit is one for the group, so the
-		// second must wait - five distinct aggregates cost the same as five copies of one.
-		Flux.merge(service.totals(), service.profile()).blockLast(Duration.ofSeconds(20));
+		// A proxy timing out: the first caller goes away while the pass is still running.
+		service.totals().subscribe().dispose();
 
-		assertThat(peak.get(), equalTo(1));
+		// The retry reads the answer the abandoned pass produced instead of starting another.
+		assertThat(service.totals().block(Duration.ofSeconds(10)).holdings(), equalTo(3L));
+		assertThat(snapshotPasses.get(), equalTo(1));
 	}
 
 	@Test
-	void aCallerThatQueuedTakesTheAnswerTheFirstOneCached() {
-		when(bibRepository.getCollectionTotals())
-			.thenReturn(Mono.delay(Duration.ofMillis(300)).thenReturn(TOTALS));
+	void aFailedPassIsNotKept() {
+		final var attempts = new AtomicInteger();
+
+		when(bibRepository.getCollectionSnapshot()).thenReturn(Flux.defer(() ->
+			attempts.incrementAndGet() == 1
+				? Flux.error(new IllegalStateException("canceling statement due to statement timeout"))
+				: Flux.fromIterable(ROWS)));
 
 		final var service = service();
 
-		// Both miss the cache, so both go for the permit. Whichever loses must re-check on the
-		// way in - otherwise everybody who queued behind a cold computation runs it again.
-		Flux.merge(service.totals(), service.totals()).blockLast(Duration.ofSeconds(20));
+		assertThrows(IllegalStateException.class, () -> service.totals().block());
 
-		verify(bibRepository, times(1)).getCollectionTotals();
+		assertThat(service.totals().block().distinctTitles(), equalTo(2L));
+		assertThat(attempts.get(), equalTo(2));
 	}
 
 	@Test
-	void refusesWithTooManyRequestsOnceTheWaitBudgetIsSpent() {
-		when(bibRepository.getCollectionTotals())
-			.thenReturn(Mono.delay(Duration.ofSeconds(2)).thenReturn(TOTALS));
+	void theStatementTimeoutIsSetBeforeThePass() {
+		snapshotTakes(Duration.ZERO);
 
-		when(bibRepository.getCollectionProfile())
-			.thenReturn(Flux.empty());
+		service().totals().block();
 
-		// A 10ms budget in 10ms steps: the second caller gives up almost immediately.
-		final var service = new CollectionAnalysisService(bibRepository, Duration.ofMinutes(15),
-			1, Duration.ofMillis(10), Duration.ofMillis(10));
-
-		final var held = service.totals().subscribe();
-
-		try {
-			final var refusal = assertThrows(HttpStatusException.class,
-				() -> service.profile().block(Duration.ofSeconds(10)));
-
-			// 429 rather than 503: the caller should retry, and by then the answer is cached.
-			assertThat(refusal.getStatus(), equalTo(HttpStatus.TOO_MANY_REQUESTS));
-		}
-		finally {
-			held.dispose();
-		}
+		verify(bibRepository).setLocalStatementTimeout("600000");
 	}
 
-	/** Counts how many subscriptions are live at once, and remembers the highest. */
-	private static <T> Flux<T> tracked(AtomicInteger inFlight, AtomicInteger peak,
-		Mono<T> work) {
+	@Test
+	void anOverlapSelectionIsSharedWhateverOrderItsCodesArriveIn() {
+		final var overlapPasses = new AtomicInteger();
+		final var row = new CollectionOverlapStat(LIB_A, "LIB_A", UUID.randomUUID(), "LIB_C", 1L);
 
-		return Flux.defer(() -> {
-			peak.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
+		when(bibRepository.getCollectionOverlapForLibrary("LIB_A,LIB_B")).thenReturn(
+			Flux.defer(() -> {
+				overlapPasses.incrementAndGet();
+				return Flux.just(row);
+			}));
 
-			return work.delayElement(Duration.ofMillis(200))
-				.flux()
-				.doFinally(signal -> inFlight.decrementAndGet());
-		});
+		final var service = service();
+
+		assertThat(service.overlapFor("LIB_B,LIB_A").block(), contains(row));
+		assertThat(service.overlapFor(" LIB_A , LIB_B ,LIB_A").block(), contains(row));
+
+		assertThat(overlapPasses.get(), equalTo(1));
+		verify(bibRepository, times(1)).getCollectionOverlapForLibrary("LIB_A,LIB_B");
 	}
 }

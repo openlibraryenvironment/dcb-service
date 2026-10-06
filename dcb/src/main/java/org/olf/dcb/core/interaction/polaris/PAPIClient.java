@@ -49,6 +49,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -88,7 +89,7 @@ public class PAPIClient {
 
 		if (barcode == null || password == null) {
 			throw new IllegalArgumentException(
-				"Cannot validate a patron with barcode: "+barcode+" and password: "+password);
+				"Cannot validate a patron without both a barcode and a password");
 		}
 
 		final var patronCredentials = PatronCredentials.builder()
@@ -180,7 +181,7 @@ public class PAPIClient {
 	}
 
 	public Mono<String> patronRegistrationUpdate(String barcode, String patronType) {
-		log.info("patronRegistrationUpdate {} {}", barcode, patronType);
+		log.info("patronRegistrationUpdate to patron type {}", patronType);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
 
@@ -208,7 +209,7 @@ public class PAPIClient {
 	 * when Polaris reports success (error code 0).
 	 */
 	public Mono<Boolean> patronRegistrationUpdateDates(String barcode, String expirationDate, String addrCheckDate) {
-		log.info("patronRegistrationUpdateDates barcode={} expiry={} addrCheck={}", barcode, expirationDate, addrCheckDate);
+		log.info("patronRegistrationUpdateDates expiry={} addrCheck={}", expirationDate, addrCheckDate);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode);
 
@@ -226,15 +227,15 @@ public class PAPIClient {
 			.map(request -> request.body(body)),
 			Argument.of(PatronUpdateResult.class))
 			.map(result -> getValue(result, PatronUpdateResult::getPapiErrorCode, -1) == 0)
-			.doOnNext(ok -> log.debug("patronRegistrationUpdateDates {} success={}", barcode, ok))
+			.doOnNext(ok -> log.debug("patronRegistrationUpdateDates success={}", ok))
 			.onErrorResume(e -> {
-				log.error("Error updating patron {} dates: {}", barcode, e.getMessage(), e);
+				log.error("Error updating patron dates: {}", e.getMessage(), e);
 				return Mono.just(FALSE);
 			});
 	}
 
 	public Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(String barcode) {
-		log.info("getPatronCirculationBlocks(), barcode: {}", barcode);
+		log.info("getPatronCirculationBlocks()");
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", barcode, "circulationblocks");
 
@@ -245,11 +246,39 @@ public class PAPIClient {
 			.flatMap(result -> checkForPAPIErrorCode(result, CannotGetPatronBlocksProblem::new));
 	}
 
+	/**
+	 * Every branch-level organisation. API: GET organizations/branch
+	 */
+	public Mono<OrganizationsGetResult> listBranches() {
+		final var path = createPath(PUBLIC_PARAMETERS, "organizations", "branch");
+
+		return client.retrieve(client.createRequest(GET, path)
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE)),
+			Argument.of(OrganizationsGetResult.class))
+			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toListFailure));
+	}
+
+	/**
+	 * Every patron code. API: GET patroncodes
+	 */
+	public Mono<PatronCodesGetResult> listPatronCodes() {
+		final var path = createPath(PUBLIC_PARAMETERS, "patroncodes");
+
+		return client.retrieve(client.createRequest(GET, path)
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE)),
+			Argument.of(PatronCodesGetResult.class))
+			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toListFailure));
+	}
+
+	private static Throwable toListFailure(Integer errorCode, String errorMessage) {
+		return new IllegalStateException("PAPI error " + errorCode + ": " + errorMessage);
+	}
+
 	public Mono<ItemOperationResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
 
-		log.info("itemCheckoutPost PatronBarcode {} itemBarcode {} path {}", patronBarcode, itemBarcode, path);
+		log.info("itemCheckoutPost {}", PolarisLmsClient.redactedPath(path));
 
 		final var body = ItemCheckoutData.builder()
 			.logonBranchID(polarisConfig.getIllLocationId())
@@ -272,7 +301,7 @@ public class PAPIClient {
 
 		final var path = createPath(PROTECTED_PARAMETERS, "item", itemBarcode, "checkin");
 
-		log.info("itemCheckInPost: itemBarcode {}, path {}", itemBarcode, path);
+		log.info("itemCheckInPost {}", PolarisLmsClient.redactedPath(path));
 
 		final var body = ItemCheckInData.builder()
 			.logonBranchID(polarisConfig.getIllLocationId())
@@ -620,6 +649,56 @@ public class PAPIClient {
 		private Integer logonWorkstationID;
 	}
 
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class OrganizationsGetResult implements PapiResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+		@JsonProperty("OrganizationsGetRows")
+		private List<OrganizationsGetRow> organizationsGetRows;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class OrganizationsGetRow {
+		@JsonProperty("OrganizationID")
+		private Integer organizationID;
+		@JsonProperty("Name")
+		private String name;
+		@JsonProperty("DisplayName")
+		private String displayName;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class PatronCodesGetResult implements PapiResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+		@JsonProperty("PatronCodesRows")
+		private List<PatronCodesRow> patronCodesRows;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class PatronCodesRow {
+		@JsonProperty("PatronCodeID")
+		private Integer patronCodeID;
+		@JsonProperty("Description")
+		private String description;
+	}
+
 	interface PapiResult {
 		Integer getPapiErrorCode();
 		String getErrorMessage();
@@ -760,8 +839,10 @@ public class PAPIClient {
 		private Integer languageID;
 		@JsonProperty("UserName")
 		private String userName;
+		@ToString.Exclude
 		@JsonProperty("Password")
 		private String password;
+		@ToString.Exclude
 		@JsonProperty("Password2")
 		private String password2;
 		@JsonProperty("DeliveryOptionID")
@@ -834,8 +915,10 @@ public class PAPIClient {
 	@AllArgsConstructor
 	@Serdeable
 	static class PatronCredentials {
+		@ToString.Exclude
 		@JsonProperty("Barcode")
 		private String barcode;
+		@ToString.Exclude
 		@JsonProperty("Password")
 		private String password;
 	}

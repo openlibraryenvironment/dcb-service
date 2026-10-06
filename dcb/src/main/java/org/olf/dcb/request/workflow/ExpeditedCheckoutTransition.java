@@ -1,27 +1,28 @@
 package org.olf.dcb.request.workflow;
 
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
-import lombok.extern.slf4j.Slf4j;
+import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
+import java.util.List;
+import java.util.Optional;
+
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
-import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.storage.PatronRequestRepository;
+
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.*;
-
-import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
 
 @Slf4j
 @Singleton
 @Named("ExpeditedCheckoutTransition")
-// Can only occur when the supplying agency and the pickup agency are the same
-
 public class ExpeditedCheckoutTransition implements PatronRequestStateTransition {
 
 	private final PatronRequestRepository patronRequestRepository;
@@ -39,7 +40,13 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 		this.hostLmsService = hostLmsService;
 	}
 
-	private String[] extractPatronBarcodes(String inputstr) {
+	private static String firstBarcode(String localBarcode) {
+		final var barcodes = extractPatronBarcodes(localBarcode);
+
+		return barcodes != null && barcodes.length > 0 ? barcodes[0] : null;
+	}
+
+	private static String[] extractPatronBarcodes(String inputstr) {
 		String[] result = null;
 		if (inputstr != null) {
 			if (inputstr.startsWith("[")) {
@@ -51,42 +58,36 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 		return result;
 	}
 
+	// The flag alone is not enough: a request carrying it that resolved to another workflow has
+	// its item still on the supplier's shelf, and checking it out there would record a loan
+	// that never happened
 	@Override
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
-		// Expedited checkout requests will always have the same supplier and pickup system, so will always be in the RET-EXP workflow
-		final boolean isStatusApplicable = possibleSourceStatus.contains(ctx.getPatronRequest().getStatus());
-		final boolean isExpeditedCheckout = ctx.getPatronRequest().getIsExpeditedCheckout() != null && ctx.getPatronRequest().getIsExpeditedCheckout();
-		return isStatusApplicable && isExpeditedCheckout;
+		final var patronRequest = ctx.getPatronRequest();
+
+		return possibleSourceStatus.contains(patronRequest.getStatus())
+			&& Boolean.TRUE.equals(patronRequest.getIsExpeditedCheckout())
+			&& EXPEDITED_WORKFLOW.equals(patronRequest.getActiveWorkflow());
 	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
-		log.info("Execute action: ExpeditedCheckoutTransition... for patron request in status {}", ctx.getPatronRequest().getStatus());
+		log.info("Execute action: ExpeditedCheckoutTransition for patron request {} in status {}",
+			ctx.getPatronRequest().getId(), ctx.getPatronRequest().getStatus());
 
-		String[] patronBarcodes;
-		String auditBarcodeMessage;
-		HashMap<String, Object> auditData = new HashMap<>();
-		// Safely get the local barcode string using Optional
-		String localBarcodeStr = Optional.ofNullable(ctx.getPatronVirtualIdentity())
-			.map(PatronIdentity::getLocalBarcode)
-			.orElse(null);
-
-		if (localBarcodeStr != null) {
-			patronBarcodes = extractPatronBarcodes(localBarcodeStr);
-			auditBarcodeMessage = "Patron Barcodes: " + String.join(", ", patronBarcodes);
-			log.debug("Extracted patron barcodes: {}", auditBarcodeMessage);
-		} else {
-			auditBarcodeMessage = "Expedited checkout: No patron identity or local barcodes available";
-			log.debug("{} for request {}", auditBarcodeMessage, ctx.getPatronRequest().getId());
-		}
-		auditData.put("patronBarcodes", auditBarcodeMessage);
-
-		return checkoutAtBorrower(ctx)
-			.then(checkoutAtSupplier(ctx))
+		// The supplier checkout is the loan: the patron is at that desk with the item in their hand,
+		// so it runs first and a refusal stops the request before anything is recorded at the
+		// borrower. The borrower checkout mirrors the loan in the patron's own library and is
+		// allowed to fail without denying the loan that did happen.
+		return checkoutAtSupplier(ctx)
+			.flatMap(this::checkoutAtBorrower)
+			.map(rwc -> {
+				rwc.getPatronRequest().setStatus(PatronRequest.Status.LOANED);
+				return rwc;
+			})
 			.flatMap(this::updatePatronRequest)
-			// Explicitly set loaned on success to try and break out of the expedited checkout loop
-			.doOnSuccess(patronRequest -> ctx.getPatronRequest().setStatus(PatronRequest.Status.LOANED))
-			.doOnError(error -> log.error("Expedited checkout failed.", error));
+			.doOnError(error -> log.error("Expedited checkout failed for patron request {}",
+				ctx.getPatronRequest().getId(), error));
 	}
 
 	@Override
@@ -129,9 +130,20 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 
 		log.info("Attempting expedited checkout at BORROWER system: {}", borrowerSystemCode);
 
+		// The borrower's own patron and virtual item, with the barcode that item carries: the
+		// virtual identity belongs to the supplier, and an ILS that finds items by barcode - Alma
+		// does - cannot act on a command carrying neither
 		final var command = CheckoutItemCommand.builder()
 			.localRequestId(localRequestId) // Crucially, this is the borrower's transaction ID
-			.patronId(rwc.getPatronVirtualIdentity().getLocalId())
+			.itemId(patronRequest.getLocalItemId())
+			.itemBarcode(getValueOrNull(rwc, RequestWorkflowContext::getSupplierRequest,
+				SupplierRequest::getLocalItemBarcode))
+			.patronId(getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity,
+				PatronIdentity::getLocalId))
+			.patronBarcode(firstBarcode(getValueOrNull(rwc,
+				RequestWorkflowContext::getPatronHomeIdentity, PatronIdentity::getLocalBarcode)))
+			.libraryCode(getValueOrNull(rwc, RequestWorkflowContext::getPatronHomeIdentity,
+				PatronIdentity::getLocalHomeLibraryCode))
 			.build();
 
 		return hostLmsService.getClientFor(borrowerSystemCode)
@@ -140,6 +152,9 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 			.thenReturn(rwc)
 			.onErrorResume(error -> {
 			log.error("An error has occurred with the borrower-side expedited checkout", error);
+			// The loan still happens at the supplier; the patron's own library just has no record of it
+			rwc.getPatronRequest().setNeedsAttention(Boolean.TRUE);
+
 			return patronRequestAuditService
 				.addAuditEntry(rwc.getPatronRequest(), "Expedited checkout at borrower failed: " + error.getMessage())
 				.thenReturn(rwc);
@@ -188,7 +203,7 @@ public class ExpeditedCheckoutTransition implements PatronRequestStateTransition
 				log.error("An error has occurred with the supplier-side expedited checkout", error);
 				return patronRequestAuditService
 					.addAuditEntry(rwc.getPatronRequest(), "Expedited checkout at supplier failed: " + error.getMessage())
-					.thenReturn(rwc);
+					.then(Mono.error(error));
 			});
 	}
 }

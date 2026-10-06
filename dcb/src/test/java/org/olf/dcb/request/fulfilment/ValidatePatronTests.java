@@ -120,7 +120,7 @@ public class ValidatePatronTests {
 
 		var patronRequest = savePatronRequest(patron);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("467295",
+		sierraPatronsAPIFixture.mockGetPatronById("467295",
 			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(15)
@@ -159,7 +159,7 @@ public class ValidatePatronTests {
 
 		var patronRequest = savePatronRequest(patron);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("248303",
+		sierraPatronsAPIFixture.mockGetPatronById("248303",
 			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localId))
 				.patronType(15)
@@ -209,7 +209,7 @@ public class ValidatePatronTests {
 
 		var patronRequest = savePatronRequest(patron);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
+		sierraPatronsAPIFixture.mockGetPatronById(localId,
 			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localId))
 				.patronType(15)
@@ -250,7 +250,7 @@ public class ValidatePatronTests {
 
 		var patronRequest = savePatronRequest(patron);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
+		sierraPatronsAPIFixture.mockGetPatronById(localId,
 			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localId))
 				.patronType(15)
@@ -351,7 +351,7 @@ public class ValidatePatronTests {
 
 		var patronRequest = savePatronRequest(patron);
 
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(localId,
+		sierraPatronsAPIFixture.mockGetPatronById(localId,
 			SierraPatronRecord.builder()
 				.id(Integer.parseInt(localId))
 				.patronType(15)

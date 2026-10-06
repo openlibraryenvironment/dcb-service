@@ -17,6 +17,7 @@ import java.util.Optional;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.interaction.AbstractHostLmsClient;
+import org.olf.dcb.core.interaction.ConfigurationReport;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
@@ -686,5 +687,13 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			.map(org.w3c.dom.Element::getTextContent)
 			.map(String::trim)
 			.filter(value -> !value.isBlank());
+	}
+
+	// Declared rather than inherited: the appliance is reached over NCIP alone, which has no
+	// message listing item types, patron types or locations
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.just(ConfigurationReport.notSupported(getHostLmsCode(),
+			"The ORS appliance is reached over NCIP, which cannot list its item types, patron types or locations"));
 	}
 }

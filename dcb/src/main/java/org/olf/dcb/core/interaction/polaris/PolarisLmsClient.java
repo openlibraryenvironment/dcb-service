@@ -30,6 +30,8 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
+import java.util.Set;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -52,7 +54,9 @@ import org.olf.dcb.core.interaction.Bib;
 import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckInItemCommand;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
+import org.olf.dcb.core.interaction.ConfigurationReport;
 import org.olf.dcb.core.interaction.CreateItemCommand;
+import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.interaction.DeleteCommand;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.HostLmsClient;
@@ -75,6 +79,7 @@ import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.LibraryHol
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronRegistrationCreateResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.HoldRequestException;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
@@ -1290,7 +1295,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<Patron> getPatronByUsername(String username) {
 
 		// note: the auth controller is passing a patron barcode here
-		log.info("getPatronByUsername using barcode: {}", username);
+		log.info("getPatronByUsername using a barcode");
 		final var barcode = username;
 
 		return ApplicationServices.getPatronIdByIdentifier(barcode, "barcode")
@@ -1345,7 +1350,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final var hostLmsItem = HostLmsItem.builder().localId(itemId).build();
 
 		return updateItemStatus(hostLmsItem, CanonicalItemState.AVAILABLE)
-			.doOnNext(__ -> log.info("checkOutItemToPatron({}, {}, {})", itemId, patronBarcode, localRequestId))
+			.doOnNext(__ -> log.info("checkOutItemToPatron({}, {})", itemId, localRequestId))
 			.then(Mono.zip(
 				ApplicationServices.getItemBarcode(itemId),
 				ApplicationServices.getPatronBarcode(patronId)
@@ -1555,7 +1560,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.flatMap(request -> Mono.from(client.exchange(request, returnClass)))
 				.transform(send -> TRUE.equals(reauthenticateOn401)
 					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
-				.doOnError(error -> logRequestAndResponseDetails(sent.get()).accept(error))
+				.doOnError(error -> logRequestFailure(sent.get(), error))
 				.onErrorResume(error -> {
 
 					// we want to automatically handle HttpClientResponseExceptions
@@ -1613,7 +1618,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.flatMap(request -> Mono.<T>from(client.retrieve(request, responseBodyType)))
 				.transform(send -> TRUE.equals(reauthenticateOn401)
 					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
-				.doOnError(error -> logRequestAndResponseDetails(sent.get()).accept(error))
+				.doOnError(error -> logRequestFailure(sent.get(), error))
 				// Additional request specific error handling
 				.transform(errorHandlingTransformer)
 				// This has to go after more specific error handling
@@ -1649,25 +1654,36 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return doRetrieve(Mono.just(request), responseBodyType, noExtraErrorHandling(), FALSE);
 	}
 
-	private static Consumer<Throwable> logRequestAndResponseDetails(MutableHttpRequest<?> request) {
-		return error -> {
-			try {
-				log.error("""
-						HTTP Request and Response Details:
-						URL: {}
-						Method: {}
-						Headers: {}
-						Body: {}
-						Response: {}""",
-					request.getUri(),
-					request.getMethod(),
-					request.getHeaders().asMap(),
-					request.getBody().orElse(null),
-					error.toString());
-			} catch (Exception e) {
-				log.error("Couldn't log error request and response details", e);
+	// Method, redacted path and status only: the headers carry the staff credential or a
+	// signature, an authentication body carries a patron's PIN, and a PAPI path a barcode
+	private static void logRequestFailure(MutableHttpRequest<?> request, Throwable error) {
+		log.error("Polaris request failed: {} {} - {}",
+			request != null ? request.getMethod() : "(not sent)",
+			request != null ? redactedPath(request.getUri().getRawPath()) : "",
+			error instanceof HttpClientResponseException responseError
+				? responseError.getStatus().getCode()
+				: error.getClass().getSimpleName());
+	}
+
+	// The segment after each of these is a patron's or an item's barcode
+	private static final Set<String> SEGMENTS_BEFORE_A_BARCODE = Set.of("patron", "item", "itemrecords");
+
+	/** The path with its query and every barcode segment removed, for logging. */
+	static String redactedPath(String path) {
+		if (path == null) {
+			return null;
+		}
+
+		final var queryStart = path.indexOf('?');
+		final var segments = (queryStart >= 0 ? path.substring(0, queryStart) : path).split("/", -1);
+
+		for (int index = 1; index < segments.length; index++) {
+			if (SEGMENTS_BEFORE_A_BARCODE.contains(segments[index - 1].toLowerCase())) {
+				segments[index] = "{redacted}";
 			}
-		};
+		}
+
+		return String.join("/", segments);
 	}
 
 
@@ -1682,7 +1698,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	<T> Mono<MutableHttpRequest<?>> createRequest(HttpMethod method, String path) {
-		log.info("{} {}", method, path);
+		log.debug("{} {}", method, redactedPath(path));
 
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::defaultResolve)
@@ -1690,7 +1706,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	<T> Mono<MutableHttpRequest<?>> createRequestWithOverrideURL(HttpMethod method, String path) {
-		log.info("{} {}", method, path);
+		log.debug("{} {}", method, redactedPath(path));
 
 		return Mono.just(UriBuilder.of(path).build())
 			.map(this::overrideResolve)
@@ -2584,12 +2600,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.map(CirculationData::getRenewalCount)
 					.orElse(0);
 
-				final var isAtRenewalLimit = Objects.equals(itemRecord.getBibInfo().getRenewals(), itemRecord.getBibInfo().getRenewalLimit());
+				final var bibInfo = itemRecord.getBibInfo();
+				final var isAtRenewalLimit = bibInfo != null
+					&& Objects.equals(bibInfo.getRenewals(), bibInfo.getRenewalLimit());
 				// Set based on material type in Polaris. We need to first understand if we are at the renewal limit, and then understand if we are not renewable for another reason
 				// e.g. are we at the renewal limit, and can we even renew this item at all? (regardless of limit)
-				final var isItemRenewable = itemRecord.getBibInfo().getCanItemBeRenewed();
-				final String bibId = itemRecord.getBibInfo() != null && itemRecord.getBibInfo().getBibliographicRecordID() != null
-					? String.valueOf(itemRecord.getBibInfo().getBibliographicRecordID())
+				final var isItemRenewable = bibInfo != null && Boolean.TRUE.equals(bibInfo.getCanItemBeRenewed());
+				final String bibId = bibInfo != null && bibInfo.getBibliographicRecordID() != null
+					? String.valueOf(bibInfo.getBibliographicRecordID())
 					: null;
 				return HostLmsItem.builder()
 					.localId(String.valueOf(itemRecord.getItemRecordID()))
@@ -2604,11 +2622,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.renewable(isItemRenewable && !isAtRenewalLimit) // Seems to be false until the item is checked out.
 					.build();
 			})
-			.flatMap( this::enrichWithCombinedNumberOfHoldsOnItem )
-			.defaultIfEmpty(HostLmsItem.builder()
-				.barcode(barcode)
-				.status("MISSING")
-				.build());
+			// No item for the barcode is empty, as every other adapter answers: a substituted MISSING
+			// item read as "not available" to a walk-up and hid the 404 from the item lookup route
+			.flatMap( this::enrichWithCombinedNumberOfHoldsOnItem );
 }
 
 
@@ -2679,6 +2695,73 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
   public String getHostSystemVersion() {
     return "v1";
   }
+
+	/**
+	 * Branches, patron codes and material types: three list calls. Triggered by an implementer
+	 * from the tools API, never on a request path.
+	 */
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.zip(
+				emptyWhenUnreadable(MappingVocabulary.LOCATION),
+				emptyWhenUnreadable(MappingVocabulary.ITEM_TYPE),
+				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE))
+			.map(answers -> new ConfigurationReport(getHostLmsCode(),
+				ConfigurationReport.Status.CHECKED, null,
+				List.of(
+					ConfigurationReport.check("logon-branch-id",
+						configuredOrNull(polarisConfig::getLogonBranchId), answers.getT1(), "Polaris"),
+					ConfigurationReport.check("item.ill-location-id",
+						configuredOrNull(polarisConfig::getIllLocationId), answers.getT1(), "Polaris")),
+				List.of(
+					ConfigurationReport.vocabulary("Branches", answers.getT1(), "Polaris"),
+					ConfigurationReport.vocabulary("Material types", answers.getT2(), "Polaris"),
+					ConfigurationReport.vocabulary("Patron codes", answers.getT3(), "Polaris"))));
+	}
+
+	@Override
+	public Mono<List<ConfigurationReport.Entry>> fetchVocabulary(MappingVocabulary vocabulary) {
+		return switch (vocabulary) {
+			// An item's DCB location is its branch LocationID (PolarisItemMapper.getLocation)
+			case LOCATION -> PAPIService.listBranches()
+				.map(result -> Optional.ofNullable(result.getOrganizationsGetRows()).orElse(List.of()).stream()
+					.filter(row -> row.getOrganizationID() != null)
+					.map(row -> new ConfigurationReport.Entry(row.getOrganizationID().toString(),
+						row.getDisplayName() != null ? row.getDisplayName() : row.getName()))
+					.toList());
+			case ITEM_TYPE -> ApplicationServices.listMaterialTypes()
+				.map(types -> types.stream()
+					.filter(type -> type.getMaterialTypeID() != null)
+					.map(type -> new ConfigurationReport.Entry(type.getMaterialTypeID().toString(),
+						type.getDescription()))
+					.toList());
+			case PATRON_TYPE -> PAPIService.listPatronCodes()
+				.map(result -> Optional.ofNullable(result.getPatronCodesRows()).orElse(List.of()).stream()
+					.filter(row -> row.getPatronCodeID() != null)
+					.map(row -> new ConfigurationReport.Entry(row.getPatronCodeID().toString(),
+						row.getDescription()))
+					.toList());
+		};
+	}
+
+	private Mono<List<ConfigurationReport.Entry>> emptyWhenUnreadable(MappingVocabulary vocabulary) {
+		return fetchVocabulary(vocabulary)
+			.onErrorResume(error -> {
+				log.warn("Could not read {} from Polaris at {}", vocabulary, getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
+	// The typed accessors throw on a missing required setting; a report names it instead
+	private static String configuredOrNull(Supplier<Integer> setting) {
+		try {
+			return String.valueOf(setting.get());
+		}
+		catch (PolarisConfigurationException missing) {
+			return null;
+		}
+	}
 
   public String getHostLmsCode() {
     String result = lms.getCode();

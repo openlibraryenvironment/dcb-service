@@ -6,19 +6,23 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.JsonBody.json;
+import static org.olf.dcb.security.RoleNames.INTERNAL_API;
+import static org.olf.dcb.test.IdentifierGenerator.generateBarcode;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalId;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
 
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpResponse;
-import org.olf.dcb.core.api.serde.AgencyDTO;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.test.AgencyFixture;
@@ -42,8 +46,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 public class PatronAuthApiV2Tests {
-
 	private static final String HOST_LMS_CODE = "patron-auth-api-tests";
+	private static final Integer LOCAL_PATRON_TYPE = 22;
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -84,55 +88,88 @@ public class PatronAuthApiV2Tests {
 	}
 
 	@Test
-	@DisplayName("basic barcode and pin patron auth test")
-	void shouldReturnValidStatusWhenUsingBasicBarcodeAndPinValidation() {
+	void shouldValidateWhenBarcodeBarcodeAndPinMatches() {
 		// Arrange
-		final var blockingClient = client.toBlocking();
+		final var agencyCode = defineAgency("BASIC/BARCODE+PIN");
 
-		final var accessToken = "patron-auth2-test-internal-token";
-		final var adminToken = "patron-auth2-test-admin-token";
-		TestStaticTokenValidator.add(accessToken, "patron-auth2-test-internal", List.of(RoleNames.INTERNAL_API));
-		TestStaticTokenValidator.add(adminToken, "patron-auth2-test-admin", List.of(RoleNames.ADMINISTRATOR));
-		
-		final var agencyDTO = AgencyDTO.builder().id(randomUUID()).code("ab7").name("agencyName")
-			.authProfile("BASIC/BARCODE+PIN").idpUrl("idpUrl").hostLMSCode(HOST_LMS_CODE).build();
-		final var agencyRequest = HttpRequest.POST("/agencies", agencyDTO).bearerAuth(adminToken);
-		
-		blockingClient.exchange(agencyRequest, AgencyDTO.class);
-		final var patronCredentials = V2PatronCredentials.builder().principal("ab7/3100222227777").credentials("76trombones").build();
-		final var postPatronAuthRequest = HttpRequest.POST("/v2/patron/auth", patronCredentials).bearerAuth(accessToken);
+		final var barcode = generateBarcode();
+		final var pin = "76trombones";
 
-    mockSierra.whenRequest(req -> req
+		mockSierra.whenRequest(req -> req
       .withMethod("POST")
       .withPath("/iii/sierra-api/v6/patrons/validate")
       .withBody(json(PatronValidation.builder()
-      .barcode("3100222227777").pin("76trombones").build())))
+      	.barcode(barcode)
+				.pin(pin)
+				.build())))
       .respond(HttpResponse.response().withStatusCode(200));
 
-		sierraPatronsAPIFixture.patronFoundResponse("b", "3100222227777",
+		final var id = generateNumericLocalId();
+		final var homeLibraryCode = "home-library-code";
+
+		sierraPatronsAPIFixture.patronFoundResponse("b", barcode,
 			SierraPatronRecord.builder()
-				.id(1000002)
-				.patronType(22)
+				.id(id)
+				.patronType(LOCAL_PATRON_TYPE)
 				.names(List.of("Joe Bloggs"))
-				.homeLibraryCode("testbbb")
+				.homeLibraryCode(homeLibraryCode)
 				.build());
 
-    savePatronTypeMappings();
+		savePatronTypeMappings();
 
 		// Act
-		final var response = blockingClient.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class));
+		final var username = agencyCode + "/" + barcode;
+
+		final var response = authenticatePatron(username, pin);
 
 		// Assert
 		assertThat(response.getStatus(), is(OK));
 		assertThat(response.getBody().isPresent(), is(true));
 
-		VerificationResponse verificationResponse = response.getBody().get();
+		final var verificationResponse = response.getBody().get();
+
 		assertThat(verificationResponse.status, is("VALID"));
-		assertThat(verificationResponse.username, is("ab7/3100222227777"));
-		assertThat(verificationResponse.uniqueIds.get(0), is("1000002"));
-		assertThat(verificationResponse.agencyCode, is("ab7"));
-		assertThat(verificationResponse.systemCode, is("patron-auth-api-tests"));
-		assertThat(verificationResponse.homeLocationCode, is("testbbb"));
+		assertThat(verificationResponse.username, is(username));
+		assertThat(verificationResponse.uniqueIds.get(0), is(id.toString()));
+		assertThat(verificationResponse.agencyCode, is(agencyCode));
+		assertThat(verificationResponse.systemCode, is(HOST_LMS_CODE));
+		assertThat(verificationResponse.homeLocationCode, is(homeLibraryCode));
+	}
+
+	private io.micronaut.http.@NonNull HttpResponse<VerificationResponse> authenticatePatron(String username, String pin) {
+		final var accessToken = "patron-auth2-test-internal-token";
+
+		TestStaticTokenValidator.add(accessToken, "patron-auth2-test-internal", List.of(INTERNAL_API));
+
+		final var patronCredentials = V2PatronCredentials.builder()
+			.principal(username)
+			.credentials(pin)
+			.build();
+
+		final var postPatronAuthRequest = HttpRequest.POST("/v2/patron/auth", patronCredentials)
+			.bearerAuth(accessToken);
+
+		return singleValueFrom(client.exchange(postPatronAuthRequest, Argument.of(VerificationResponse.class)));
+	}
+
+	private String defineAgency(String authProfile) {
+		final var agencyCode = "agency-code";
+
+		agencyFixture.defineAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code(agencyCode)
+			.name("Agency")
+			.authProfile(authProfile)
+			.hostLms(hostLmsFixture.findByCode(HOST_LMS_CODE))
+			.build());
+
+		return agencyCode;
+	}
+
+	private void savePatronTypeMappings() {
+		// Without mappings finding the patron fails
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("patron-auth-api-tests",
+			LOCAL_PATRON_TYPE, LOCAL_PATRON_TYPE, "DCB", "dcb-type");
 	}
 
 	@Builder
@@ -153,10 +190,5 @@ public class PatronAuthApiV2Tests {
 		@Nullable String agencyCode;
 		@Nullable String systemCode;
 		@Nullable String homeLocationCode;
-	}
-
-	private void savePatronTypeMappings() {
-		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping("patron-auth-api-tests", 10, 25, "DCB", "15");
-		referenceValueMappingFixture.definePatronTypeMapping("DCB", "15", "patron-auth-api-tests", "15");
 	}
 }

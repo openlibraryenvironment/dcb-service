@@ -2,12 +2,11 @@ package org.olf.dcb.storage.postgres;
 
 import java.util.UUID;
 
-import org.olf.dcb.core.model.RecordCount;
+import org.olf.dcb.core.model.HostLmsProcessingStateCount;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.storage.SourceRecordRepository;
 import org.reactivestreams.Publisher;
 
-import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
@@ -21,13 +20,11 @@ import jakarta.transaction.Transactional;
 @Transactional
 public interface PostgresSourceRecordRepository extends ReactiveStreamsPageableRepository<SourceRecord, UUID>, SourceRecordRepository {
 	
-	@SingleResult
-	@Query(value = "select processing_state as value, count(*) as count from source_record where host_lms_id = :hostLmsId group by processing_state order by processing_state", nativeQuery = true)
-	public Publisher<RecordCount> getProcessStatusForHostLms(UUID hostLmsId);
+	@Query(value = "select host_lms_id, processing_state as value, count(*) as count from source_record group by host_lms_id, processing_state", nativeQuery = true)
+	public Publisher<HostLmsProcessingStateCount> getProcessingStateCountsByHostLms();
 
-	@SingleResult
-	@Query(value = "select count(*) count from source_record where host_lms_id = :hostLmsId", nativeQuery = true)
-	public Publisher<Long> getCountForHostLms(UUID hostLmsId);
+	@Query(value = "select host_lms_id, processing_state as value, count(*) as count from source_record where host_lms_id = :hostLmsId group by host_lms_id, processing_state", nativeQuery = true)
+	public Publisher<HostLmsProcessingStateCount> getProcessingStateCountsForHostLms(UUID hostLmsId);
 
 	@Query(value = "select remote_id from source_record where host_lms_id = :hostLmsId", nativeQuery = true)
 	public Publisher<String> findRemoteIdsByHostLmsId(UUID hostLmsId);

@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.sierra;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.verify.VerificationTimes.never;
 import static org.mockserver.verify.VerificationTimes.once;
+import static org.olf.dcb.core.interaction.sierra.Paths.patronsPath;
 import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.badRequestError;
 import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.jsonLink;
 import static org.olf.dcb.core.interaction.sierra.SierraMockServerResponses.noRecordsFound;
@@ -25,6 +26,7 @@ import org.olf.dcb.test.MockServer;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import services.k_int.interaction.sierra.CheckoutEntry;
 import services.k_int.interaction.sierra.LinkResult;
 import services.k_int.interaction.sierra.QueryEntry;
 import services.k_int.interaction.sierra.QueryResultSet;
@@ -43,7 +45,7 @@ public class SierraPatronsAPIFixture {
 	private final MockServer mockServer;
 
 	public SierraPatronsAPIFixture(MockServer mockServer) {
-		this(new SierraMockServerRequests(getPatronsPath()), mockServer);
+		this(new SierraMockServerRequests(patronsPath()), mockServer);
 	}
 
 	public void mockGetHoldByIdNotFound(String holdId) {
@@ -94,20 +96,20 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.delete("/holds/*");
 	}
 
-	public void postPatronResponse(String uniqueId, int returnId) {
-		mockServer.mock(postPatronRequest(uniqueId), patronPlacedResponse(returnId));
+	public void postPatronResponse(String uniqueId, int returnId, String linkBaseUrl) {
+		mockServer.mock(postPatronRequest(uniqueId), patronPlacedResponse(returnId, linkBaseUrl));
 	}
 
 	public void postPatronErrorResponse(String uniqueId) {
 		mockServer.mock(postPatronRequest(uniqueId), badRequestError());
 	}
 
-	public void mockRenewalSuccess(String checkoutID) {
-		mockServer.replaceMock(postRenewal(checkoutID), "items/sierra-api-renewal-success.json");
+	public void mockRenewalSuccess(String checkoutId, CheckoutEntry checkout) {
+		mockServer.replaceMock(postRenewal(checkoutId), checkout);
 	}
 
-	public void mockRenewalNoRecordsFound(String checkoutID) {
-		mockServer.replaceMock(postRenewal(checkoutID), noRecordsFound());
+	public void mockRenewalNoRecordsFound(String checkoutId) {
+		mockServer.replaceMock(postRenewal(checkoutId), noRecordsFound());
 	}
 
 	public void verifyRenewalRequestMade(String checkoutId) {
@@ -171,8 +173,8 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.post("/checkout", checkoutPatch);
 	}
 
-	public void getPatronByLocalIdSuccessResponse(String id, SierraPatronRecord patron) {
-		mockServer.mock(getPatron(id), okJson(patron));
+	public void mockGetPatronById(Object patronId, SierraPatronRecord patron) {
+		mockServer.mock(getPatron(patronId), okJson(patron));
 	}
 
 	public void verifyGetPatronByLocalIdRequestMade(String id) {
@@ -192,7 +194,7 @@ public class SierraPatronsAPIFixture {
 		mockServer.mock(getPatron(patronId), badRequestError());
 	}
 
-	public void updatePatron(String patronId) {
+	public void updatePatron(Object patronId) {
 		mockServer.mock(putPatron(patronId), noContent());
 	}
 
@@ -218,12 +220,11 @@ public class SierraPatronsAPIFixture {
 			expectedBody, MatchType.STRICT), once());
 	}
 
-	private HttpRequest putPatron(String patronId) {
+	private HttpRequest putPatron(Object patronId) {
 		return sierraMockServerRequests.put("/" + patronId);
 	}
 
 	public void patronsQueryFoundResponse(String uniqueId, String localPatronId) {
-
 		final var queryEntry = buildPatronQuery(uniqueId);
 
 		mockServer.mock(patronsQuery(queryEntry), successfulPatronsQuery(localPatronId));
@@ -295,8 +296,8 @@ public class SierraPatronsAPIFixture {
 			.withBody(json(holdRequest));
 	}
 
-	public void mockGetHoldsForPatron(String patronId) {
-		mockServer.mock(getPatronHolds(patronId), "patrons/sierra-api-patron-hold.json", Times.once());
+	public void mockGetHoldsForPatron(String patronId, SierraPatronHoldResultSet response) {
+		mockServer.mock(getPatronHolds(patronId), response, Times.once());
 	}
 
 	public void mockGetHoldsForPatronReturningSingleItemHold(String patronId,
@@ -371,16 +372,15 @@ public class SierraPatronsAPIFixture {
 		mockServer.verifyNever(getPatronHolds(patronId));
 	}
 
-	public void addPatronGetExpectation(String patronId) {
-		mockServer.mock(getPatron(patronId), "patrons/patron/" + patronId + ".json");
-	}
-
-	private QueryResultSet successfulPatronsQuery(String localPatronId) {
+	private QueryResultSet successfulPatronsQuery(Object localPatronId) {
 		return QueryResultSet.builder()
 			.total(1)
 			.start(0)
 			.entries(Collections.singletonList(
-				LinkResult.builder().link("https://sandbox.iii.com/iii/sierra-api/v6/patrons/"+localPatronId).build()
+				LinkResult.builder()
+					//TODO: This URL should be consistent with the URL of mock system in each test
+					.link("https://sandbox.iii.com/iii/sierra-api/v6/patrons/%s".formatted(localPatronId))
+					.build()
 			))
 			.build();
 	}
@@ -395,8 +395,8 @@ public class SierraPatronsAPIFixture {
 		return okJson(queryResultSet);
 	}
 
-	private HttpResponse patronPlacedResponse(int patronId) {
-		return jsonLink("https://sandbox.iii.com/iii/sierra-api/v6/patrons/" + patronId);
+	private HttpResponse patronPlacedResponse(Object patronId, String linkBaseUrl) {
+		return jsonLink(linkBaseUrl + "/iii/sierra-api/v6/patrons/" + patronId);
 	}
 
 	private HttpResponse checkedOutItemToPatron() {
@@ -407,12 +407,8 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.get("/" + patronId + "/holds");
 	}
 
-	private HttpRequest getPatron(String patronId) {
+	private HttpRequest getPatron(Object patronId) {
 		return sierraMockServerRequests.get("/" + patronId);
-	}
-
-	private static String getPatronsPath() {
-		return "/iii/sierra-api/v6/patrons";
 	}
 
 	private static SierraPatronHoldResultSet createHoldResultSet(List<SierraPatronHold> holds) {

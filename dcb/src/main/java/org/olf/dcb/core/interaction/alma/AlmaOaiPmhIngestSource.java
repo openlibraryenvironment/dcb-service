@@ -44,7 +44,8 @@ public class AlmaOaiPmhIngestSource extends OaiPmhIngestSource {
 		
 		String institutionCode = MapUtils.getAsOptionalString(
 			hostLms.getClientConfig(), CONFIG_INSTITUTION_CODE
-		).get();
+		).orElseThrow(() -> new IllegalStateException("Alma host LMS " + hostLms.getCode()
+			+ " has no " + CONFIG_INSTITUTION_CODE + ", which OAI-PMH harvesting needs"));
 
 		oaiPath = "/view/oai/" + institutionCode + "/request";
 		setIdentifierSeparator(":");

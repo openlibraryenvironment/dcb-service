@@ -722,7 +722,7 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
 	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
-		return null;
+		return Mono.empty();
 	}
 
 	@Override

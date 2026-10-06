@@ -23,11 +23,16 @@ import org.mockito.ArgumentCaptor;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
+import org.olf.dcb.core.interaction.koha.dto.KohaItemsList;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatronsList;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
@@ -75,9 +80,18 @@ class KohaMappingTests {
 		when(materialTypeToItemType.enrichItemWithMappedItemType(any()))
 			.thenAnswer(invocation -> Mono.just(invocation.<Item>getArgument(0)));
 
+		// No ruleset, so nothing here is suppressed by rules - suppression itself is
+		// pinned in RulesetTests against the shipped koha-item-default. A mocked
+		// invalidator would return a null publisher and NPE cacheInvalidateWhen, so the
+		// real one is used; it has no dependencies.
+		final var objectRulesService = mock(ObjectRulesService.class);
+		when(objectRulesService.findByName(any())).thenReturn(Mono.empty());
+
 		client = new KohaHostLmsClient(hostLms,
 			referenceValueMappingService, clientFactory,
-			materialTypeToItemType, locationToAgency);
+			materialTypeToItemType, locationToAgency,
+			objectRulesService, new RulesetCacheInvalidator(),
+			mock(HostLmsService.class));
 	}
 
 	@Test
@@ -114,6 +128,27 @@ class KohaMappingTests {
 
 		assertThat(patron.getLocalHomeLibraryCode(), is((String) null));
 		assertThat(patron.getLocalPatronType(), is("ADULT"));
+	}
+
+	@Test
+	void shouldReportAnItemKohaHasCheckedOutAsLoaned() {
+		final var onLoan = KohaItem.builder()
+			.itemId(99L)
+			.biblioId(42L)
+			.externalId("ITEM-BARCODE")
+			.checkedOutDate("2026-09-01T10:00:00Z")
+			.build();
+
+		final var byBarcode = new KohaItemsList();
+		byBarcode.add(onLoan);
+
+		when(apiClient.getItemByBarcode("ITEM-BARCODE")).thenReturn(Mono.just(byBarcode));
+		when(apiClient.getItem("99")).thenReturn(Mono.just(onLoan));
+
+		// Koha leaves every status field at "available" while an item is on loan
+		assertThat(client.getItemByBarcode("ITEM-BARCODE").block().getStatus(), is(HostLmsItem.ITEM_LOANED));
+		assertThat(client.getItem(HostLmsItem.builder().localId("99").build()).block().getStatus(),
+			is(HostLmsItem.ITEM_LOANED));
 	}
 
 	@Test

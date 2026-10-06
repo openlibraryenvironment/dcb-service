@@ -6,7 +6,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
-import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +18,8 @@ import org.olf.dcb.core.api.serde.CollectionProfileStat;
 import org.olf.dcb.core.api.serde.SourceFormatStat;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.svc.CollectionAnalysisService;
+import org.olf.dcb.core.svc.CollectionSnapshot;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.DcbTest;
@@ -42,6 +43,9 @@ class CollectionAnalysisQueriesTests {
 
 	@Inject
 	private BibRepository bibRepository;
+
+	@Inject
+	private CollectionAnalysisService collectionAnalysisService;
 
 	private DataHostLms libA;
 	private DataHostLms libB;
@@ -85,6 +89,10 @@ class CollectionAnalysisQueriesTests {
 			"src-" + UUID.randomUUID(), cluster, null);
 	}
 
+	private CollectionSnapshot snapshot() {
+		return CollectionSnapshot.from(manyValuesFrom(bibRepository.getCollectionSnapshot()));
+	}
+
 	private CollectionProfileStat profileFor(List<CollectionProfileStat> all, DataHostLms lms) {
 		return all.stream()
 			.filter(stat -> stat.sourceSystemId().equals(lms.getId()))
@@ -114,7 +122,7 @@ class CollectionAnalysisQueriesTests {
 		final var bOnlyCluster = cluster();
 		bib(libB, bOnlyCluster);
 
-		final var profiles = manyValuesFrom(bibRepository.getCollectionProfile());
+		final var profiles = snapshot().profile();
 
 		final var aProfile = profileFor(profiles, libA);
 		assertThat(aProfile.clusterCount(), equalTo(2L));
@@ -137,7 +145,7 @@ class CollectionAnalysisQueriesTests {
 		bib(libA, singleCluster);
 		bib(libA, singleCluster);
 
-		final var profiles = manyValuesFrom(bibRepository.getCollectionProfile());
+		final var profiles = snapshot().profile();
 
 		final var aProfile = profileFor(profiles, libA);
 		assertThat(aProfile.clusterCount(), equalTo(1L));
@@ -151,7 +159,7 @@ class CollectionAnalysisQueriesTests {
 
 		bib(libA, deletedCluster());
 
-		final var profiles = manyValuesFrom(bibRepository.getCollectionProfile());
+		final var profiles = snapshot().profile();
 
 		assertThat(profileFor(profiles, libA).clusterCount(), equalTo(1L));
 	}
@@ -217,7 +225,7 @@ class CollectionAnalysisQueriesTests {
 		bib(libA, doublyHeld);
 		bib(libB, doublyHeld);
 
-		final var distribution = manyValuesFrom(bibRepository.getClusterSizeDistribution());
+		final var distribution = snapshot().clusterSizes();
 
 		assertThat(distribution, hasSize(2));
 
@@ -244,14 +252,14 @@ class CollectionAnalysisQueriesTests {
 		final var aOnly = cluster();
 		bib(libA, aOnly);
 
-		final var formats = manyValuesFrom(bibRepository.getFormatProfile());
+		final var formats = snapshot().formats();
 
 		assertThat(formats, hasSize(2));
 		assertThat(formatFor(formats, libA).titleCount(), equalTo(2L));
 		assertThat(formatFor(formats, libB).titleCount(), equalTo(1L));
 
 		// Same number the collection profile reports, which is the whole point of the change.
-		final var profiles = manyValuesFrom(bibRepository.getCollectionProfile());
+		final var profiles = snapshot().profile();
 		assertThat(profileFor(profiles, libA).clusterCount(), equalTo(2L));
 	}
 
@@ -263,7 +271,7 @@ class CollectionAnalysisQueriesTests {
 		final var deletedCluster = deletedCluster();
 		bib(libA, deletedCluster);
 
-		final var formats = manyValuesFrom(bibRepository.getFormatProfile());
+		final var formats = snapshot().formats();
 
 		assertThat(formatFor(formats, libA).titleCount(), equalTo(1L));
 	}
@@ -279,7 +287,7 @@ class CollectionAnalysisQueriesTests {
 		final var untyped = cluster();
 		bibWithoutDerivedType(libA, untyped);
 
-		final var formats = manyValuesFrom(bibRepository.getFormatProfile());
+		final var formats = snapshot().formats();
 
 		assertThat(formats, hasSize(2));
 		assertThat(formats.stream().map(SourceFormatStat::derivedType).toList(),
@@ -301,7 +309,7 @@ class CollectionAnalysisQueriesTests {
 		bib(libA, aOnly);
 		bib(libA, aOnly);
 
-		final var totals = singleValueFrom(bibRepository.getCollectionTotals());
+		final var totals = snapshot().totals();
 
 		assertThat(totals.distinctTitles(), equalTo(2L));
 		assertThat(totals.singlyHeldTitles(), equalTo(1L));
@@ -317,10 +325,38 @@ class CollectionAnalysisQueriesTests {
 
 		bib(libA, deletedCluster());
 
-		final var totals = singleValueFrom(bibRepository.getCollectionTotals());
+		final var totals = snapshot().totals();
 
 		assertThat(totals.distinctTitles(), equalTo(1L));
 		assertThat(totals.holdings(), equalTo(1L));
+	}
+
+	@Test
+	void overlapIgnoresWorksInDeletedClusters() {
+		final var live = cluster();
+		bib(libA, live);
+		bib(libB, live);
+
+		final var withdrawn = deletedCluster();
+		bib(libA, withdrawn);
+		bib(libC, withdrawn);
+
+		final var overlaps = manyValuesFrom(
+			bibRepository.getCollectionOverlapForLibrary("LIB_A"));
+
+		assertThat(overlaps, hasSize(1));
+		assertThat(overlaps.get(0).rightSystemCode(), equalTo("LIB_B"));
+	}
+
+	@Test
+	void theServiceAnswersThroughItsBoundedTransaction() {
+		// The wired path: set_config for the statement timeout, then the snapshot, on one
+		// connection. A mocked repository cannot show that the two statements run together.
+		final var shared = cluster();
+		bib(libA, shared);
+		bib(libB, shared);
+
+		assertThat(collectionAnalysisService.totals().block(), equalTo(snapshot().totals()));
 	}
 
 	@Test
@@ -334,7 +370,7 @@ class CollectionAnalysisQueriesTests {
 		assertThat(manyValuesFrom(bibRepository.getCollectionOverlapForLibrary("LIB_A")),
 			hasSize(0));
 
-		final var profiles = manyValuesFrom(bibRepository.getCollectionProfile());
+		final var profiles = snapshot().profile();
 		assertThat(profileFor(profiles, libA).uniqueTitleCount(), equalTo(1L));
 		assertThat(profileFor(profiles, libB).uniqueTitleCount(), equalTo(1L));
 	}

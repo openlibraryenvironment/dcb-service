@@ -11,16 +11,26 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.*;
 
 
+import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.rules.AnnotatedObject;
+import org.olf.dcb.rules.ObjectRuleset;
+import org.olf.dcb.rules.ObjectRulesService;
 import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
+import java.util.ArrayList;
+import java.util.Optional;
 
 import static io.micrometer.common.util.StringUtils.isBlank;
+import static java.lang.Boolean.FALSE;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
@@ -44,6 +54,9 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private final ReferenceValueMappingService referenceValueMappingService;
 	private final MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService;
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
+	private final ObjectRulesService objectRulesService;
+	private final RulesetCacheInvalidator cacheInvalidator;
+	private final HostLmsService hostLmsService;
 	private final KohaClientConfig config;
 
 
@@ -69,17 +82,34 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 */
 	private static final int ITEM_ENRICHMENT_CONCURRENCY = 4;
 
+	/**
+	 * Item suppression ruleset used when the Host LMS names none of its own.
+	 * <p>
+	 * Mirrors the bib side, where KohaOaiPmhIngestSource defaults to "koha-default": a
+	 * Koha created without a ruleset name would otherwise contribute every item it has.
+	 * The shipped ruleset encodes the not_for_loan_status 42 convention that used to be
+	 * hardcoded here, so an existing deployment sees no change in behaviour - only a
+	 * value it can now edit without a release.
+	 */
+	private static final String DEFAULT_ITEM_SUPPRESSION_RULESET_NAME = "koha-item-default";
+
 	public KohaHostLmsClient(
 		@Parameter HostLms hostLms,
 		ReferenceValueMappingService referenceValueMappingService,
 		KohaClientFactory kohaClientFactory,
 		MaterialTypeToItemTypeMappingService materialTypeToItemTypeMappingService,
-		LocationToAgencyMappingService locationToAgencyMappingService) {
+		LocationToAgencyMappingService locationToAgencyMappingService,
+		ObjectRulesService objectRulesService,
+		RulesetCacheInvalidator cacheInvalidator,
+		HostLmsService hostLmsService) {
 		this.hostLms = hostLms;
 		this.client = kohaClientFactory.createClientFor(hostLms);
 		this.referenceValueMappingService = referenceValueMappingService;
 		this.materialTypeToItemTypeMappingService = materialTypeToItemTypeMappingService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
+		this.objectRulesService = objectRulesService;
+		this.cacheInvalidator = cacheInvalidator;
+		this.hostLmsService = hostLmsService;
 		// Built here rather than injected, as Alma does. KohaClientConfig has no bean
 		// definition and its only constructor takes the HostLms, so it could never have
 		// been satisfied as an injection point.
@@ -118,16 +148,35 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return sharingLibraryCode;
 	}
 
-	// This is about how we resolve the location to either a Koha pickup location (From the local ID) or an external one
-	// For external locations either we need to create a reference or have a "DCB" library with details
-	// We might learn lessons here we can use elsewhere
+	/**
+	 * The Koha branch a hold is placed at, as its library_id.
+	 * <p>
+	 * A pickup location's localId is the only thing that carries a Koha branch code.
+	 * Notably it is <em>not</em> pickupLocationCode, which despite the name carries
+	 * whatever the caller put there: the pickup Location's UUID from
+	 * BorrowingAgencyService, and the pickup <em>agency</em> code from the supplying and
+	 * pickup agency transitions. Koha's library_id is a branchcode of at most 10
+	 * characters, so neither can name a branch, and sending them only ever produced a
+	 * hold Koha rejected. A pickup location with no localId is a configuration error,
+	 * which LocationInputValidator now refuses to create.
+	 * <p>
+	 * External pickup falls back to the sharing library, which is the branch that
+	 * stands for "a borrower outside this Koha".
+	 */
 	private String resolveLibraryCode(PlaceHoldRequestParameters p) {
-		if (p.getPickupLocation() != null && p.getPickupLocation().getLocalId() != null) {
-			return p.getPickupLocation().getLocalId();
+
+		final var localId = getValueOrNull(p,
+			PlaceHoldRequestParameters::getPickupLocation, Location::getLocalId);
+
+		if (!isBlank(localId)) {
+			return localId;
 		}
-		if (p.getPickupLocationCode() != null) {
-			return p.getPickupLocationCode();
-		}
+
+		log.warn("Pickup location \"{}\" on request {} has no localId, so the hold goes to sharing library \"{}\" "
+				+ "rather than the branch the patron expects. Set the Koha branch code as the location's localId.",
+			getValueOrNull(p, PlaceHoldRequestParameters::getPickupLocation, Location::getCode),
+			p.getPatronRequestId(), getDcbSharingLibraryCode());
+
 		return getDcbSharingLibraryCode();
 	}
 
@@ -409,6 +458,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		if (item.getNotForLoanStatus() != null && item.getNotForLoanStatus() > 0) {
 			return HostLmsItem.ITEM_MISSING; // Really should be ITEM_UNAVAILABLE or ITEM_RESTRICTED
 		}
+		// Koha keeps an item on loan "available" in every status field; only the checkout says so
+		if (item.getCheckout() != null || item.getCheckedOutDate() != null) {
+			return HostLmsItem.ITEM_LOANED;
+		}
 //		if (item.getDamagedStatus() != null && item.getDamagedStatus() > 0) {
 //		}
 		// Need to look at Koha item statuses for this one
@@ -464,15 +517,94 @@ public class KohaHostLmsClient implements HostLmsClient {
 			return Mono.error(new IllegalArgumentException("Bib ID is required to fetch Koha items"));
 		}
 
-		return client.getItemsForBiblio(bibId)
-			.flatMapMany(Flux::fromArray)
-			.flatMap(this::mapKohaItemToDcbItem, ITEM_ENRICHMENT_CONCURRENCY)
-			.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()),
-				ITEM_ENRICHMENT_CONCURRENCY)
-			.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType,
-				ITEM_ENRICHMENT_CONCURRENCY)
-			.onErrorContinue((throwable, item) -> log.warn("Mapping error for Koha item {}: {}", item, throwable.getMessage()))
-			.collectList();
+		// Resolved once per call rather than per item. The accessor caches, so per item
+		// would also be cheap, but the ruleset cannot change midway through one bib's
+		// items and reading it once says so.
+		return getLmsItemSuppressionRuleset()
+			.flatMap(itemSuppressionRules -> client.getItemsForBiblio(bibId)
+				.flatMapMany(Flux::fromArray)
+				.flatMap(kohaItem -> mapKohaItemToDcbItem(kohaItem, itemSuppressionRules),
+					ITEM_ENRICHMENT_CONCURRENCY)
+				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()),
+					ITEM_ENRICHMENT_CONCURRENCY)
+				.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType,
+					ITEM_ENRICHMENT_CONCURRENCY)
+				.onErrorContinue((throwable, item) -> log.warn("Mapping error for Koha item {}: {}", item, throwable.getMessage()))
+				.collectList());
+	}
+
+	/**
+	 * Deliberately NOT cached here, unlike the Sierra and Polaris equivalents.
+	 * <p>
+	 * Its only caller caches the ruleset it derives, against the same invalidator, so a
+	 * second cache layer buys nothing. It also cannot be empty-safe: cacheInvalidateWhen
+	 * raises "expects a value, source completed empty" rather than completing empty, so a
+	 * Host LMS that cannot be re-read would fail getItems outright instead of falling
+	 * through to the default ruleset.
+	 */
+	private Mono<DataHostLms> refetchLms() {
+		return Mono.fromSupplier(hostLms::getId)
+			.flatMap(hostLmsService::findById);
+	}
+
+	private Mono<Optional<ObjectRuleset>> _lmsItemSuppressionRuleset = null;
+
+	/**
+	 * Guarded on its own field, deliberately. SierraLmsClient tests the BIB field before
+	 * populating the ITEM one, so once the bib ruleset has been read this returns a null
+	 * Mono rather than an empty one - do not copy that shape.
+	 */
+	private synchronized Mono<Optional<ObjectRuleset>> getLmsItemSuppressionRuleset() {
+
+		if (_lmsItemSuppressionRuleset == null) {
+
+			_lmsItemSuppressionRuleset = refetchLms()
+				.mapNotNull(HostLms::getItemSuppressionRulesetName)
+				.defaultIfEmpty(DEFAULT_ITEM_SUPPRESSION_RULESET_NAME)
+				.flatMap(name -> objectRulesService.findByName(name)
+					.doOnSuccess(val -> {
+						if (val == null) {
+							log.warn("Host LMS [{}] uses ruleset [{}] for item suppression, but no ruleset with that name could be found - no items will be suppressed by rules",
+								hostLms.getCode(), name);
+							return;
+						}
+
+						log.debug("Found item suppression ruleset [{}] for Host LMS [{}]", name, hostLms.getCode());
+					}))
+				.singleOptional()
+				.cacheInvalidateWhen(cacheInvalidator::getInvalidator);
+		}
+
+		return _lmsItemSuppressionRuleset;
+	}
+
+	/**
+	 * Koha's own withdrawn flag suppresses unconditionally - a withdrawn item is not on a
+	 * shelf anywhere, so no ruleset should be able to contribute it. Everything else is
+	 * the operator's call, expressed as the item suppression ruleset.
+	 * <p>
+	 * Rulesets evaluate true for INCLUSION, hence the negate(). No ruleset means no
+	 * rule-driven suppression, which is why the default is FALSE rather than TRUE: an
+	 * unreadable or missing ruleset must not silently empty a library's availability.
+	 */
+	private boolean deriveItemSuppressedFlag(KohaItem kohaItem,
+		Optional<ObjectRuleset> itemSuppressionRules) {
+
+		if (kohaItem.getWithdrawn() != null && kohaItem.getWithdrawn() > 0) {
+			return true;
+		}
+
+		final List<String> decisionLog = new ArrayList<>();
+
+		final boolean suppressed = itemSuppressionRules
+			.map(rules -> rules.negate().test(new AnnotatedObject(kohaItem, decisionLog)))
+			.orElse(FALSE);
+
+		if (suppressed && log.isDebugEnabled()) {
+			log.debug("Koha item {} suppressed by ruleset, decisions: {}", kohaItem.getItemId(), decisionLog);
+		}
+
+		return suppressed;
 	}
 
 	@Override
@@ -576,7 +708,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.build());
 	}
 
-	private Mono<Item> mapKohaItemToDcbItem(KohaItem kohaItem) {
+	private Mono<Item> mapKohaItemToDcbItem(KohaItem kohaItem,
+		Optional<ObjectRuleset> itemSuppressionRules) {
 		final String itemId = String.valueOf(kohaItem.getItemId());
 		final String bibId = String.valueOf(kohaItem.getBiblioId());
 
@@ -613,12 +746,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 					.build()
 					: null;
 
-				// Suppression needs work. assume a "42" in the not for loan means local only for now.
-				// Integer, not int: comparing with == unboxes and throws on any item that has
-				// no not_for_loan_status, which getItems then swallows via onErrorContinue -
-				// the item simply disappears from availability with nothing to show why.
-				boolean isSuppressedFromDCB = Integer.valueOf(42).equals(kohaItem.getNotForLoanStatus());
-				Boolean isSuppressed = kohaItem.getWithdrawn() != null && kohaItem.getWithdrawn() > 0 || isSuppressedFromDCB;
+				// Withdrawn is native and unconditional; everything else is the operator's
+				// ruleset. The not_for_loan_status 42 convention that used to be hardcoded
+				// here now lives in the koha-item-default ruleset, so a library that uses a
+				// different value can say so in config instead of asking for a release.
+				Boolean isSuppressed = deriveItemSuppressedFlag(kohaItem, itemSuppressionRules);
 
 				return Item.builder()
 					.localId(itemId)
@@ -658,6 +790,87 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return client.deleteItem(itemId)
 			.thenReturn("OK")
 			.doOnError(e -> log.error("Failed to delete Koha item {}: {}", itemId, e.getMessage()));
+	}
+
+	@Override
+	public Mono<List<ConfigurationReport.Entry>> fetchVocabulary(MappingVocabulary vocabulary) {
+		return switch (vocabulary) {
+			case ITEM_TYPE -> entries(client.getItemTypes(),
+				type -> new ConfigurationReport.Entry(type.getItemTypeId(), type.getDescription()));
+
+			case PATRON_TYPE -> entries(client.getPatronCategories(),
+				category -> new ConfigurationReport.Entry(category.getPatronCategoryId(), category.getName()));
+
+			// Koha's branches are its locations
+			case LOCATION -> entries(client.getLibraries(),
+				library -> new ConfigurationReport.Entry(library.getLibraryId(), library.getName()));
+		};
+	}
+
+	private <T> Mono<List<ConfigurationReport.Entry>> entries(Mono<T[]> source,
+		Function<T, ConfigurationReport.Entry> toEntry) {
+
+		return source.map(values -> Arrays.stream(values).map(toEntry).toList());
+	}
+
+	// An unreadable list is an empty one, not a failure: the report says so per vocabulary
+	private Mono<List<ConfigurationReport.Entry>> emptyWhenUnreadable(MappingVocabulary vocabulary) {
+		return fetchVocabulary(vocabulary)
+			.onErrorResume(error -> {
+				log.warn("Could not read {} from Koha at {}", vocabulary, getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
+	/**
+	 * Three list calls. Triggered by an implementer from the tools API, never on a request path.
+	 */
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.zip(
+				emptyWhenUnreadable(MappingVocabulary.ITEM_TYPE),
+				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE),
+				emptyWhenUnreadable(MappingVocabulary.LOCATION))
+			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3()))
+			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
+				"Could not read configuration from Koha: " + error.getMessage())));
+	}
+
+	private ConfigurationReport buildConfigurationReport(List<ConfigurationReport.Entry> itemTypes,
+		List<ConfigurationReport.Entry> patronTypes, List<ConfigurationReport.Entry> libraries) {
+
+		final var checks = List.of(
+			checkSetting("sharing-library-code", rawConfigValue("sharing-library-code"), libraries),
+			checkSetting("virtual-item-library-code", rawConfigValue("virtual-item-library-code"), libraries));
+
+		final var vocabularies = List.of(
+			vocabulary("Item types", itemTypes),
+			vocabulary("Patron categories", patronTypes),
+			vocabulary("Libraries", libraries));
+
+		return new ConfigurationReport(getHostLmsCode(), ConfigurationReport.Status.CHECKED,
+			null, checks, vocabularies);
+	}
+
+	private static ConfigurationReport.Check checkSetting(String setting, String configuredValue,
+		List<ConfigurationReport.Entry> knownValues) {
+
+		return ConfigurationReport.check(setting, configuredValue, knownValues, "Koha");
+	}
+
+	private static ConfigurationReport.Vocabulary vocabulary(String name,
+		List<ConfigurationReport.Entry> entries) {
+
+		return ConfigurationReport.vocabulary(name, entries, "Koha");
+	}
+
+	// Read from the raw config: the typed accessors throw on a missing required setting, and a
+	// report has to name what is absent rather than die reading it
+	private String rawConfigValue(String key) {
+		final var value = getConfig().get(key);
+
+		return value != null ? value.toString() : null;
 	}
 
 	@Override
@@ -814,13 +1027,15 @@ public class KohaHostLmsClient implements HostLmsClient {
 				.build();
 
 			return client.placeHoldRequest(holdRequest)
-				.map(this::mapKohaHoldToLocalRequest)
+				.map(response -> mapKohaHoldToLocalRequest(response, parameters))
 				.doOnSubscribe(s -> log.info("Submitting Koha HOLD patron={} item={} pickupLibrary={}",
 					parameters.getLocalPatronId(), parameters.getLocalItemId(), pickupLibraryId));
 		});
 	}
 
-	private LocalRequest mapKohaHoldToLocalRequest(KohaHoldResponse response) {
+	private LocalRequest mapKohaHoldToLocalRequest(KohaHoldResponse response,
+		PlaceHoldRequestParameters parameters) {
+
 		String mappedStatus = checkHoldStatus(response.getStatus());
 
 		return LocalRequest.builder()
@@ -828,8 +1043,30 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.localStatus(mappedStatus)
 			.rawLocalStatus(response.getStatus())
 			.requestedItemId(response.getItemId() != null ? String.valueOf(response.getItemId()) : null)
-			.requestedItemBarcode(response.getItem().getExternalId())
+			.requestedItemBarcode(requestedItemBarcode(response, parameters))
 			.build();
+	}
+
+	/**
+	 * The barcode of the item the hold was placed on.
+	 * <p>
+	 * Koha's POST /api/v1/holds answers with a bare hold. The operation takes no
+	 * x-koha-embed - only listHolds does - so the item is never embedded and
+	 * response.getItem() is always null. Reading straight through it failed every Koha
+	 * hold placement with a NullPointerException, whatever the pickup location was.
+	 * <p>
+	 * The caller already knows the barcode of the item it asked to hold, so prefer that,
+	 * and tolerate its absence: the pickup agency path does not set one at all.
+	 */
+	private static String requestedItemBarcode(KohaHoldResponse response,
+		PlaceHoldRequestParameters parameters) {
+
+		final var embeddedBarcode = getValueOrNull(response,
+			KohaHoldResponse::getItem, KohaItem::getExternalId);
+
+		return embeddedBarcode != null
+			? embeddedBarcode
+			: getValueOrNull(parameters, PlaceHoldRequestParameters::getLocalItemBarcode);
 	}
 
 	private String checkHoldStatus(String kohaStatus) {

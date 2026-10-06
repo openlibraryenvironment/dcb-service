@@ -8,12 +8,17 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasToString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+import static org.olf.dcb.test.matchers.ThrowableProblemMatchers.hasParameters;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasCanonicalPatronType;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.hasLocalBarcodes;
@@ -38,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem;
 import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.Patron;
@@ -220,7 +226,7 @@ class ConsortialFolioHostLmsClientPatronTests {
 
 		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode, user);
 
-		mockFolioFixture.mockPatronPinVerify();
+		mockFolioFixture.mockPatronPinVerify("9c2e859d-e923-450d-85e3-b425cfa9f938");
 
 		// Act
 		final var verifiedPatron = singleValueFrom(client.patronAuth("BASIC/BARCODE+PIN", barcode, "1234"));
@@ -235,6 +241,59 @@ class ConsortialFolioHostLmsClientPatronTests {
 			hasNoHomeLibraryCode(),
 			hasLocalNames("First", "Middle", "Special Pin Test"),
 			isNotBlocked()
+		));
+	}
+
+	@Test
+	void aPinFolioRejectsIsARefusalRatherThanAFailure() {
+		// Arrange
+		final var barcode = "6730215";
+
+		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
+			"undergraduate", "DCB", "canonical-patron-type");
+
+		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode, User.builder()
+			.id("4b0f8a8e-3c55-4d7e-9a9c-1f3e5c2b7d10")
+			.patronGroupName("undergraduate")
+			.barcode(barcode)
+			.blocked(false)
+			.build());
+
+		mockFolioFixture.mockPatronPinVerify("4b0f8a8e-3c55-4d7e-9a9c-1f3e5c2b7d10", response().withStatusCode(422)
+			.withBody(json("{\"code\":422,\"errorMessage\":\"PIN is invalid\"}")));
+
+		// Act
+		final var verifiedPatron = singleValueFrom(client.patronAuth("BASIC/BARCODE+PIN", barcode, "8642"));
+
+		// Assert
+		assertThat(verifiedPatron, is(nullValue()));
+	}
+
+	@Test
+	void aFailedPinCheckDoesNotCarryThePinInItsDetails() {
+		// Arrange
+		final var barcode = "6730216";
+
+		referenceValueMappingFixture.definePatronTypeMapping(HOST_LMS_CODE,
+			"undergraduate", "DCB", "canonical-patron-type");
+
+		mockFolioFixture.mockGetUsersWithQuery("barcode", barcode, User.builder()
+			.id("8d1c2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f")
+			.patronGroupName("undergraduate")
+			.barcode(barcode)
+			.blocked(false)
+			.build());
+
+		mockFolioFixture.mockPatronPinVerify("8d1c2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", response().withStatusCode(500));
+
+		// Act
+		final var problem = assertThrows(UnexpectedHttpResponseProblem.class,
+			() -> singleValueFrom(client.patronAuth("BASIC/BARCODE+PIN", barcode, "8642")));
+
+		// Assert
+		assertThat(problem, allOf(
+			hasParameters(hasEntry(equalTo("requestUrl"), hasToString(containsString("patron-pin/verify")))),
+			hasParameters(hasEntry(equalTo("requestBody"), hasToString(not(containsString("8642")))))
 		));
 	}
 

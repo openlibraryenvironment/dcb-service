@@ -2,8 +2,12 @@ package org.olf.dcb.core;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasClientClass;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasCode;
 import static org.olf.dcb.test.matchers.HostLmsMatchers.hasId;
@@ -14,6 +18,7 @@ import static org.olf.dcb.test.matchers.HostLmsMatchers.hasNonNullId;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient;
 import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient;
+import org.olf.dcb.core.interaction.polaris.PolarisOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.InvalidHostLmsConfigurationException;
@@ -29,6 +35,7 @@ import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 
 import jakarta.inject.Inject;
+import services.k_int.interaction.oaipmh.OaiRecord;
 
 @DcbTest
 class HostLmsTests {
@@ -182,6 +189,121 @@ class HostLmsTests {
 
 			// Assert
 			assertThat(client, is(instanceOf(PolarisLmsClient.class)));
+		}
+	}
+
+	@Nested
+	class PolarisOaiDatabaseHostLmsTests {
+		@BeforeEach
+		void beforeEach() {
+			hostLmsFixture.createHarvestingPolarisHostLms("polaris-oai-host-lms",
+				"https://some-polaris-system");
+		}
+
+		@Test
+		void shouldHarvestOverOaiWhenIngestSourceClassNamesIt() {
+			// Act
+			final var ingestSource = hostLmsFixture.getIngestSource("polaris-oai-host-lms");
+
+			// Assert
+			assertThat(ingestSource, is(instanceOf(PolarisOaiPmhIngestSource.class)));
+		}
+
+		@Test
+		void shouldStillCirculateThroughPolarisClient() {
+			// Act
+			final var client = hostLmsFixture.createClient("polaris-oai-host-lms");
+
+			// Assert
+			assertThat(client, is(instanceOf(PolarisLmsClient.class)));
+		}
+
+		@Test
+		void shouldKeyAnOaiBibExactlyAsThePapiHarvestKeysTheSameBib() {
+			// Arrange
+			final var papi = (PolarisLmsClient) hostLmsFixture.createClient("polaris-oai-host-lms");
+			final var oai = (PolarisOaiPmhIngestSource) hostLmsFixture
+				.getIngestSource("polaris-oai-host-lms");
+
+			// Act
+			final var papiRecord = papi.initIngestRecordBuilder(PolarisLmsClient.BibsPagedRow.builder()
+				.BibliographicRecordID(12345)
+				.IsDisplayInPAC(true)
+				.build()).build();
+
+			final var oaiRecord = oai.initIngestRecordBuilder(new OaiRecord(new OaiRecord.Header(
+				"oai:some-polaris-system:polaris:bibliographic/12345", null, null, null), null)).build();
+
+			// Assert
+			assertThat(oaiRecord.getUuid(), is(papiRecord.getUuid()));
+			assertThat(oaiRecord.getSourceRecordId(), is(papiRecord.getSourceRecordId()));
+		}
+
+		@Test
+		void shouldReadTheBibIdFromARealPolarisOaiIdentifier() {
+			// Arrange - verbatim from ListIdentifiers against a Polaris 7.7 tenant, 2026-09-07
+			final var oai = (PolarisOaiPmhIngestSource) hostLmsFixture
+				.getIngestSource("polaris-oai-host-lms");
+
+			// Act
+			final var bibId = oai.extractRecordId(new OaiRecord(new OaiRecord.Header(
+				"oai:stlouis-training.polarislibrary.com:polaris:bibliographic/2", null, null, null), null));
+
+			// Assert
+			assertThat(bibId, is("2"));
+		}
+
+		@Test
+		void shouldRefuseAnIdentifierWhoseLastSegmentIsNotABibNumber() {
+			// Arrange
+			final var oai = (PolarisOaiPmhIngestSource) hostLmsFixture
+				.getIngestSource("polaris-oai-host-lms");
+
+			// Act
+			final var bibId = oai.extractRecordId(new OaiRecord(new OaiRecord.Header(
+				"oai:some-polaris-system:polaris:bibliographic/not-a-number", null, null, null), null));
+
+			// Assert
+			assertThat(bibId, is(nullValue()));
+		}
+
+		@Test
+		void shouldNameTheMissingKeyWhenTheIngestSourceCannotBeBuilt() {
+			// Arrange
+			createOaiHostWithoutMetadataPrefix();
+
+			// Act
+			final var error = assertThrows(InvalidHostLmsConfigurationException.class,
+				() -> hostLmsFixture.getIngestSource("polaris-oai-no-prefix-host-lms"));
+
+			// Assert
+			assertThat(error, hasMessage("Host LMS \"polaris-oai-no-prefix-host-lms\" has invalid "
+				+ "configuration: OAI-PMH ingest for Host LMS \"polaris-oai-no-prefix-host-lms\" "
+				+ "requires client config \"metadata-prefix\""));
+		}
+
+		@Test
+		void shouldKeepHarvestingOtherHostsWhenOneCannotBuildItsIngestSource() {
+			// Arrange
+			createOaiHostWithoutMetadataPrefix();
+
+			hostLmsFixture.createPolarisHostLms("polaris-papi-host-lms", "some-username",
+				"some-password", "https://another-polaris-system", "some-domain",
+				"some-access-id", "some-access-key");
+
+			// Act
+			final var ingestSources = manyValuesFrom(hostLmsService.getIngestSources());
+
+			// Assert
+			assertThat(ingestSources, hasSize(2));
+			assertThat(ingestSources, hasItem(instanceOf(PolarisOaiPmhIngestSource.class)));
+			assertThat(ingestSources, hasItem(instanceOf(PolarisLmsClient.class)));
+		}
+
+		private void createOaiHostWithoutMetadataPrefix() {
+			hostLmsFixture.createHostLms(UUID.randomUUID(), "polaris-oai-no-prefix-host-lms",
+				PolarisLmsClient.class, Optional.of(PolarisOaiPmhIngestSource.class),
+				Map.of("base-url", "https://some-other-polaris-system"));
 		}
 	}
 

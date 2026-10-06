@@ -41,7 +41,7 @@ public class UpdateAgencyDataFetcher implements DataFetcher<CompletableFuture<Da
 	@Override
 	public CompletableFuture<DataAgency> get(DataFetchingEnvironment env) {
 		Map<String, Object> input_map = env.getArgument("input");
-		log.debug("UpdateAgencyDataFetcher {}", input_map);
+		log.debug("UpdateAgencyDataFetcher code={} fields={}", input_map.get("code"), input_map.keySet());
 
 		// Role check. Only consortium administrators can change this.
 		Collection<String> roles = env.getGraphQlContext().get("roles");

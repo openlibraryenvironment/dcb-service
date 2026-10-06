@@ -3,6 +3,7 @@ package org.olf.dcb.api;
 import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.NOT_FOUND;
 import static io.micronaut.http.HttpStatus.OK;
+import static java.lang.Integer.parseInt;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
@@ -12,6 +13,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
@@ -184,7 +186,7 @@ class StandardWorkflowPatronRequestApiTests {
 		// Step 1: query the patrons on the hostlms with a successful resp of finding ONE patron
 		// Step 2: use the returned patron id to then get the patron by local id
 		sierraPatronsAPIFixture.patronsQueryFoundResponse(expectedUniqueId, "2745326");
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("2745326", SierraPatronRecord.builder()
+		sierraPatronsAPIFixture.mockGetPatronById("2745326", SierraPatronRecord.builder()
 			.id(2745326)
 			.patronType(15)
 			.names(List.of("Joe Bloggs"))
@@ -215,8 +217,13 @@ class StandardWorkflowPatronRequestApiTests {
 
 		agencyFixture.defineAgency(SUPPLYING_AGENCY_CODE, "Supplying Agency", supplyingHostLms);
 
-		sierraPatronsAPIFixture.addPatronGetExpectation("43546");
-		sierraPatronsAPIFixture.addPatronGetExpectation(KNOWN_PATRON_LOCAL_ID);
+		sierraPatronsAPIFixture.mockGetPatronById(KNOWN_PATRON_LOCAL_ID,
+			SierraPatronRecord.builder()
+				.id(parseInt(KNOWN_PATRON_LOCAL_ID))
+				.patronType(15)
+				.homeLibraryCode("tstce")
+				.barcodes(List.of("554334343453"))
+				.build());
 
 		// AGENCY1 has 1 PICKUP location of PICKUP_LOCATION_CODE (ABC123)
 		locationFixture.createPickupLocation(UUID.fromString(VALID_PICKUP_LOCATION_ID),
@@ -711,6 +718,13 @@ class StandardWorkflowPatronRequestApiTests {
 		assertThat("Failed checks should be logged", eventLogFixture.findAll(), containsInAnyOrder(
 			isFailedCheckEvent(expectedDescription)
 		));
+
+		// event_summary is varchar(128) and this description is already 104, so the cluster
+		// lives beside the summary rather than inside it. A refused request never becomes a
+		// patron request, so there is no other row to look in
+		assertThat("Refusal names the cluster it was for",
+			eventLogFixture.findAll().stream().findFirst().orElseThrow().getAdditionalData(),
+			hasEntry("clusterId", clusterRecordId.toString()));
 	}
 
 	@Test
@@ -788,6 +802,10 @@ class StandardWorkflowPatronRequestApiTests {
 				isFailedCheckEvent(unrecognisedPickupLocationMessage)
 			)
 		);
+
+		assertThat("Refusal names the check that refused it",
+			eventLogFixture.findAll().stream().findFirst().orElseThrow().getAdditionalData(),
+			hasEntry("code", "UNKNOWN_PICKUP_LOCATION_CODE"));
 	}
 
 	@Test

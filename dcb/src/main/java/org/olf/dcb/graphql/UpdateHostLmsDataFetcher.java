@@ -61,7 +61,10 @@ public class UpdateHostLmsDataFetcher implements DataFetcher<CompletableFuture<U
 
 		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
-			.orElse("User not detected");		log.debug("updateHostLmsDataFetcher {}", input_map);
+			.orElse("User not detected");
+
+		// Names only: clientConfig carries the system's API keys and passwords
+		log.debug("updateHostLmsDataFetcher id={} fields={}", input_map.get("id"), input_map.keySet());
 
 		if (roles == null || (!roles.contains("ADMIN") && !roles.contains("CONSORTIUM_ADMIN"))) {
 			log.warn("updateHostLmsDataFetcher: Access denied for user {}: user does not have the required role to update a Host LMS.", userString);
@@ -127,12 +130,13 @@ public class UpdateHostLmsDataFetcher implements DataFetcher<CompletableFuture<U
 						reason.ifPresent(hostLms::setReason);
 						changeCategory.ifPresent(hostLms::setChangeCategory);
 
-						// VALIDATION
-						// We must validate the final state of the object (or the new config if replaced)
-						// Note: This assumes clientConfig is replaced entirely if provided.
+						// Validated only when what the client reads changes: a record saved before a
+						// setting became required can still be renamed or given a ruleset
 						if (hostLms.getClientConfig() != null) {
-							configValidator.validate(hostLms.getLmsClientClass(), hostLms.getClientConfig());
-							// Collect warnings
+							if (clientConfig.isPresent() || clientClassChanged) {
+								configValidator.validate(hostLms.getLmsClientClass(), hostLms.getClientConfig());
+							}
+
 							warningsContainer.addAll(
 								configValidator.findConfigurationWarnings(hostLms.getLmsClientClass(), hostLms.getClientConfig())
 							);

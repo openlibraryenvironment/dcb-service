@@ -898,7 +898,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		return findPatronByBarcode(barcode)
 			.flatMap(patron -> verifyPatronPin(patron, secret))
-			.doOnError(error -> log.error("Error occurred while handling patron authentication: {}", barcode, error));
+			.doOnError(error -> log.error("Error occurred while handling patron authentication", error));
 	}
 
 	private Mono<Patron> findPatronByBarcode(String barcode) {
@@ -910,8 +910,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		final var request = authorisedRequest(POST, PATH_PATRON_PIN_VERIFY)
 			.body(VerifyPatron.builder().id(localID).pin(pin).build());
 
-		return makeRequest(request, VOID)
-			.thenReturn(patron);
+		// mod-users answers a PIN that does not match with 422, which is a refusal and not a failure
+		return makeRequest(request, VOID, response -> response
+				.onErrorMap(HttpResponsePredicates::isUnprocessableContent, error -> new PinRejected()))
+			.thenReturn(patron)
+			.onErrorResume(PinRejected.class, rejected -> Mono.empty());
+	}
+
+	private static final class PinRejected extends RuntimeException {
+		private PinRejected() {
+			super(null, null, false, false);
+		}
 	}
 
 	private Boolean isValidAuthProfile(String authProfile) {
@@ -1506,6 +1515,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					return Mono.empty();
 				}
 
+				if (itemsCollection.getItems().size() > 1) {
+					return Mono.error(new IllegalStateException("%d items in FOLIO share barcode %s"
+						.formatted(itemsCollection.getItems().size(), barcode)));
+				}
+
 				var item = itemsCollection.getItems().iterator().next();
 				if (item.getBarcode() == null) {
 					item.setBarcode(barcode);
@@ -1616,4 +1630,11 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
     return result;
   }
 
+	// Declared rather than inherited: the edge API key reaches edge-dcb, edge-users and edge-rtac,
+	// none of which lists material types, patron groups or locations
+	@Override
+	public Mono<ConfigurationReport> checkConfiguration() {
+		return Mono.just(ConfigurationReport.notSupported(getHostLmsCode(),
+			"DCB reaches FOLIO through edge modules that cannot list material types, patron groups or locations"));
+	}
 }

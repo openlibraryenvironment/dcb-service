@@ -406,12 +406,20 @@ public class RequestWorkflowContextHelper {
 
 		// Different lender and Pickup agencies...
 
-		// Default workflow is standard if the patron and pickup agencies are equal.
-		final String defaultWorkflow = patronAc.equals(pickupAc) ? STANDARD_WORKFLOW : PICKUP_ANYWHERE_WORKFLOW;
+		// Collecting at another branch of the patron's OWN system is not pickup anywhere. Treated
+		// as such, DCB creates a second virtual bib, item and patron in a catalogue that already
+		// holds the first - and an ILS that requires unique item barcodes and user identifiers,
+		// as Alma does, refuses every one of them. Compared by Host LMS record rather than by
+		// client, because an adapter whose identity is a shared vendor gateway would otherwise
+		// report two institutions as one.
+		final Mono<String> defaultWorkflow = patronAc.equals(pickupAc)
+			? Mono.just(STANDARD_WORKFLOW)
+			: onOneHostLms(patronAc, rwc.getPatronAgency(), pickupAc, rwc.getPickupAgency())
+				.map(sameSystem -> sameSystem ? STANDARD_WORKFLOW : PICKUP_ANYWHERE_WORKFLOW);
 
 		// Default mono based on the values of just the agency codes. We also need to consider
 		// the scenario when agencies are not the same, but they live on the same system
-		final Mono<RequestWorkflowContext> defaultResolution = Mono.just(defaultWorkflow)
+		final Mono<RequestWorkflowContext> defaultResolution = defaultWorkflow
 			.map(pr::setActiveWorkflow)
 			.map(rwc::setPatronRequest);
 
@@ -456,6 +464,23 @@ public class RequestWorkflowContextHelper {
 
 			// Empty means the systems did not match, just default.
 			.switchIfEmpty(defaultResolution);
+	}
+
+	private Mono<Boolean> onOneHostLms(String firstCode, Agency first, String secondCode, Agency second) {
+		return Mono.zip(hostLmsIdFor("patron", firstCode, first), hostLmsIdFor("pickup", secondCode, second))
+			.map(ids -> ids.getT1().equals(ids.getT2()))
+			// Either agency missing its Host LMS leaves the question unanswered, and the caller
+			// falls back to the agency codes rather than assuming one system
+			.defaultIfEmpty(false);
+	}
+
+	// Looked up by code when the object is absent: ActiveWorkflowService, the only production
+	// caller, builds its context from agency codes alone
+	private Mono<UUID> hostLmsIdFor(String role, String code, Agency agency) {
+		return resolveWorkflowAgency(role, code, agency)
+			.onErrorResume(WorkflowHostLmsResolutionException.class, error -> Mono.empty())
+			.flatMap(resolved -> Mono.justOrEmpty(getValueOrNull(resolved, Agency::getId)))
+			.flatMap(id -> Mono.from(agencyRepository.findHostLmsIdById(id)));
 	}
 
 	private Mono<HostLmsClient> resolveHostLmsClientForAgency(String role,

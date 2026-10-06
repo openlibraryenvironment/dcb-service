@@ -169,7 +169,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		// a workaround used here is to use different local ids to differentiate the mock requests/responses
 		final var WORKAROUND_LOCAL_ID = "1000003";
 		sierraPatronsAPIFixture.patronsQueryFoundResponse("872321@supplying-agency", WORKAROUND_LOCAL_ID);
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse(WORKAROUND_LOCAL_ID,
+		sierraPatronsAPIFixture.mockGetPatronById(WORKAROUND_LOCAL_ID,
 			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(22)
@@ -179,7 +179,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		// The unexpected patron type will trigger a request to update the virtual patron
 		sierraPatronsAPIFixture.updatePatron("1000002");
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("1000002",
+		sierraPatronsAPIFixture.mockGetPatronById("1000002",
 			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(15)
@@ -239,7 +239,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
 		sierraPatronsAPIFixture.patronsQueryFoundResponse("32453@%s".formatted(SUPPLYING_AGENCY_CODE), "1000002");
-		sierraPatronsAPIFixture.getPatronByLocalIdSuccessResponse("1000002",
+		sierraPatronsAPIFixture.mockGetPatronById("1000002",
 			SierraPatronRecord.builder()
 				.id(1000002)
 				.patronType(15)
@@ -302,7 +302,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 		saveSupplierRequest(patronRequest, hostLms.getCode());
 
 		sierraPatronsAPIFixture.patronsQueryNotFoundResponse("546730@%s".formatted(SUPPLYING_AGENCY_CODE));
-		sierraPatronsAPIFixture.postPatronResponse("546730@%s".formatted(SUPPLYING_AGENCY_CODE), 1000003);
+		sierraPatronsAPIFixture.postPatronResponse("546730@%s".formatted(SUPPLYING_AGENCY_CODE), 1000003,
+				null);
 
 		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000003", "b", 563653);
 
@@ -379,7 +380,7 @@ class PlaceRequestAtSupplyingAgencyTests {
 
 		sierraPatronsAPIFixture.patronsQueryNotFoundResponse("931824@%s".formatted(SUPPLYING_AGENCY_CODE));
 		sierraPatronsAPIFixture.postPatronResponse("931824@%s".formatted(SUPPLYING_AGENCY_CODE),
-			localPatronId);
+			localPatronId, null);
 
 		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(
 			Integer.toString(localPatronId), "b");
@@ -495,8 +496,8 @@ class PlaceRequestAtSupplyingAgencyTests {
 			.block();
 	}
 
-	private PatronRequest isApplicableFor(PatronRequest patronRequest) {
-		return singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+	private void isApplicableFor(PatronRequest patronRequest) {
+		singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(patronRequest)
 			.flatMap(ctx -> {
 				if (!placePatronRequestAtSupplyingAgencyStateTransition.isApplicableFor(ctx)) {
 					return Mono.error(new RuntimeException("Place request at supplying agency is not applicable for request"));

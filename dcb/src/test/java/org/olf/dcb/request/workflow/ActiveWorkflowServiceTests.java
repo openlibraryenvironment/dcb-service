@@ -163,6 +163,34 @@ class ActiveWorkflowServiceTests {
 	}
 
 	@Test
+	void shouldBeStandardWorkflowWhenThePatronCollectsAtAnotherLibraryOnTheirOwnSystem() {
+		// Arrange
+		final var sharedHostLms = hostLmsFixture.createDummyHostLms("shared-host-lms");
+
+		final var borrowingAgency = agencyFixture.defineAgency("borrowing-agency",
+			"Borrowing Agency", sharedHostLms);
+
+		final var pickupAgency = agencyFixture.defineAgency("pickup-agency",
+			"Pickup Agency", sharedHostLms);
+
+		final var pickupLocation = locationFixture.createPickupLocation(pickupAgency);
+
+		final var pickupLocationId = getValueOrNull(pickupLocation, Location::getId, UUID::toString);
+
+		final var supplyingHostLms = hostLmsFixture.createDummyHostLms("supplying-host-lms");
+
+		final var supplyingAgency = agencyFixture.defineAgency("supplying-agency",
+			"Supplying Agency", supplyingHostLms);
+
+		// Act
+		final var determinedWorkflow = determineWorkflow(supplyingAgency,
+			borrowingAgency, pickupLocationId);
+
+		// Assert: one system holds the patron and the pickup, so one virtual record, not two
+		assertThat(determinedWorkflow, is(STANDARD_WORKFLOW));
+	}
+
+	@Test
 	void shouldFailWhenSameSupplyingAndBorrowingYetDifferentPickupLibraryAsIsUnsupported() {
 		// Arrange
 		final var pickupHostLms = hostLmsFixture.createDummyHostLms("pickup-host-lms");

@@ -1,6 +1,5 @@
-name: dcb-tech.service
-version: true
-title: DCB Service Documentation
+name: dcb.service.tech
+title: Technical Documentation - DCB Service
 nav:
   - modules/ROOT/nav.adoc
 ext:
@@ -24,7 +23,6 @@ ext:
          # Into is anotra bucket not a physical directory
          into:
            dir: modules/api/attachments/swagger
-
 
        # Scan directory relative to the repository root
        - dir: dcb/build/classes/java/main/META-INF/swagger/views/scalar

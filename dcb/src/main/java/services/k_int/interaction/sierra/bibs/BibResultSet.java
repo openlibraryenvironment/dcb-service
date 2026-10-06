@@ -6,7 +6,9 @@ import jakarta.validation.constraints.NotNull;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
+import lombok.Builder;
 
+@Builder
 @Serdeable
 public record BibResultSet(
 	@Nullable int total,

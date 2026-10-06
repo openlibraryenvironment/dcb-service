@@ -61,7 +61,11 @@ class KohaIngestTests {
 	private IngestService ingestService;
 
 	@BeforeEach
-	void beforeEach() {
+	void beforeEach(MockServerClient mockServerClient) {
+		// Both tests stub the same oai.pl path with a different body, and expectations
+		// outlive the test that registered them
+		mockServerClient.reset();
+
 		clusterRecordFixture.deleteAll();
 		hostLmsFixture.deleteAll();
 	}
@@ -95,6 +99,41 @@ class KohaIngestTests {
 				hasSourceRecordId("2"),
 				hasSourceSystemIdFor(hostLmsFixture.findByCode("koha-host-lms"))
 			)
+		));
+	}
+
+	/**
+	 * Bib suppression, both markings a Koha can carry, against a Host LMS that names
+	 * no ruleset of its own - so this also pins that "koha-default" is what such a
+	 * Koha falls back to. Get that wrong and a Koha contributes the records its
+	 * staff marked as hidden.
+	 * <p>
+	 * The two flags are deliberately independent in the fixture: 942$n=1 alone, and
+	 * 942$x=1 with 942$n=0 alone, because "show this to nobody" and "local only" are
+	 * separate decisions a cataloguer makes and either has to be enough on its own.
+	 * The bib with no 942 at all is the control - suppression must not depend on a
+	 * field a catalogue is under no obligation to have.
+	 */
+	@Test
+	void shouldNotIngestSuppressedKohaBibs(MockServerClient mockServerClient) {
+		// Arrange
+		hostLmsFixture.createHarvestingKohaHostLms("koha-host-lms",
+			"https://fake-koha-staff-interface", "https://fake-koha-opac");
+
+		mockOaiResponse(mockServerClient, "fake-koha-opac", "suppression-oai-response.xml");
+
+		// Act
+		final List<BibRecord> ingestedBibRecords = manyValuesFrom(
+			ingestService.getBibRecordStream()
+				.transformDeferred(ProcessAuditService.withNewProcessAudit("koha-suppress")));
+
+		// Assert
+		// Exactly these two, so 11 (942$n = 1) and 12 (942$x = 1) are both gone
+		assertThat(ingestedBibRecords, containsInAnyOrder(
+			// 942$n = 0
+			hasSourceRecordId("10"),
+			// no 942 field at all
+			hasSourceRecordId("13")
 		));
 	}
 

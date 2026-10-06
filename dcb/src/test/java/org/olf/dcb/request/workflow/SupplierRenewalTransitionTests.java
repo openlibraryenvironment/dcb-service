@@ -1,18 +1,23 @@
 package org.olf.dcb.request.workflow;
 
-
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.interaction.sierra.Paths.itemPath;
+import static org.olf.dcb.core.interaction.sierra.Paths.patronCheckoutPath;
+import static org.olf.dcb.core.interaction.sierra.Paths.patronPath;
 import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENEWAL;
 import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
+import static org.olf.dcb.test.IdentifierGenerator.generateBarcode;
+import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.briefDescriptionContains;
 import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasFromStatus;
@@ -22,9 +27,12 @@ import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasRenewalCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.isNotOutOfSequence;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.isOutOfSequence;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -48,12 +56,19 @@ import org.olf.dcb.test.SupplierRequestsFixture;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
+import services.k_int.interaction.sierra.CheckoutEntry;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class SupplierRenewalTransitionTests {
+	private static final String BORROWING_HOST_LMS_CODE = "next-supplier-borrowing-tests";
+	private static final String SUPPLYING_HOST_LMS_CODE = "next-supplier-tests";
+
+	private static final String SUPPLYING_HOST_LMS_BASE_URL = "https://supplying-host-lms.com";
+
+	private static final String LOANED_LOCAL_ITEM_STATUS = "LOANED";
 
 	@Inject private SierraApiFixtureProvider sierraApiFixtureProvider;
 	@Inject private PatronFixture patronFixture;
@@ -70,20 +85,16 @@ class SupplierRenewalTransitionTests {
 	private DataHostLms borrowingHostLms;
 	private DataHostLms supplyingHostLms;
 
-	private static final String BORROWING_HOST_LMS_CODE = "next-supplier-borrowing-tests";
-	private static final String SUPPLYING_HOST_LMS_CODE = "next-supplier-tests";
-
 	@BeforeAll
 	void beforeAll(MockServerClient mockServerClient) {
 		final var token = "test-token";
 		final var key = "key";
 		final var secret = "secret";
-		final var supplyingHostLmsBaseUrl = "https://supplying-host-lms.com";
 		final var borrowingHostLmsBaseUrl = "https://borrowing-host-lms.com";
 
 		hostLmsFixture.deleteAll();
 
-		SierraTestUtils.mockFor(mockServerClient, supplyingHostLmsBaseUrl)
+		SierraTestUtils.mockFor(mockServerClient, SUPPLYING_HOST_LMS_BASE_URL)
 			.setValidCredentials(key, secret, token, 3600);
 
 		SierraTestUtils.mockFor(mockServerClient, borrowingHostLmsBaseUrl)
@@ -93,7 +104,7 @@ class SupplierRenewalTransitionTests {
 			key, secret, borrowingHostLmsBaseUrl);
 
 		supplyingHostLms = hostLmsFixture.createSierraHostLms(SUPPLYING_HOST_LMS_CODE,
-			key, secret, supplyingHostLmsBaseUrl);
+			key, secret, SUPPLYING_HOST_LMS_BASE_URL);
 
 		sierraItemsAPIFixture = sierraApiFixtureProvider.items(mockServerClient);
 		sierraPatronsAPIFixture = sierraApiFixtureProvider.patrons(mockServerClient);
@@ -112,13 +123,23 @@ class SupplierRenewalTransitionTests {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, true);
 
-		final var patronRequest = definePatronRequest(LOANED, "LOANED", 1, 0);
-		final var existingPatron = patronRequest.getPatron();
+		final var patronRequest = definePatronRequest(LOANED, LOANED_LOCAL_ITEM_STATUS, 1);
 
-		defineSupplierRequest(patronRequest, "4324324", existingPatron);
+		final var localSupplyingItemId = generateNumericLocalIdAsString();
+		final var localSupplyingPatronId = generateNumericLocalIdAsString();
 
-		final var checkoutId = sierraItemsAPIFixture.checkoutsForItem("4324324");
-		sierraPatronsAPIFixture.mockRenewalSuccess(checkoutId);
+		defineSupplierRequest(patronRequest, localSupplyingPatronId, localSupplyingItemId);
+
+		final var checkoutId = generateNumericLocalIdAsString();
+
+		final var checkout = CheckoutEntry.builder()
+			.id(toSupplyingHostLmsUrl(patronCheckoutPath(checkoutId)))
+			.patron(toSupplyingHostLmsUrl(patronPath(localSupplyingPatronId)))
+			.item(toSupplyingHostLmsUrl(itemPath(localSupplyingItemId)))
+			.build();
+
+		sierraItemsAPIFixture.checkoutsForItem(localSupplyingItemId, checkout);
+		sierraPatronsAPIFixture.mockRenewalSuccess(checkoutId, checkout);
 
 		// Act
 		final var updatedPatronRequest = supplierRenewal(patronRequest);
@@ -134,7 +155,15 @@ class SupplierRenewalTransitionTests {
 			isNotOutOfSequence()
 		));
 
-		assertRenewalSuccessAudit(updatedPatronRequest);
+		final var audits = patronRequestsFixture.findAuditEntries(updatedPatronRequest);
+
+		assertThat("There should be one matching audit entry",
+			audits, hasItem(allOf(
+				briefDescriptionContains("Supplier renewal : Placed"),
+				hasFromStatus(LOANED),
+				hasToStatus(LOANED)
+			))
+		);
 	}
 
 	@Test
@@ -142,12 +171,14 @@ class SupplierRenewalTransitionTests {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, true);
 
-		final var patronRequest = definePatronRequest(LOANED, "LOANED", 1, 0);
-		final var existingPatron = patronRequest.getPatron();
+		final var patronRequest = definePatronRequest(LOANED, LOANED_LOCAL_ITEM_STATUS, 1);
 
-		defineSupplierRequest(patronRequest, "4324324", existingPatron);
+		final var localSupplyingItemId = generateNumericLocalIdAsString();
+		final var localSupplyingPatronId = generateNumericLocalIdAsString();
 
-		sierraItemsAPIFixture.checkoutsForItemWithNoRecordsFound("4324324");
+		defineSupplierRequest(patronRequest, localSupplyingPatronId, localSupplyingItemId);
+
+		sierraItemsAPIFixture.checkoutsForItemWithNoRecordsFound(localSupplyingItemId);
 
 		// Act
 		final var updatedPatronRequest = supplierRenewal(patronRequest);
@@ -161,7 +192,15 @@ class SupplierRenewalTransitionTests {
 			isOutOfSequence()
 		));
 
-		assertRenewalFailureAudit(updatedPatronRequest);
+		final var audits = patronRequestsFixture.findAuditEntries(updatedPatronRequest);
+
+		assertThat("There should be one matching audit entry",
+			audits, hasItem(allOf(
+				briefDescriptionContains("Supplier renewal : Failed"),
+				hasFromStatus(LOANED),
+				hasToStatus(LOANED)
+			))
+		);
 	}
 
 	@Test
@@ -169,7 +208,8 @@ class SupplierRenewalTransitionTests {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, false);
 
-		final var patronRequest = definePatronRequest(LOANED, "LOANED", 1, 0);
+		final var patronRequest = definePatronRequest(LOANED, LOANED_LOCAL_ITEM_STATUS, 1);
+		defineSupplierRequest(patronRequest);
 
 		// Act
 		final var updatedPatronRequest = supplierRenewal(patronRequest);
@@ -201,7 +241,8 @@ class SupplierRenewalTransitionTests {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, false);
 
-		final var patronRequest = definePatronRequest(LOANED, "LOANED", 1, 0);
+		final var patronRequest = definePatronRequest(LOANED, LOANED_LOCAL_ITEM_STATUS, 1);
+		defineSupplierRequest(patronRequest);
 
 		// Act
 
@@ -218,7 +259,8 @@ class SupplierRenewalTransitionTests {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, true);
 
-		final var patronRequest = definePatronRequest(LOANED, "LOANED", null, 0);
+		final var patronRequest = definePatronRequest(LOANED, LOANED_LOCAL_ITEM_STATUS, null);
+		defineSupplierRequest(patronRequest);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class, () -> supplierRenewal(patronRequest));
@@ -236,7 +278,8 @@ class SupplierRenewalTransitionTests {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, true);
 
-		final var patronRequest = definePatronRequest(CANCELLED, "LOANED", 1, 0);
+		final var patronRequest = definePatronRequest(CANCELLED, LOANED_LOCAL_ITEM_STATUS, 1);
+		defineSupplierRequest(patronRequest);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class, () -> supplierRenewal(patronRequest));
@@ -254,7 +297,8 @@ class SupplierRenewalTransitionTests {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, true);
 
-		final var patronRequest = definePatronRequest(CANCELLED, "TRANSIT", 1, 0);
+		final var patronRequest = definePatronRequest(CANCELLED, "TRANSIT", 1);
+		defineSupplierRequest(patronRequest);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class, () -> supplierRenewal(patronRequest));
@@ -272,7 +316,8 @@ class SupplierRenewalTransitionTests {
 		// Arrange
 		consortiumFixture.createConsortiumWithFunctionalSetting(TRIGGER_SUPPLIER_RENEWAL, true);
 
-		final var patronRequest = definePatronRequest(CANCELLED, "LOANED", 0, 0);
+		final var patronRequest = definePatronRequest(CANCELLED, LOANED_LOCAL_ITEM_STATUS, 0);
+		defineSupplierRequest(patronRequest);
 
 		// Act
 		final var exception = assertThrows(RuntimeException.class, () -> supplierRenewal(patronRequest));
@@ -287,31 +332,8 @@ class SupplierRenewalTransitionTests {
 
 	private void assertNoAuditRecords(PatronRequest updatedPatronRequest) {
 		final var audits = patronRequestsFixture.findAuditEntries(updatedPatronRequest);
-		assertThat(audits.size(), is(0));
-	}
 
-	private void assertRenewalSuccessAudit(PatronRequest updatedPatronRequest) {
-		final var audits = patronRequestsFixture.findAuditEntries(updatedPatronRequest);
-
-		assertThat("There should be one matching audit entry",
-			audits, hasItem(allOf(
-				briefDescriptionContains("Supplier renewal : Placed"),
-				hasFromStatus(LOANED),
-				hasToStatus(LOANED)
-			))
-		);
-	}
-
-	private void assertRenewalFailureAudit(PatronRequest updatedPatronRequest) {
-		final var audits = patronRequestsFixture.findAuditEntries(updatedPatronRequest);
-
-		assertThat("There should be one matching audit entry",
-			audits, hasItem(allOf(
-				briefDescriptionContains("Supplier renewal : Failed"),
-				hasFromStatus(LOANED),
-				hasToStatus(LOANED)
-			))
-		);
+		assertThat(audits, is(empty()));
 	}
 
 	private PatronRequest supplierRenewal(PatronRequest patronRequest) {
@@ -326,43 +348,55 @@ class SupplierRenewalTransitionTests {
 			.thenReturn(patronRequest));
 	}
 
-	private PatronRequest definePatronRequest(PatronRequest.Status status, String localItemStatus,
-			Integer localRenewalCount, Integer renewalCount) {
+	private PatronRequest definePatronRequest(PatronRequest.Status status,
+		String localItemStatus, Integer localRenewalCount) {
 
-		final var patron = patronFixture.definePatron("365636", "home-library",
+		final var patron = patronFixture.definePatron(generateNumericLocalIdAsString(), "home-library",
 			borrowingHostLms, null);
 
 		final var patronRequest = PatronRequest.builder()
 			.id(randomUUID())
-			.localItemId("4324324")
+			.localItemId(generateNumericLocalIdAsString())
 			.localItemStatus(localItemStatus)
 			.localRenewalCount(localRenewalCount)
-			.renewalCount(renewalCount)
+			.renewalCount(0)
 			.patron(patron)
 			.status(status)
-			.requestingIdentity(patron.getPatronIdentities().get(0))
-			.localRequestId("3219073408")
+			.requestingIdentity(getValue(patron, Patron::getPatronIdentities, List::getFirst, null))
+			.localRequestId(generateNumericLocalIdAsString())
 			// This is necessary for the test that uses the request workflow service
 			.currentStatusTimestamp(Instant.now())
 			.build();
 
-		patronRequestsFixture.savePatronRequest(patronRequest);
-
-		return patronRequest;
+		return patronRequestsFixture.savePatronRequest(patronRequest);
 	}
 
-	private SupplierRequest defineSupplierRequest(PatronRequest patronRequest, String localItemId, Patron existingPatron) {
+	private void defineSupplierRequest(PatronRequest patronRequest) {
+		defineSupplierRequest(patronRequest, generateNumericLocalIdAsString(),
+			generateNumericLocalIdAsString());
+	}
+
+	private void defineSupplierRequest(PatronRequest patronRequest, String localPatronId, String localItemId) {
+		final var existingPatron = getValueOrNull(patronRequest, PatronRequest::getPatron);
 
 		final var patronIdentity = patronFixture.saveIdentityAndReturn(existingPatron, supplyingHostLms,
-			"1182843", false, "-", SUPPLYING_HOST_LMS_CODE, null);
+			localPatronId, false, "-", SUPPLYING_HOST_LMS_CODE, null);
 
-		return supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
-				.id(UUID.randomUUID())
-				.patronRequest(patronRequest)
-				.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
-				.localItemId(localItemId)
-				.localItemBarcode("123456789")
-				.virtualIdentity(patronIdentity)
-				.build());
+		supplierRequestsFixture.saveSupplierRequest(SupplierRequest.builder()
+			.id(UUID.randomUUID())
+			.patronRequest(patronRequest)
+			.hostLmsCode(SUPPLYING_HOST_LMS_CODE)
+			.localItemId(localItemId)
+			.localItemBarcode(generateBarcode())
+			.virtualIdentity(patronIdentity)
+			.build());
+	}
+
+	private static String toSupplyingHostLmsUrl(String subPath) {
+		return toUrl(SUPPLYING_HOST_LMS_BASE_URL, subPath);
+	}
+
+	private static String toUrl(String baseUrl, String subPath) {
+		return baseUrl + subPath;
 	}
 }
