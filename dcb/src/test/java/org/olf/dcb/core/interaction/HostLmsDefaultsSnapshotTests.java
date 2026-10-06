@@ -38,6 +38,7 @@ class HostLmsDefaultsSnapshotTests {
 				"pickup-circ-desk", AlmaClientConfig.DEFAULT_CIRC_DESK,
 				"user-identifier", AlmaClientConfig.DEFAULT_USER_IDENTIFIER)),
 			"org.olf.dcb.core.interaction.koha.KohaHostLmsClient", new TreeMap<>(Map.of(
+				"do-not-renew-note", KohaClientConfig.DEFAULT_DO_NOT_RENEW_NOTE,
 				"no-renew-collection-code", KohaClientConfig.DEFAULT_NO_RENEW_COLLECTION_CODE,
 				"oai-path", KohaOaiPmhIngestSource.DEFAULT_OAI_PATH,
 				"virtual-patron-category", KohaClientConfig.DEFAULT_VIRTUAL_PATRON_CATEGORY)),

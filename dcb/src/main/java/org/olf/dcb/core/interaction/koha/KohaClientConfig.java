@@ -52,6 +52,12 @@ public class KohaClientConfig {
 
 	public static final String DEFAULT_VIRTUAL_PATRON_CATEGORY = "DCB";
 
+	// Shown to the owning library's staff on the item, so it is theirs to word and translate
+	private static final HostLmsPropertyDefinition DO_NOT_RENEW_NOTE = stringPropertyDefinition(
+		"do-not-renew-note", "Internal note set on an item DCB has stopped being renewed", FALSE);
+
+	public static final String DEFAULT_DO_NOT_RENEW_NOTE = "Hold placed by owning library. Do not renew.";
+
 	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_EMAIL = stringPropertyDefinition(
 		VirtualPatronEmail.SETTING, "Consortium mailbox for virtual patrons' notices", FALSE);
 
@@ -81,7 +87,8 @@ public class KohaClientConfig {
 			VIRTUAL_ITEM_LIBRARY_CODE,
 			NO_RENEW_COLLECTION_CODE,
 			VIRTUAL_PATRON_CATEGORY,
-			VIRTUAL_PATRON_EMAIL
+			VIRTUAL_PATRON_EMAIL,
+			DO_NOT_RENEW_NOTE
 		);
 	}
 
@@ -91,6 +98,10 @@ public class KohaClientConfig {
 
 	public String getVirtualItemLibraryCode() {
 		return VIRTUAL_ITEM_LIBRARY_CODE.getRequiredConfigValue(hostLms);
+	}
+
+	public String getDoNotRenewNote() {
+		return DO_NOT_RENEW_NOTE.getOptionalValueFrom(hostLms.getClientConfig(), DEFAULT_DO_NOT_RENEW_NOTE);
 	}
 
 	public String getVirtualPatronEmail() {

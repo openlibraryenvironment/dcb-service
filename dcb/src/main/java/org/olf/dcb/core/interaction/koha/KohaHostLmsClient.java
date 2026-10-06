@@ -72,7 +72,6 @@ public class KohaHostLmsClient implements HostLmsClient {
 	// one - the two have to agree, or renewal prevention refuses every item DCB made
 	private static final String DCB_VIRTUAL_ITEM_CALL_NUMBER = "DCB_VIRTUAL_COLLECTION";
 
-	private static final String DO_NOT_RENEW_NOTE = "Hold placed by owning library. Do not renew.";
 
 	/**
 	 * How many items getItems enriches at once.
@@ -1220,7 +1219,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		final var update = KohaItem.builder()
 			.collectionCode(config.getNoRenewCollectionCode())
-			.internalNotes(withDoNotRenewNote(currentItem.getInternalNotes()))
+			.internalNotes(withDoNotRenewNote(currentItem.getInternalNotes(), config.getDoNotRenewNote()))
 			.build();
 
 		return client.updateItem(String.valueOf(biblioId), itemId, update);
@@ -1230,16 +1229,16 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 * Renewal prevention can fire more than once for the same request, so the note is added only
 	 * when it is not already there - otherwise it grows without bound.
 	 */
-	private static String withDoNotRenewNote(String existingNotes) {
+	static String withDoNotRenewNote(String existingNotes, String note) {
 		if (isBlank(existingNotes)) {
-			return DO_NOT_RENEW_NOTE;
+			return note;
 		}
 
-		if (existingNotes.contains(DO_NOT_RENEW_NOTE)) {
+		if (existingNotes.contains(note)) {
 			return existingNotes;
 		}
 
-		return existingNotes + " | " + DO_NOT_RENEW_NOTE;
+		return existingNotes + " | " + note;
 	}
 
 	/**

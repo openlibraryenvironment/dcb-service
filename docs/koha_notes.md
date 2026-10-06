@@ -653,3 +653,12 @@ The member system sends a virtual patron hold and pickup notices like any other
 patron. Set `virtual-patron-email` to a mailbox the consortium reads, and those
 notices go there. Without it they have no address. It must be an operational
 address, never a patron's own: every virtual patron on this system shares it.
+
+## Stopping renewals
+
+When the owning library places a hold on an item DCB has lent, DCB sets the
+item's collection code to `no-renew-collection-code` (default `DCB_NO_RENEW`).
+Koha's `ItemsDeniedRenewal` preference must name that code. DCB also adds
+`do-not-renew-note` to the item's internal notes, so staff know why. The default
+is "Hold placed by owning library. Do not renew." Set it in the language this
+library's staff work in.
