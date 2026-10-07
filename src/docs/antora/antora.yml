@@ -1,4 +1,4 @@
-name: dcb.service.tech
+name: dcb.service
 ext:
   collector:
     run:
