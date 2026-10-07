@@ -195,6 +195,18 @@ class HostLmsConfigValidatorTests {
 		return config;
 	}
 
+	// Neither key is read anywhere in dcb-service: the warnings sent implementers to find
+	// values nothing uses
+	@Test
+	void shouldNotWarnAboutFolioKeysNothingReads() {
+		final var warnings = validator.findConfigurationWarnings(
+			"org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient",
+			Map.of("base-url", "https://folio.example.org", "apikey", "key"));
+
+		assertThat(warnings, not(hasItem(containsString("folio-tenant"))));
+		assertThat(warnings, not(hasItem(containsString("user-base-url"))));
+	}
+
 	@Test
 	void shouldRejectInvalidPolarisShelfLocationLoanPolicy() {
 		final var config = polarisConfig();
