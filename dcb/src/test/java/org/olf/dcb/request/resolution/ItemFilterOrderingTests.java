@@ -35,6 +35,7 @@ class ItemFilterOrderingTests {
 			"ExcludeFromSameAgencyItemFilter",// consortium functional setting
 			"ExcludeSupplierPickupFilter",    // consortium functional setting
 			"IncludeItemWithHoldsItemFilter", // consortium functional setting
+			"ExcludeCopyPromisedToBorrowerItemFilter", // one indexed query; a client only on a match
 			"SameServerItemFilter"            // builds two Host LMS clients
 		));
 	}

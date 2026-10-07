@@ -286,6 +286,17 @@ public interface HostLmsClient
 		return true;
 	}
 
+	/**
+	 * As a borrower, can this system carry a second virtual item for a supplier copy it already holds
+	 * a virtual item for, so that two requests from its patrons wait on that copy at once?
+	 * <p>
+	 * Answer true only where the system has been shown to keep both records distinct, including at
+	 * check-in by barcode. Resolution withholds the copy from this system while the answer is false.
+	 */
+	default boolean canHoldTwoVirtualItemsForOneCopy() {
+		return false;
+	}
+
 	@NonNull
 	String getClientId();
 
