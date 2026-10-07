@@ -7,6 +7,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
@@ -375,6 +376,75 @@ class PlaceRequestAtBorrowingAgencyTests {
 	}
 
 	@Test
+	void shouldCancelTheSupplierHoldWhenTheBorrowerHoldCannotBePlaced() {
+		// Arrange
+		final var supplierHoldId = "8475812";
+
+		final var patronRequest = requestWhoseBorrowerHoldFails("972322", supplierHoldId);
+
+		sierraPatronsAPIFixture.mockDeleteHold(supplierHoldId);
+
+		// Act
+		assertThrows(ThrowableProblem.class, () -> placeRequestAtBorrowingAgency(patronRequest));
+
+		// Assert
+		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(supplierHoldId);
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest),
+			hasItem(hasBriefDescription("Borrower hold not placed: cancelling the supplier hold")));
+
+		assertThat(patronRequestsFixture.findById(patronRequest.getId()).getStatus(), is(ERROR));
+	}
+
+	@Test
+	void shouldKeepTheBorrowerErrorWhenTheSupplierHoldCannotBeCancelled() {
+		// Arrange
+		final var supplierHoldId = "8475813";
+
+		final var patronRequest = requestWhoseBorrowerHoldFails("972323", supplierHoldId);
+
+		sierraPatronsAPIFixture.mockDeleteHoldError(supplierHoldId);
+
+		// Act
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> placeRequestAtBorrowingAgency(patronRequest));
+
+		// Assert
+		assertThat(problem, hasMessage(
+			"Unexpected response from: POST /iii/sierra-api/v6/patrons/972323/holds/requests"));
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest),
+			hasItem(hasBriefDescription("Delete supplier hold : Failed")));
+	}
+
+	private PatronRequest requestWhoseBorrowerHoldFails(String localPatronId, String supplierHoldId) {
+		final var clusterRecordId = randomUUID();
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(
+			clusterRecordId, bibRecordId);
+
+		bibRecordFixture.createBibRecord(bibRecordId,
+			hostLmsFixture.findByCode(HOST_LMS_CODE).getId(), "798473", clusterRecord);
+
+		final var patronRequest = createPatronRequest(localPatronId,
+			"home-library", clusterRecordId);
+
+		createSupplierRequest(patronRequest, "647246", supplyingAgency, supplierHoldId);
+
+		sierraPatronsAPIFixture.mockGetHoldById(supplierHoldId, SierraPatronHold.builder()
+			.id(supplierHoldId)
+			.recordType("i")
+			.record("http://some-record/7916922")
+			.status(SierraCodeTuple.builder().code("0").build())
+			.build());
+
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(localPatronId, "b");
+
+		return patronRequest;
+	}
+
+	@Test
 	void shouldFailWhenPlacedRequestCannotBeFoundInSierra() {
 		// Arrange
 		final var clusterRecordId = randomUUID();
@@ -664,10 +734,17 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private void createSupplierRequest(PatronRequest patronRequest,
 		String localBibId, DataAgency supplyingAgency) {
 
+		createSupplierRequest(patronRequest, localBibId, supplyingAgency, null);
+	}
+
+	private void createSupplierRequest(PatronRequest patronRequest,
+		String localBibId, DataAgency supplyingAgency, String supplierHoldId) {
+
 		supplierRequestsFixture.saveSupplierRequest(SupplierRequest
 			.builder()
 			.id(randomUUID())
 			.patronRequest(patronRequest)
+			.localId(supplierHoldId)
 			.localBibId(localBibId)
 			.localItemId("localItemId")
 			.canonicalItemType("ebook")
