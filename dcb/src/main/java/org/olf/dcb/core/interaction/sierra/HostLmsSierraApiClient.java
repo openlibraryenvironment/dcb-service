@@ -532,10 +532,11 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		try {
 			log.error("""
 					HTTP Request and Response Details:
-					URL: {}
+					Path: {}
 					Method: {}
 					Response: {}""",
-				request.getUri(),
+				// The path alone: a patron lookup carries the barcode in its query string
+				request.getPath(),
 				request.getMethod(),
 				error.toString());
 		} catch (Exception e) {
@@ -573,10 +574,7 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 	private <T> Mono<MutableHttpRequest<T>> ensureToken(MutableHttpRequest<T> request) {
 		return Mono.justOrEmpty(currentToken).filter(token -> !token.isExpired()).switchIfEmpty(acquireAccessToken())
 				.map(validToken -> {
-					final String token = validToken.toString();
-					log.debug("Using Auth token: {}", token);
-
-					return request.header(HttpHeaders.AUTHORIZATION, token);
+					return request.header(HttpHeaders.AUTHORIZATION, validToken.toString());
 				}).defaultIfEmpty(request);
 	}
 
@@ -596,8 +594,6 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 
 		final var checkoutPatch = CheckoutPatch.builder().itemBarcode(itemBarcode).patronBarcode(patronBarcode);
 		final var patchWithPin = pin != null ? checkoutPatch.patronPin(pin).build() : checkoutPatch.build();
-
-		log.debug("Checkout patch used: {}", patchWithPin);
 
 		return postRequest("patrons/checkout").map(request -> request.body(patchWithPin)).flatMap(this::ensureToken)
 				.flatMap(request -> doRetrieve(request, Argument.of(LinkResult.class)));
