@@ -192,8 +192,7 @@ public interface PatronRequestRepository {
 		return findActiveRequestHoldingSupplierItem(hostLmsCode, localItemId, Status.ACTIVE_STATE_CODES);
 	}
 
-	// supplier_request has no index on local_item_id: this narrows by idx_lender_hold's leading
-	// host_lms_code and filters that system's supplier requests. Called once per walk-up
+	// Served by idx_supplier_request_item, which covers only active supplier requests
 	@SingleResult
 	@Query(value = """
 		select pr.*
