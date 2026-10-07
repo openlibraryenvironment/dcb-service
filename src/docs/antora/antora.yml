@@ -1,7 +1,4 @@
-name: dcb.service.tech
-title: Technical Documentation - DCB Service
-nav:
-  - modules/ROOT/nav.adoc
+name: dcb.service
 ext:
   collector:
     run:
