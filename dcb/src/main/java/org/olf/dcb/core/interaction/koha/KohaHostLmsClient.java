@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.koha;
 
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.http.HttpStatus;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
@@ -807,10 +809,19 @@ public class KohaHostLmsClient implements HostLmsClient {
 		};
 	}
 
+	// A Koha older than the 25.11 spec lacks some of these lists, and says so with a 404.
+	// An empty body is empty too: as an empty Mono it would empty checkConfiguration's zip
 	private <T> Mono<List<ConfigurationReport.Entry>> entries(Mono<T[]> source,
 		Function<T, ConfigurationReport.Entry> toEntry) {
 
-		return source.map(values -> Arrays.stream(values).map(toEntry).toList());
+		return source.map(values -> Arrays.stream(values).map(toEntry).toList())
+			.defaultIfEmpty(List.of())
+			.onErrorResume(KohaHostLmsClient::isNotFound, notFound -> Mono.just(List.of()));
+	}
+
+	private static boolean isNotFound(Throwable error) {
+		return error instanceof HttpClientResponseException response
+			&& response.getStatus() == HttpStatus.NOT_FOUND;
 	}
 
 	// An unreadable list is an empty one, not a failure: the report says so per vocabulary
