@@ -120,8 +120,9 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			.patronWebsite(patronWebsite)
 			.hostLmsConfiguration(hostLmsConfiguration)
 			.targetLoanToBorrowRatio(targetLoanToBorrowRatio)
-			.reason("Adding a new library")
-			.changeCategory("New member")
+			.reason(textOr(input_map, "reason", "Adding a new library"))
+			.changeCategory(textOr(input_map, "changeCategory", "New member"))
+			.changeReferenceUrl(InputValues.stringValue(input_map, "changeReferenceUrl"))
 			.lastEditedBy(userString)
 			.build();
 
@@ -225,6 +226,12 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 					})
 			))
 			.toFuture();
+	}
+
+	private static String textOr(Map<String, Object> input, String key, String fallback) {
+		final var value = InputValues.stringValue(input, key);
+
+		return value == null || value.isBlank() ? fallback : value;
 	}
 
 	private Mono<Person> createPersonFromInput(Map<String, Object> contactInput, String username) {
