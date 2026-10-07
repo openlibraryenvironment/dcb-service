@@ -14,11 +14,12 @@ import io.micronaut.core.annotation.Order;
 import jakarta.inject.Singleton;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * Excludes a supplier copy that an unfinished request already brings to the same borrowing
- * system, unless that system can carry a second virtual item for one copy.
+ * Excludes a supplier copy that an unfinished request already brings to a system this request
+ * would also create a virtual item in, unless that system can carry a second virtual item for one copy.
  */
 @Slf4j
 @Singleton
@@ -32,41 +33,38 @@ public class ExcludeCopyPromisedToBorrowerItemFilter implements ItemFilter {
 		final var borrowingHostLmsCode = getValueOrNull(parameters,
 			ItemFilterParameters::borrowingHostLmsCode);
 
-		return item -> notPromisedToBorrower(item, borrowingHostLmsCode);
+		final var pickupAgencyCode = getValueOrNull(parameters,
+			ItemFilterParameters::pickupAgencyCode);
+
+		return item -> notPromised(item, borrowingHostLmsCode, pickupAgencyCode);
 	}
 
-	private Mono<Boolean> notPromisedToBorrower(Item item, String borrowingHostLmsCode) {
+	private Mono<Boolean> notPromised(Item item, String borrowingHostLmsCode, String pickupAgencyCode) {
 		final var itemHostLmsCode = getValueOrNull(item, Item::getHostLmsCode);
 		final var itemLocalId = getValueOrNull(item, Item::getLocalId);
 
 		if (itemHostLmsCode == null || itemLocalId == null || borrowingHostLmsCode == null) {
-			log.warn("Cannot evaluate notPromisedToBorrower, excluding item: itemLms={}, itemId={}, borrowingLms={}",
+			log.warn("Cannot evaluate notPromised, excluding item: itemLms={}, itemId={}, borrowingLms={}",
 				itemHostLmsCode, itemLocalId, borrowingHostLmsCode);
 
 			return Mono.just(false);
 		}
 
-		// A copy in the borrower's own system is lent through a real hold, with no virtual item
-		if (itemHostLmsCode.equals(borrowingHostLmsCode)) {
-			return Mono.just(true);
-		}
-
-		return Mono.from(patronRequestRepository.isSupplierCopyPromisedToBorrower(
-				itemHostLmsCode, itemLocalId, borrowingHostLmsCode))
-			.flatMap(promised -> promised
-				? canHoldSecondVirtualItem(borrowingHostLmsCode)
-				: Mono.just(true))
-			.defaultIfEmpty(false)
+		return Flux.from(patronRequestRepository.findSystemsHoldingVirtualItemForSupplierCopy(
+				itemHostLmsCode, itemLocalId, borrowingHostLmsCode, pickupAgencyCode))
+			.concatMap(this::canHoldSecondVirtualItem)
+			.all(Boolean::booleanValue)
 			.onErrorResume(error -> {
-				log.warn("Unable to check whether itemLms={} itemId={} is promised to borrowingLms={} ({}), excluding item",
-					itemHostLmsCode, itemLocalId, borrowingHostLmsCode, error.toString());
+				log.warn("Unable to check whether itemLms={} itemId={} is promised to borrowingLms={} or pickupAgency={} ({}), excluding item",
+					itemHostLmsCode, itemLocalId, borrowingHostLmsCode, pickupAgencyCode, error.toString());
 
 				return Mono.just(false);
 			});
 	}
 
-	private Mono<Boolean> canHoldSecondVirtualItem(String borrowingHostLmsCode) {
-		return hostLmsService.getClientFor(borrowingHostLmsCode)
-			.map(HostLmsClient::canHoldTwoVirtualItemsForOneCopy);
+	private Mono<Boolean> canHoldSecondVirtualItem(String hostLmsCode) {
+		return hostLmsService.getClientFor(hostLmsCode)
+			.map(HostLmsClient::canHoldTwoVirtualItemsForOneCopy)
+			.defaultIfEmpty(false);
 	}
 }

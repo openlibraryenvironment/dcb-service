@@ -193,23 +193,36 @@ public interface PatronRequestRepository {
 	}
 
 	/**
-	 * Whether an unfinished request from this borrowing system already holds this supplier copy:
-	 * its virtual item, carrying the copy's barcode, exists there until the request is finalised.
+	 * Of the systems a new request would create a virtual item in for this supplier copy (its
+	 * borrowing system, and its pickup system when that is another one), those where an unfinished
+	 * request already has one: as its borrowing system, or as its pickup system. A virtual item
+	 * carries the copy's barcode until its request is finalised. At most two rows.
 	 */
-	@SingleResult
 	@Query(value = """
-		select exists (
+		with new_request_systems as (
+			select cast(:borrowingHostLmsCode as varchar) as code
+			union
+			select h.code from agency a join host_lms h on h.id = a.host_lms_id
+			where a.code = :pickupAgencyCode
+		)
+		select nrs.code
+		from new_request_systems nrs
+		where nrs.code <> :supplierHostLmsCode
+		  and exists (
 			select 1
 			from supplier_request sr
 			join patron_request pr on pr.id = sr.patron_request_id
+			left join location pl on cast(pl.id as varchar) = pr.pickup_location_code
+			left join agency pa on pa.id = pl.agency_fk
+			left join host_lms ph on ph.id = pa.host_lms_id
 			where sr.host_lms_code = :supplierHostLmsCode
 			  and sr.local_item_id = :supplierLocalItemId
 			  and sr.is_active = true
-			  and pr.patron_hostlms_code = :borrowingHostLmsCode
-			  and pr.status_code not in ('FINALISED', 'ARCHIVED'))
+			  and pr.status_code not in ('FINALISED', 'ARCHIVED')
+			  and (pr.patron_hostlms_code = nrs.code or ph.code = nrs.code))
 		""", nativeQuery = true)
-	Publisher<Boolean> isSupplierCopyPromisedToBorrower(String supplierHostLmsCode,
-		String supplierLocalItemId, String borrowingHostLmsCode);
+	Publisher<String> findSystemsHoldingVirtualItemForSupplierCopy(String supplierHostLmsCode,
+		String supplierLocalItemId, String borrowingHostLmsCode, @Nullable String pickupAgencyCode);
 
 	// Served by idx_supplier_request_item, which covers only active supplier requests
 	@SingleResult
