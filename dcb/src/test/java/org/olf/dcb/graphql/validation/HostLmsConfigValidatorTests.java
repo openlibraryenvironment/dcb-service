@@ -253,21 +253,9 @@ class HostLmsConfigValidatorTests {
 	}
 
 	@Test
-	void shouldRequireTheRecordSyntaxAFolioHarvestSends() {
+	void shouldAcceptAFolioWithoutARecordSyntaxBecauseItHasADefault() {
 		final var config = folioConfig();
 		config.remove("record-syntax");
-
-		final var exception = assertThrows(HttpStatusException.class,
-			() -> validator.validate(FOLIO, config));
-
-		assertThat(exception.getMessage(), containsString("record-syntax"));
-	}
-
-	@Test
-	void shouldNotRequireARecordSyntaxWhenTheFolioDoesNotHarvest() {
-		final var config = folioConfig();
-		config.remove("record-syntax");
-		config.put("ingest", false);
 
 		assertDoesNotThrow(() -> validator.validate(FOLIO, config));
 	}

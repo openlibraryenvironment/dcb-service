@@ -125,8 +125,11 @@ public class HostLmsFixture {
 
 		final var clientConfig = new HashMap<String, Object>(Map.of(
 			"base-url", baseUrl,
-			"apikey", apiKey,
-			"record-syntax", recordSyntax));
+			"apikey", apiKey));
+
+		if (recordSyntax != null) {
+			clientConfig.put("record-syntax", recordSyntax);
+		}
 
 		if (metadataPrefix != null) {
 			clientConfig.put("metadata-prefix", metadataPrefix);

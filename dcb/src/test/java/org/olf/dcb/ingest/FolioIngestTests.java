@@ -92,6 +92,29 @@ class FolioIngestTests {
 	}
 
 	@Test
+	void shouldHarvestWithOaiDcWhenNoRecordSyntaxIsConfigured(MockServerClient mockServerClient) {
+		hostLmsFixture.createFolioHostLms("folio-no-syntax", "https://folio-no-syntax",
+			"api-key", null, null);
+
+		mockServerClient
+			.when(request()
+				.withMethod("GET")
+				.withPath("/oai")
+				.withHeader("host", "folio-no-syntax")
+				.withQueryStringParameter("verb", "ListRecords")
+				.withQueryStringParameter("recordSyntax", "oai_dc"))
+			.respond(response()
+				.withStatusCode(200)
+				.withBody(testResourceLoaderProvider.forBasePath("classpath:mock-responses/folio/")
+					.getResource("example-oai-response.xml"), TEXT_XML));
+
+		final var ingestedBibRecords = manyValuesFrom(ingestService.getBibRecordStream()
+			.transformDeferred(ProcessAuditService.withNewProcessAudit("test-ingest")));
+
+		assertThat(ingestedBibRecords, hasSize(2));
+	}
+
+	@Test
 	void shouldNotIngestInstanceWithInvalidIdentifier(MockServerClient mockServerClient) {
 		// Arrange
 		hostLmsFixture.createFolioHostLms("invalid-folio-host-lms", "https://invalid-folio",

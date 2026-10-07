@@ -34,6 +34,9 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 
 	private static final String PARAM_RECORD_SYNTAX = "recordSyntax";
 
+	// What every FOLIO on production is configured with
+	public static final String DEFAULT_RECORD_SYNTAX = "oai_dc";
+
 	private static final String UUID5_PREFIX = "ingest-source:folio-oai";
 
 	private static final String DEFAULT_SUPPRESSION_RULESET_NAME = "folio-default";
@@ -61,9 +64,7 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 
 		recordSyntax = MapUtils.getAsOptionalString(hostLms.getClientConfig(), CONFIG_RECORD_SYNTAX)
 			.filter(StringUtils::hasText)
-			.orElseThrow(() -> new IllegalArgumentException(String.format(
-				"OAI-PMH ingest for Host LMS \"%s\" requires client config \"%s\"",
-				hostLms.getCode(), CONFIG_RECORD_SYNTAX)));
+			.orElse(DEFAULT_RECORD_SYNTAX);
 		
 		apiKey = MapUtils.getAsOptionalString(
 			hostLms.getClientConfig(), CONFIG_API_KEY

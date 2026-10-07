@@ -166,11 +166,6 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "apikey", missing);
 		checkDefaultAgencyCode(config, missing);
 
-		// FolioOaiPmhIngestSource sends it on every harvest request and has no default for it
-		if (ingestEnabled(config)) {
-			checkPresent(config, "record-syntax", missing);
-		}
-
 		throwIfMissing("Folio", missing);
 	}
 
