@@ -1949,6 +1949,40 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldReportADuplicateBarcodeWhenPolarisRefusesTheVirtualItem() {
+		// Arrange
+		mockPolarisFixture.mockStartWorkflow(
+			WorkflowResponse.builder()
+				.workflowRequestGuid(randomUUID().toString())
+				.workflowStatus(InputRequired)
+				.prompt(Prompt.builder()
+					.WorkflowPromptID(Prompt.DuplicateRecords)
+					.title("Duplicate barcode detected")
+					.message("This record appears to be a duplicate of existing records:")
+					.build())
+				.build());
+
+		defineItemTypeMapping("TEST:CIRC");
+
+		final var barcode = generateBarcode();
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.createItem(
+				CreateItemCommand.builder()
+					.bibId(generateNumericLocalIdAsString())
+					.barcode(barcode)
+					.patronHomeLocation("37")
+					.canonicalItemType("TEST:CIRC")
+					.build())));
+
+		// Assert
+		assertThat(problem.getMessage(), containsString(barcode + " already exists in host LMS"));
+	}
+
+	@Test
 	void shouldFailToCreateVirtualItemIfStartingWorkflowRespondsWithMissingAnswer() {
 		// Arrange
 		mockPolarisFixture.mockStartWorkflow(
