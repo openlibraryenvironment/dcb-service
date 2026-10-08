@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -10,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -20,6 +23,7 @@ import org.olf.dcb.request.lifecycle.LifecycleCapabilityResolver;
 import org.olf.dcb.request.lifecycle.LifecycleRole;
 import org.olf.dcb.request.lifecycle.StrategyType;
 import org.olf.dcb.request.lifecycle.placement.BorrowingAgencyRequestStrategyService;
+import org.olf.dcb.request.resolution.SupplierRequestService;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
@@ -33,16 +37,19 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final LifecycleCapabilityResolver capabilityResolver;
+	private final SupplierRequestService supplierRequestService;
 
 	private static final List<Status> possibleSourceStatus = List.of(CONFIRMED);
 
 	public PlacePatronRequestAtBorrowingAgencyStateTransition(BorrowingAgencyRequestStrategyService borrowingAgencyRequestStrategyService,
 																														PatronRequestAuditService patronRequestAuditService,
-		SupplyingAgencyService supplyingAgencyService, LifecycleCapabilityResolver capabilityResolver) {
+		SupplyingAgencyService supplyingAgencyService, LifecycleCapabilityResolver capabilityResolver,
+		SupplierRequestService supplierRequestService) {
 		this.borrowingAgencyRequestStrategyService = borrowingAgencyRequestStrategyService;
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.supplyingAgencyService = supplyingAgencyService;
 		this.capabilityResolver = capabilityResolver;
+		this.supplierRequestService = supplierRequestService;
 	}
 
 	/**
@@ -151,12 +158,30 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 		return patronRequestAuditService.addAuditEntry(patronRequest,
 				"Borrower hold not placed: cancelling the supplier hold", auditData)
 			.then(supplyingAgencyService.cancelHold(ctx))
+			.then(Mono.defer(() -> recordSupplierHoldStatus(supplierRequest)))
+			.thenReturn(ctx)
 			.onErrorResume(cancelError -> {
-				log.error("Unable to cancel supplier hold {} for patron request {} after the borrower hold failed",
+				log.error("Unable to cancel supplier hold {} for patron request {}, or record its status, after the borrower hold failed",
 					supplierHoldId, patronRequest.getId(), cancelError);
 
 				return Mono.just(ctx);
 			});
+	}
+
+	// What the supplier now reports, recorded as a tracking handler records a change it made. Left as it was,
+	// a rollback reads the hold as still confirmed and places the borrower hold again before tracking catches up.
+	private Mono<SupplierRequest> recordSupplierHoldStatus(SupplierRequest supplierRequest) {
+		final var hold = HostLmsRequest.builder()
+			.localId(supplierRequest.getLocalId())
+			.localPatronId(getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId))
+			.build();
+
+		return supplyingAgencyService.getRequest(supplierRequest.getHostLmsCode(), hold)
+			.map(current -> Optional.ofNullable(current.getLocalId() == null ? HOLD_MISSING : current.getStatus()))
+			.defaultIfEmpty(Optional.of(HOLD_MISSING))
+			.flatMap(Mono::justOrEmpty)
+			.flatMap(status -> supplierRequestService.updateSupplierRequest(
+				supplierRequest.toBuilder().localStatus(status).build()));
 	}
 
 	private boolean isDeclarativeSupplierRequest(RequestWorkflowContext ctx) {
