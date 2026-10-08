@@ -13,7 +13,7 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
 
-/** Guards V9_0_019__supplier_request_item_index.sql: an index changes only speed, so nothing else would notice it missing. */
+/** Guards the supplier_request_item_index migration: an index changes only speed, so nothing else would notice it missing. */
 @DcbTest
 class SupplierRequestItemIndexTests {
 	@Inject
