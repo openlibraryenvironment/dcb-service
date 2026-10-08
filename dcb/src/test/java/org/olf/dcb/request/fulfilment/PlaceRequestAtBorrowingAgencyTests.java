@@ -414,7 +414,7 @@ class PlaceRequestAtBorrowingAgencyTests {
 			"Unexpected response from: POST /iii/sierra-api/v6/patrons/972323/holds/requests"));
 
 		assertThat(patronRequestsFixture.findAuditEntries(patronRequest),
-			hasItem(hasBriefDescription("Delete supplier hold : Failed")));
+			hasItem(hasBriefDescription("Cancel supplier hold : Failed")));
 	}
 
 	private PatronRequest requestWhoseBorrowerHoldFails(String localPatronId, String supplierHoldId) {
