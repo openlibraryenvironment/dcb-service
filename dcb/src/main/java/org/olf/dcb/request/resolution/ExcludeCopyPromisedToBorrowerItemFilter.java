@@ -1,12 +1,22 @@
 package org.olf.dcb.request.resolution;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
+import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
+import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.reactivestreams.Publisher;
 
@@ -18,14 +28,23 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * Excludes a supplier copy that an unfinished request already brings to a system this request
- * would also create a virtual item in, unless that system can carry a second virtual item for one copy.
+ * Excludes a supplier copy when DCB's own records show that a system this request would create a
+ * virtual item in already has one carrying the copy's barcode, or is about to, and that system cannot
+ * hold a second. Anything those records cannot show is left to {@link VirtualItemBarcodeCheck} on the
+ * copy resolution chooses, and a copy is never excluded on an answer that is not proof.
  */
 @Slf4j
 @Singleton
 @Order(ItemFilter.SAME_COPY_ORDER)
 @AllArgsConstructor
 public class ExcludeCopyPromisedToBorrowerItemFilter implements ItemFilter {
+	// Borrower placement runs from CONFIRMED; pickup placement follows it
+	private static final Set<String> BEFORE_BORROWER_PLACEMENT = names(SUBMITTED_TO_DCB, PATRON_VERIFIED,
+		RESOLVED, REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED);
+
+	private static final Set<String> BEFORE_PICKUP_PLACEMENT = names(SUBMITTED_TO_DCB, PATRON_VERIFIED,
+		RESOLVED, REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED, REQUEST_PLACED_AT_BORROWING_AGENCY);
+
 	private final PatronRequestRepository patronRequestRepository;
 	private final HostLmsService hostLmsService;
 
@@ -44,27 +63,38 @@ public class ExcludeCopyPromisedToBorrowerItemFilter implements ItemFilter {
 		final var itemLocalId = getValueOrNull(item, Item::getLocalId);
 
 		if (itemHostLmsCode == null || itemLocalId == null || borrowingHostLmsCode == null) {
-			log.warn("Cannot evaluate notPromised, excluding item: itemLms={}, itemId={}, borrowingLms={}",
-				itemHostLmsCode, itemLocalId, borrowingHostLmsCode);
-
-			return Mono.just(false);
+			return Mono.just(true);
 		}
 
-		return Flux.from(patronRequestRepository.findSystemsHoldingVirtualItemForSupplierCopy(
+		final var awaitingVirtualItem = Flux.from(patronRequestRepository.findSystemsAwaitingVirtualItemForSupplierCopy(
+			itemHostLmsCode, itemLocalId, borrowingHostLmsCode, pickupAgencyCode,
+			BEFORE_BORROWER_PLACEMENT, BEFORE_PICKUP_PLACEMENT));
+
+		final var recordedVirtualItem = Flux.from(patronRequestRepository.findSystemsWithRecordedVirtualItemForSupplierCopy(
 				itemHostLmsCode, itemLocalId, borrowingHostLmsCode, pickupAgencyCode))
-			.concatMap(this::canHoldSecondVirtualItem)
-			.all(Boolean::booleanValue)
+			.filterWhen(hostLmsCode -> clientFor(hostLmsCode, client -> !client.canSeeVirtualItemsByBarcode()));
+
+		return Flux.concat(awaitingVirtualItem, recordedVirtualItem)
+			.distinct()
+			.filterWhen(hostLmsCode -> clientFor(hostLmsCode, client -> !client.canHoldTwoVirtualItemsForOneCopy()))
+			.hasElements()
+			.map(promised -> !promised)
 			.onErrorResume(error -> {
-				log.warn("Unable to check whether itemLms={} itemId={} is promised to borrowingLms={} or pickupAgency={} ({}), excluding item",
+				log.warn("Unable to check whether itemLms={} itemId={} is promised to borrowingLms={} or pickupAgency={} ({}), including item",
 					itemHostLmsCode, itemLocalId, borrowingHostLmsCode, pickupAgencyCode, error.toString());
 
-				return Mono.just(false);
+				return Mono.just(true);
 			});
 	}
 
-	private Mono<Boolean> canHoldSecondVirtualItem(String hostLmsCode) {
+	// A system DCB has no client for is judged on its records alone
+	private Mono<Boolean> clientFor(String hostLmsCode, Function<HostLmsClient, Boolean> answer) {
 		return hostLmsService.getClientFor(hostLmsCode)
-			.map(HostLmsClient::canHoldTwoVirtualItemsForOneCopy)
-			.defaultIfEmpty(false);
+			.map(answer)
+			.defaultIfEmpty(true);
+	}
+
+	private static Set<String> names(Status... statuses) {
+		return Stream.of(statuses).map(Enum::name).collect(Collectors.toUnmodifiableSet());
 	}
 }

@@ -48,13 +48,17 @@ public class PatronRequestResolutionService {
 	private final String itemResolver;
 	private final ManualSelection manualSelection;
 	private final AllItemFilters itemFilters;
+	private final VirtualItemBarcodeCheck virtualItemBarcodeCheck;
 	private final Duration timeout;
+
+	// Each check asks the borrowing and pickup systems: past this many copies, the next is chosen unchecked
+	private static final int MAX_COPIES_CHECKED = 5;
 
 	public PatronRequestResolutionService(LiveAvailabilityService liveAvailabilityService,
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		@Value("${dcb.itemresolver.code:}") @Nullable String itemResolver,
 		List<ResolutionSortOrder> allResolutionStrategies, ManualSelection manualSelection,
-		AllItemFilters itemFilters,
+		AllItemFilters itemFilters, VirtualItemBarcodeCheck virtualItemBarcodeCheck,
 		@Value("${dcb.resolution.live-availability.timeout:PT30S}") Duration timeout) {
 
 		this.liveAvailabilityService = liveAvailabilityService;
@@ -63,6 +67,7 @@ public class PatronRequestResolutionService {
 		this.allResolutionStrategies = allResolutionStrategies;
 		this.manualSelection = manualSelection;
 		this.itemFilters = itemFilters;
+		this.virtualItemBarcodeCheck = virtualItemBarcodeCheck;
 		this.timeout = timeout;
 
 		log.debug("Using live availability timeout of {} during resolution", timeout);
@@ -231,6 +236,7 @@ public class PatronRequestResolutionService {
 		final List<Item> items = getValue(resolution, Resolution::getFilteredItems, emptyList());
 
 		return Mono.justOrEmpty(manualSelection.chooseItem(items, itemSelection))
+			.filterWhen(item -> virtualItemBarcodeCheck.barcodeAlreadyPresent(item, resolution).map(present -> !present))
 			.map(resolution::selectItem);
 	}
 
@@ -283,7 +289,16 @@ public class PatronRequestResolutionService {
 			return Mono.just(resolution);
 		}
 
-		return Mono.just(resolution.selectItem(itemList.stream().findFirst().orElseThrow()));
+		return fromIterable(itemList)
+			.index()
+			.concatMap(indexed -> indexed.getT1() < MAX_COPIES_CHECKED
+				? virtualItemBarcodeCheck.barcodeAlreadyPresent(indexed.getT2(), resolution)
+					.filter(present -> !present)
+					.map(absent -> indexed.getT2())
+				: Mono.just(indexed.getT2()))
+			.next()
+			.map(resolution::selectItem)
+			.defaultIfEmpty(resolution);
 	}
 
 	private Mono<Resolution> getAvailableItems(Resolution resolution) {

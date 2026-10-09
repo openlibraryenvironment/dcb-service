@@ -194,9 +194,43 @@ public interface PatronRequestRepository {
 
 	/**
 	 * Of the systems a new request would create a virtual item in for this supplier copy (its
-	 * borrowing system, and its pickup system when that is another one), those where an unfinished
-	 * request already has one: as its borrowing system, or as its pickup system. A virtual item
-	 * carries the copy's barcode until its request is finalised. At most two rows.
+	 * borrowing system, and its pickup system when that is another one), those where an earlier
+	 * request on the copy has not created its virtual item yet but will: it is still tracked and in
+	 * one of the given statuses, for that system as its borrowing system or as its pickup system.
+	 * At most two rows.
+	 */
+	@Query(value = """
+		with new_request_systems as (
+			select cast(:borrowingHostLmsCode as varchar) as code
+			union
+			select h.code from agency a join host_lms h on h.id = a.host_lms_id
+			where a.code = :pickupAgencyCode
+		)
+		select nrs.code
+		from new_request_systems nrs
+		where nrs.code <> :supplierHostLmsCode
+		  and exists (
+			select 1
+			from supplier_request sr
+			join patron_request pr on pr.id = sr.patron_request_id
+			left join location pl on cast(pl.id as varchar) = pr.pickup_location_code
+			left join agency pa on pa.id = pl.agency_fk
+			left join host_lms ph on ph.id = pa.host_lms_id
+			where sr.host_lms_code = :supplierHostLmsCode
+			  and sr.local_item_id = :supplierLocalItemId
+			  and sr.is_active = true
+			  and pr.is_too_long is not true
+			  and ((pr.patron_hostlms_code = nrs.code and pr.status_code in (:beforeBorrowerPlacement))
+			    or (ph.code = nrs.code and pr.status_code in (:beforePickupPlacement))))
+		""", nativeQuery = true)
+	Publisher<String> findSystemsAwaitingVirtualItemForSupplierCopy(String supplierHostLmsCode,
+		String supplierLocalItemId, String borrowingHostLmsCode, @Nullable String pickupAgencyCode,
+		Collection<String> beforeBorrowerPlacement, Collection<String> beforePickupPlacement);
+
+	/**
+	 * Of the systems a new request would create a virtual item in for this supplier copy, those
+	 * where DCB recorded creating a virtual item for an earlier request on the copy and that request
+	 * has not been finalised, which is when the virtual item is deleted. At most two rows.
 	 */
 	@Query(value = """
 		with new_request_systems as (
@@ -219,9 +253,10 @@ public interface PatronRequestRepository {
 			  and sr.local_item_id = :supplierLocalItemId
 			  and sr.is_active = true
 			  and pr.status_code not in ('FINALISED', 'ARCHIVED')
-			  and (pr.patron_hostlms_code = nrs.code or ph.code = nrs.code))
+			  and ((pr.patron_hostlms_code = nrs.code and pr.local_item_id is not null)
+			    or (ph.code = nrs.code and pr.pickup_item_id is not null)))
 		""", nativeQuery = true)
-	Publisher<String> findSystemsHoldingVirtualItemForSupplierCopy(String supplierHostLmsCode,
+	Publisher<String> findSystemsWithRecordedVirtualItemForSupplierCopy(String supplierHostLmsCode,
 		String supplierLocalItemId, String borrowingHostLmsCode, @Nullable String pickupAgencyCode);
 
 	// Served by idx_supplier_request_item, which covers only active supplier requests
