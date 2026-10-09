@@ -38,10 +38,6 @@ final class ConsortialFolioClientConstants {
 	static final String FOLIO_INVENTORY_STATUS_MISSING = "Missing";
 	static final String FOLIO_INVENTORY_STATUS_DECLARED_LOST = "Declared lost";
 
-	// Response statuses
-	static final String PING_STATUS_OK = "OK";
-	static final String PING_STATUS_ERROR = "ERROR";
-
 	// API path templates
 	static final String PATH_RTAC = "/rtac";
 	static final String PATH_DCB_TRANSACTION = "/dcbService/transactions/%s";
@@ -52,7 +48,6 @@ final class ConsortialFolioClientConstants {
 	static final String PATH_PATRON_PIN_VERIFY = "/users/patron-pin/verify";
 	static final String PATH_INVENTORY_ITEMS = "/inventory/items";
 	static final String PATH_INVENTORY_INSTANCES = "/inventory/instances";
-	static final String PATH_PROXY_HEALTH = "/_/proxy/health";
 
 	static final List<String> ITEM_STATUSES = List.of(
 		"Aged to lost",

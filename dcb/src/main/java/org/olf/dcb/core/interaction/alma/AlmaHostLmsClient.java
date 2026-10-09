@@ -40,6 +40,7 @@ import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.interops.ConfigType;
 import org.zalando.problem.Problem;
 
+import io.micronaut.http.HttpResponse;
 import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.NonNull;
@@ -1844,28 +1845,57 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		}
 	}
 
+	/**
+	 * An Alma API key is granted per area, read or read and write. This checks each area DCB
+	 * uses, as it uses it - configuration is read; users and inventory are written - so a key
+	 * missing one fails here rather than on the first patron request.
+	 */
 	public Mono<PingResponse> ping() {
-		Instant start = Instant.now();
-		return Mono.from(client.test())
-			.flatMap( tokenInfo -> {
-				return Mono.just(PingResponse.builder()
-					.target(getHostLmsCode())
-					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
-					.status("OK")
-					.pingTime(Duration.between(start, Instant.now()))
-					.build());
-			})
-			.onErrorResume( e -> {
-				return Mono.just(PingResponse.builder()
-					.target(getHostLmsCode())
-					.status("ERROR")
-					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
-					.additional(e.getMessage())
-					.pingTime(Duration.ofMillis(0))
-					.build());
-			})
+		final var start = Instant.now();
+		final var apiVersion = getHostSystemType() + " API " + getHostSystemVersion();
 
-		;
+		return checkApiArea("Configuration (read)", client.testReadResponse("conf"))
+			.map(AlmaHostLmsClient::responseFacts)
+			.defaultIfEmpty(Map.of())
+			.flatMap(facts -> checkApiArea("Users (read and write)", client.testWrite("users/operation"))
+				.then(checkApiArea("Bibs and inventory (read and write)", client.testWrite("bibs")))
+				// Alma publishes no release number: which environment and institution this key reaches
+				// is what tells a sandbox from production
+				.then(client.retrieveGeneralConfiguration()
+					.map(general -> "%s (%s, %s)".formatted(apiVersion, general.getEnvironmentType(),
+						general.getInstitution() != null ? general.getInstitution().getValue() : "institution unknown"))
+					.onErrorReturn(apiVersion))
+				.map(version -> PingResponse.ok(getHostLmsCode(), version,
+					Duration.between(start, Instant.now()), facts)))
+			.onErrorResume(error -> Mono.just(PingResponse.error(getHostLmsCode(), apiVersion,
+				error.getMessage(), error, Duration.between(start, Instant.now()))));
+	}
+
+	// Alma's daily call allowance is shared by every integration on the institution's key
+	private static final String API_REMAINING_HEADER = "X-Exl-Api-Remaining";
+
+	static Map<String, Object> responseFacts(HttpResponse<?> response) {
+		final var facts = new HashMap<String, Object>(ClockSkew.facts(response));
+
+		Optional.ofNullable(response.getHeaders().get(API_REMAINING_HEADER))
+			.flatMap(AlmaHostLmsClient::parseLong)
+			.ifPresent(remaining -> facts.put("apiCallsRemaining", remaining));
+
+		return facts;
+	}
+
+	private static Optional<Long> parseLong(String value) {
+		try {
+			return Optional.of(Long.parseLong(value.trim()));
+		}
+		catch (NumberFormatException e) {
+			return Optional.empty();
+		}
+	}
+
+	private static <T> Mono<T> checkApiArea(String area, Mono<T> test) {
+		return test.onErrorMap(error -> new IllegalStateException(
+			"The API key was refused for " + area + ": " + error.getMessage(), error));
 	}
 
 	public String getHostSystemType() {

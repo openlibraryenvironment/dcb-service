@@ -41,11 +41,8 @@ import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_INVENTORY_INSTANCES;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_INVENTORY_ITEMS;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_PATRON_PIN_VERIFY;
-import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_PROXY_HEALTH;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_RTAC;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_USERS;
-import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PING_STATUS_ERROR;
-import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PING_STATUS_OK;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_CANCELLED;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.RESULT_OK_CLOSED;
@@ -77,6 +74,7 @@ import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Map;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -1591,36 +1589,29 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.build();
 	}
 
+	/**
+	 * A transaction status lookup for an id that cannot exist. Measured against a FOLIO
+	 * integration tenant, edge-dcb answers it 404 with a valid key and 401 with a missing or wrong
+	 * one, so it proves the gateway is up and the key accepted, and changes nothing. Okapi's own
+	 * health and version paths are not served through an edge gateway: they answered 503.
+	 */
 	@Override
 	public Mono<PingResponse> ping() {
-		Publisher<HttpResponse<Void>> responsePublisher = httpClient.exchange(rootUri + PATH_PROXY_HEALTH, Void.class);
-		Instant start = Instant.now();
+		final var start = Instant.now();
 
-		return Mono.from(responsePublisher)
-			.flatMap(response -> {
-				if (response.getStatus().getCode() == 200) {
-					return Mono.just(PingResponse.builder()
-						.target(getHostLmsCode())
-						.status(PING_STATUS_OK)
-						.pingTime(Duration.between(start, Instant.now()))
-						.build());
-				} else {
-					return Mono.just(PingResponse.builder()
-						.target(getHostLmsCode())
-						.status(PING_STATUS_ERROR)
-						.pingTime(Duration.between(start, Instant.now()))
-						.build());
-				}
-			})
-			.onErrorResume(e -> {
-				log.error("Problem pinging host {}", e.getMessage());
-				return Mono.just(PingResponse.builder()
-					.target(getHostLmsCode())
-					.status(PING_STATUS_ERROR)
-					.pingTime(Duration.between(start, Instant.now()))
-					.build());
-			});
+		return getTransactionStatus(UUID.randomUUID().toString())
+			.thenReturn(TRUE)
+			.onErrorResume(TransactionNotFoundException.class, notFound -> Mono.just(TRUE))
+			.map(reached -> PingResponse.ok(getHostLmsCode(), PING_VERSION_INFO, Duration.between(start, Instant.now())))
+			.onErrorResume(InvalidApiKeyException.class, refused -> Mono.just(PingResponse.error(
+				getHostLmsCode(), PING_VERSION_INFO, "edge-dcb refused the API key", PingFailure.REFUSED,
+				Duration.between(start, Instant.now()), Map.of())))
+			.onErrorResume(error -> Mono.just(PingResponse.error(getHostLmsCode(), PING_VERSION_INFO,
+				error.getMessage(), error, Duration.between(start, Instant.now()))));
 	}
+
+	// edge-dcb publishes no version, and FOLIO's is only reachable through Okapi
+	private static final String PING_VERSION_INFO = "FOLIO edge-dcb";
 
 	public String getHostLmsCode() {
     String result = hostLms.getCode();

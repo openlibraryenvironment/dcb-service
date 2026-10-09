@@ -474,6 +474,8 @@ type HostLms {
 	suppressionRulesetName: String
 	itemSuppressionRulesetName: String
   clientConfig: JSON
+  "The result of the last connectivity check: status, failure category, version, facts, checkedAt, lastOkAt"
+  lastPing: JSON
 }
 
 """

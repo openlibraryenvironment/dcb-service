@@ -168,6 +168,11 @@ its allowed IP range set to the OpenRS server. Issue separate keys for your sand
 production, so a test can never write to production. See [What OpenRS asks of your
 Alma](#what-we-ask) for what each area is used for.
 
+OpenRS checks the key with Alma's own test calls (Configuration read, Users and Bibs read and
+write) when the Host LMS is saved and once a day. A key missing one of them reports `ERROR`
+naming that area. When all pass, the result names the environment and institution the key
+reaches, such as `ALMA API v1 (sandbox, 01ABC_INST)`: check it says `production` before go-live.
+
 <a id="staff-user"></a>
 ### An Alma staff user for troubleshooting
 

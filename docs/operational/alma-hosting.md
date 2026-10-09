@@ -121,8 +121,8 @@ stable: a change of egress address stops every institution that restricts by IP 
 ## Keys
 
 - **One key per environment.** A sandbox key against a production Host LMS, or the reverse, is
-  the easiest way to write test data into a live catalogue. The ping and the configuration
-  report show which institution answered.
+  the easiest way to write test data into a live catalogue. The ping names the environment
+  (`sandbox` or `production`) and institution the key reaches.
 - **Rotation.** Change `apikey` on the Host LMS in DCB Admin; the change takes effect on the next
   call. Because that is a settings change, it is validated, so every required setting must
   already be present: see [Upgrading an existing Alma Host LMS](#upgrading).
@@ -161,7 +161,7 @@ All three need an administrator or interop-tester login.
 
 | Endpoint | What it proves |
 |---|---|
-| `GET /imps/ping?code={host LMS code}` | The gateway answers and the key can read the Configuration area. It does not prove Users or Bibs access. |
+| `GET /imps/ping?code={host LMS code}` | Alma's own test calls for each area DCB uses: Configuration read, Users and Bibs read and write. A failure names the area. When all pass, the version reads `ALMA API v1 ({environment}, {institution})` from Alma's general configuration, which tells a sandbox key from a production one. DCB also pings every Host LMS when it is saved and once a day, raising a ping-failure alarm on `ERROR`. |
 | `GET /imps/configuration/{host LMS code}` | The sharing library, desk and alternative, the virtual item library and location, and both item policies exist in Alma. Lists the institution's material types, user groups, item policies, libraries and shelving locations. |
 | `GET /imps/configuration/{host LMS code}/mappings` | Every saved mapping against Alma's codes, in both directions: see [Checking the configuration](alma-setup.md#checking). |
 

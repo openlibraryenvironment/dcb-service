@@ -75,8 +75,8 @@ class AgencyScopeArchitectureTests {
 			"Deliberately shared - see AgencyAccessScope. Pickup-anywhere makes hiding another "
 				+ "library's pickup locations actively harmful.");
 		reasons.put("getHostLMSDataFetcher",
-			"The roster is directory data; the sensitive part is clientConfig, which is redacted "
-				+ "for restricted callers inside the fetcher.");
+			"The roster is directory data; the sensitive parts are clientConfig and lastPing, which "
+				+ "are redacted for restricted callers by their field fetchers (HostLmsFieldScope).");
 		reasons.put("getLibrariesDataFetcher",
 			"DAFL needs the full library list to render filter dropdowns. A library roster is not "
 				+ "confidential.");

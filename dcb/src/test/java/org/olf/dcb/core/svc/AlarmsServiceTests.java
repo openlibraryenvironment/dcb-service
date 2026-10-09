@@ -3,17 +3,25 @@ package org.olf.dcb.core.svc;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.configuration.NotificationEndpointDefinition;
 import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.storage.AlarmRepository;
 import org.olf.dcb.test.DataAccess;
@@ -120,5 +128,61 @@ class AlarmsServiceTests {
 		return Flux.from(alarmRepository.queryAll())
 			.collectList()
 			.block();
+	}
+
+	@Test
+	void shouldPostToTheWebhookWhenAnAlarmIsRaised() {
+		final var posted = new ArrayList<String>();
+		final var notifying = notifyingService(posted);
+
+		notifying.raise(pingFailure()).block();
+
+		assertThat(posted, hasSize(1));
+		assertThat(posted.get(0), containsString(PING_FAILURE + " ACTIVATED"));
+	}
+
+	@Test
+	void shouldPostToTheWebhookWhenAnAlarmThatExistedIsCancelled() {
+		final var posted = new ArrayList<String>();
+		final var notifying = notifyingService(posted);
+
+		notifying.raise(pingFailure()).block();
+		notifying.cancel(PING_FAILURE).block();
+
+		assertThat(posted, hasSize(2));
+		assertThat(posted.get(1), containsString(PING_FAILURE + " DEACTIVATED"));
+	}
+
+	@Test
+	void shouldNotPostWhenCancellingAnAlarmThatDoesNotExist() {
+		final var posted = new ArrayList<String>();
+
+		// What every passing ping does for a healthy host, every day
+		notifyingService(posted).cancel(PING_FAILURE).block();
+
+		assertThat(posted, is(empty()));
+	}
+
+	private static final String PING_FAILURE = "ILS.EXAMPLE.PING_FAILURE";
+
+	private Alarm pingFailure() {
+		return Alarm.builder()
+			.id(UUIDUtils.generateAlarmId(PING_FAILURE))
+			.code(PING_FAILURE)
+			.build();
+	}
+
+	// The webhook is recorded rather than called; whether a post is made at all is under test
+	private AlarmsService notifyingService(List<String> posted) {
+		final var webhook = new NotificationEndpointDefinition("test-webhook");
+		webhook.setUrl("https://hooks.example.com/alarms");
+		webhook.setProfile("SLACK");
+
+		final var service = spy(new AlarmsService(alarmRepository, List.of(webhook)));
+
+		doAnswer(invocation -> Mono.fromRunnable(() -> posted.add(invocation.getArgument(1).toString())))
+			.when(service).publishToWebhook(anyString(), anyMap());
+
+		return service;
 	}
 }

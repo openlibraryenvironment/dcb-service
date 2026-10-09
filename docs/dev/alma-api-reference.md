@@ -16,6 +16,7 @@ How the calls fit together is in [Alma integration](alma-integration.md).
 | `POST /almaws/v1/users` | `createUser` | `createPatron` |
 | `PUT /almaws/v1/users/{user_id}` | `updateUserDetails` | `updatePatron` (with `override=user_group`), virtual patron expiry extension |
 | `DELETE /almaws/v1/users/{user_id}` | `deleteUser` | `deletePatron` |
+| `POST /almaws/v1/users/operation/test` | `testWrite("users/operation")` | `ping`: read and write access to Users |
 | `GET /almaws/v1/users`, `GET /almaws/v1/users?q=external_id~{id}` | `retrieveUsers`, `getUsersByExternalId` | Not used |
 
 ## User requests (holds)
@@ -55,6 +56,7 @@ How the calls fit together is in [Alma integration](alma-integration.md).
 | `DELETE /almaws/v1/bibs/{mms_id}/holdings/{holding_id}` | `deleteHoldingsRecord` | `deleteItem`; `createItem` when the item could not be created |
 | `POST /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items` | `createItem` | `createItem` |
 | `DELETE /almaws/v1/bibs/{mms_id}/holdings/{holding_id}/items/{item_pid}` | `withdrawItem` | `deleteItem` |
+| `POST /almaws/v1/bibs/test` | `testWrite("bibs")` | `ping`: read and write access to Bibs |
 
 ## Configuration
 
@@ -67,7 +69,8 @@ Read only. DCB writes nothing under `/conf`.
 | `GET /almaws/v1/conf/libraries/{library}/locations` | `retrieveLocations` | Configuration report, location import |
 | `GET /almaws/v1/conf/libraries/{library}/circ-desks/{desk}` | `retrieveCirculationDesk` | Configuration report, to check the sharing desk has a hold shelf |
 | `GET /almaws/v1/conf/code-tables/{table}` | `retrieveCodeTable` | Vocabularies: `PhysicalMaterialType`, `UserGroups`, `ItemPolicy` |
-| `GET /almaws/v1/conf/test` | `test` | `ping` |
+| `GET /almaws/v1/conf/test` | `testRead("conf")` | `ping` |
+| `GET /almaws/v1/conf/general` | `retrieveGeneralConfiguration` | `ping`, for the environment and institution |
 
 ## OAI-PMH
 

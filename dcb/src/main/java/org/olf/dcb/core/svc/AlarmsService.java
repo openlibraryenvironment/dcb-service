@@ -129,26 +129,26 @@ public class AlarmsService {
   }
 
   private Mono<String> optionallyNotify(List<NotificationEndpointDefinition> targets, String alarmCode, String status) {
+		// concatMap, not map: map built each post and never subscribed to it, so none was sent
 		return Flux.fromIterable( targets )
-			.map( target -> {
+			.concatMap( target -> {
 				log.info("Publish {} {} to {}",alarmCode, status, target);
 
         if ( target.getProfile() == null ) {
           log.error("Missing profile {}",target);
-          return Mono.empty();
+          return Mono.<Void>empty();
         }
-          
-				
+
         return switch ( target.getProfile().toUpperCase() ) {
           case "SLACK" -> publishToWebhook(target.getUrl(), mapStringToSlackPayload("DCB-ALARM: "+envCode+" "+alarmCode+" "+status));
           case "TEAMS" -> publishToWebhook(target.getUrl(), mapStringToTeamsPayload("DCB-ALARM: "+envCode+" "+alarmCode+" "+status));
           case "LOG" -> {
             log.info("DCB-ALARM: "+envCode+" "+alarmCode+" "+status);
-            yield Mono.empty();
+            yield Mono.<Void>empty();
           }
           default -> {
             log.error("Unknown profile for notification {}", target);
-            yield Mono.empty();
+            yield Mono.<Void>empty();
           }
         };
 			})
@@ -156,8 +156,6 @@ public class AlarmsService {
         log.error("Problem notifying alarm", error) ;
         return Mono.empty();
       } )
-      .count()
-      .doOnNext(count -> log.info("Completed notifying {}",count) )
 			.then(Mono.just("OK") );
 	}
 
@@ -220,7 +218,9 @@ public class AlarmsService {
 	public Mono<String> cancel(String code) {
 		log.info("Cancel alarm: {}",code);
 		return Mono.from(alarmRepository.deleteByCode(code))
-			.then( optionallyNotify(code, "DEACTIVATED") )
+			// Every passing check cancels its alarm, so only one that existed is news
+			.filter(deleted -> deleted > 0)
+			.flatMap(deleted -> optionallyNotify(code, "DEACTIVATED"))
 			.thenReturn( code );
 	}
 
@@ -262,14 +262,14 @@ public class AlarmsService {
 		try {
 			log.info("Announce alarm on webhook : {}",url);
 
-			HttpClient client = HttpClient.create(new URL(url));
-
 			HttpRequest<Map<String, Object>> request = HttpRequest
 				.POST(url, payload)
 				.contentType(MediaType.APPLICATION_JSON_TYPE);
-                
-			// Sending the POST request to each webhook URL
-			return Mono.from(client.exchange(request))
+
+			// One client per post, closed once the post completes
+			return Mono.using(() -> HttpClient.create(new URL(url)),
+					client -> Mono.from(client.exchange(request)),
+					AlarmsService::closeQuietly)
 				.onErrorResume( e -> {
 					// Handle the error gracefully, log or return fallback
 					log.error("Unable to post to webhook: {} {} {}", e.getMessage(), url.toString(), payload);
@@ -281,6 +281,15 @@ public class AlarmsService {
 		catch ( Exception e ) {
       log.warn("Problem trying to announce alarm on {} with payload {}",url, payload, e);
 			return Mono.empty();
+		}
+	}
+
+	private static void closeQuietly(HttpClient client) {
+		try {
+			client.close();
+		}
+		catch (Exception e) {
+			log.warn("Problem closing webhook client", e);
 		}
 	}
 

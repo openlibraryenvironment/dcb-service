@@ -13,6 +13,7 @@ import org.olf.dcb.core.api.serde.DailyPatronRequestStat;
 import org.olf.dcb.core.clustering.model.MatchPoint;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.core.clustering.model.*;
+import org.olf.dcb.core.svc.HostLmsPingService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.storage.AgencyGroupMemberRepository;
 import org.olf.dcb.storage.HostLmsRepository;
@@ -87,9 +88,11 @@ public class DataFetchers {
 	private final QueryService qs;
 	private final AgencyScopeResolver agencyScopeResolver;
 	private final MappingAccessService mappingAccessService;
+	private final HostLmsPingService hostLmsPingService;
 
 	public DataFetchers(AgencyScopeResolver agencyScopeResolver,
 											MappingAccessService mappingAccessService,
+											HostLmsPingService hostLmsPingService,
 											PostgresAgencyRepository postgresAgencyRepository,
 											AgencyGroupMemberRepository agencyGroupMemberRepository,
 											PostgresPatronRequestRepository postgresPatronRequestRepository,
@@ -121,6 +124,7 @@ public class DataFetchers {
 		this.qs = qs;
 		this.agencyScopeResolver = agencyScopeResolver;
 		this.mappingAccessService = mappingAccessService;
+		this.hostLmsPingService = hostLmsPingService;
 		this.postgresAgencyRepository = postgresAgencyRepository;
 		this.agencyGroupMemberRepository = agencyGroupMemberRepository;
 		this.postgresPatronRequestRepository = postgresPatronRequestRepository;
@@ -911,21 +915,16 @@ public class DataFetchers {
 	 * that survived.
 	 */
 	public DataFetcher<CompletableFuture<Map<String, Object>>> getHostLmsClientConfigDataFetcher() {
-		return env -> {
-			final DataHostLms hostLms = env.getSource();
-			final var clientConfig = getValueOrNull(hostLms, DataHostLms::getClientConfig);
+		return HostLmsFieldScope.visibleToItsAdministrators(agencyScopeResolver,
+			hostLms -> Mono.justOrEmpty(hostLms.getClientConfig()), Map.of());
+	}
 
-			if (clientConfig == null || AgencyAccessScope.isUnrestricted(env)) {
-				return CompletableFuture.completedFuture(clientConfig);
-			}
-
-			return agencyScopeResolver.permittedHostLmsIds(env)
-				.map(permitted -> permitted.contains(hostLms.getId())
-					? clientConfig
-					: Map.<String, Object>of())
-				.defaultIfEmpty(Map.of())
-				.toFuture();
-		};
+	// The last ping names another library's institution, permissions and failures, so it is
+	// scoped exactly as clientConfig is. One read per visible row: a page holds at most the
+	// consortium's Host LMS records, which number tens
+	public DataFetcher<CompletableFuture<Map<String, Object>>> getHostLmsLastPingDataFetcher() {
+		return HostLmsFieldScope.visibleToItsAdministrators(agencyScopeResolver,
+			hostLms -> hostLmsPingService.lastPingOf(hostLms.getCode()), Map.of());
 	}
 
 	/**

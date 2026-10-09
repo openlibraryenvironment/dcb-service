@@ -24,6 +24,7 @@ import org.zalando.problem.Problem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -837,6 +838,27 @@ public class KohaHostLmsClient implements HostLmsClient {
 	/**
 	 * Three list calls. Triggered by an implementer from the tools API, never on a request path.
 	 */
+	/**
+	 * One library read: it needs a token from the configured client id and secret, and the
+	 * catalogue permission DCB's reads rely on. Koha publishes no software version in its API.
+	 */
+	@Override
+	public Mono<PingResponse> ping() {
+		final var start = Instant.now();
+		final var versionInfo = getHostSystemType() + " REST API v1";
+
+		return client.getOneLibrary()
+			.then(Mono.fromSupplier(() -> PingResponse.ok(getHostLmsCode(), versionInfo,
+				Duration.between(start, Instant.now()))))
+			.onErrorResume(error -> Mono.just(PingResponse.error(getHostLmsCode(), versionInfo,
+				error.getMessage(), error, Duration.between(start, Instant.now()))));
+	}
+
+	@Override
+	public String getHostSystemType() {
+		return "KOHA";
+	}
+
 	@Override
 	public Mono<ConfigurationReport> checkConfiguration() {
 		return Mono.zip(

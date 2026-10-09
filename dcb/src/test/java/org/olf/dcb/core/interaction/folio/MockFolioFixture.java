@@ -90,6 +90,11 @@ public class MockFolioFixture {
 		mockServer.verifyPost(createTransactionPath(), body);
 	}
 
+	/** Any transaction's status, whatever the id: a ping asks about one that cannot exist. */
+	public void mockGetAnyTransactionStatus(HttpResponse response) {
+		mockServer.mock(commonRequests.get("/dcbService/transactions/[^/]+/status"), response);
+	}
+
 	public void mockGetTransactionStatus(String transactionId, String status) {
 		mockGetTransactionStatus(transactionId, okJson(TransactionStatus.builder().status(status).build()));
 	}

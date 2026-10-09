@@ -152,10 +152,12 @@ public class GraphQLFactory {
 					typeWiring -> typeWiring
 						.dataFetcher("locations", dataFetchers.getAgencyLocationsDataFetcher())
 						.dataFetcher("hostLms", dataFetchers.getHostLmsForAgencyDataFetcher()))
-			// Credentials live in here, so who is asking decides what comes back
+			// Credentials and another library's system state live in here, so who is asking
+			// decides what comes back
 			.type("HostLms",
 				typeWiring -> typeWiring
-					.dataFetcher("clientConfig", dataFetchers.getHostLmsClientConfigDataFetcher()))
+					.dataFetcher("clientConfig", dataFetchers.getHostLmsClientConfigDataFetcher())
+					.dataFetcher("lastPing", dataFetchers.getHostLmsLastPingDataFetcher()))
 			.type("PatronIdentity",
 				typeWiring -> typeWiring
 					.dataFetcher("resolvedAgency", dataFetchers.getResolvedAgencyForPatronIdentityDataFetcher()))

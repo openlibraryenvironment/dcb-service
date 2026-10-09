@@ -67,6 +67,7 @@ import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.ClockSkew;
 import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
@@ -102,6 +103,7 @@ import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.storage.RawSourceRepository;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -2664,29 +2666,63 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.then(Mono.<Void>error(cause));
 	}
 
-  public Mono<PingResponse> ping() {
-    Instant start = Instant.now();
-    return Mono.from(ApplicationServices.test())
-      .flatMap( tokenInfo -> {
-        return Mono.just(PingResponse.builder()
-          .target(getHostLmsCode())
-          .status("OK")
-          .versionInfo(getHostSystemType()+":"+getHostSystemVersion())
-          .pingTime(Duration.between(start, Instant.now()))
-          .build());
-      })
-      .onErrorResume( e -> {
-        return Mono.just(PingResponse.builder()
-          .target(getHostLmsCode())
-          .status("ERROR")
-          .versionInfo(getHostSystemType()+":"+getHostSystemVersion())
-          .additional(e.getMessage())
-          .pingTime(Duration.ofMillis(0))
-          .build());
-      })
+	/**
+	 * DCB reaches Polaris with two credentials: the staff login behind Application Services, and
+	 * the PAPI access id and key. Each is checked, and PAPI reports its release.
+	 */
+	public Mono<PingResponse> ping() {
+		final var start = Instant.now();
+		final var unknownVersion = getHostSystemType() + " (version unknown)";
 
-    ;
-  }
+		return Mono.defer(() -> {
+				// A cached token would pass without the staff password being checked at all
+				tokenCache.invalidate(getHostLmsCode());
+
+				return checkCredential("the Application Services staff login", ApplicationServices.test());
+			})
+			// The PAPI signature includes the date, so Polaris's clock is worth knowing
+			.map(ClockSkew::facts)
+			.defaultIfEmpty(Map.of())
+			.flatMap(facts -> checkCredential("the PAPI access key", PAPIService.validateApiKey())
+				.then(PAPIService.apiVersion()
+					.mapNotNull(PAPIClient.ApiResult::getVersion)
+					.map(version -> getHostSystemType() + " PAPI " + version)
+					.defaultIfEmpty(unknownVersion)
+					.onErrorReturn(unknownVersion))
+				.map(version -> PingResponse.ok(getHostLmsCode(), version,
+					Duration.between(start, Instant.now()), facts)))
+			.onErrorResume(error -> Mono.just(PingResponse.error(getHostLmsCode(), unknownVersion,
+				error.getMessage(), error, Duration.between(start, Instant.now()))));
+	}
+
+	// For PolarisAuthTokenCachingTests: ping() logs in afresh, so it cannot show the cache at work
+	ApplicationServicesClient applicationServices() {
+		return ApplicationServices;
+	}
+
+	private static <T> Mono<T> checkCredential(String credential, Mono<T> check) {
+		return check
+			.onErrorMap(error -> new IllegalStateException(
+				"Polaris did not accept " + credential + ": " + describeFailure(error), error));
+	}
+
+	// The status separates a refused credential (401/403) from Polaris failing (5xx). Never the
+	// body: Polaris's error page can echo the request's Authorization header into it
+	private static String describeFailure(Throwable error) {
+		if (error instanceof ThrowableProblem problem) {
+			final var parameters = problem.getParameters();
+
+			if (parameters.get("responseStatusCode") instanceof Integer status) {
+				return "HTTP " + status;
+			}
+			// The staff login fails inside the request it authenticates, so its status is the cause's
+			if (parameters.get("causeResponseStatusCode") instanceof Integer status) {
+				return "HTTP " + status;
+			}
+		}
+
+		return error.getClass().getSimpleName();
+	}
 
   public String getHostSystemType() {
     return "POLARIS";

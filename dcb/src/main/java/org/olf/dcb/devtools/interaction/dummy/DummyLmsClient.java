@@ -730,4 +730,9 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return Mono.empty();
 	}
 
+	@Override
+	public Mono<PingResponse> ping() {
+		return Mono.just(PingResponse.notImplemented(getHostLmsCode(),
+			"development adapter: there is no system to check"));
+	}
 }

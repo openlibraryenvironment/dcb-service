@@ -80,6 +80,7 @@ public interface AlarmRepository {
 	@NonNull
 	Publisher<Alarm> findByExpiresBefore(@NonNull Instant now);
 
-	Publisher<Void> deleteByCode(String code);
+	/** @return how many alarms were deleted: none means there was no alarm to cancel */
+	Publisher<Long> deleteByCode(String code);
 
 }

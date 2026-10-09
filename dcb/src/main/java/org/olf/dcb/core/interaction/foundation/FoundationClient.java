@@ -10,6 +10,9 @@ import org.olf.dcb.core.interaction.foundation.strategies.PatronStrategy;
 import org.olf.dcb.core.model.HostLms;
 import reactor.core.publisher.Mono;
 import lombok.extern.slf4j.Slf4j;
+
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -25,8 +28,11 @@ import java.util.Map;
 @Prototype
 public class FoundationClient extends AbstractHostLmsClient {
 
+	static final String NCIP_VERSION = "NCIP 2.02";
+
 	private final HostLms lms;
 	private final BeanContext beanContext;
+	private final ProtocolAdaptor baseAdapter;
 	private final CirculationStrategy circulationStrategy;
 	private final PatronStrategy patronStrategy;
 
@@ -36,11 +42,32 @@ public class FoundationClient extends AbstractHostLmsClient {
 		this.beanContext = beanContext;
 
 		// 1. Resolve the base protocol adaptor (e.g. NCIP).
-		final ProtocolAdaptor baseAdapter = resolveBaseAdapter(lms, beanContext);
+		this.baseAdapter = resolveBaseAdapter(lms, beanContext);
 
 		// 2. Wire up the per-operation strategies, honouring any configured overrides.
 		this.circulationStrategy = resolveStrategy("renew", CirculationStrategy.class, baseAdapter);
 		this.patronStrategy = resolveStrategy("patron", PatronStrategy.class, baseAdapter);
+	}
+
+	/** NCIP answers LookupVersion without touching any record, which makes it a safe ping. */
+	@Override
+	public Mono<PingResponse> ping() {
+		// Sip2Adaptor.isAvailable fails until its transport exists, which would be a false alarm
+		if (!(baseAdapter instanceof NcipAdaptor)) {
+			return Mono.just(PingResponse.notImplemented(getHostLmsCode(),
+				"the SIP2 transport is not yet available, so a SIP2 host cannot be checked"));
+		}
+
+		final var start = Instant.now();
+
+		return baseAdapter.isAvailable()
+			.defaultIfEmpty(false)
+			.map(available -> available
+				? PingResponse.ok(getHostLmsCode(), NCIP_VERSION, Duration.between(start, Instant.now()),
+					Map.of("protocol", "NCIP"))
+				: PingResponse.error(getHostLmsCode(), NCIP_VERSION,
+					"the NCIP endpoint did not answer LookupVersion", PingFailure.UNREACHABLE,
+					Duration.between(start, Instant.now()), Map.of("protocol", "NCIP")));
 	}
 
 	private ProtocolAdaptor resolveBaseAdapter(HostLms lms, BeanContext context) {

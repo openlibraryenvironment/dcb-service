@@ -6,8 +6,9 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.svc.HostLmsPingService;
 import org.olf.dcb.core.events.RulesetRelatedDataChangedEvent;
-import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.graphql.validation.HostLmsConfigValidator;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
@@ -37,6 +38,7 @@ public class UpdateHostLmsDataFetcher implements DataFetcher<CompletableFuture<U
 	private final R2dbcOperations r2dbcOperations;
 	private final ApplicationEventPublisher<RulesetRelatedDataChangedEvent> eventPublisher;
 	private final HostLmsConfigValidator configValidator;
+	private final HostLmsPingService hostLmsPingService;
 
 	// Constants for Ingest Sources
 	private static final String ING_SRC_FOLIO = "org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource";
@@ -46,12 +48,14 @@ public class UpdateHostLmsDataFetcher implements DataFetcher<CompletableFuture<U
 																	HostLmsService hostLmsService,
 																	R2dbcOperations r2dbcOperations,
 																	ApplicationEventPublisher<RulesetRelatedDataChangedEvent> eventPublisher,
-																	HostLmsConfigValidator configValidator) {
+																	HostLmsConfigValidator configValidator,
+																	HostLmsPingService hostLmsPingService) {
 		this.hostLmsRepository = hostLmsRepository;
 		this.hostLmsService = hostLmsService;
 		this.r2dbcOperations = r2dbcOperations;
 		this.eventPublisher = eventPublisher;
 		this.configValidator = configValidator;
+		this.hostLmsPingService = hostLmsPingService;
 	}
 
 	@Override
@@ -159,10 +163,8 @@ public class UpdateHostLmsDataFetcher implements DataFetcher<CompletableFuture<U
 			.warnings(new ArrayList<>(initialWarnings));
 
 		// Ping once
-		Mono<String> pingCheck = hostLmsService.getClientFor(hostLms)
-			.flatMap(HostLmsClient::ping)
-			.map(pingResponse -> "Status: " + pingResponse.getStatus() +
-				(pingResponse.getAdditional() != null ? " - " + pingResponse.getAdditional() : ""))
+		Mono<String> pingCheck = hostLmsPingService.pingAndRecord(hostLms)
+			.map(PingResponse::summary)
 			.onErrorResume(e -> Mono.just("Ping Failed: " + e.getMessage()));
 
 		// Ingest once

@@ -1,5 +1,6 @@
 package services.k_int.interaction.alma;
 
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.uri.UriBuilder;
 import org.olf.dcb.core.interaction.alma.AlmaHostLmsClient;
@@ -32,6 +33,8 @@ public interface AlmaApiClient {
 	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType);
 	<T> Mono<T> put(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
 	Mono<Void> delete(String path, Map<String, Object> queryParams);
+	/** A GET whose response headers are needed, such as Alma's remaining daily API allowance. */
+	<T> Mono<HttpResponse<T>> getResponse(String path, Class<T> responseType);
 
 	// --- Overloads (no queryParams) ---
 	default <T> Mono<T> get(String path, Class<T> responseType) {
@@ -466,13 +469,37 @@ public interface AlmaApiClient {
 	}
 
 	/**
-	 * Test connectivity.
+	 * Whether the API key may read one area of the API, such as {@code conf}.
 	 * <p>
-	 * API: GET /almaws/v1/conf/test
+	 * API: GET /almaws/v1/{area}/test
 	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/conf/R0VUIC9hbG1hd3MvdjEvY29uZi90ZXN0/
 	 */
-	default Mono<String> test() {
-		return get("/almaws/v1/conf/test", String.class);
+	default Mono<String> testRead(String area) {
+		return get("/almaws/v1/" + area + "/test", String.class);
+	}
+
+	/** {@link #testRead} with Alma's response headers. */
+	default Mono<HttpResponse<String>> testReadResponse(String area) {
+		return getResponse("/almaws/v1/" + area + "/test", String.class);
+	}
+
+	/**
+	 * Whether the API key may read and write one area of the API. The users area's test sits
+	 * under {@code users/operation}. Answers {@code POST - OK} and changes nothing.
+	 * <p>
+	 * API: POST /almaws/v1/{area}/test
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/conf/UE9TVCAvYWxtYXdzL3YxL2NvbmYvdGVzdA==/
+	 */
+	default Mono<String> testWrite(String area) {
+		return post("/almaws/v1/" + area + "/test", null, String.class);
+	}
+
+	/**
+	 * API: GET /almaws/v1/conf/general
+	 * Docs: https://developers.exlibrisgroup.com/alma/apis/docs/conf/R0VUIC9hbG1hd3MvdjEvY29uZi9nZW5lcmFs/
+	 */
+	default Mono<AlmaGeneralConfiguration> retrieveGeneralConfiguration() {
+		return get("/almaws/v1/conf/general", AlmaGeneralConfiguration.class);
 	}
 
 	/**

@@ -20,6 +20,7 @@ import org.olf.dcb.core.interaction.AbstractHostLmsClient;
 import org.olf.dcb.core.interaction.ConfigurationReport;
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.model.BibRecord;
@@ -695,5 +696,11 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	public Mono<ConfigurationReport> checkConfiguration() {
 		return Mono.just(ConfigurationReport.notSupported(getHostLmsCode(),
 			"The ORS appliance is reached over NCIP, which cannot list its item types, patron types or locations"));
+	}
+
+	@Override
+	public Mono<PingResponse> ping() {
+		return Mono.just(PingResponse.notImplemented(getHostLmsCode(),
+			"the appliance's NCIP check is not wired yet"));
 	}
 }

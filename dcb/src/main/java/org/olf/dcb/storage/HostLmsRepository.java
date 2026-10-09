@@ -60,6 +60,20 @@ where json_array_length(childlms.client_config::json->'roles') = 1 and
 
 	Publisher<Void> delete(UUID id);
 
+	// last_ping is deliberately not on DataHostLms: an entity save would record a ping as an
+	// edit, and an export, an import or a stale update would carry or overwrite it.
+	// @SingleResult: as a Flux, Mono.from cancels inside the repository's transaction, and one write in five was then lost
+	@NonNull
+	@SingleResult
+	@Query(value = "UPDATE host_lms SET last_ping = CAST(:lastPing AS jsonb) WHERE code = :code", nativeQuery = true)
+	Publisher<Long> updateLastPing(@NonNull String code, @NonNull String lastPing);
+
+	@NonNull
+	@SingleResult
+	@Query(value = "SELECT CAST(last_ping AS text) FROM host_lms WHERE code = :code AND last_ping IS NOT NULL",
+		nativeQuery = true)
+	Publisher<String> findLastPingByCode(@NonNull String code);
+
 	default Mono<DataHostLms> saveOrUpdate(DataHostLms hostLMS) {
 		return Mono.from(existsById(hostLMS.getId()))
 			.flatMap(exists -> Mono.fromDirect(exists ? update(hostLMS) : save(hostLMS)));
