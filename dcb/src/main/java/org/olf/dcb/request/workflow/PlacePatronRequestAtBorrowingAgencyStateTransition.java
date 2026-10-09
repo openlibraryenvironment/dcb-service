@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
+import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.hasUnknownOutcome;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -40,6 +41,9 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	private final SupplierRequestService supplierRequestService;
 
 	private static final List<Status> possibleSourceStatus = List.of(CONFIRMED);
+
+	public static final String BORROWER_OUTCOME_UNKNOWN =
+		"Borrower hold outcome unknown: supplier hold left in place";
 
 	public PlacePatronRequestAtBorrowingAgencyStateTransition(BorrowingAgencyRequestStrategyService borrowingAgencyRequestStrategyService,
 																														PatronRequestAuditService patronRequestAuditService,
@@ -148,6 +152,13 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 		auditData.put("supplierHostLmsCode", getValue(supplierRequest, SupplierRequest::getHostLmsCode, "Unknown"));
 		auditData.put("supplierHoldId", supplierHoldId);
 		auditData.put("borrowerError", getValue(borrowerError, Throwable::getMessage, "No message"));
+
+		// A timeout may mean the borrower hold was placed after all, and cancelling the supplier hold
+		// would then strand it. A 5xx stays a refusal: Sierra reports its refusals as HTTP 500.
+		if (hasUnknownOutcome(borrowerError)) {
+			return patronRequestAuditService.addAuditEntry(patronRequest, BORROWER_OUTCOME_UNKNOWN, auditData)
+				.thenReturn(ctx);
+		}
 
 		if (isDeclarativeSupplierRequest(ctx)) {
 			return patronRequestAuditService.addAuditEntry(patronRequest,
