@@ -66,7 +66,8 @@ summary and should be treated as the source of truth.
 The current happy-path shape is:
 
 1. A client submits a place-request command.
-2. Preflight checks validate patron, pickup, duplicate-request, and global-limit constraints.
+2. Preflight checks validate patron (including the library's active-request and hold limits),
+   pickup, duplicate-request, and consortium-wide active-request limit constraints.
 3. DCB upserts or finds patron data and creates a `PatronRequest`.
 4. The request is resolved to an item/supplying agency candidate.
 5. Workflow transitions place requests into the appropriate external systems.

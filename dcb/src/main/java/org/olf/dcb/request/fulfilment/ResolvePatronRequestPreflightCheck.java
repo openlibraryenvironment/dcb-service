@@ -61,9 +61,9 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			.map(this::checkResolution)
 			// Many of these errors are duplicated from the resolve patron preflight check
 			// This is due to both having to resolve the patron before performing the checks
-			.onErrorResume(UnableToResolveAgencyProblem.class, error -> agencyNotFound(error,
-				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalId)))
-			.onErrorResume(PatronNotFoundInHostLmsException.class, this::patronNotFound)
+			.onErrorResume(UnableToResolveAgencyProblem.class, this::agencyNotFound)
+			.onErrorResume(PatronNotFoundInHostLmsException.class, error -> patronNotFound(
+				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
 			.onErrorResume(CannotFindClusterRecordException.class, this::clusterRecordNotFound)
@@ -129,22 +129,22 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		);
 	}
 
-	private Mono<List<CheckResult>> patronNotFound(PatronNotFoundInHostLmsException error) {
+	// Not the exception's message: that names the patron, and this description is kept in event_log
+	private Mono<List<CheckResult>> patronNotFound(String hostLmsCode) {
 		return Mono.just(List.of(
 			failed("PATRON_NOT_FOUND",
-      error.getMessage(),
+      "Patron is not recognised in \"%s\"".formatted(hostLmsCode),
       "A borrower account could not be found using the information provided.",
       intMessageService.getMessage("PATRON_NOT_FOUND"))
 		));
 	}
 
-	private Mono<List<CheckResult>> agencyNotFound(
-		UnableToResolveAgencyProblem error, String localPatronId) {
+	private Mono<List<CheckResult>> agencyNotFound(UnableToResolveAgencyProblem error) {
 
 		return Mono.just(List.of(
 			failedUm("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
-				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
-					.formatted(localPatronId, error.getHomeLibraryCode(), error.getSystemCode()),
+				"Patron with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(error.getHomeLibraryCode(), error.getSystemCode()),
         intMessageService.getMessage("PATRON_NOT_ASSOCIATED_WITH_AGENCY")
       )));
 	}
@@ -171,8 +171,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 
 		return Mono.just(List.of(
 			failedUm("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
-				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"%s\""
-					.formatted(error.getLocalId(), error.getLocalSystemCode(), error.getLocalPatronTypeCode()),
+				"Local patron from \"%s\" has non-numeric patron type \"%s\""
+					.formatted(error.getLocalSystemCode(), error.getLocalPatronTypeCode()),
 				intMessageService.getMessage("LOCAL_PATRON_TYPE_IS_NON_NUMERIC")
       )
 		));

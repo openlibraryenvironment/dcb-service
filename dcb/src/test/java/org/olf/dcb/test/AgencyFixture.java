@@ -56,6 +56,10 @@ public class AgencyFixture {
 		return savedAgency;
 	}
 
+	public DataAgency updateAgency(DataAgency agency) {
+		return singleValueFrom(agencyRepository.update(agency));
+	}
+
 	public DataAgency defineAgency(String code, String name, DataHostLms hostLms,
 		Double latitude, Double longitude) {
 

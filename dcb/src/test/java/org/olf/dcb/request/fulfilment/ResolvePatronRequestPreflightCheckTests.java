@@ -439,8 +439,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_NOT_FOUND",
-				"Patron \"%s\" is not recognised in \"%s\""
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+				"Patron is not recognised in \"%s\"".formatted(BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -492,8 +491,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
-				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
-					.formatted(localPatronId, "home-library", BORROWING_HOST_LMS_CODE))
+				"Patron with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted("home-library", BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -598,8 +597,8 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
-				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"null\""
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+				"Local patron from \"%s\" has non-numeric patron type \"null\""
+					.formatted(BORROWING_HOST_LMS_CODE))
 		));
 	}
 

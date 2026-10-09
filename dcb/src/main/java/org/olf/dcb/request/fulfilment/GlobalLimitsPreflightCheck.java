@@ -17,7 +17,6 @@ import reactor.core.publisher.Mono;
 import lombok.extern.slf4j.Slf4j;
 
 import org.olf.dcb.storage.PatronRequestRepository;
-import org.olf.dcb.storage.AgencyRepository;
 
 
 /**
@@ -31,18 +30,15 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 	private final Long globalActiveRequestLimit;
 	private final PatronRequestRepository patronRequestRepository;
   private final IntMessageService intMessageService;
-	private final AgencyRepository agencyRepository;
 
 	public GlobalLimitsPreflightCheck(
 		@Value("${dcb.globals.active-request-limit:25}") Long globalActiveRequestLimit,
 		PatronRequestRepository patronRequestRepository,
-    IntMessageService intMessageService,
-		AgencyRepository agencyRepository) {
+    IntMessageService intMessageService) {
 
 		this.globalActiveRequestLimit = globalActiveRequestLimit;
 		this.patronRequestRepository = patronRequestRepository;
     this.intMessageService = intMessageService;
-    this.agencyRepository = agencyRepository;
 	}
 
 	@Override
@@ -58,9 +54,7 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
    */
 	public Mono<CheckResult> checkGlobalActiveRequestLimit(PlacePatronRequestCommand command) {
 
-		String patronAgency = command.getRequestorAgencyCode();
-
-		log.info("Checking that patron has < global setting for max active requests {} - patronAgency:{}",command,patronAgency);
+		log.info("Checking that patron has < global setting for max active requests {}", command);
 
 		return Mono.from(patronRequestRepository.getActiveRequestCountForPatron(command.getRequestorLocalSystemCode(),command.getRequestorLocalId()))
 			.flatMap( count -> {
@@ -68,8 +62,7 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 					return Mono.just(passed("global request limit disabled"));
 
 				if ( count.intValue() < globalActiveRequestLimit.intValue() ) {
-					// return Mono.just(passed("Current active requests "+count+" < "+globalActiveRequestLimit));
-					return verifyAgencyLimit(patronAgency, count.intValue());
+					return Mono.just(passed("Current active requests " + count + " < " + globalActiveRequestLimit));
 				}
 
 				return Mono.just(failedUm("EXCEEDS_GLOBAL_LIMIT", 
@@ -82,34 +75,5 @@ public class GlobalLimitsPreflightCheck implements PreflightCheck {
 			.onErrorResume(e -> Mono.just(failedUm("REQUEST_LIMITS_UNCHECKED",
 				"Active request limits could not be checked: " + e.getMessage(),
 				intMessageService.getMessage("REQUEST_LIMITS_UNCHECKED"))));
-	}
-
-	public Mono<CheckResult> verifyAgencyLimit(String agency, int count) {
-
-		if ( ( agency == null ) || ( agency.trim().length() == 0 ) )
-			return Mono.just(passed("Bypass agency max loans test"));
-
-	
-		log.info("Checking agency limits for {} {}",agency,count);
-		return Mono.from(agencyRepository.findOneByCode(agency))
-			.flatMap( agencyObj -> {
-				if ( ( agencyObj.getMaxConsortialLoans() == null ) ||
-					   ( count <= agencyObj.getMaxConsortialLoans().intValue() ) ) {
-					return Mono.just(passed("Global and local limits OK"));
-				}
-				else {
-					return Mono.just(failedUm("EXCEEDS_AGENCY_LIMIT",
-	          "Patron has more active requests than the Agency (%s) allows (%d)".formatted(agency, count),
-		        intMessageService.getMessage("EXCEEDS_AGENCY_LIMIT")));
-				}
-			})
-			// An agency DCB does not know has a limit nobody can check
-			.defaultIfEmpty(failedUm("EXCEEDS_AGENCY_LIMIT_UNKNOWN_AGENCY",
-				"Patron agency %s is not known, so its request limit cannot be checked".formatted(agency),
-				intMessageService.getMessage("EXCEEDS_AGENCY_LIMIT_UNKNOWN_AGENCY")))
-			.onErrorResume(e -> Mono.just(failedUm("REQUEST_LIMITS_UNCHECKED",
-				"The request limit for agency %s could not be checked: %s".formatted(agency, e.getMessage()),
-				intMessageService.getMessage("REQUEST_LIMITS_UNCHECKED"))));
-
 	}
 }

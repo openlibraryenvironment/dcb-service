@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.security.RoleNames;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.slf4j.Logger;
@@ -62,7 +63,6 @@ public class PatronAuthV2Controller {
 		this.hostLmsRepository = hostLmsRepository;
 	}
 
-  // API Is available to users with role ADMIN or INTERNAL_API
 	@Post(consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
 	@Operation(
 		summary = "Verify Patron Credentials",
@@ -167,6 +167,7 @@ public class PatronAuthV2Controller {
  	 * A secured endpoint to look up a user record by their ID in a remote system.
 	 */
  	@Post(value="/lookup", consumes = APPLICATION_JSON, produces = APPLICATION_JSON)
+	@Secured({ RoleNames.ADMINISTRATOR, RoleNames.INTERNAL_API, RoleNames.CONSORTIUM_ADMIN, RoleNames.LIBRARY_ADMIN, RoleNames.LIBRARY_READ_ONLY })
 	public Mono<HttpResponse<LocalPatronDetails>> getUserByLocalPrincipal(@Body @Valid V2PatronCredentials c) {
 
 		log.info("PatronAuthController::getUserByLocalPrincipal({})",c);
