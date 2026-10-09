@@ -22,6 +22,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.VolumeDesignation;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.rules.AnnotatedObject;
 import org.olf.dcb.rules.ObjectRuleset;
@@ -86,7 +87,7 @@ public class SierraItemMapper {
 		final var rawVolumeStatement = extractRawVolumeStatement(
 			getValue(item, SierraItem::getVarFields, emptyList()));
 
-		final var parsedVolumeStatement = parseVolumeStatement(rawVolumeStatement);
+		final var parsedVolumeStatement = VolumeDesignation.normalise(rawVolumeStatement);
 		final var parsedDueDate = parsedDueDate(item);
 
 		return Item.builder()
@@ -169,32 +170,6 @@ public class SierraItemMapper {
 		}
 
 		// log.debug("Result of volume extraction {}",result);
-		return result;
-	}
-
-	private String parseVolumeStatement(String volumeStatement) {
-
-		// \b(?:Vol\.? ?|v)(\d+)(?:,? ?Item \d+)?\b
-		// Explanation:
-    //   \b: Word boundary to ensure that the pattern is matched as a whole word.
-    //   (?:Vol\.? ?|v): Non-capturing group to match either "Vol", "Vol.", "v" or "v" followed by an optional period and space.
-    //   (\d+): Capturing group to match one or more digits representing the volume.
-    //   (?:,? ?Item \d+)?: Optional non-capturing group to match an optional comma, optional space, "Item", a space, and one or more digits. This is to handle cases like "Vol 1, Item 1".
-    //   \b: Word boundary to complete the pattern matching.
-
-		String result = null;
-		if ( volumeStatement != null ) {
-
-			// v.1, p:1 -> v1p1
-			result = volumeStatement
-				.toLowerCase()
-				.replaceAll("\\p{Punct}", " ")	// remove punctuation
-				.replaceAll(" ", "")	// remove spaces
-				.replaceAll("pt", "p") // pt->p
-				.replaceAll("no", "n") // no->n
-				;
-			// result = volumeStatement;
-		}
 		return result;
 	}
 
