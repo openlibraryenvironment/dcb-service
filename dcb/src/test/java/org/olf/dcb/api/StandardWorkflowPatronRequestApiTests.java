@@ -9,11 +9,13 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
@@ -724,9 +726,17 @@ class StandardWorkflowPatronRequestApiTests {
 		// event_summary is varchar(128) and this description is already 104, so the cluster
 		// lives beside the summary rather than inside it. A refused request never becomes a
 		// patron request, so there is no other row to look in
-		assertThat("Refusal names the cluster it was for",
-			eventLogFixture.findAll().stream().findFirst().orElseThrow().getAdditionalData(),
+		final var refusalContext = eventLogFixture.findAll().stream().findFirst().orElseThrow()
+			.getAdditionalData();
+
+		assertThat("Refusal names the cluster it was for", refusalContext,
 			hasEntry("clusterId", clusterRecordId.toString()));
+
+		assertThat("Without an agency code, the refusal names the home library and host LMS",
+			refusalContext, allOf(
+				hasEntry("homeLibraryCode", "home-library-code"),
+				hasEntry("hostLmsCode", BORROWING_HOST_LMS_CODE),
+				not(hasKey("agencyCode"))));
 	}
 
 	@Test
@@ -808,6 +818,44 @@ class StandardWorkflowPatronRequestApiTests {
 		assertThat("Refusal names the check that refused it",
 			eventLogFixture.findAll().stream().findFirst().orElseThrow().getAdditionalData(),
 			hasEntry("code", "UNKNOWN_PICKUP_LOCATION_CODE"));
+	}
+
+	@Test
+	void refusalNamesTheAgencyCodeInPreferenceToTheHomeLibraryCode() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
+		final var hostLms = hostLmsFixture.findByCode(SUPPLYING_HOST_LMS_CODE);
+
+		bibRecordFixture.createBibRecord(clusterRecordId, hostLms.getId(), "798472", clusterRecord);
+
+		savePatronTypeMappings();
+
+		// Act
+		assertThrows(HttpClientResponseException.class,
+			() -> patronRequestApiClient.placePatronRequest(
+				PatronRequestApiClient.PlacePatronRequestCommand.builder()
+					.requestor(PatronRequestApiClient.Requestor.builder()
+						.localId(KNOWN_PATRON_LOCAL_ID)
+						.localSystemCode(BORROWING_HOST_LMS_CODE)
+						.homeLibraryCode("home-library-code")
+						.agencyCode(BORROWING_AGENCY_CODE)
+						.build())
+					.citation(PatronRequestApiClient.Citation.builder()
+						.bibClusterId(clusterRecordId)
+						.build())
+					.pickupLocation(PatronRequestApiClient.PickupLocation.builder()
+						.code(randomUUID().toString())
+						.build())
+					.build()));
+
+		// Assert
+		assertThat("Refusal names the agency code and host LMS, not the home library",
+			eventLogFixture.findAll().stream().findFirst().orElseThrow().getAdditionalData(),
+			allOf(
+				hasEntry("agencyCode", BORROWING_AGENCY_CODE),
+				hasEntry("hostLmsCode", BORROWING_HOST_LMS_CODE),
+				not(hasKey("homeLibraryCode"))));
 	}
 
 	@Test

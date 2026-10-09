@@ -158,6 +158,7 @@ class PatronRequestApiClient {
 		@Nullable String localId;
 		@Nullable String localSystemCode;
 		@Nullable String homeLibraryCode;
+		@Nullable String agencyCode;
 	}
 
 	@Serdeable
