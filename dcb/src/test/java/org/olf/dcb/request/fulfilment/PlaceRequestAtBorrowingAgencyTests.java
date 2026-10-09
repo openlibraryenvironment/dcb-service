@@ -62,6 +62,7 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 import org.zalando.problem.ThrowableProblem;
 
+import io.micronaut.context.annotation.Property;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.FixedField;
@@ -72,6 +73,8 @@ import services.k_int.interaction.sierra.holds.SierraPatronHold;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
+// A short read timeout lets a delayed response stand in for a borrower system that never answered
+@Property(name = "micronaut.http.client.read-timeout", value = "2s")
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 class PlaceRequestAtBorrowingAgencyTests {
@@ -429,7 +432,42 @@ class PlaceRequestAtBorrowingAgencyTests {
 			is(not(oneOf(HOLD_CANCELLED, HOLD_MISSING))));
 	}
 
+	@Test
+	void shouldKeepTheSupplierHoldWhenTheBorrowerHoldRequestTimesOut() {
+		// Arrange
+		final var supplierHoldId = "8475814";
+		final var localPatronId = "972324";
+
+		final var patronRequest = requestWithSupplierHold(localPatronId, supplierHoldId);
+
+		// Well past the read timeout this class sets
+		sierraPatronsAPIFixture.patronHoldRequestDelayedResponse(localPatronId, "b", 4000);
+
+		// Act
+		assertThrows(ThrowableProblem.class, () -> placeRequestAtBorrowingAgency(patronRequest));
+
+		// Assert
+		sierraPatronsAPIFixture.verifyNoDeleteHoldRequestMade(supplierHoldId);
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), hasItem(hasBriefDescription(
+			PlacePatronRequestAtBorrowingAgencyStateTransition.BORROWER_OUTCOME_UNKNOWN)));
+
+		assertThat("the borrower hold may exist, so the supplier hold must too",
+			supplierRequestsFixture.findFor(patronRequest).getLocalStatus(),
+			is(not(oneOf(HOLD_CANCELLED, HOLD_MISSING))));
+
+		assertThat(patronRequestsFixture.findById(patronRequest.getId()).getStatus(), is(ERROR));
+	}
+
 	private PatronRequest requestWhoseBorrowerHoldFails(String localPatronId, String supplierHoldId) {
+		final var patronRequest = requestWithSupplierHold(localPatronId, supplierHoldId);
+
+		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(localPatronId, "b");
+
+		return patronRequest;
+	}
+
+	private PatronRequest requestWithSupplierHold(String localPatronId, String supplierHoldId) {
 		final var clusterRecordId = randomUUID();
 		final var bibRecordId = randomUUID();
 
@@ -445,8 +483,6 @@ class PlaceRequestAtBorrowingAgencyTests {
 		createSupplierRequest(patronRequest, "647246", supplyingAgency, supplierHoldId);
 
 		sierraPatronsAPIFixture.mockGetHoldById(supplierHoldId, supplierHold(supplierHoldId));
-
-		sierraPatronsAPIFixture.patronHoldRequestErrorResponse(localPatronId, "b");
 
 		return patronRequest;
 	}
