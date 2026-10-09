@@ -96,10 +96,39 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	}
 
 	@Test
-	void shouldFailForTheSameVolumeOfTheTitle() {
+	void shouldPassForTheSameVolumeOfTheTitle() {
 		earlierRequest(CONFIRMED, request -> request.requestedVolumeDesignation("v1"));
 
-		assertThat(check(volumeCommand("v1")), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+		assertThat(check(volumeCommand("v1")), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldPassARequestForAVolumeWhenThePatronHasTheTitleWithoutOne() {
+		earlierRequest(CONFIRMED, UnaryOperator.identity());
+
+		assertThat(check(volumeCommand("v1")), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldTreatABlankVolumeAsNoVolume() {
+		earlierRequest(CONFIRMED, UnaryOperator.identity());
+
+		assertThat(check(volumeCommand(" ")), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+	}
+
+	@Test
+	void shouldPassARequestForAChosenCopy() {
+		earlierRequest(CONFIRMED, UnaryOperator.identity());
+
+		final var chosenCopy = command(PATRON, title).toBuilder()
+			.item(PlacePatronRequestCommand.Item.builder()
+				.localId("chosen-copy")
+				.localSystemCode("supplying-system")
+				.agencyCode("supplying-agency")
+				.build())
+			.build();
+
+		assertThat(check(chosenCopy), containsInAnyOrder(passedCheck()));
 	}
 
 	@Test
