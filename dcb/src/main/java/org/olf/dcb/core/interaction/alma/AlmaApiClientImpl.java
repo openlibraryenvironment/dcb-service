@@ -115,23 +115,33 @@ public class AlmaApiClientImpl implements AlmaApiClient {
 		return Mono.from(httpClient.exchange(request)).then();
 	}
 
-	private <T> Mono<T> request(HttpMethod method, String path,
-		Object body, Class<T> responseType, Map<String, Object> queryParams) {
+	@Override
+	public <T> Mono<HttpResponse<T>> getResponse(String path, Class<T> responseType) {
+		return doExchange(buildRequest(HttpMethod.GET, path, null, null), Argument.of(responseType));
+	}
+
+	private MutableHttpRequest<?> buildRequest(HttpMethod method, String path,
+		Object body, Map<String, Object> queryParams) {
 
 		final URI baseUri = resolve(URI.create(path));
 		final UriBuilder uriBuilder = UriBuilder.of(baseUri);
 
 		if (queryParams != null) queryParams.forEach(uriBuilder::queryParam);
 
-		final URI finalUri = uriBuilder.build();
-		final String finalUriString = finalUri.toString();
 		final String apiKey = "apikey " + config.getApiKey();
 
-		MutableHttpRequest<?> request = HttpRequest.create(method, finalUriString)
+		MutableHttpRequest<?> request = HttpRequest.create(method, uriBuilder.build().toString())
 			.accept(APPLICATION_JSON)
 			.header(HttpHeaders.AUTHORIZATION, apiKey);
 
-		if (body != null) request = request.body(body);
+		return body != null ? request.body(body) : request;
+	}
+
+	private <T> Mono<T> request(HttpMethod method, String path,
+		Object body, Class<T> responseType, Map<String, Object> queryParams) {
+
+		final MutableHttpRequest<?> request = buildRequest(method, path, body, queryParams);
+		final URI finalUri = request.getUri();
 
 		return doExchange(request, Argument.of(responseType))
 			.handle((resp, sink) -> {

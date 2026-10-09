@@ -176,6 +176,15 @@ public interface KohaApiClient {
 		return get("/api/v1/patron_categories", KohaPatronCategory[].class, Map.of("_per_page", -1));
 	}
 
+	/**
+	 * One library: an authenticated read that needs a token and the catalogue permission.
+	 * <p>
+	 * API: GET /api/v1/libraries?_per_page=1
+	 */
+	default Mono<KohaLibrary[]> getOneLibrary() {
+		return get("/api/v1/libraries", KohaLibrary[].class, Map.of("_per_page", 1));
+	}
+
 	/** API: GET /api/v1/libraries */
 	default Mono<KohaLibrary[]> getLibraries() {
 		return get("/api/v1/libraries", KohaLibrary[].class, Map.of("_per_page", -1));

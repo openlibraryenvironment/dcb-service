@@ -498,16 +498,13 @@ class ApplicationServicesClient {
 	/**
 	 * Used just to test the remote API for the HostLMS Ping operation
 	 */
-  public Mono<Integer> test() {
+	// Any authenticated read would do: a hold defaults record with no expiry period is still an answer
+	public Mono<HttpResponse<HoldRequestDefault>> test() {
+		final var path = createPath("holdsdefaults");
 
-    final var path = createPath("holdsdefaults");
-
-    return client.exchange(createRequest(GET, path, uri -> {}),
-			HoldRequestDefault.class, TRUE)
-      .map(HttpResponse::body)
-      .map(HoldRequestDefault::getExpirationDatePeriod)
-      .doOnError(e -> log.debug("Error occurred when getting hold request defaults", e));
-  }
+		return client.exchange(createRequest(GET, path, uri -> {}), HoldRequestDefault.class, TRUE)
+			.doOnError(e -> log.debug("Error occurred when getting hold request defaults", e));
+	}
 
 
 //	https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/patrons/get_requests_local

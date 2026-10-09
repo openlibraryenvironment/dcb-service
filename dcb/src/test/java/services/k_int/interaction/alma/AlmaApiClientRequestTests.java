@@ -140,6 +140,11 @@ class AlmaApiClientRequestTests {
 		}
 
 		@Override
+		public <T> Mono<io.micronaut.http.HttpResponse<T>> getResponse(String path, Class<T> responseType) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public <T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams) {
 			throw new UnsupportedOperationException();
 		}

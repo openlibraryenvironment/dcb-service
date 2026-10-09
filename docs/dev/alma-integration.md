@@ -407,7 +407,7 @@ Alma's warnings. Virtual patrons are not deleted.
 
 | Endpoint | Adapter method | What it does |
 |---|---|---|
-| `GET /imps/ping` | `ping` | `GET /conf/test`. Proves the gateway answers and the key can read Configuration. |
+| `GET /imps/ping` | `ping` | `GET /conf/test`, then `POST /users/operation/test` and `POST /bibs/test`: Alma's per-area test calls, a GET proving read access and a POST read and write. The first failure names the area. The version is `GET /conf/general`'s `environment_type` and institution, best effort. |
 | `GET /imps/configuration/{code}` | `checkConfiguration` | Checks the configured sharing library, desk and alternative, the virtual item library and location, and both item policies against Alma, and lists the vocabularies. A sharing library that is a resource-sharing library reads `MISSING`; so does a sharing desk without a hold shelf. |
 | `GET /imps/configuration/{code}/mapping-value` | `checkMappingValue` | One value against one vocabulary. |
 | `GET /imps/configuration/{code}/mappings` | `fetchVocabulary`, `readSideVocabularies` | Every saved mapping in both directions. Alma declares its read side as `Location` (owning library codes) and `patronType` (user group codes); its item types are keyed by agency and stay unchecked. |
@@ -466,7 +466,6 @@ your address is in the key's allowed range. Sandboxes allow 10 calls a second.
   in Alma that cleanup cannot find, because the ids are recorded only on success.
 - **Re-resolution rewrites the virtual item's barcode;** if that write fails, the label on the
   book and the record disagree.
-- **The ping proves Configuration access only,** not Users or Bibs.
 
 ## Changes since the 8.47.0 description
 

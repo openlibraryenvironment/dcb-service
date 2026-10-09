@@ -542,6 +542,32 @@ public class PAPIClient {
 			"PAPIService returned [%d], with message: %s".formatted(code, message));
 	}
 
+	/**
+	 * 200 when the PAPI access id and key are accepted, 401 when not.
+	 * <p>
+	 * GET /PAPIService/REST/public/v1/{LangID}/{AppID}/{OrgID}/apikeyvalidate
+	 */
+	public Mono<PapiValidateResult> validateApiKey() {
+		final var path = createPath(PUBLIC_PARAMETERS, "apikeyvalidate");
+
+		return createRequest(GET, path, uri -> {})
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
+			.flatMap(req -> client.retrieveWithoutAuthRetry(req, Argument.of(PapiValidateResult.class)));
+	}
+
+	/**
+	 * The PAPI release, such as 7.6.1234.
+	 * <p>
+	 * GET /PAPIService/REST/public/v1/{LangID}/{AppID}/{OrgID}/api
+	 */
+	public Mono<ApiResult> apiVersion() {
+		final var path = createPath(PUBLIC_PARAMETERS, "api");
+
+		return createRequest(GET, path, uri -> {})
+			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), FALSE))
+			.flatMap(req -> client.retrieveWithoutAuthRetry(req, Argument.of(ApiResult.class)));
+	}
+
 	private Mono<MutableHttpRequest<?>> createRequest(HttpMethod httpMethod, String path,
 		Consumer<UriBuilder> uriBuilderConsumer) {
 
@@ -697,6 +723,30 @@ public class PAPIClient {
 		private Integer patronCodeID;
 		@JsonProperty("Description")
 		private String description;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class PapiValidateResult implements PapiResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class ApiResult implements PapiResult {
+		@JsonProperty("PAPIErrorCode")
+		private Integer papiErrorCode;
+		@JsonProperty("ErrorMessage")
+		private String errorMessage;
+		@JsonProperty("Version")
+		private String version;
 	}
 
 	interface PapiResult {

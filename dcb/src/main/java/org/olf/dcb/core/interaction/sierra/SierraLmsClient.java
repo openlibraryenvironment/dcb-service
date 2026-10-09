@@ -42,6 +42,9 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -2144,37 +2147,67 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			.then();
   }
 
-  public Mono<PingResponse> ping() {
-		Instant start = Instant.now();
+	/**
+	 * Reads the token's own details, which proves the key and secret. The version is the API DCB
+	 * speaks: Sierra's release is not published at a documented path.
+	 */
+	public Mono<PingResponse> ping() {
+		final var start = Instant.now();
+		final var versionInfo = getHostSystemType() + " API " + getHostSystemVersion();
+
 		return Mono.from(client.getTokenInfo())
-			.flatMap( tokenInfo -> {
-	  	  return Mono.just(PingResponse.builder()
-  		 	  .target(getHostLmsCode())
-    		  .status("OK")
-					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
-      		.pingTime(Duration.between(start, Instant.now()))
-  	    	.build());
-			})
-			.onErrorResume( e -> {
-	  	  return Mono.just(PingResponse.builder()
-  		 	  .target(getHostLmsCode())
-    		  .status("ERROR")
-					.versionInfo(getHostSystemType()+":"+getHostSystemVersion())
-					.additional(e.getMessage())
-      		.pingTime(Duration.ofMillis(0))
-  	    	.build());
-			})
+			.map(tokenInfo -> PingResponse.ok(getHostLmsCode(), versionInfo,
+				Duration.between(start, Instant.now()), tokenFacts(tokenInfo)))
+			.onErrorResume(error -> Mono.just(PingResponse.error(getHostLmsCode(), versionInfo,
+				error.getMessage(), error, Duration.between(start, Instant.now()))));
+	}
 
-		;
-  }
+	/**
+	 * The permission each Sierra operation DCB calls requires, from the per-operation
+	 * authorizations in Sierra's v6 API specification.
+	 */
+	static final Set<String> PERMISSIONS_DCB_USES = Set.of(
+		"Bibs_List", "Bibs_Create", "Bibs_Update", "Bibs_Delete",
+		"Items_List", "Items_Read", "Items_Create", "Items_Update", "Items_Delete", "Items_Filter",
+		"Items_Checkouts_Read",
+		"Branches_List", "Branches_PickupLocations_List",
+		"Patrons_Metadata_Read", "Patrons_Find", "Patrons_Filter", "Patrons_Validate",
+		"Patrons_Read", "Patrons_Create", "Patrons_Update", "Patrons_Delete",
+		"Holds_List", "Patrons_Hold_List", "Patrons_Hold_Read", "Patrons_Hold_Request_Create",
+		"Patrons_Hold_Delete",
+		"Patrons_Checkouts_Create", "Patrons_Checkouts_Renew", "Patrons_Checkouts_Delete");
 
-  public String getHostSystemType() {
-    return "SIERRA";
-  }
+	// Reported, not enforced: no recorded token-info response shows that its permission
+	// strings use the specification's names, and a mismatch would fail every Sierra host
+	private static Map<String, Object> tokenFacts(TokenInfo tokenInfo) {
+		final var granted = new TreeSet<String>();
 
-  public String getHostSystemVersion() {
-    return "v1";
-  }
+		for (var role : Objects.requireNonNullElse(tokenInfo.getRoles(), List.<TokenInfoRole>of())) {
+			granted.addAll(Objects.requireNonNullElse(role.getPermissions(), List.of()));
+		}
+
+		final var missing = new TreeSet<>(PERMISSIONS_DCB_USES);
+		missing.removeAll(granted);
+
+		final var facts = new HashMap<String, Object>();
+		facts.put("grantedPermissions", List.copyOf(granted));
+		facts.put("missingPermissions", List.copyOf(missing));
+
+		if (tokenInfo.getExpiresIn() != null) {
+			facts.put("tokenExpiresInSeconds", tokenInfo.getExpiresIn());
+		}
+
+		return facts;
+	}
+
+	public String getHostSystemType() {
+		return "SIERRA";
+	}
+
+	// The client's root is /iii/sierra-api/v6/
+	public String getHostSystemVersion() {
+		return "v6";
+	}
 
 	@Override
 	public Mono<HostLmsItem> getItemByBarcode(String barcode) {

@@ -90,20 +90,32 @@ public class MockPolarisFixture {
 			response().withStatusCode(401));
 	}
 
+	/** Polaris's error page echoes the request's headers, the staff Basic credential included. */
+	public void mockAppServicesStaffAuthenticationFailsEchoingHeaders(String echoedHeaders) {
+		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
+			response().withStatusCode(500).withBody(echoedHeaders));
+	}
+
 	public void verifyAppServicesStaffAuthentication(VerificationTimes times) {
 		mockServer.verify(commonRequests.post(
 			paths.baseApplicationServices("/authentication/staffuser")), times);
 	}
 
 	/**
-	 * The endpoint behind PolarisLmsClient.ping() - a single Application Services GET, which makes
-	 * it the least entangled way to prove how often the auth handshake actually happens.
+	 * PolarisLmsClient.ping()'s one Application Services call - a single GET, which makes it the
+	 * least entangled way to prove how often the auth handshake actually happens.
 	 */
 	public void mockGetHoldRequestDefaults(Integer expirationDatePeriod) {
 		mockServer.mockGet(paths.applicationServices("/holdsdefaults"),
 			ApplicationServicesClient.HoldRequestDefault.builder()
 				.expirationDatePeriod(expirationDatePeriod)
 				.build());
+	}
+
+	public void mockGetHoldRequestDefaultsDated(String date) {
+		mockServer.mockGet(paths.applicationServices("/holdsdefaults"),
+			okJson(ApplicationServicesClient.HoldRequestDefault.builder().expirationDatePeriod(5).build())
+				.withHeader("Date", date));
 	}
 
 	/**
@@ -123,6 +135,20 @@ public class MockPolarisFixture {
 				.accessSecret("C5UnM8pmim1hfZRQ")
 				.authExpDate(futureAuthExpDate())
 				.build());
+	}
+
+	public void mockPapiApiKeyAccepted() {
+		mockServer.mockGet(paths.publicPapiService("/apikeyvalidate"),
+			PAPIClient.PapiValidateResult.builder().papiErrorCode(0).build());
+	}
+
+	public void mockPapiApiKeyRefused() {
+		mockServer.mockGet(paths.publicPapiService("/apikeyvalidate"), response().withStatusCode(401));
+	}
+
+	public void mockPapiApiVersion(String version) {
+		mockServer.mockGet(paths.publicPapiService("/api"),
+			PAPIClient.ApiResult.builder().papiErrorCode(0).version(version).build());
 	}
 
 	public void mockPatronAuthentication(PatronAuthToken responseBody) {

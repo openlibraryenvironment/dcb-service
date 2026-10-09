@@ -59,6 +59,7 @@ class PolarisAuthTokenCachingTests {
 
 		mockPolarisFixture.mockAppServicesStaffAuthentication();
 		mockPolarisFixture.mockGetHoldRequestDefaults(5);
+		mockPapi();
 	}
 
 	@Test
@@ -100,6 +101,7 @@ class PolarisAuthTokenCachingTests {
 		// Registered first so it wins for the first request only
 		mockPolarisFixture.mockGetHoldRequestDefaultsUnauthorisedOnce();
 		mockPolarisFixture.mockGetHoldRequestDefaults(5);
+		mockPapi();
 
 		// The caller should never see the 401 - this is the whole point of the change. Before the
 		// retry existed this call failed, and in the workflow that meant a terminal ERROR status.
@@ -149,6 +151,12 @@ class PolarisAuthTokenCachingTests {
 		mockPolarisFixture.verifyAppServicesStaffAuthentication(once());
 	}
 
+	// ping() also checks the PAPI key and reads the PAPI version; neither touches staff auth
+	private void mockPapi() {
+		mockPolarisFixture.mockPapiApiKeyAccepted();
+		mockPolarisFixture.mockPapiApiVersion("7.6.1234");
+	}
+
 	private void createPolarisHostLms(String hostLmsCode, String tokenCacheTtlSeconds) {
 		final var key = "polaris-token-caching-key";
 		final var secret = "polaris-token-caching-secret";
@@ -158,13 +166,13 @@ class PolarisAuthTokenCachingTests {
 	}
 
 	/**
-	 * ping() is a single Application Services GET behind the staff auth filter, which makes it the
-	 * least entangled call available for counting authentication requests.
+	 * One GET behind the staff auth filter, the least entangled call available for counting
+	 * authentication requests. Not ping(), which deliberately logs in afresh every time.
 	 */
 	private void callPolaris(String hostLmsCode) {
-		final var response = singleValueFrom(hostLmsFixture.createClient(hostLmsCode).ping());
+		final var client = (PolarisLmsClient) hostLmsFixture.createClient(hostLmsCode);
 
-		// Asserted so that a broken request path cannot masquerade as a cache hit.
-		assertThat("Polaris call should have succeeded", response.getStatus(), is("OK"));
+		// The mock answers 5 and the method's own fallback is 999, so a failed call cannot pass as a cache hit
+		assertThat(singleValueFrom(client.applicationServices().getHoldRequestDefaults()), is(5));
 	}
 }

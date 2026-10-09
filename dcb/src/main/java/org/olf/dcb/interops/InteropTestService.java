@@ -29,6 +29,7 @@ import org.olf.dcb.core.model.ReferenceValueMapping;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.svc.BibRecordService;
+import org.olf.dcb.core.svc.HostLmsPingService;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -50,13 +51,16 @@ public class InteropTestService {
 	private final HostLmsService hostLmsService;
 	private final BibRecordService bibRecordService;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
+	private final HostLmsPingService hostLmsPingService;
 
 	public InteropTestService(HostLmsService hostLmsService,
 			BibRecordService bibRecordService,
-			ReferenceValueMappingRepository referenceValueMappingRepository) {
+			ReferenceValueMappingRepository referenceValueMappingRepository,
+			HostLmsPingService hostLmsPingService) {
 		this.hostLmsService = hostLmsService;
 		this.bibRecordService = bibRecordService;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
+		this.hostLmsPingService = hostLmsPingService;
 	}
 
 	/**
@@ -66,8 +70,7 @@ public class InteropTestService {
 	 * @return the ping response
 	 */
 	public Mono<PingResponse> ping(String code) {
-		return hostLmsService.getClientFor(code)
-			.flatMap(HostLmsClient::ping);
+		return hostLmsPingService.pingAndRecord(code);
 	}
 
 	public Mono<List<Item>> findFirstMatchingItemList(String systemCode,

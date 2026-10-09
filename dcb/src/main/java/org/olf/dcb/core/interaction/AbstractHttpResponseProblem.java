@@ -5,10 +5,12 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static org.zalando.problem.Status.INTERNAL_SERVER_ERROR;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.olf.dcb.utils.PropertyAccessUtils;
 import org.zalando.problem.AbstractThrowableProblem;
+import org.zalando.problem.ThrowableProblem;
 
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
@@ -65,14 +67,29 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 	private static Map<String, Object> determineParameters(
 		Throwable throwable, HttpRequest<?> request) {
 
-		return Map.of(
+		final var parameters = new HashMap<String, Object>(Map.of(
 			"errorMessage", getValue(throwable, Throwable::getMessage, "Unknown"),
 			"errorLocalizedMessage", getValue(throwable, Throwable::getLocalizedMessage, "Unknown"),
 			"requestMethod", PropertyAccessUtils.getValue(request, HttpRequest::getMethodName, "Unknown"),
 			"requestUrl", getValue(request, HttpRequest::getUri, URI::toString, "Unknown"),
 			"requestBody", interpretRequestBody(request),
 			"httpVersion", getValue(request, HttpRequest::getHttpVersion, HttpVersion::name, "Unknown")
-		);
+		));
+
+		// A failure inside this request's preparation, such as a staff login, keeps the status of
+		// the call that actually failed. Never its body, which a host may fill with our headers
+		if (throwable instanceof ThrowableProblem problem
+			&& problem.getParameters().get("responseStatusCode") instanceof Integer status) {
+
+			parameters.put("causeResponseStatusCode", status);
+		}
+
+		// This problem keeps no cause, so whether the host was reached at all is recorded here
+		if (PingFailure.isUnreachable(throwable)) {
+			parameters.put("causeUnreachable", true);
+		}
+
+		return parameters;
 	}
 
 	private static Object interpretResponseBody(HttpClientResponseException responseException) {

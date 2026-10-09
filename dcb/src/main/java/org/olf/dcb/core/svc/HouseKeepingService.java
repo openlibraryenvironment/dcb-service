@@ -22,7 +22,7 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 
 import org.olf.dcb.storage.HostLmsRepository;
-import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.PingResponse;
 
 import io.micrometer.core.annotation.Timed;
 import services.k_int.federation.reactor.ReactorFederatedLockService;
@@ -41,16 +41,17 @@ public class HouseKeepingService {
 	private final R2dbcOperations dbops;
   private final AlarmsService alarmsService;
   private final SyslogService syslogService;
+	private final HostLmsPingService hostLmsPingService;
 
 	public HouseKeepingService(
 		R2dbcOperations dbops,
-		HostLmsService hostLmsService,
 		HostLmsRepository hostLmsRepository,
 		AlarmsService alarmsService,
-		SyslogService syslogService) {
+		SyslogService syslogService,
+		HostLmsPingService hostLmsPingService) {
 
 		this.dbops = dbops;
-		this.hostLmsService = hostLmsService;
+		this.hostLmsPingService = hostLmsPingService;
 		this.hostLmsRepository = hostLmsRepository;
     this.alarmsService = alarmsService;
     this.syslogService = syslogService;
@@ -67,7 +68,6 @@ public class HouseKeepingService {
 	private Mono<String> reprocess;
 	private Mono<String> validateClusters;
 	private final HostLmsRepository hostLmsRepository;
-  private final HostLmsService hostLmsService;
   private Map<String,Object> reprocessStatusReport = new HashMap<String,Object>();
 
   private static final int BATCH_SIZE = 10_000;
@@ -819,36 +819,40 @@ public class HouseKeepingService {
 }
 
 
-	private Mono<String> pingTests() {
-    return Flux.from(hostLmsRepository.queryAll())
-      .flatMap( hostLms -> hostLmsService.getClientFor(hostLms) )
-      .doOnNext( hostLmsClient -> log.info("Audit -- LMS connectivity test: {}",hostLmsClient.getHostLmsCode()))
-      .flatMap( hostLmsClient -> hostLmsClient.ping() )
-			.onErrorResume( e -> {
-				log.error("Problem in ping test {}",e.getMessage());
-				return Mono.empty();
-			})
-			.flatMap ( pingResponse -> {
-				log.info("Ping Response {}",pingResponse );
+	// Tens of Host LMS at most, each pinged with a few calls: four at a time bounds the burst
+	private static final int PING_CONCURRENCY = 4;
 
-				String alarmCode = "ILS."+pingResponse.getTarget()+".PING_FAILURE".toUpperCase();
+	Mono<String> pingTests() {
+		return Flux.from(hostLmsRepository.queryAll())
+			.doOnNext(hostLms -> log.info("Audit -- LMS connectivity test: {}", hostLms.getCode()))
+			.flatMap(hostLms -> hostLmsPingService.pingAndRecord(hostLms)
+				// One host whose result cannot be recorded must not stop the rest being checked
+				.onErrorResume(e -> {
+					log.error("Problem in ping test for {}: {}", hostLms.getCode(), e.getMessage());
+					return Mono.empty();
+				}), PING_CONCURRENCY)
+			.concatMap(this::recordPingOutcome)
+			.then(Mono.just("OK"));
+	}
 
-				if ( pingResponse.getStatus().equals("OK") ) {
-					return alarmsService.cancel(alarmCode)
-						.thenReturn("OK");
-				}
-				else {
-					return alarmsService.raise(
-						Alarm.builder()
-							.id(UUIDUtils.generateAlarmId(alarmCode))
-							.code(alarmCode)
-							.build()
-						)
-						.thenReturn( pingResponse );
-				}
-			})
-			.collectList()
-      .thenReturn("OK");
+	private Mono<Void> recordPingOutcome(PingResponse pingResponse) {
+		log.info("Ping Response {}", pingResponse);
+
+		String alarmCode = "ILS."+pingResponse.getTarget()+".PING_FAILURE".toUpperCase();
+
+		// An adapter with no ping has nothing to report either way, so an old alarm is cleared
+		if (PingResponse.OK.equals(pingResponse.getStatus())
+			|| PingResponse.NOT_IMPLEMENTED.equals(pingResponse.getStatus())) {
+
+			return alarmsService.cancel(alarmCode).then();
+		}
+
+		return alarmsService.raise(
+				Alarm.builder()
+					.id(UUIDUtils.generateAlarmId(alarmCode))
+					.code(alarmCode)
+					.build())
+			.then();
 	}
 
   private Mono<String> systemsLibrarianContactableTests() {

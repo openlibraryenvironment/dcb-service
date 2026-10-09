@@ -3,7 +3,6 @@ package org.olf.dcb.core.interaction;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -318,11 +317,8 @@ public interface HostLmsClient
 	}
 
 	default Mono<PingResponse> ping() {
-		return Mono.just(PingResponse.builder()
-			.target(getHostLmsCode())
-			.status("Not implemented")
-			.pingTime(Duration.ofMillis(0))
-			.build());
+		return Mono.just(PingResponse.notImplemented(getHostLmsCode(),
+			"This adapter has no connectivity check"));
 	}
 	
 	default String getHostSystemType() {
