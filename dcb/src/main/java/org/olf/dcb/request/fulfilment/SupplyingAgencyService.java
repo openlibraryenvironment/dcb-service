@@ -122,13 +122,15 @@ public class SupplyingAgencyService {
 	}
 
 	private enum HoldOperation {
-		DELETE("CLEAN UP"),
-		CANCEL("CANCEL");
+		DELETE("CLEAN UP", "Delete supplier hold : Failed"),
+		CANCEL("CANCEL", "Cancel supplier hold : Failed");
 
 		private final String description;
+		private final String failureMessage;
 
-		HoldOperation(String description) {
+		HoldOperation(String description, String failureMessage) {
 			this.description = description;
+			this.failureMessage = failureMessage;
 		}
 
 		public String getDescription() {
@@ -217,7 +219,7 @@ public class SupplyingAgencyService {
 			// Catch any skipped operations
 			.switchIfEmpty(Mono.defer(() -> Mono.just("OK")))
 			// Genuine error we didn't account for
-			.onErrorResume(logAndReturnErrorString(context))
+			.onErrorResume(logAndReturnErrorString(operation.failureMessage, context))
 			.thenReturn(context);
 	}
 
@@ -263,12 +265,12 @@ public class SupplyingAgencyService {
 			});
 	}
 
-	private Function<Throwable, Mono<String>> logAndReturnErrorString(RequestWorkflowContext requestWorkflowContext) {
+	private Function<Throwable, Mono<String>> logAndReturnErrorString(String message,
+		RequestWorkflowContext requestWorkflowContext) {
 
 		final var patronRequest = getValueOrNull(requestWorkflowContext, RequestWorkflowContext::getPatronRequest);
 
 		return error -> {
-			final var message = "Delete supplier hold : Failed";
 			final var auditData = new HashMap<String, Object>();
 			auditThrowable(auditData, "Throwable", error);
 			return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData)

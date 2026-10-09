@@ -285,6 +285,30 @@ public interface HostLmsClient
 		return true;
 	}
 
+	/**
+	 * As a borrower, can this system carry a second virtual item for a supplier copy it already holds
+	 * a virtual item for, so that two requests from its patrons wait on that copy at once?
+	 * <p>
+	 * Answer true only where the system has been shown to keep both records distinct, including at
+	 * check-in by barcode. While the answer is false, resolution does not choose a copy for this system
+	 * when it can show the copy's barcode is already there, or is about to be.
+	 */
+	default boolean canHoldTwoVirtualItemsForOneCopy() {
+		return false;
+	}
+
+	/**
+	 * Does {@link #getItemByBarcode} find the virtual items DCB creates in this system as a borrowing
+	 * or pickup library?
+	 * <p>
+	 * Answer true only where those virtual items are ordinary item records found by that lookup. Where
+	 * the answer is false, resolution takes DCB's own record of a virtual item it created and has not
+	 * yet cleaned up as the evidence instead.
+	 */
+	default boolean canSeeVirtualItemsByBarcode() {
+		return false;
+	}
+
 	@NonNull
 	String getClientId();
 

@@ -2210,6 +2210,11 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	}
 
 	@Override
+	public boolean canSeeVirtualItemsByBarcode() {
+		return true;
+	}
+
+	@Override
 	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 		log.debug("Fetching Sierra item by barcode: {}", barcode);
 

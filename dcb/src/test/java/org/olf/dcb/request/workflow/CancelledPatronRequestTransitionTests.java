@@ -415,7 +415,7 @@ class CancelledPatronRequestTransitionTests {
 
 		final var auditList = mapStream(patronRequestsFixture.findAuditEntries(updatedPatronRequest),
 				PatronRequestAudit::getBriefDescription)
-			.filter("Delete supplier hold : Failed"::equals)
+			.filter("Cancel supplier hold : Failed"::equals)
 			.toList();
 
 		assertThat(auditList, hasSize(1));

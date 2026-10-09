@@ -52,6 +52,12 @@ public class SierraPatronsAPIFixture {
 		mockServer.mock(getHoldById(holdId), noRecordsFound());
 	}
 
+	// MockServer answers with expectations in the order they were added, so the first read finds the hold
+	public void mockGetHoldByIdOnceThenNotFound(String holdId, SierraPatronHold hold) {
+		mockServer.replaceMock(getHoldById(holdId), okJson(hold), Times.once());
+		mockServer.mock(getHoldById(holdId), noRecordsFound());
+	}
+
 	public void mockGetHoldById(String holdId, SierraPatronHold hold) {
 		mockGetHoldById(holdId, okJson(hold));
 	}

@@ -2164,6 +2164,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				+ "; create it in Alma before enabling borrowing", error));
 	}
 
+	@Override
+	public boolean canSeeVirtualItemsByBarcode() {
+		return true;
+	}
+
 @Override
 public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 	log.debug("Fetching Alma item by barcode: {}", barcode);

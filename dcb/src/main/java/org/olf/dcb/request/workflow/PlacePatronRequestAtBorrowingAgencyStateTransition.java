@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
@@ -10,11 +11,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.olf.dcb.core.interaction.HostLmsRequest;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
+import org.olf.dcb.request.lifecycle.LifecycleCapabilityResolver;
+import org.olf.dcb.request.lifecycle.LifecycleRole;
+import org.olf.dcb.request.lifecycle.StrategyType;
 import org.olf.dcb.request.lifecycle.placement.BorrowingAgencyRequestStrategyService;
+import org.olf.dcb.request.resolution.SupplierRequestService;
 
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
@@ -26,13 +35,21 @@ import reactor.core.publisher.Mono;
 public class PlacePatronRequestAtBorrowingAgencyStateTransition implements PatronRequestStateTransition {
 	private final BorrowingAgencyRequestStrategyService borrowingAgencyRequestStrategyService;
 	private final PatronRequestAuditService patronRequestAuditService;
+	private final SupplyingAgencyService supplyingAgencyService;
+	private final LifecycleCapabilityResolver capabilityResolver;
+	private final SupplierRequestService supplierRequestService;
 
 	private static final List<Status> possibleSourceStatus = List.of(CONFIRMED);
 
 	public PlacePatronRequestAtBorrowingAgencyStateTransition(BorrowingAgencyRequestStrategyService borrowingAgencyRequestStrategyService,
-																														PatronRequestAuditService patronRequestAuditService) {
+																														PatronRequestAuditService patronRequestAuditService,
+		SupplyingAgencyService supplyingAgencyService, LifecycleCapabilityResolver capabilityResolver,
+		SupplierRequestService supplierRequestService) {
 		this.borrowingAgencyRequestStrategyService = borrowingAgencyRequestStrategyService;
 		this.patronRequestAuditService = patronRequestAuditService;
+		this.supplyingAgencyService = supplyingAgencyService;
+		this.capabilityResolver = capabilityResolver;
+		this.supplierRequestService = supplierRequestService;
 	}
 
 	/**
@@ -66,6 +83,7 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 						patronRequest.getRequestingIdentity().getLocalId(),
 						patronRequest.getPatronHostlmsCode(),
 						error.getMessage()))
+					.onErrorResume(error -> cancelSupplierHold(ctx, error).then(Mono.error(error)))
 					.thenReturn(ctx);
 			}
 			else
@@ -107,7 +125,68 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 				log.error(msg);
 				ctx.getWorkflowMessages().add(msg);
 			})
+			.onErrorResume(error -> cancelSupplierHold(ctx, error).then(Mono.error(error)))
 			.thenReturn(ctx);
+	}
+
+	// Without the borrower's hold the supplied item reaches a library that has nothing to fill, so the
+	// supplier must not send it. The item is still at the supplier: borrower placement runs from CONFIRMED,
+	// before the statuses CancelledPatronRequestTransition already treats as cancellable at the supplier.
+	private Mono<RequestWorkflowContext> cancelSupplierHold(RequestWorkflowContext ctx, Throwable borrowerError) {
+		final var patronRequest = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest);
+		final var supplierRequest = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest);
+		final var supplierHoldId = getValueOrNull(supplierRequest, SupplierRequest::getLocalId);
+		final var supplierHoldStatus = getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus);
+
+		if (patronRequest == null || supplierHoldId == null
+			|| Boolean.TRUE.equals(CancelledPatronRequestTransition.isRequestCancelled(supplierHoldStatus))) {
+
+			return Mono.just(ctx);
+		}
+
+		final Map<String, Object> auditData = new HashMap<>();
+		auditData.put("supplierHostLmsCode", getValue(supplierRequest, SupplierRequest::getHostLmsCode, "Unknown"));
+		auditData.put("supplierHoldId", supplierHoldId);
+		auditData.put("borrowerError", getValue(borrowerError, Throwable::getMessage, "No message"));
+
+		if (isDeclarativeSupplierRequest(ctx)) {
+			return patronRequestAuditService.addAuditEntry(patronRequest,
+					"Borrower hold not placed: supplier hold left in place, declarative supplier cancellation is not implemented", auditData)
+				.thenReturn(ctx);
+		}
+
+		return patronRequestAuditService.addAuditEntry(patronRequest,
+				"Borrower hold not placed: cancelling the supplier hold", auditData)
+			.then(supplyingAgencyService.cancelHold(ctx))
+			.then(Mono.defer(() -> recordSupplierHoldStatus(supplierRequest)))
+			.thenReturn(ctx)
+			.onErrorResume(cancelError -> {
+				log.error("Unable to cancel supplier hold {} for patron request {}, or record its status, after the borrower hold failed",
+					supplierHoldId, patronRequest.getId(), cancelError);
+
+				return Mono.just(ctx);
+			});
+	}
+
+	// What the supplier now reports, recorded as a tracking handler records a change it made. Left as it was,
+	// a rollback reads the hold as still confirmed and places the borrower hold again before tracking catches up.
+	private Mono<SupplierRequest> recordSupplierHoldStatus(SupplierRequest supplierRequest) {
+		final var hold = HostLmsRequest.builder()
+			.localId(supplierRequest.getLocalId())
+			.localPatronId(getValueOrNull(supplierRequest, SupplierRequest::getVirtualIdentity, PatronIdentity::getLocalId))
+			.build();
+
+		return supplyingAgencyService.getRequest(supplierRequest.getHostLmsCode(), hold)
+			.map(current -> Optional.ofNullable(current.getLocalId() == null ? HOLD_MISSING : current.getStatus()))
+			.defaultIfEmpty(Optional.of(HOLD_MISSING))
+			.flatMap(Mono::justOrEmpty)
+			.flatMap(status -> supplierRequestService.updateSupplierRequest(
+				supplierRequest.toBuilder().localStatus(status).build()));
+	}
+
+	private boolean isDeclarativeSupplierRequest(RequestWorkflowContext ctx) {
+		return capabilityResolver.placementStrategy(
+			getValueOrNull(ctx, RequestWorkflowContext::getLenderSystem), LifecycleRole.SUPPLIER) == StrategyType.DECLARATIVE;
 	}
 
 	private static Map<String, Object> getAuditData(RequestWorkflowContext ctx, PatronRequest patronRequest) {
