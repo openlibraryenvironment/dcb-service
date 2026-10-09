@@ -150,7 +150,8 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		// Because we have both libraries and agencies to contend with, we need to create both a library AND its corresponding agency
 		// If the agency does not exist
 		// When we rationalise this, that won't be needed.
-		return Mono.from(r2dbcOperations.withTransaction(status ->
+		// singleOrEmpty emits once the transaction completes, after its commit; Mono.from emitted before it
+		return Flux.from(r2dbcOperations.withTransaction(status ->
 				// Get the Host LMS - fail if not present
 				Mono.from(hostLmsRepository.findByCode(hostLmsCode))
 					.switchIfEmpty(Mono.error(new HttpStatusException(HttpStatus.BAD_REQUEST, "Invalid Host LMS Code: " + hostLmsCode)))
@@ -225,6 +226,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 						});
 					})
 			))
+			.singleOrEmpty()
 			.toFuture();
 	}
 
