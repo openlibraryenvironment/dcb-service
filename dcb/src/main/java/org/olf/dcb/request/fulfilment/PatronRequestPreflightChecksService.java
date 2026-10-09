@@ -110,8 +110,11 @@ public class PatronRequestPreflightChecksService {
 		final var clusterId = getValueOrNull(command, PlacePatronRequestCommand::getCitation,
 			PlacePatronRequestCommand.Citation::getBibClusterId);
 
-		final var agencyCode = getValueOrNull(command, PlacePatronRequestCommand::getRequestor,
-			PlacePatronRequestCommand.Requestor::getAgencyCode);
+		final var requestor = getValueOrNull(command, PlacePatronRequestCommand::getRequestor);
+
+		final var agencyCode = getValueOrNull(requestor, PlacePatronRequestCommand.Requestor::getAgencyCode);
+		final var homeLibraryCode = getValueOrNull(requestor, PlacePatronRequestCommand.Requestor::getHomeLibraryCode);
+		final var hostLmsCode = getValueOrNull(requestor, PlacePatronRequestCommand.Requestor::getLocalSystemCode);
 
 		final var code = getValue(failedCheck, FailedPreflightCheck::getCode, "UNKNOWN_CHECK");
 		final var description = getValue(failedCheck, FailedPreflightCheck::getDescription, "");
@@ -119,7 +122,17 @@ public class PatronRequestPreflightChecksService {
 		final var context = new HashMap<String, Object>();
 		context.put("code", code);
 		context.put("clusterId", getValue(clusterId, Object::toString, "unknown"));
-		context.put("agencyCode", getValue(agencyCode, "unknown"));
+		context.put("hostLmsCode", getValue(hostLmsCode, "unknown"));
+
+		// EBSCO Locate sends no agency code. A home library code is the patron's local code
+		// on that host LMS, usually but not always the agency code, so it keeps its own key
+		if (agencyCode != null) {
+			context.put("agencyCode", agencyCode);
+		}
+		else {
+			context.put("homeLibraryCode", getValue(homeLibraryCode, "unknown"));
+		}
+
 		context.put("description", description);
 
 		return Event.builder()
