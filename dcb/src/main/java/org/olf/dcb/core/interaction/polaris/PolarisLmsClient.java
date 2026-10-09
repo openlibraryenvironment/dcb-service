@@ -2586,6 +2586,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	// DCB-2175
+	@Override
+	public boolean canSeeVirtualItemsByBarcode() {
+		return true;
+	}
+
 	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 		log.debug("Fetching Polaris item by barcode: {}", barcode);
 

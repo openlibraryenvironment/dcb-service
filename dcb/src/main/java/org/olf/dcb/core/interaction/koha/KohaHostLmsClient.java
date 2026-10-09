@@ -407,6 +407,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 * Helper method to fetch a Koha item by barcode and map it to a DCB HostLmsItem.
 	 * To be replicated across all LMS to provide "lookup by barcode". Not used just yet.
 	 */
+	@Override
+	public boolean canSeeVirtualItemsByBarcode() {
+		return true;
+	}
+
 	public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 		log.info("Fetching Koha item by barcode: {}", barcode);
 
