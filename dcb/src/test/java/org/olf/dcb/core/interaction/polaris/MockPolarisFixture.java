@@ -67,6 +67,23 @@ public class MockPolarisFixture {
 	}
 
 	/**
+	 * Answers the next staff auth with a 200 that carries a PAPIErrorCode and no token. Register
+	 * before mockPapiStaffAuthentication so it matches first.
+	 */
+	public void mockPapiStaffAuthenticationErrorOnce(int papiErrorCode) {
+		mockServer.mock(commonRequests.post(paths.protectedPapiService("/authenticator/staff")),
+			PAPIAuthFilter.AuthToken.builder()
+				.papiErrorCode(papiErrorCode)
+				.errorMessage("Staff authentication failed")
+				.build(),
+			Times.once());
+	}
+
+	public void verifyPapiStaffAuthentication(VerificationTimes times) {
+		mockServer.verify(commonRequests.post(paths.protectedPapiService("/authenticator/staff")), times);
+	}
+
+	/**
 	 * An AuthExpDate in the shape Polaris actually returns: Microsoft JSON, epoch millis with a
 	 * display offset. Observed live as /Date(1787240106747-0500)/ with a 24 hour lifetime.
 	 */
