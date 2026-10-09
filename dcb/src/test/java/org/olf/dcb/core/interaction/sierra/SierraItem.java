@@ -24,4 +24,5 @@ public class SierraItem {
 	Boolean suppressed;
 	Boolean deleted;
 	Map<Integer, FixedField> fixedFields;
+	String volume;
 }

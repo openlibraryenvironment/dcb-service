@@ -25,6 +25,7 @@ public interface ItemFilter {
 	}
 
 	int REQUESTABLE_ORDER = 10;
+	int REQUESTED_VOLUME_ORDER = 15;
 	int AGENCY_EXCLUSION_ORDER = 20;
 	int SAME_AGENCY_ORDER = 30;
 	int SUPPLIER_PICKUP_ORDER = 40;

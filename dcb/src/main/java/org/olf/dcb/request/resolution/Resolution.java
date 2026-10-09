@@ -113,4 +113,14 @@ public class Resolution implements ItemFilterParameters {
 	public Boolean isExpeditedCheckout() {
 		return getValueOrNull(parameters, ResolutionParameters::getIsExpeditedCheckout);
 	}
+
+	// A copy the patron chose is the volume they asked for, whatever its statement says
+	public String requestedVolumeDesignation() {
+		final var isManuallySelected = getValue(parameters, ResolutionParameters::getManualItemSelection,
+			ManualItemSelection::getIsManuallySelected, false);
+
+		return isManuallySelected
+			? null
+			: getValueOrNull(parameters, ResolutionParameters::getRequestedVolumeDesignation);
+	}
 }

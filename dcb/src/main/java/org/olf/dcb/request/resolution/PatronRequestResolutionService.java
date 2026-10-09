@@ -93,6 +93,7 @@ public class PatronRequestResolutionService {
 				.pickupAgencyCode(pickupAgencyCode)
 				.excludedSupplyingAgencyCodes(excludedSupplyingAgencyCodes)
 				.isExpeditedCheckout(getValueOrNull(patronRequest, PatronRequest::getIsExpeditedCheckout))
+				.requestedVolumeDesignation(getValueOrNull(patronRequest, PatronRequest::getRequestedVolumeDesignation))
 				.manualItemSelection(ManualItemSelection.builder()
 					.isManuallySelected(getValue(patronRequest, PatronRequest::getIsManuallySelectedItem, false))
 					.localItemId(getValueOrNull(patronRequest, PatronRequest::getLocalItemId))
@@ -126,6 +127,8 @@ public class PatronRequestResolutionService {
 				.manualItemSelection(mapManualItemSelection(
 					getValueOrNull(command, PlacePatronRequestCommand::getItem)))
 				.isExpeditedCheckout(getValueOrNull(command, PlacePatronRequestCommand::getIsExpeditedRequest))
+				.requestedVolumeDesignation(getValueOrNull(command, PlacePatronRequestCommand::getCitation,
+					PlacePatronRequestCommand.Citation::getVolumeDesignator))
 				.build()
 			);
 	}

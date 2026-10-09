@@ -31,6 +31,7 @@ class ItemFilterOrderingTests {
 
 		assertThat(order, contains(
 			"IsRequestableItemFilter",        // plain field read
+			"RequestedVolumeItemFilter",      // plain field comparison
 			"AgencyExclusionItemFilter",      // plain list membership
 			"ExcludeFromSameAgencyItemFilter",// consortium functional setting
 			"ExcludeSupplierPickupFilter",    // consortium functional setting

@@ -103,6 +103,11 @@ class AllItemFiltersTests {
 			public Boolean isExpeditedCheckout() {
 				return false;
 			}
+
+			@Override
+			public String requestedVolumeDesignation() {
+				return null;
+			}
 		};
 	}
 

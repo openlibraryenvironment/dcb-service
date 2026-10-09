@@ -9,4 +9,6 @@ public interface ItemFilterParameters {
 	String pickupAgencyCode();
 	Boolean isExpeditedCheckout(); // To allow expedited checkout requests to proceed, and deny other supplier pickup use cases
 
+	/** The volume a supplying copy must be, or null when any copy of the title will do */
+	String requestedVolumeDesignation();
 }

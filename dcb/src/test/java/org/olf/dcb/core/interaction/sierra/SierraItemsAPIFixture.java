@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import services.k_int.interaction.sierra.CheckoutEntry;
 import services.k_int.interaction.sierra.CheckoutResultSet;
 import services.k_int.interaction.sierra.FixedField;
+import services.k_int.interaction.sierra.VarField;
 import services.k_int.interaction.sierra.items.Location;
 import services.k_int.interaction.sierra.items.SierraItem;
 import services.k_int.interaction.sierra.items.Status;
@@ -182,6 +183,9 @@ public class SierraItemsAPIFixture {
 				.build())
 			.itemType(itemType)
 			.fixedFields(fixedFields)
+			.varFields(item.getVolume() == null
+				? null
+				: List.of(VarField.builder().fieldTag("v").content(item.getVolume()).build()))
 			.holdCount(item.getHoldCount())
 			.deleted(item.getDeleted())
 			.suppressed(item.getSuppressed())

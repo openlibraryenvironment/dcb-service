@@ -136,5 +136,5 @@ class SameServerItemFilterTests {
 	@Builder
 	record Parameters(List<String> excludedSupplyingAgencyCodes,
 		String borrowingAgencyCode, String borrowingHostLmsCode, Boolean isExpeditedCheckout,
-		String pickupAgencyCode) implements ItemFilterParameters { }
+		String pickupAgencyCode, String requestedVolumeDesignation) implements ItemFilterParameters { }
 }
