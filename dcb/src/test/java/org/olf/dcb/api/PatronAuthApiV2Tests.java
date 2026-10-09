@@ -1,9 +1,12 @@
 package org.olf.dcb.api;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.OK;
+import static io.micronaut.http.HttpStatus.UNAUTHORIZED;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.security.RoleNames.INTERNAL_API;
@@ -34,6 +37,7 @@ import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import lombok.Builder;
@@ -134,6 +138,73 @@ public class PatronAuthApiV2Tests {
 		assertThat(verificationResponse.agencyCode, is(agencyCode));
 		assertThat(verificationResponse.systemCode, is(HOST_LMS_CODE));
 		assertThat(verificationResponse.homeLocationCode, is(homeLibraryCode));
+	}
+
+	@Test
+	void shouldRefuseAnAnonymousLookup() {
+		final var agencyCode = defineAgency("BASIC/BARCODE+PIN");
+
+		final var lookupRequest = HttpRequest.POST("/v2/patron/auth/lookup",
+			V2PatronCredentials.builder().principal(agencyCode + "/" + generateBarcode()).build());
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> singleValueFrom(client.exchange(lookupRequest, Argument.of(VerificationResponse.class))));
+
+		// DcbAuthorizationExceptionHandler answers a request with no Authorization header with 400
+		assertThat(exception.getStatus(), is(BAD_REQUEST));
+	}
+
+	@Test
+	void shouldRefuseALookupWithADiscoveryCredential() {
+		final var agencyCode = defineAgency("BASIC/BARCODE+PIN");
+
+		final var accessToken = "patron-auth2-lookup-discovery-token";
+
+		TestStaticTokenValidator.add(accessToken, "patron-auth2-lookup-discovery",
+			List.of(RoleNames.DISCOVERY_SERVICE));
+
+		final var lookupRequest = HttpRequest.POST("/v2/patron/auth/lookup",
+				V2PatronCredentials.builder().principal(agencyCode + "/" + generateBarcode()).build())
+			.bearerAuth(accessToken);
+
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> singleValueFrom(client.exchange(lookupRequest, Argument.of(VerificationResponse.class))));
+
+		assertThat(exception.getStatus(), is(UNAUTHORIZED));
+	}
+
+	@Test
+	void shouldLookUpAPatronForAnInternalApiCaller() {
+		// Arrange
+		final var agencyCode = defineAgency("BASIC/BARCODE+PIN");
+		final var barcode = generateBarcode();
+		final var id = generateNumericLocalId();
+
+		sierraPatronsAPIFixture.patronFoundResponse("u", barcode,
+			SierraPatronRecord.builder()
+				.id(id)
+				.patronType(LOCAL_PATRON_TYPE)
+				.barcodes(List.of(barcode))
+				.names(List.of("Joe Bloggs"))
+				.homeLibraryCode("home-library-code")
+				.build());
+
+		savePatronTypeMappings();
+
+		final var accessToken = "patron-auth2-lookup-internal-token";
+
+		TestStaticTokenValidator.add(accessToken, "patron-auth2-lookup-internal", List.of(INTERNAL_API));
+
+		// Act
+		final var response = singleValueFrom(client.exchange(
+			HttpRequest.POST("/v2/patron/auth/lookup",
+					V2PatronCredentials.builder().principal(agencyCode + "/" + barcode).build())
+				.bearerAuth(accessToken),
+			Argument.of(VerificationResponse.class)));
+
+		// Assert
+		assertThat(response.getStatus(), is(OK));
+		assertThat(response.getBody().map(VerificationResponse::getStatus).orElse(null), is("VALID"));
 	}
 
 	private io.micronaut.http.@NonNull HttpResponse<VerificationResponse> authenticatePatron(String username, String pin) {

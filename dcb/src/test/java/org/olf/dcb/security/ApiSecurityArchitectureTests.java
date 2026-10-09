@@ -7,6 +7,7 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -69,6 +70,23 @@ class ApiSecurityArchitectureTests {
 	 * do it only with a reason written down, and treat it as a defect to be removed.
 	 */
 	private static final Set<String> KNOWN_OPEN_STAFF_ROUTES = Set.of();
+
+	/**
+	 * Anonymous POST/PUT/PATCH/DELETE routes, each with the reason it needs no credential.
+	 * Every one authenticates its caller in its own code. An entry here is a decision a
+	 * reviewer can see.
+	 */
+	private static final Map<String, String> ANONYMOUS_MUTATING_ROUTES = Map.of(
+		"PatronAuthController#patronAuth (/patron/auth)",
+			"checks a patron's own card and PIN; the credential is the request",
+		"PatronAuthV2Controller#patronAuth (/v2/patron/auth)",
+			"checks a patron's own card and PIN; the credential is the request",
+		"NcipController#receive (/ncip/v2_02)",
+			"NCIP peers authenticate with a signed peer token checked by NcipPeerAuthGuard",
+		"DcbProfileRegistrationController#validate (/api/v1/dcb-profile-ncip2)",
+			"requires an invitation bearer token and a signed proof, checked by the registration service",
+		"DcbProfileRegistrationController#redeem (/api/v1/dcb-profile-ncip2)",
+			"requires an invitation bearer token and a signed proof, checked by the registration service");
 
 	private List<Route> routes;
 
@@ -238,6 +256,46 @@ class ApiSecurityArchitectureTests {
 			place requests as arbitrary patrons. Name the roles:
 
 			""" + String.join("\n", openMutations));
+	}
+
+	/**
+	 * RULE 2b. Rule 2 covers every authenticated principal; this covers no principal at
+	 * all. An anonymous POST is reachable by anyone on the internet.
+	 */
+	@Test
+	void everyAnonymousMutatingRouteIsADeliberateDecision() {
+		final var unlisted = routes.stream()
+			.filter(Route::mutating)
+			.filter(route -> route.effectiveRules().contains(SecurityRule.IS_ANONYMOUS))
+			.map(Route::describe)
+			.filter(route -> !ANONYMOUS_MUTATING_ROUTES.containsKey(route))
+			.toList();
+
+		assertTrue(unlisted.isEmpty(),
+			"""
+			These routes use a mutating verb and need no credential \
+			at all. Name the roles, or add the route to ANONYMOUS_MUTATING_ROUTES with the \
+			reason it must be anonymous:
+
+			""" + String.join("\n", unlisted));
+	}
+
+	/** An allow-list entry for a route that is gone, or is no longer anonymous, hides the next one. */
+	@Test
+	void everyAnonymousMutatingRouteExemptionStillApplies() {
+		final var anonymousMutations = routes.stream()
+			.filter(Route::mutating)
+			.filter(route -> route.effectiveRules().contains(SecurityRule.IS_ANONYMOUS))
+			.map(Route::describe)
+			.collect(Collectors.toSet());
+
+		final var stale = ANONYMOUS_MUTATING_ROUTES.keySet().stream()
+			.filter(route -> !anonymousMutations.contains(route))
+			.toList();
+
+		assertTrue(stale.isEmpty(),
+			"ANONYMOUS_MUTATING_ROUTES names routes that are not anonymous mutations:\n"
+				+ String.join("\n", stale));
 	}
 
 	/**

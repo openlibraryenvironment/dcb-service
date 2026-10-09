@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PATRON_VERIFIED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
@@ -54,6 +55,7 @@ import org.olf.dcb.core.interaction.sierra.SierraItem;
 import org.olf.dcb.core.interaction.sierra.SierraItemsAPIFixture;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.Event;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.test.AgencyFixture;
@@ -806,6 +808,70 @@ class StandardWorkflowPatronRequestApiTests {
 		assertThat("Refusal names the check that refused it",
 			eventLogFixture.findAll().stream().findFirst().orElseThrow().getAdditionalData(),
 			hasEntry("code", "UNKNOWN_PICKUP_LOCATION_CODE"));
+	}
+
+	@Test
+	void cannotPlaceRequestWhenPatronHasReachedTheirLibrarysActiveRequestLimit() {
+		// Arrange
+		final var clusterRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
+		final var supplyingHostLms = hostLmsFixture.findByCode(SUPPLYING_HOST_LMS_CODE);
+
+		bibRecordFixture.createBibRecord(clusterRecordId, supplyingHostLms.getId(), "798472", clusterRecord);
+
+		savePatronTypeMappings();
+
+		final var borrowingAgency = agencyFixture.findByCode(BORROWING_AGENCY_CODE);
+
+		final var existingIdentity = patronFixture.definePatron(KNOWN_PATRON_LOCAL_ID, "tstce",
+				borrowingAgency.getHostLms())
+			.getPatronIdentities().get(0);
+
+		saveActiveRequest(existingIdentity);
+		saveActiveRequest(existingIdentity);
+
+		agencyFixture.updateAgency(borrowingAgency.setMaxConsortialLoans(2));
+
+		try {
+			// Act
+			final var exception = assertThrows(HttpClientResponseException.class,
+				() -> patronRequestApiClient.placePatronRequest(clusterRecordId, KNOWN_PATRON_LOCAL_ID,
+					VALID_PICKUP_LOCATION_ID, BORROWING_HOST_LMS_CODE, "home-library-code"));
+
+			// Assert
+			final var response = exception.getResponse();
+
+			assertThat("Should respond with a bad request status",
+				response.getStatus(), is(BAD_REQUEST));
+
+			final var expectedDescription
+				= "2 active requests reaches the limit of 2 for agency \"%s\" on \"%s\""
+					.formatted(BORROWING_AGENCY_CODE, BORROWING_HOST_LMS_CODE);
+
+			assertThat("Body should report the library's limit as the only failed check",
+				response.getBody(ChecksFailure.class).orElseThrow(),
+				hasProperty("failedChecks", containsInAnyOrder(
+					allOf(
+						hasDescription(expectedDescription),
+						hasCode("EXCEEDS_AGENCY_LIMIT")
+					)
+				)));
+
+			assertThat("Failed check should be logged", eventLogFixture.findAll(),
+				containsInAnyOrder(isFailedCheckEvent(expectedDescription)));
+		}
+		finally {
+			agencyFixture.updateAgency(borrowingAgency.setMaxConsortialLoans(null));
+		}
+	}
+
+	private void saveActiveRequest(PatronIdentity requestingIdentity) {
+		patronRequestsFixture.savePatronRequest(PatronRequest.builder()
+			.id(randomUUID())
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.requestingIdentity(requestingIdentity)
+			.status(LOANED)
+			.build());
 	}
 
 	@Test

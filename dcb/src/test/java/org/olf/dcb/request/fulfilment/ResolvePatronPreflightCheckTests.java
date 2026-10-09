@@ -5,13 +5,23 @@ import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
+import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.test.IdentifierGenerator.generateBarcode;
 import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
 
+import org.hamcrest.Matcher;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,8 +30,12 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.PatronFixture;
+import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 
 import io.micronaut.context.annotation.Property;
@@ -39,6 +53,9 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	private static final String BORROWING_HOST_LMS_CODE = "borrowing-host-lms";
 	private static final String HOME_LIBRARY_CODE = "home-library";
+	// Outside the generated range, and no substring of any count, limit or code in a description
+	private static final String HOLD_LIMIT_PATRON_ID = "8675309";
+	private static final String LOAN_LIMIT_PATRON_ID = "8675311";
 
 	@Inject
 	private ResolvePatronPreflightCheck check;
@@ -52,6 +69,10 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	private AgencyFixture agencyFixture;
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private PatronFixture patronFixture;
+	@Inject
+	private PatronRequestsFixture patronRequestsFixture;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
@@ -73,8 +94,14 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 
 	@BeforeEach
 	void beforeEach() {
+		patronFixture.deleteAllPatrons();
 		referenceValueMappingFixture.deleteAll();
 		agencyFixture.deleteAll();
+	}
+
+	@AfterAll
+	void afterAll() {
+		patronFixture.deleteAllPatrons();
 	}
 
 	@Test
@@ -181,8 +208,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
-				"Patron \"%s\" from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, agencyCode))
+				"Patron from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
+					.formatted(BORROWING_HOST_LMS_CODE, agencyCode))
 		));
 	}
 
@@ -221,8 +248,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING",
-				"Patron \"%s\" from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, agencyCode))
+				"Patron from \"%s\" is associated with agency \"%s\" which is not participating in borrowing"
+					.formatted(BORROWING_HOST_LMS_CODE, agencyCode))
 		));
 	}
 
@@ -257,8 +284,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
-				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
-					.formatted(localPatronId, HOME_LIBRARY_CODE, BORROWING_HOST_LMS_CODE))
+				"Patron with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(HOME_LIBRARY_CODE, BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -296,8 +323,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_NOT_ASSOCIATED_WITH_AGENCY",
-				"Patron \"%s\" with home library code \"%s\" from \"%s\" is not associated with an agency"
-					.formatted(localPatronId, HOME_LIBRARY_CODE, BORROWING_HOST_LMS_CODE))
+				"Patron with home library code \"%s\" from \"%s\" is not associated with an agency"
+					.formatted(HOME_LIBRARY_CODE, BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -338,8 +365,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_INELIGIBLE",
-				"Patron \"%s\" from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, localPatronType,
+				"Patron from \"%s\" is of type \"%s\" which is \"%s\" for consortial borrowing"
+					.formatted(BORROWING_HOST_LMS_CODE, localPatronType,
 						notEligibleCanonicalPatronType))
 		));
 	}
@@ -347,7 +374,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	@Test
 	void shouldFailWhenPatronHasReachedTheAgencyHoldLimit() {
 		// Arrange
-		final var localPatronId = generateNumericLocalIdAsString();
+		final var localPatronId = HOLD_LIMIT_PATRON_ID;
 
 		defineEligiblePatron(localPatronId, 15);
 		mapPatronToAgency(BORROWING_HOST_LMS_CODE, HOME_LIBRARY_CODE, "example-agency", true, 25);
@@ -360,9 +387,11 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_HOLD_LIMIT_REACHED",
-				"Patron \"%s\" from \"%s\" has 25 holds, which reaches the limit of 25 for agency \"example-agency\""
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+				"25 holds reaches the limit of 25 for agency \"example-agency\" on \"%s\""
+					.formatted(BORROWING_HOST_LMS_CODE))
 		));
+
+		assertThat(results, everyItem(descriptionNotContaining(localPatronId)));
 	}
 
 	@Test
@@ -427,6 +456,106 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 	}
 
 	@Test
+	void shouldFailWhenPatronHasReachedTheAgencyConsortialLoanLimit() {
+		// Arrange
+		final var localPatronId = LOAN_LIMIT_PATRON_ID;
+
+		defineEligiblePatron(localPatronId, 15);
+		mapPatronToAgencyWithLoanLimit("example-agency", 2);
+
+		final var identity = defineHomeIdentity(localPatronId);
+		saveRequest(identity, LOANED);
+		saveRequest(identity, LOANED);
+
+		// Act
+		final var results = check(requestWithoutAgencyCode(localPatronId));
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("EXCEEDS_AGENCY_LIMIT",
+				"2 active requests reaches the limit of 2 for agency \"example-agency\" on \"%s\""
+					.formatted(BORROWING_HOST_LMS_CODE))
+		));
+
+		assertThat(results, everyItem(descriptionNotContaining(localPatronId)));
+
+		assertThat(results, everyItem(hasProperty("userMessage",
+			is("You have reached the number of active requests your library allows. "
+				+ "Please wait for a current request to finish, or contact your library."))));
+	}
+
+	@Test
+	void shouldPassWhenPatronIsBelowTheAgencyConsortialLoanLimit() {
+		// Arrange
+		final var localPatronId = generateNumericLocalIdAsString();
+
+		defineEligiblePatron(localPatronId, 15);
+		mapPatronToAgencyWithLoanLimit("example-agency", 2);
+
+		final var identity = defineHomeIdentity(localPatronId);
+		saveRequest(identity, LOANED);
+		saveRequest(identity, FINALISED);
+
+		// Act
+		final var results = check(requestWithoutAgencyCode(localPatronId));
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldNotCountRequestsInErrorTowardsTheAgencyConsortialLoanLimit() {
+		// Arrange
+		final var localPatronId = generateNumericLocalIdAsString();
+
+		defineEligiblePatron(localPatronId, 15);
+		mapPatronToAgencyWithLoanLimit("example-agency", 2);
+
+		final var identity = defineHomeIdentity(localPatronId);
+		saveRequest(identity, LOANED);
+		saveRequest(identity, ERROR);
+
+		// Act
+		final var results = check(requestWithoutAgencyCode(localPatronId));
+
+		// Assert
+		assertThat(results, containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldApplyTheResolvedAgencysLoanLimitRatherThanTheAgencyTheRequestNames() {
+		// Arrange
+		final var localPatronId = generateNumericLocalIdAsString();
+
+		defineEligiblePatron(localPatronId, 15);
+		mapPatronToAgencyWithLoanLimit("example-agency", 2);
+
+		agencyFixture.defineAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code("unlimited-agency")
+			.name("Unlimited Agency")
+			.isBorrowingAgency(true)
+			.hostLms(hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE))
+			.build());
+
+		final var identity = defineHomeIdentity(localPatronId);
+		saveRequest(identity, LOANED);
+		saveRequest(identity, LOANED);
+
+		// Act
+		final var results = check(PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.agencyCode("unlimited-agency")
+				.build())
+			.build());
+
+		// Assert
+		assertThat(results, containsInAnyOrder(failedCheck("EXCEEDS_AGENCY_LIMIT")));
+	}
+
+	@Test
 	void shouldFailWhenPatronIsBlocked() {
 		// Arrange
 		final var localPatronId = generateNumericLocalIdAsString();
@@ -463,8 +592,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_BLOCKED",
-				"Patron \"%s\" from \"%s\" has a local account block"
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+				"Patron from \"%s\" has a local account block".formatted(BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -547,8 +675,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("INVALID_PATRON_BARCODE",
-				"Patron \"%s\" from \"%s\" has an invalid barcode: \"%s\""
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, ""))
+				"Patron from \"%s\" has an invalid barcode".formatted(BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -586,8 +713,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("INVALID_PATRON_BARCODE",
-				"Patron \"%s\" from \"%s\" has an invalid barcode: \"%s\""
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, ""))
+				"Patron from \"%s\" has an invalid barcode".formatted(BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -625,8 +751,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("INVALID_PATRON_BARCODE",
-				"Patron \"%s\" from \"%s\" has an invalid barcode: \"%s\""
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE, ""))
+				"Patron from \"%s\" has an invalid barcode".formatted(BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -651,8 +776,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_NOT_FOUND",
-				"Patron \"%s\" is not recognised in \"%s\""
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+				"Patron is not recognised in \"%s\"".formatted(BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -691,8 +815,7 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("PATRON_NOT_FOUND",
-				"Patron \"%s\" from \"%s\" has likely been deleted"
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+				"Patron from \"%s\" has likely been deleted".formatted(BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -758,8 +881,8 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 		// Assert
 		assertThat(results, containsInAnyOrder(
 			failedCheck("LOCAL_PATRON_TYPE_IS_NON_NUMERIC",
-				"Local patron \"%s\" from \"%s\" has non-numeric patron type \"null\""
-					.formatted(localPatronId, BORROWING_HOST_LMS_CODE))
+				"Local patron from \"%s\" has non-numeric patron type \"null\""
+					.formatted(BORROWING_HOST_LMS_CODE))
 		));
 	}
 
@@ -806,6 +929,47 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 			hostLmsCode, locationCode, agencyCode);
 	}
 
+	private void mapPatronToAgencyWithLoanLimit(String agencyCode, Integer maxConsortialLoans) {
+		agencyFixture.defineAgency(DataAgency.builder()
+			.id(randomUUID())
+			.code(agencyCode)
+			.name("Example Agency")
+			.isSupplyingAgency(true)
+			.isBorrowingAgency(true)
+			.maxConsortialLoans(maxConsortialLoans)
+			.hostLms(hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE))
+			.build());
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(
+			BORROWING_HOST_LMS_CODE, HOME_LIBRARY_CODE, agencyCode);
+	}
+
+	private PatronIdentity defineHomeIdentity(String localPatronId) {
+		return patronFixture.definePatron(localPatronId, HOME_LIBRARY_CODE,
+				hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE))
+			.getPatronIdentities().get(0);
+	}
+
+	private void saveRequest(PatronIdentity requestingIdentity, PatronRequest.Status status) {
+		patronRequestsFixture.savePatronRequest(PatronRequest.builder()
+			.id(randomUUID())
+			.patronHostlmsCode(BORROWING_HOST_LMS_CODE)
+			.requestingIdentity(requestingIdentity)
+			.status(status)
+			.build());
+	}
+
+	// The shape EBSCO Locate sends: the agency code in homeLibraryCode, none in agencyCode
+	private static PlacePatronRequestCommand requestWithoutAgencyCode(String localPatronId) {
+		return PlacePatronRequestCommand.builder()
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.homeLibraryCode("example-agency")
+				.build())
+			.build();
+	}
+
 	private void defineEligiblePatron(String localPatronId, int localPatronType) {
 		sierraPatronsAPIFixture.mockGetPatronById(localPatronId,
 			SierraPatronRecord.builder()
@@ -827,6 +991,10 @@ class ResolvePatronPreflightCheckTests extends AbstractPreflightCheckTests {
 				.localId(localPatronId)
 				.build())
 			.build());
+	}
+
+	private static Matcher<CheckResult> descriptionNotContaining(String text) {
+		return hasProperty("failureDescription", not(containsString(text)));
 	}
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {
