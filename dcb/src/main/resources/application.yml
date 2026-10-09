@@ -144,7 +144,9 @@ info:
           enabled: ${dcb.requests.preflight-checks.resolve-patron.enabled:}
         duplicate-requests:
           enabled: ${dcb.requests.preflight-checks.duplicate-requests.enabled:}
-          request-window: ${dcb.requests.preflight-checks.duplicate-requests.request-window:}
+      # The OIDC client ids of DCB Admin and DCB Admin for Libraries. A request placed through one of
+      # them is staff's, and the duplicate-request check stays off until they are set.
+      staff-client-ids: ${dcb.requests.staff-client-ids:}
 
   # git:
   #   enabled: true

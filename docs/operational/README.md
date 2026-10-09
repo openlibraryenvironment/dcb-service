@@ -10,3 +10,8 @@ For libraries, consortium administrators and hosting providers running OpenRS DC
   another system.
 - [Alma hosting and configuration reference](alma-hosting.md): every Host LMS setting, network
   access, load on Alma, and troubleshooting by error code.
+
+## Requesting
+
+- [The duplicate-request check](duplicate-request-check.md): refusing a patron's second request
+  for a title they already have coming, and how staff are exempted.
