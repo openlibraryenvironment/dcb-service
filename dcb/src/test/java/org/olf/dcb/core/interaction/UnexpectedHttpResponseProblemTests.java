@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Timeout.ThreadMode.SEPARATE_THREAD;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.OUTCOME;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.UNKNOWN_TIMEOUT;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.hasUnknownOutcome;
@@ -13,6 +14,7 @@ import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.unexpec
 import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.olf.dcb.core.interaction.sierra.SierraReadTimeoutProblem;
 
 import io.micronaut.http.HttpRequest;
@@ -63,6 +65,7 @@ class UnexpectedHttpResponseProblemTests {
 	}
 
 	@Test
+	@Timeout(value = 5, threadMode = SEPARATE_THREAD)
 	void shouldStopAtACycleInTheCauseChain() {
 		final var first = new RuntimeException("first");
 		final var second = new RuntimeException("second", first);

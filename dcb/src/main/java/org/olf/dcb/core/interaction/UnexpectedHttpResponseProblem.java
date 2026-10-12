@@ -4,10 +4,7 @@ import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
@@ -68,13 +65,7 @@ public class UnexpectedHttpResponseProblem extends AbstractHttpResponseProblem {
 	}
 
 	private static boolean anyInCauseChain(Throwable error, Predicate<Throwable> test) {
-		final Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-
-		for (var current = error; current != null && seen.add(current); current = current.getCause()) {
-			if (test.test(current)) return true;
-		}
-
-		return false;
+		return CauseChain.of(error).stream().anyMatch(test);
 	}
 
 	private static String determineTitle(String hostLmsCode, HttpRequest<?> request) {

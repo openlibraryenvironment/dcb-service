@@ -25,7 +25,7 @@ public final class PingFailure {
 	}
 
 	public static String classify(Throwable error) {
-		for (var current = error; current != null; current = next(current)) {
+		for (var current : CauseChain.of(error)) {
 			final var status = statusOf(current);
 
 			if (status != null) {
@@ -42,13 +42,7 @@ public final class PingFailure {
 
 	/** Whether the failure never reached the other system: no route, no answer in time, or no TLS session. */
 	public static boolean isUnreachable(Throwable error) {
-		for (var current = error; current != null; current = next(current)) {
-			if (isUnreachableType(current)) {
-				return true;
-			}
-		}
-
-		return false;
+		return CauseChain.of(error).stream().anyMatch(PingFailure::isUnreachableType);
 	}
 
 	private static Integer statusOf(Throwable error) {
@@ -85,11 +79,5 @@ public final class PingFailure {
 	private static boolean markedUnreachable(Throwable error) {
 		return error instanceof ThrowableProblem problem
 			&& Boolean.TRUE.equals(problem.getParameters().get("causeUnreachable"));
-	}
-
-	private static Throwable next(Throwable error) {
-		final var cause = error.getCause();
-
-		return cause == error ? null : cause;
 	}
 }
