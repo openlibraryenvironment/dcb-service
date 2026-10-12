@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -9,9 +10,11 @@ import static org.mockito.Mockito.when;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 
@@ -27,11 +30,11 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 
 import io.micronaut.context.annotation.Property;
+import io.micronaut.security.authentication.Authentication;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
 
 @Property(name = "dcb.requests.preflight-checks.duplicate-requests.enabled", value = "true")
-@Property(name = "dcb.requests.staff-client-ids", value = "dcb-admin,dcb-admin-for-libraries")
 @DcbTest
 class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheckTests {
 	private static final String SYSTEM = "duplicate-check-system";
@@ -45,6 +48,8 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	private PatronFixture patronFixture;
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private StaffClients staffClients;
 
 	private final UUID title = UUID.randomUUID();
 
@@ -155,6 +160,13 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	}
 
 	@Test
+	void shouldTreatBothAdminAppsAsStaffWithoutBeingConfigured() {
+		assertThat(staffClients.issuedTo(tokenFor("dcb-admin")), is(true));
+		assertThat(staffClients.issuedTo(tokenFor("dcb-admin-for-libraries")), is(true));
+		assertThat(staffClients.issuedTo(tokenFor("ebsco-locate")), is(false));
+	}
+
+	@Test
 	void shouldPassEverythingWhenNoStaffClientIsConfigured() {
 		final var repository = mock(PatronRequestRepository.class);
 
@@ -181,6 +193,10 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {
 		return singleValueFrom(check.check(command));
+	}
+
+	private static Authentication tokenFor(String clientId) {
+		return Authentication.build("caller", List.of(ADMINISTRATOR), Map.of("azp", clientId));
 	}
 
 	private PlacePatronRequestCommand command(String patronLocalId, UUID bibClusterId) {

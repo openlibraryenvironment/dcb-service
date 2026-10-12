@@ -39,16 +39,29 @@ services that place patrons' requests, EBSCO Locate among them, hold admin roles
 ```yaml
 dcb:
   requests:
-    staff-client-ids: <DCB Admin client id>,<DCB Admin for Libraries client id>
     preflight-checks:
       duplicate-requests:
         enabled: true
 ```
 
-or `DCB_REQUESTS_STAFF_CLIENT_IDS` and `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ENABLED`.
+or `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ENABLED=true`.
 
-The client ids are the OIDC clients the two applications sign in through (the `azp` claim of their
-tokens). Until they are set, the check stays off even when enabled, and DCB logs that at startup:
-without them, staff could not place a request the check refused.
+Staff are recognised by the OIDC client the two applications sign in through: the `azp` claim
+of their tokens. By default those are `dcb-admin` and `dcb-admin-for-libraries`. If a deployment's
+clients are named differently, set them:
+
+```yaml
+dcb:
+  requests:
+    staff-client-ids: <DCB Admin client id>,<DCB Admin for Libraries client id>
+```
+
+or `DCB_REQUESTS_STAFF_CLIENT_IDS`. **Check this before enabling the check.** A staff
+application whose client is not in the list is treated as a patron, so its requests can be
+refused. DCB logs the client ids in use at startup: "Duplicate request check is ON; requests
+placed through clients [...] are staff's".
+
+Setting `staff-client-ids` empty turns the check off even when it is enabled, because staff
+could then not place a request it refused. DCB logs a warning at startup when it does.
 
 The `request-window` setting of earlier releases no longer exists.

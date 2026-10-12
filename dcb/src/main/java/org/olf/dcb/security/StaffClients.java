@@ -32,6 +32,10 @@ public class StaffClients {
 		return !clientIds.isEmpty();
 	}
 
+	public Set<String> clientIds() {
+		return clientIds;
+	}
+
 	public boolean issuedTo(@Nullable Authentication authentication) {
 		if (authentication == null) {
 			return false;

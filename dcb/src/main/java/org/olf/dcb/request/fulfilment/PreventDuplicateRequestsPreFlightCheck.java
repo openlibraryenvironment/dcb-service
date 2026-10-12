@@ -39,8 +39,12 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 	@PostConstruct
 	void announce() {
 		if (!staffClients.isConfigured()) {
-			log.warn("Duplicate request check is OFF: dcb.requests.staff-client-ids is not set, so staff "
+			log.warn("Duplicate request check is OFF: dcb.requests.staff-client-ids is empty, so staff "
 				+ "could not place a request it refused");
+		}
+		else {
+			log.info("Duplicate request check is ON; requests placed through clients {} are staff's",
+				staffClients.clientIds());
 		}
 	}
 
