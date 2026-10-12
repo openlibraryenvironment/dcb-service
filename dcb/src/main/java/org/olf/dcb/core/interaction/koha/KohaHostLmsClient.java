@@ -774,6 +774,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 					.localItemType(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
 					.localItemTypeCode(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
 					.suppressed(isSuppressed)
+					.rawVolumeStatement(kohaItem.getSerialIssueNumber())
+					.parsedVolumeStatement(VolumeDesignation.normalise(kohaItem.getSerialIssueNumber()))
 					// The system the item came from, as opposed to owningContext, which is
 					// overwritten with the agency's Host LMS once the location resolves. When
 					// the location does not resolve there is no agency and so no owning

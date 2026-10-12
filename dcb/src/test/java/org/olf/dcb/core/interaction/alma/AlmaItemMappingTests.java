@@ -233,6 +233,29 @@ class AlmaItemMappingTests {
 		assertThat(item.getLocationCode(), is("MAIN-LIB"));
 	}
 
+	@Test
+	void shouldTakeTheVolumeFromTheItemDescription() {
+		final var almaItem = almaItem("23789", "MAIN-LIB", "STACKS", "BOOK");
+		almaItem.getItemData().setDescription("v.2 2020");
+
+		givenItems(almaItem);
+
+		final var item = onlyItem();
+
+		assertThat(item.getRawVolumeStatement(), is("v.2 2020"));
+		assertThat(item.getParsedVolumeStatement(), is("v2y2020"));
+	}
+
+	@Test
+	void shouldNotReadAVolumeFromABareEnumeration() {
+		final var almaItem = almaItem("23789", "MAIN-LIB", "STACKS", "BOOK");
+		almaItem.getItemData().setEnumerationA("2");
+
+		givenItems(almaItem);
+
+		assertThat(onlyItem().getParsedVolumeStatement(), is(nullValue()));
+	}
+
 	private Item onlyItem() {
 		final var items = items();
 

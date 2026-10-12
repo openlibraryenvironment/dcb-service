@@ -203,6 +203,22 @@ class KohaMappingTests {
 	}
 
 	@Test
+	void shouldTakeTheVolumeFromTheSerialEnumeration() {
+		givenItem(KohaItem.builder()
+			.itemId(99L)
+			.biblioId(42L)
+			.externalId("6565750674")
+			.homeLibraryId("BRANCH-NORTH")
+			.serialIssueNumber("Vol. 2")
+			.build());
+
+		final var item = firstItem();
+
+		assertThat(item.getRawVolumeStatement(), is("Vol. 2"));
+		assertThat(item.getParsedVolumeStatement(), is("v2"));
+	}
+
+	@Test
 	void shouldCreateTheVirtualItemAtTheBorrowingBranch() {
 		// virtual-item-library-code is one value on the Host LMS. On a Koha serving
 		// sixty libraries that would land every library's incoming loans at whichever

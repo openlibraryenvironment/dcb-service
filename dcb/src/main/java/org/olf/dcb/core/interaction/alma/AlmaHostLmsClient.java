@@ -35,6 +35,7 @@ import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.model.VolumeDesignation;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.interops.ConfigType;
@@ -1987,8 +1988,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					.owningContext(getHostLms().getCode())
 					// Need to query loans API for this
 					.availableDate(null)
-					.rawVolumeStatement(null)
-					.parsedVolumeStatement(null)
+					// Not enumeration_a: a bare number whose caption, volume or issue or year, Alma
+					// keeps in the holding's pattern, not on the item
+					.rawVolumeStatement(itemData.getDescription())
+					.parsedVolumeStatement(VolumeDesignation.normalise(itemData.getDescription()))
 					.rawDataValues(rawStatus(almaItem.getItemData(), processType))
 					.rawDataValues(holdCount.isPresent() ? Map.of() : Map.of(HOLD_COUNT_KEY, HOLD_COUNT_UNREAD))
 					.decisionLogEntries(unknownProcessType(processType))
