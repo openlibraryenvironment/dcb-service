@@ -24,8 +24,9 @@ A request that failed, was cancelled, found no items or has finished never block
 patron can always retry. By default a second request is refused for as long as the first is
 active; an active window narrows that (see "How strict").
 
-The patron sees the standard "you already have an existing request for this resource" message. The
-refusal is recorded in the event log like every failed preflight check, so it is still counted.
+The patron sees "Sorry. It appears that you have already requested this item. If you think this
+is a mistake, please see library staff for assistance." The refusal is recorded in the event log
+like every failed preflight check, so it is still counted.
 
 If DCB cannot read the patron's requests, the request is allowed.
 
