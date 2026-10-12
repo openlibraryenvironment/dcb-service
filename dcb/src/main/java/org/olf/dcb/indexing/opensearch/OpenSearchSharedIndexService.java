@@ -389,12 +389,12 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 						.settings(settings)))
 				.map(AcknowledgedResponseBase::acknowledged)
         .onErrorResume( e -> {
-          log.error("Error in (OS) changeIndexSettings {}",e.getMessage());
-          return Mono.error( new DcbError("Error in (OS) changeIndexSettings "+e.getMessage(),e));
+          log.error("Error in (OS) changeIndexSettings for {} - {}", targetIndex, e.getMessage());
+          return Mono.error( new DcbError("Error in (OS) changeIndexSettings for "+targetIndex+": "+e.getMessage(),e));
         });
 			
 		} catch (Throwable e) {
-			return Mono.error( new DcbError("Error fetching index settings", e) );
+			return Mono.error( new DcbError("Error changing index settings for "+targetIndex, e) );
 		}
 	}
 
@@ -444,14 +444,20 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 				.index(i -> i.refreshInterval(REFRESH_INTERVAL_DISABLED)) ));
 	}
 	
+	// TODO: Review retry/reconciliation of failed refresh changes separately. These independent
+	// subscriptions must consume errors so connection failures do not reach Hooks.onErrorDropped.
 	@Override
 	protected void rateThresholdClosedHook() {
-		restoreRefresh().subscribe( res -> log.debug("Re-enabled refresh in OpenSearch") );
+		restoreRefresh().subscribe(
+			res -> log.debug("Re-enabled refresh in OpenSearch"),
+			error -> log.warn("Unable to restore refresh in OpenSearch for index {}; refresh may remain disabled", indexName, error));
 	}
 	
 	@Override
 	protected void rateThresholdOpenHook() {
-		disableRefresh().subscribe( res -> log.debug("Disabled refresh in OpenSearch") );
+		disableRefresh().subscribe(
+			res -> log.debug("Disabled refresh in OpenSearch"),
+			error -> log.warn("Unable to disable refresh in OpenSearch for index {}", indexName, error));
 	}
 	
 	public Mono<Void> deleteDocsIndexedBefore(Instant before) {

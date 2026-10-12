@@ -376,12 +376,12 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 						.settings(settings)))
 				.map(AcknowledgedResponse::acknowledged)
 				.onErrorResume( e -> {
-					log.warn("Error in (ES) changeIndexSettings {}",e.getMessage());
-					return Mono.error( new DcbError("Error in (ES) getIndexSettings "+e.getMessage(),e));
+					log.warn("Error in (ES) changeIndexSettings for {} - {}", targetIndex, e.getMessage());
+					return Mono.error( new DcbError("Error in (ES) changeIndexSettings for "+targetIndex+": "+e.getMessage(),e));
 				});
 			
 		} catch (Throwable e) {
-			return Mono.error( new DcbError("Error fetching index settings", e) );
+			return Mono.error( new DcbError("Error changing index settings for "+targetIndex, e) );
 		}
 	}
 	
@@ -432,14 +432,20 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 				.index(i -> i.refreshInterval(REFRESH_INTERVAL_DISABLED)) ));
 	}
 	
+	// TODO: Review retry/reconciliation of failed refresh changes separately. These independent
+	// subscriptions must consume errors so connection failures do not reach Hooks.onErrorDropped.
 	@Override
 	protected void rateThresholdClosedHook() {
-		restoreRefresh().subscribe( res -> log.debug("Re-enabled refresh in Elasticsearch") );
+		restoreRefresh().subscribe(
+			res -> log.debug("Re-enabled refresh in Elasticsearch"),
+			error -> log.warn("Unable to restore refresh in Elasticsearch for index {}; refresh may remain disabled", indexName, error));
 	}
 	
 	@Override
 	protected void rateThresholdOpenHook() {
-		disableRefresh().subscribe( res -> log.debug("Disabled refresh in Elasticsearch") );
+		disableRefresh().subscribe(
+			res -> log.debug("Disabled refresh in Elasticsearch"),
+			error -> log.warn("Unable to disable refresh in Elasticsearch for index {}", indexName, error));
 	}
 
 	@Override
