@@ -1,12 +1,17 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.verify.VerificationTimes.exactly;
 import static org.mockserver.verify.VerificationTimes.once;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -14,14 +19,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
 import jakarta.inject.Inject;
+import reactor.core.publisher.Flux;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 /**
- * Proves the token cache is actually wired into the Application Services auth filter, by counting
+ * Proves the token cache is actually wired into the Polaris auth filters, by counting
  * the authentication requests Polaris receives.
  *
  * Each test uses its own Host LMS code because the cache is a singleton keyed by that code - a
@@ -157,6 +164,28 @@ class PolarisAuthTokenCachingTests {
 		mockPolarisFixture.mockPapiApiVersion("7.6.1234");
 	}
 
+	@Test
+	void shouldAuthenticateAgainAfterAStaffAuthThatReportedAnError() {
+		final var hostLmsCode = "polaris-papi-staff-auth-error";
+
+		createPolarisHostLms(hostLmsCode, "900");
+
+		mockServerClient.reset();
+		// Registered first so it wins for the first request only
+		mockPolarisFixture.mockPapiStaffAuthenticationErrorOnce(-1);
+		mockPolarisFixture.mockPapiStaffAuthentication();
+		mockPolarisFixture.mockGetMaxBibId(
+			"{ \"PAPIErrorCode\": 0, \"BibIDListRows\": [ { \"BibliographicRecordID\": 3 } ] }");
+
+		assertThrows(RuntimeException.class, () -> findMissingRecords(hostLmsCode));
+
+		final var recovered = assertDoesNotThrow(() -> findMissingRecords(hostLmsCode),
+			"The refused staff auth should not have been reused");
+
+		assertThat(recovered, is(empty()));
+		mockPolarisFixture.verifyPapiStaffAuthentication(exactly(2));
+	}
+
 	private void createPolarisHostLms(String hostLmsCode, String tokenCacheTtlSeconds) {
 		final var key = "polaris-token-caching-key";
 		final var secret = "polaris-token-caching-secret";
@@ -174,5 +203,15 @@ class PolarisAuthTokenCachingTests {
 
 		// The mock answers 5 and the method's own fallback is 999, so a failed call cannot pass as a cache hit
 		assertThat(singleValueFrom(client.applicationServices().getHoldRequestDefaults()), is(5));
+	}
+
+	/**
+	 * Every bib up to the max id is already held, so the max id probe is the only call made: a
+	 * single PAPI staff request.
+	 */
+	private List<SourceRecord> findMissingRecords(String hostLmsCode) {
+		final var client = (PolarisLmsClient) hostLmsFixture.createClient(hostLmsCode);
+
+		return manyValuesFrom(client.findMissingRecords(Flux.just("1", "2", "3")));
 	}
 }

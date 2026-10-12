@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.verify.VerificationTimes.never;
 import static org.mockserver.verify.VerificationTimes.once;
@@ -282,6 +283,21 @@ public class SierraPatronsAPIFixture {
 			.build());
 
 		mockServer.mock(request, serverError());
+	}
+
+	/**
+	 * Answers the hold request only after the given delay, so a client with a shorter read timeout
+	 * gives up without knowing whether the hold was placed.
+	 */
+	public void patronHoldRequestDelayedResponse(String patronId, String expectedRecordType,
+		long delayMillis) {
+
+		final var request = postPatronHoldRequest(patronId, PatronHoldPost.builder()
+			.recordType(expectedRecordType)
+			.recordNumber(null)
+			.build());
+
+		mockServer.mock(request, noContent().withDelay(MILLISECONDS, delayMillis));
 	}
 
 	public void verifyPlaceHoldRequestMade(String expectedPatronId,

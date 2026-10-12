@@ -96,11 +96,27 @@ class PAPIAuthFilter {
 				// PAPIErrorCode is the field that actually diagnoses a bad staff auth.
 				.doOnSuccess(authToken -> log.debug("Staff auth returned PAPIErrorCode {}",
 					authToken.getPapiErrorCode()))
+				.flatMap(PAPIAuthFilter::requireUsableStaffToken)
 				.onErrorMap(e -> {
 					log.error("Staff Auth failed with error {}", e.toString());
 					return new PAPIAuthException("Staff Auth Failed", e);
 				});
 		});
+	}
+
+	// A refused staff auth can arrive as a 200 carrying a PAPIErrorCode. Emitted as a token it would
+	// be cached for the full TTL, and the calls using it fail without the 401 that clears the cache.
+	private static Mono<AuthToken> requireUsableStaffToken(AuthToken authToken) {
+		final var papiErrorCode = authToken.getPapiErrorCode();
+		final var accessToken = authToken.getAccessToken();
+		final var hasAccessToken = accessToken != null && !accessToken.isBlank();
+
+		if ((papiErrorCode != null && papiErrorCode != 0) || !hasAccessToken) {
+			return Mono.error(new IllegalStateException("Staff auth returned PAPIErrorCode %s, access token %s"
+				.formatted(papiErrorCode, hasAccessToken ? "present" : "absent")));
+		}
+
+		return Mono.just(authToken);
 	}
 
 	private Mono<MutableHttpRequest<?>> patronAuthentication(MutableHttpRequest<?> request,

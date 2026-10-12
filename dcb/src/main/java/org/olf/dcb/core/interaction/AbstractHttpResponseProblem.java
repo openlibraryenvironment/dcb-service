@@ -42,9 +42,27 @@ public class AbstractHttpResponseProblem extends AbstractThrowableProblem {
 	protected AbstractHttpResponseProblem(String title, String detail,
 		Throwable throwable, HttpRequest<?> request) {
 
+		this(title, detail, throwable, request, Map.of());
+	}
+
+	protected AbstractHttpResponseProblem(String title, String detail,
+		Throwable throwable, HttpRequest<?> request, Map<String, Object> additionalParameters) {
+
 		super(URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/overview"),
 			title, INTERNAL_SERVER_ERROR, detail, null, null,
-			determineParameters(throwable, request));
+			withAdditionalParameters(determineParameters(throwable, request), additionalParameters));
+	}
+
+	private static Map<String, Object> withAdditionalParameters(
+		Map<String, Object> parameters, Map<String, Object> additionalParameters) {
+
+		if (additionalParameters.isEmpty()) {
+			return parameters;
+		}
+
+		final var combined = new HashMap<>(parameters);
+		combined.putAll(additionalParameters);
+		return combined;
 	}
 
 	private static Map<String, Object> determineParameters(

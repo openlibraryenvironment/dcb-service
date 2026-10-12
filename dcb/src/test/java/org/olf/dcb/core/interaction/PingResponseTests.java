@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Timeout.ThreadMode.SEPARATE_THREAD;
 
 import java.net.ConnectException;
 import java.time.Duration;
@@ -9,6 +10,7 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
@@ -55,6 +57,28 @@ class PingResponseTests {
 
 		assertThat(PingFailure.classify(unreachable), is(PingFailure.UNREACHABLE));
 		assertThat(PingFailure.classify(nested), is(PingFailure.FAILING));
+	}
+
+	@Test
+	@Timeout(value = 5, threadMode = SEPARATE_THREAD)
+	void shouldStopAtACycleInTheCauseChain() {
+		final var first = new IllegalStateException("first");
+		final var second = new IllegalStateException("second", first);
+		first.initCause(second);
+
+		assertThat(PingFailure.classify(first), is(PingFailure.UNKNOWN));
+		assertThat(PingFailure.isUnreachable(first), is(false));
+	}
+
+	@Test
+	@Timeout(value = 5, threadMode = SEPARATE_THREAD)
+	void shouldFindAnUnreachableCauseInsideACycle() {
+		final var refused = new ConnectException("Connection refused");
+		final var wrapper = new IllegalStateException("placing hold", refused);
+		refused.initCause(wrapper);
+
+		assertThat(PingFailure.classify(wrapper), is(PingFailure.UNREACHABLE));
+		assertThat(PingFailure.isUnreachable(wrapper), is(true));
 	}
 
 	@Test
