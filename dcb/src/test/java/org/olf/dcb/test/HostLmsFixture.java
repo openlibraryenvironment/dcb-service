@@ -331,7 +331,8 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms saveHostLms(DataHostLms hostLms) {
-		// host_lms.code is not unique, and a lookup by code takes whichever row the database returns first
+		// Host LMS codes are unique by design, but the schema does not enforce it, and a lookup by code
+		// takes whichever duplicate the database returns first
 		if (!manyValuesFrom(hostLmsRepository.findByCode(hostLms.getCode())).isEmpty()) {
 			throw new IllegalStateException(
 				"A host LMS with code \"%s\" already exists".formatted(hostLms.getCode()));
