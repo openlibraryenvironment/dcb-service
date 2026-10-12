@@ -27,7 +27,7 @@ public class AdminUiAccessPolicy {
 	private static final Logger log = LoggerFactory.getLogger(AdminUiAccessPolicy.class);
 
 	/** The claim Keycloak and Zitadel both stamp with the client that obtained the token. */
-	static final String AUTHORIZED_PARTY = "azp";
+	public static final String AUTHORIZED_PARTY = "azp";
 
 	public enum Mode {
 		/** Log what would be refused, refuse nothing. */

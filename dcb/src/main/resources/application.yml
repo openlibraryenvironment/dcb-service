@@ -144,7 +144,8 @@ info:
           enabled: ${dcb.requests.preflight-checks.resolve-patron.enabled:}
         duplicate-requests:
           enabled: ${dcb.requests.preflight-checks.duplicate-requests.enabled:}
-          request-window: ${dcb.requests.preflight-checks.duplicate-requests.request-window:}
+          active-window: ${dcb.requests.preflight-checks.duplicate-requests.active-window:}
+      staff-client-ids: ${dcb.requests.staff-client-ids:}
 
   # git:
   #   enabled: true
@@ -244,6 +245,11 @@ dcb:
   # missing so it fails at deploy. What to set: operational:identity-provider-setup.adoc.
   identity-provider:
     type: ""
+
+  requests:
+    # The OIDC clients DCB Admin and DCB Admin for Libraries sign in through: a request placed
+    # with a token issued to one of them is staff's. Empty turns the duplicate-request check off.
+    staff-client-ids: dcb-admin,dcb-admin-for-libraries
 
   insights:
     enabled: true

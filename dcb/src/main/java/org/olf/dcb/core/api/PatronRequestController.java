@@ -55,6 +55,7 @@ import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
 import static org.olf.dcb.security.RoleNames.LIBRARY_READ_ONLY;
 
 import org.olf.dcb.security.RoleNames;
+import org.olf.dcb.security.StaffClients;
 
 /**
  * The STAFF and SERVICE surface for patron requests. Default-DENY.
@@ -86,18 +87,20 @@ public class PatronRequestController {
 	private final ManualCleanupService manualCleanupService;
 
 	private final TrackingService trackingService;
+	private final StaffClients staffClients;
 
 	public PatronRequestController(PatronRequestService patronRequestService,
 			PatronRequestRepository patronRequestRepository,
 			PatronRequestAccessGuard patronRequestAccessGuard,
 			ManualCleanupService manualCleanupService,
-			TrackingService trackingService) {
+			TrackingService trackingService, StaffClients staffClients) {
 
 		this.patronRequestService = patronRequestService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.patronRequestAccessGuard = patronRequestAccessGuard;
 		this.manualCleanupService = manualCleanupService;
 		this.trackingService = trackingService;
+		this.staffClients = staffClients;
 	}
 	
 	/**
@@ -169,11 +172,11 @@ public class PatronRequestController {
 	@SingleResult
 	@Post(value = "/place", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequest(
-		@Body @Valid PlacePatronRequestCommand command) {
+		@Body @Valid PlacePatronRequestCommand command, Authentication authentication) {
 
 		log.info("REST, place patron request: {}", command);
 
-		return patronRequestService.placePatronRequest(command)
+		return patronRequestService.placePatronRequest(placedBy(command, authentication))
 			.map(PatronRequestView::from);
 	}
 
@@ -185,12 +188,20 @@ public class PatronRequestController {
 	@SingleResult
 	@Post(value = "/place/expeditedCheckout", consumes = APPLICATION_JSON)
 	public Mono<PatronRequestView> placePatronRequestExpeditedCheckout(
-		@Body @Valid PlacePatronRequestCommand command) {
+		@Body @Valid PlacePatronRequestCommand command, Authentication authentication) {
 
 		log.info("REST, place patron request with expedited checkout: {}", command);
 
-		return patronRequestService.placePatronRequestExpeditedCheckout(command)
+		return patronRequestService.placePatronRequestExpeditedCheckout(placedBy(command, authentication))
 			.map(PatronRequestView::from);
+	}
+
+	private PlacePatronRequestCommand placedBy(PlacePatronRequestCommand command,
+		Authentication authentication) {
+
+		return command.toBuilder()
+			.isPlacedByStaff(staffClients.issuedTo(authentication))
+			.build();
 	}
 
 	/**
