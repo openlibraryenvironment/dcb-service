@@ -28,14 +28,6 @@ public class RequestedVolumeItemFilter implements ItemFilter {
 			return item -> Mono.just(true);
 		}
 
-		return item -> Mono.just(requestedVolume.equals(volumeOf(item)));
-	}
-
-	private static String volumeOf(Item item) {
-		final var parsed = VolumeDesignation.normalise(getValueOrNull(item, Item::getParsedVolumeStatement));
-
-		return parsed != null
-			? parsed
-			: VolumeDesignation.normalise(getValueOrNull(item, Item::getRawVolumeStatement));
+		return item -> Mono.just(requestedVolume.equals(VolumeDesignation.of(item)));
 	}
 }

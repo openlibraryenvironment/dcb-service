@@ -33,6 +33,17 @@ public final class VolumeDesignation {
 
 	private VolumeDesignation() { }
 
+	/** The canonical volume a copy states: its parsed statement, else its raw one, or null when it states none */
+	public static String of(Item item) {
+		if (item == null) {
+			return null;
+		}
+
+		final var parsed = normalise(item.getParsedVolumeStatement());
+
+		return parsed != null ? parsed : normalise(item.getRawVolumeStatement());
+	}
+
 	/** The canonical form of a statement, or null when there is nothing to compare */
 	public static String normalise(String statement) {
 		if (statement == null || statement.isBlank()) {

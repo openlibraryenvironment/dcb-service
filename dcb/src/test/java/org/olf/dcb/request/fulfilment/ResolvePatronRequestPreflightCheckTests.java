@@ -222,6 +222,35 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	}
 
 	@Test
+	void shouldPassWhenACopyStatesTheRequestedVolume() {
+		final var clusterRecord = clusterWithItems(volumeItem("v.2", ITEM_LOCATION_CODE));
+
+		assertThat(check(volumeRequest(clusterRecord.getId(), "Vol. 2")), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldSayTheVolumeCannotBeFoundWhenNoCopyStatesIt() {
+		final var clusterRecord = clusterWithItems(volumeItem("v.1", ITEM_LOCATION_CODE));
+
+		assertThat(check(volumeRequest(clusterRecord.getId(), "v.2")), containsInAnyOrder(
+			failedCheck("REQUESTED_VOLUME_NOT_FOUND", "No copy states volume \"v2\" (1 copies checked)")));
+	}
+
+	@Test
+	void shouldGiveTheOrdinaryRefusalWhenTheCopyStatingTheVolumeCannotBeSupplied() {
+		final var itemLocationCode = "borrowing-location";
+		final var clusterRecord = clusterWithItems(volumeItem("v.2", itemLocationCode));
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(BORROWING_HOST_LMS_CODE,
+			itemLocationCode, BORROWING_AGENCY_CODE);
+
+		assertThat(check(volumeRequest(clusterRecord.getId(), "v.2")), containsInAnyOrder(
+			failedCheck("NO_ITEM_SELECTABLE_FOR_REQUEST",
+				"Patron request for cluster record \"%s\" could not be resolved to an item"
+					.formatted(clusterRecord.getId()))));
+	}
+
+	@Test
 	void shouldFailWhenOnlyItemIsFromSameAgencyAsBorrower() {
 		// Arrange
 		final var bibRecordId = randomUUID();
@@ -727,6 +756,51 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {
 		return singleValueFrom(check.check(command));
+	}
+
+	private ClusterRecord clusterWithItems(SierraItem... items) {
+		final var bibRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+		final var sourceRecordId = generateNumericLocalIdAsString();
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(), sourceRecordId, clusterRecord);
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			"resolution-cataloguing", 1, 1, "loanable-item");
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(items));
+
+		return clusterRecord;
+	}
+
+	private SierraItem volumeItem(String volume, String locationCode) {
+		return SierraItem.builder()
+			.id(generateNumericLocalIdAsString())
+			.barcode(generateBarcode())
+			.locationCode(locationCode)
+			.statusCode("-")
+			.itemType("1")
+			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
+			.volume(volume)
+			.build();
+	}
+
+	private PlacePatronRequestCommand volumeRequest(UUID clusterRecordId, String volume) {
+		final var localPatronId = definePatron(generateNumericLocalIdAsString());
+
+		return PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecordId)
+				.volumeDesignator(volume)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+				.build())
+			.build();
 	}
 
 	private SierraItem availableItem(String id, String barcode,

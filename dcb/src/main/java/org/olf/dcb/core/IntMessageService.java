@@ -25,6 +25,7 @@ public class IntMessageService {
 		Map.entry("PATRON_NOT_ASSOCIATED_WITH_AGENCY", "We are unable to determine your home library using the information provided. Please contact your library for assistance."),
 		Map.entry("UNKNOWN_BORROWING_HOST_LMS", "There has been an error validating your borrower information. Please wait a few minutes and try again. If this problem persists, please contact your library for assistance."),
 		Map.entry("NO_ITEM_SELECTABLE_FOR_REQUEST", "We're sorry, we were unable to locate an available item"),
+		Map.entry("REQUESTED_VOLUME_NOT_FOUND", "We couldn't find a copy of the volume you asked for. Try requesting the title without choosing a volume, or contact your library staff for help."),
 		Map.entry("CLUSTER_RECORD_NOT_FOUND", "we're sorry, we were unable to find the title being requested. Please re-enter your search. If you believe you have reached this message in error, please reach out to your library for assistance."),
 		Map.entry("EXCEEDS_GLOBAL_LIMIT", "Your account has exceeded the maximum global limit for consortial requests"),
 		Map.entry("EXCEEDS_AGENCY_LIMIT", "You have reached the number of active requests your library allows. Please wait for a current request to finish, or contact your library."),
