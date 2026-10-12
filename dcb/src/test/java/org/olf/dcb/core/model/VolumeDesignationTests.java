@@ -90,4 +90,36 @@ class VolumeDesignationTests {
 	void shouldDistinguishDifferentVolumes(String first, String second) {
 		assertThat(VolumeDesignation.normalise(first), is(not(VolumeDesignation.normalise(second))));
 	}
+
+	@ParameterizedTest(name = "a request for \"{0}\" is met by a copy stating \"{1}\"")
+	@CsvSource(delimiter = '|', value = {
+		"v.22               | Vol [ 22].(1990)",
+		"v.22 1990          | Vol [ 22].(1990)",
+		"Vol. 2             | v.2",
+		"v.2 pt.1           | Vol [ 2 ] Pt [ 1 ]",
+		"Volume one         | volume one",
+	})
+	void shouldMeetARequestWithACopyOfThatVolume(String requested, String copy) {
+		assertThat(VolumeDesignation.matches(requested, copy), is(true));
+	}
+
+	@ParameterizedTest(name = "a request for \"{0}\" is not met by a copy stating \"{1}\"")
+	@CsvSource(delimiter = '|', value = {
+		"v.22 1991          | Vol [ 22].(1990)",
+		"v.22 1990          | Vol [ 22]",
+		"v.22               | v.23",
+		"v.2                | v.2 pt.1",
+		"v.45               | v.45 no.4",
+		"v.45               | Vol [ 44-48].(1956-1960)",
+		"v.2                | ''",
+	})
+	void shouldNotMeetARequestWithACopyOfAnotherOrPartialVolume(String requested, String copy) {
+		assertThat(VolumeDesignation.matches(requested, copy), is(false));
+	}
+
+	@ParameterizedTest(name = "\"{0}\" reads back as itself")
+	@ValueSource(strings = { "v22y1990", "v2p1", "v3n4y1998" })
+	void shouldReadACanonicalFormBackAsItself(String canonical) {
+		assertThat(VolumeDesignation.normalise(canonical), is(canonical));
+	}
 }

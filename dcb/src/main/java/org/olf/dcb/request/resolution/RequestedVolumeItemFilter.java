@@ -28,6 +28,6 @@ public class RequestedVolumeItemFilter implements ItemFilter {
 			return item -> Mono.just(true);
 		}
 
-		return item -> Mono.just(requestedVolume.equals(VolumeDesignation.of(item)));
+		return item -> Mono.just(VolumeDesignation.matches(requestedVolume, VolumeDesignation.of(item)));
 	}
 }

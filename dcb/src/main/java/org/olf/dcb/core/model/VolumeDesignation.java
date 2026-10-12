@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -26,10 +27,12 @@ public final class VolumeDesignation {
 	private static final int YEAR_PART = 3;
 	private static final String[] PREFIXES = { "v", "p", "n", "y" };
 
+	// "y" is the year's own prefix, so a canonical form reads back into its parts
 	private static final Map<String, Integer> LABELS = Map.of(
 		"v", VOLUME, "vol", VOLUME, "volume", VOLUME,
 		"p", PART, "pt", PART, "part", PART,
-		"n", NUMBER, "no", NUMBER, "number", NUMBER);
+		"n", NUMBER, "no", NUMBER, "number", NUMBER,
+		"y", YEAR_PART);
 
 	private VolumeDesignation() { }
 
@@ -52,10 +55,61 @@ public final class VolumeDesignation {
 
 		final var lowerCase = statement.toLowerCase(Locale.ROOT);
 
-		return recognisedParts(lowerCase).orElseGet(() -> withoutPunctuation(lowerCase));
+		return partsOf(lowerCase).map(VolumeDesignation::joined).orElseGet(() -> withoutPunctuation(lowerCase));
 	}
 
-	private static Optional<String> recognisedParts(String statement) {
+	/**
+	 * Whether a copy stating copyStatement is the volume a request names. When both are made of
+	 * recognised parts, volume, part and number must be the same on both, and the year must be the
+	 * same if the request names one: a copy may add a year, which describes the volume, but not a
+	 * part or number, which would make it a fragment of it. So a request for "v.22" is met by a copy
+	 * stating "Vol [ 22].(1990)", and not by "v.22 pt.1" or "v.22 1991". Otherwise only the same
+	 * statement matches.
+	 */
+	public static boolean matches(String requestedStatement, String copyStatement) {
+		final var requested = normalise(requestedStatement);
+		final var copy = normalise(copyStatement);
+
+		if (requested == null || copy == null) {
+			return false;
+		}
+
+		final var requestedParts = partsOf(requested);
+		final var copyParts = partsOf(copy);
+
+		if (requestedParts.isEmpty() || copyParts.isEmpty()) {
+			return requested.equals(copy);
+		}
+
+		for (int part = 0; part < PREFIXES.length; part++) {
+			final var wanted = requestedParts.get()[part];
+			final var stated = copyParts.get()[part];
+
+			final var differs = part == YEAR_PART
+				? wanted != null && !wanted.equals(stated)
+				: !Objects.equals(wanted, stated);
+
+			if (differs) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private static String joined(String[] parts) {
+		final var canonical = new StringBuilder();
+
+		for (int part = 0; part < parts.length; part++) {
+			if (parts[part] != null) {
+				canonical.append(PREFIXES[part]).append(parts[part]);
+			}
+		}
+
+		return canonical.toString();
+	}
+
+	private static Optional<String[]> partsOf(String statement) {
 		final List<String> tokens = new ArrayList<>();
 		TOKEN.matcher(statement).results().forEach(match -> tokens.add(match.group()));
 
@@ -83,15 +137,13 @@ public final class VolumeDesignation {
 			}
 		}
 
-		final var canonical = new StringBuilder();
-
-		for (int part = 0; part < parts.length; part++) {
-			if (parts[part] != null) {
-				canonical.append(PREFIXES[part]).append(parts[part]);
+		for (String part : parts) {
+			if (part != null) {
+				return Optional.of(parts);
 			}
 		}
 
-		return canonical.isEmpty() ? Optional.empty() : Optional.of(canonical.toString());
+		return Optional.empty();
 	}
 
 	// Digits either side of a removed separator keep a hyphen, so "v.1-2" cannot become "v12"

@@ -56,6 +56,14 @@ class RequestedVolumeItemFilterTests {
 	}
 
 	@Test
+	void shouldIncludeACopyThatAddsTheYearOfTheRequestedVolume() {
+		final var parameters = requestingVolume("v.22");
+
+		assertThat(included(item("Vol [ 22].(1990)", "v22y1990"), parameters), is(true));
+		assertThat(included(item("Vol [ 23].(1991)", "v23y1991"), parameters), is(false));
+	}
+
+	@Test
 	void shouldPreferParsedStatementOverRawStatement() {
 		final var parameters = requestingVolume("v.2");
 

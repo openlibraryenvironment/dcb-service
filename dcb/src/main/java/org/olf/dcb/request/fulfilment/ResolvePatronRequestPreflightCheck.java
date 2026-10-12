@@ -137,7 +137,7 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		final var allItems = resolution.getAllItems();
 
 		return requestedVolume != null && !allItems.isEmpty()
-			&& allItems.stream().noneMatch(item -> requestedVolume.equals(VolumeDesignation.of(item)));
+			&& allItems.stream().noneMatch(item -> VolumeDesignation.matches(requestedVolume, VolumeDesignation.of(item)));
 	}
 
 	private Mono<List<CheckResult>> clusterRecordNotFound(CannotFindClusterRecordException error) {
