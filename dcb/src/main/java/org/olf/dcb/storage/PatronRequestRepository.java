@@ -164,9 +164,28 @@ public interface PatronRequestRepository {
 	Publisher<Long> updatePickupRequestTracking(@Id @NotNull UUID id, @Nullable String pickupRequestStatus, @Nullable String rawPickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
 	Publisher<Long> updatePickupItemTracking(@Id @NotNull UUID id, @Nullable String pickupItemStatus, @Nullable String rawPickupItemStatus, Instant pickupItemLastCheckTimestamp, Long pickupItemStatusRepeat);
 
-	@Join("requestingIdentity")
-	Publisher<PatronRequest> findAllByPatronHostlmsCodeAndBibClusterIdOrderByDateCreatedDesc(
-		@NotNull @NonNull String patronHostlmsCode, @NotNull @NonNull UUID bibClusterId);
+	// Bounded by one patron's own requests, through idx_pr_patron
+	@SingleResult
+	@Query(value = """
+		select pr.id
+		from patron_request pr
+		where pr.patron_id = (
+			select pi.patron_id
+			from patron_identity pi
+			join host_lms h on h.id = pi.host_lms_id
+			where pi.local_id = :patronLocalId and h.code = :patronHostLmsCode
+			limit 1)
+		  and pr.bib_cluster_id = :bibClusterId
+		  and coalesce(pr.requested_volume_designation, '') = coalesce(cast(:volumeDesignation as varchar), '')
+		  and pr.status_code in (:activeStates)
+		  and pr.is_too_long is not true
+		  and (:placedSince is null or pr.date_created >= :placedSince)
+		order by pr.date_created
+		limit 1
+		""", nativeQuery = true)
+	Publisher<UUID> findActiveRequestForPatronAndTitle(String patronHostLmsCode, String patronLocalId,
+		UUID bibClusterId, @Nullable String volumeDesignation, Collection<String> activeStates,
+		@Nullable Instant placedSince);
 
 	Publisher<PatronRequest> findAllByPickupLocationCode(String pickupLocationCode);
 

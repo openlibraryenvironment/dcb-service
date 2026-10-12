@@ -19,6 +19,8 @@ public class PlacePatronRequestCommand {
 	@Nullable String requesterNote;
 	@Nullable Item item;
 	@Nullable Boolean isExpeditedRequest;
+	// Set by the entry point from the caller's token, whatever the body says: see StaffClients
+	@Nullable Boolean isPlacedByStaff;
 
 	 public String getPickupLocationCode() {
 		return getPickupLocation().getCode();
