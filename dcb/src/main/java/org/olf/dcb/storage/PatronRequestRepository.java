@@ -164,10 +164,10 @@ public interface PatronRequestRepository {
 	Publisher<Long> updatePickupRequestTracking(@Id @NotNull UUID id, @Nullable String pickupRequestStatus, @Nullable String rawPickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
 	Publisher<Long> updatePickupItemTracking(@Id @NotNull UUID id, @Nullable String pickupItemStatus, @Nullable String rawPickupItemStatus, Instant pickupItemLastCheckTimestamp, Long pickupItemStatusRepeat);
 
-	// Bounded by one patron's own requests, through idx_pr_patron
-	@SingleResult
+	// Bounded by one patron's own requests, through idx_pr_patron, and to 50 by the limit.
+	// Volumes are compared by the caller: only VolumeDesignation can say two are the same
 	@Query(value = """
-		select pr.id
+		select pr.id as id, pr.requested_volume_designation as requested_volume_designation
 		from patron_request pr
 		where pr.patron_id = (
 			select pi.patron_id
@@ -176,16 +176,18 @@ public interface PatronRequestRepository {
 			where pi.local_id = :patronLocalId and h.code = :patronHostLmsCode
 			limit 1)
 		  and pr.bib_cluster_id = :bibClusterId
-		  and coalesce(pr.requested_volume_designation, '') = coalesce(cast(:volumeDesignation as varchar), '')
 		  and pr.status_code in (:activeStates)
 		  and pr.is_too_long is not true
 		  and (:placedSince is null or pr.date_created >= :placedSince)
 		order by pr.date_created
-		limit 1
+		limit 50
 		""", nativeQuery = true)
-	Publisher<UUID> findActiveRequestForPatronAndTitle(String patronHostLmsCode, String patronLocalId,
-		UUID bibClusterId, @Nullable String volumeDesignation, Collection<String> activeStates,
-		@Nullable Instant placedSince);
+	Publisher<ActiveTitleRequest> findActiveRequestsForPatronAndTitle(String patronHostLmsCode,
+		String patronLocalId, UUID bibClusterId, Collection<String> activeStates, @Nullable Instant placedSince);
+
+	@Introspected
+	record ActiveTitleRequest(UUID id, @Nullable String requestedVolumeDesignation) {
+	}
 
 	Publisher<PatronRequest> findAllByPickupLocationCode(String pickupLocationCode);
 

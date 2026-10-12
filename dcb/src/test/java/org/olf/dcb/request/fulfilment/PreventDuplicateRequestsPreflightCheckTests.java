@@ -34,7 +34,7 @@ import org.olf.dcb.test.PatronRequestsFixture;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.security.authentication.Authentication;
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 
 @Property(name = "dcb.requests.preflight-checks.duplicate-requests.enabled", value = "true")
 @DcbTest
@@ -103,10 +103,17 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	}
 
 	@Test
-	void shouldPassForTheSameVolumeOfTheTitle() {
+	void shouldFailForTheSameVolumeOfTheTitle() {
 		earlierRequest(CONFIRMED, request -> request.requestedVolumeDesignation("v1"));
 
-		assertThat(check(volumeCommand("v1")), containsInAnyOrder(passedCheck()));
+		assertThat(check(volumeCommand("v1")), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+	}
+
+	@Test
+	void shouldTreatTheSameVolumeWrittenDifferentlyAsTheSame() {
+		earlierRequest(CONFIRMED, request -> request.requestedVolumeDesignation("v.2"));
+
+		assertThat(check(volumeCommand("Vol. 2")), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
 	}
 
 	@Test
@@ -183,8 +190,8 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	@Test
 	void shouldPassWhenThePatronsRequestsCannotBeRead() {
 		final var repository = mock(PatronRequestRepository.class);
-		when(repository.findActiveRequestForPatronAndTitle(any(), any(), any(), any(), any(), any()))
-			.thenReturn(Mono.error(new RuntimeException("database unavailable")));
+		when(repository.findActiveRequestsForPatronAndTitle(any(), any(), any(), any(), any()))
+			.thenReturn(Flux.error(new RuntimeException("database unavailable")));
 
 		final var overUnreadableRequests = new PreventDuplicateRequestsPreFlightCheck(repository,
 			new IntMessageService(), new StaffClients(List.of("dcb-admin")), null, null);
