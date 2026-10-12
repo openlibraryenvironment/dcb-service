@@ -20,6 +20,7 @@ import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.WalkUpRequestCommand;
 import org.olf.dcb.request.workflow.ManualCleanupService;
 import org.olf.dcb.security.PatronRequestAccessGuard;
+import org.olf.dcb.security.StaffClients;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingService;
 
@@ -42,7 +43,7 @@ class WalkUpCallerScopeTests {
 
 		controller = new PatronRequestController(patronRequestService,
 			mock(PatronRequestRepository.class), mock(PatronRequestAccessGuard.class),
-			mock(ManualCleanupService.class), mock(TrackingService.class));
+			mock(ManualCleanupService.class), mock(TrackingService.class), new StaffClients(List.of()));
 	}
 
 	@Test

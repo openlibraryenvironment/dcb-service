@@ -11,7 +11,7 @@ public class IntMessageService {
 	private static final Map<String,String> mappings = Map.ofEntries(
 		Map.entry("UNKNOWN_PICKUP_LOCATION_CODE", "There has been an error in selecting the pickup location. Please try again or select a different pickup location. If this error persists, please notify your library."),
 		Map.entry("UNKNOWN_PICKUP_LOCATION_AGENCY", "The selected pickup location is not associated with a valid agency. Please try again or select a different pickup location. If this error persists, please notify your library."),
-		Map.entry("DUPLICATE_REQUEST_ATTEMPT", "It appears you already have an existing request for this resource. Please modify your request. If this message is in error, please notify your library."),
+		Map.entry("DUPLICATE_REQUEST_ATTEMPT", "Sorry. It appears that you have already requested this item. If you think this is a mistake, please see library staff for assistance."),
 		Map.entry("PATRON_NOT_FOUND", "A borrower account could not be found using the information provided."),
 		Map.entry("INVALID_PATRON_BARCODE", "The barcode provided is invalid."),
 		Map.entry("PATRON_INELIGIBLE", "This borrower account is ineligible for requesting."),

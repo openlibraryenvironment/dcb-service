@@ -250,6 +250,7 @@ public class PatronRequestService {
 				.build())
 			.description("Walk-up request for item %s at %s".formatted(item.getLocalId(),
 				command.getItemHostLmsCode()))
+			.isPlacedByStaff(true)
 			.build();
 
 		return placePatronRequestExpeditedCheckout(placeCommand);
