@@ -189,6 +189,37 @@ public interface PatronRequestRepository {
 	record ActiveTitleRequest(UUID id, @Nullable String requestedVolumeDesignation) {
 	}
 
+	// The copy's active supplier requests through idx_supplier_request_item, met with one patron's
+	// requests through idx_pr_patron. A chosen copy is on the request itself only until the borrower
+	// hold is placed, when those fields take the virtual item: the supplier request carries it after
+	@SingleResult
+	@Query(value = """
+		select pr.id
+		from patron_request pr
+		where pr.patron_id = (
+			select pi.patron_id
+			from patron_identity pi
+			join host_lms h on h.id = pi.host_lms_id
+			where pi.local_id = :patronLocalId and h.code = :patronHostLmsCode
+			limit 1)
+		  and pr.status_code in (:activeStates)
+		  and pr.is_too_long is not true
+		  and (:placedSince is null or pr.date_created >= :placedSince)
+		  and (
+			pr.id in (
+				select sr.patron_request_id
+				from supplier_request sr
+				where sr.is_active and sr.host_lms_code = :itemHostLmsCode and sr.local_item_id = :itemLocalId)
+			or (pr.is_manually_selected_item is true
+				and pr.local_item_hostlms_code = :itemHostLmsCode and pr.local_item_id = :itemLocalId
+				and pr.status_code in (:beforeBorrowerPlacement)))
+		order by pr.date_created
+		limit 1
+		""", nativeQuery = true)
+	Publisher<UUID> findActiveRequestForPatronAndCopy(String patronHostLmsCode, String patronLocalId,
+		String itemHostLmsCode, String itemLocalId, Collection<String> activeStates,
+		Collection<String> beforeBorrowerPlacement, @Nullable Instant placedSince);
+
 	Publisher<PatronRequest> findAllByPickupLocationCode(String pickupLocationCode);
 
   default Publisher<Long> getActiveRequestCountForPatron(String hostLmsCode, String patronId) {

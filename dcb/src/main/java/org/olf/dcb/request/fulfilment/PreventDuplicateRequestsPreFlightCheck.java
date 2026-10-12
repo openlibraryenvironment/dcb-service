@@ -9,6 +9,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.core.model.PatronRequest.Status;
@@ -29,14 +31,20 @@ import reactor.core.publisher.Mono;
  * Refuses a request a patron places for a title, and volume, they already have an active request
  * for: in flight or on loan, and still tracked, and placed within the active window when one is
  * set. Staff are never refused, so a request this refuses can always be placed by a library. A
- * request for a chosen copy is never refused either: a patron who picks a different copy of a
- * title they already have on request means to.
+ * request for a chosen copy is refused only when the patron already has that same copy coming: a
+ * patron who picks a different copy of a title they already have on request means to.
  */
 @Slf4j
 @Singleton
 @Requires(property = "dcb.requests.preflight-checks.duplicate-requests.enabled", defaultValue = "false", notEquals = "false")
 public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 	public static final String DUPLICATE_REQUEST_ATTEMPT = "DUPLICATE_REQUEST_ATTEMPT";
+
+	// Until the borrower hold is placed, a request carries its chosen copy in its own item fields
+	private static final List<String> BEFORE_BORROWER_PLACEMENT = Stream.of(Status.SUBMITTED_TO_DCB,
+		Status.PATRON_VERIFIED, Status.RESOLVED, Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY, Status.CONFIRMED)
+		.map(Enum::name)
+		.toList();
 
 	private final PatronRequestRepository patronRequestRepository;
 	private final IntMessageService intMessageService;
@@ -90,31 +98,49 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 		final var bibClusterId = getValueOrNull(citation, PlacePatronRequestCommand.Citation::getBibClusterId);
 		final var requestedVolume = VolumeDesignation.normalise(
 			getValueOrNull(citation, PlacePatronRequestCommand.Citation::getVolumeDesignator));
-		final var chosenCopy = getValueOrNull(command, PlacePatronRequestCommand::getItem,
-			PlacePatronRequestCommand.Item::getLocalId);
+		final var chosenCopy = getValueOrNull(command, PlacePatronRequestCommand::getItem);
 
 		if (!staffClients.isConfigured() || Boolean.TRUE.equals(command.getIsPlacedByStaff())
-			|| hasText(chosenCopy) || hostLmsCode == null || patronLocalId == null || bibClusterId == null) {
+			|| hostLmsCode == null || patronLocalId == null) {
 
 			return Mono.just(List.of(passed()));
 		}
 
 		final var placedSince = activeWindow == null ? null : Instant.now().minus(activeWindow);
 
-		return Flux.from(patronRequestRepository.findActiveRequestsForPatronAndTitle(hostLmsCode, patronLocalId,
-				bibClusterId, Status.ACTIVE_STATE_CODES, placedSince))
-			.filter(existing -> Objects.equals(requestedVolume,
-				VolumeDesignation.normalise(existing.requestedVolumeDesignation())))
-			.next()
+		// The same rule as placement: a copy missing any of these is placed as a request for the title
+		if (chosenCopy != null && hasText(chosenCopy.getLocalId()) && hasText(chosenCopy.getLocalSystemCode())
+			&& hasText(chosenCopy.getAgencyCode())) {
+
+			return refuseOnFirst(Mono.from(patronRequestRepository.findActiveRequestForPatronAndCopy(hostLmsCode,
+					patronLocalId, chosenCopy.getLocalSystemCode(), chosenCopy.getLocalId(), Status.ACTIVE_STATE_CODES,
+					BEFORE_BORROWER_PLACEMENT, placedSince)),
+				"this copy", hostLmsCode);
+		}
+
+		if (bibClusterId == null) {
+			return Mono.just(List.of(passed()));
+		}
+
+		return refuseOnFirst(Flux.from(patronRequestRepository.findActiveRequestsForPatronAndTitle(hostLmsCode,
+					patronLocalId, bibClusterId, Status.ACTIVE_STATE_CODES, placedSince))
+				.filter(existing -> Objects.equals(requestedVolume,
+					VolumeDesignation.normalise(existing.requestedVolumeDesignation())))
+				.map(PatronRequestRepository.ActiveTitleRequest::id)
+				.next(),
+			requestedVolume == null ? "this title" : "this title and volume", hostLmsCode);
+	}
+
+	private Mono<List<CheckResult>> refuseOnFirst(Mono<UUID> existingRequest, String what, String hostLmsCode) {
+		return existingRequest
 			.map(existing -> failedUm(DUPLICATE_REQUEST_ATTEMPT,
-				"The patron already has active request %s for this title%s".formatted(existing.id(),
-					requestedVolume == null ? "" : " and volume"),
+				"The patron already has active request %s for %s".formatted(existing, what),
 				intMessageService.getMessage(DUPLICATE_REQUEST_ATTEMPT)))
 			.defaultIfEmpty(passed())
 			// Not being able to read the patron's requests is no evidence of a duplicate
 			.onErrorResume(error -> {
-				log.warn("Unable to check for a duplicate of a request at {} for cluster {} ({}), passing it",
-					hostLmsCode, bibClusterId, error.toString());
+				log.warn("Unable to check for a duplicate of a request for {} at {} ({}), passing it",
+					what, hostLmsCode, error.toString());
 
 				return Mono.just(passed());
 			})

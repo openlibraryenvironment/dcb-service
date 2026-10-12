@@ -16,9 +16,17 @@ same volume. A request for volume 2 never blocks one for volume 3 of the same se
 without a volume never blocks one with a volume, or the other way round. A blank volume counts as
 none.
 
-A **request for a chosen copy** is never refused. A patron who picks a copy in a discovery
-interface, rather than letting DCB choose one, means to request that copy even if they already
-have the title on request.
+A **request for a chosen copy** is compared by copy, not by title. A patron who picks a copy in a
+discovery interface, rather than letting DCB choose one, means to request that copy even if they
+already have the title on request, so it is refused only when that same copy (the same Host LMS
+and item) is already coming to them: chosen by an earlier request, or the copy an earlier request
+is being supplied with. Another copy of the same title is never refused, which covers a patron
+choosing a different volume of a set catalogued as one record. A chosen copy must name its item,
+system and agency; one missing any of them is placed, and checked, as a request for the title.
+
+A request for the title made after a request for a chosen copy is still refused: for most titles
+it would be a second copy of the same thing. A patron who wants another copy of a set catalogued
+as one record chooses that copy.
 
 A request that failed, was cancelled, found no items or has finished never blocks a new one, so a
 patron can always retry. By default a second request is refused for as long as the first is
@@ -89,7 +97,7 @@ or `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ACTIVE_WINDOW=24h`.
 
 The levels are nested: Recent is Active limited to recent requests, so a shorter window is always
 less strict, and no level refuses a request a stricter one would allow. At every level, staff are
-never refused, a chosen copy is not checked, volumes are compared as above, and a failed, cancelled or
+never refused, a chosen copy is compared only with the same copy, volumes are compared as above, and a failed, cancelled or
 finished request never counts. A window of zero or less fails startup.
 
 **What a window gives up.** A request outside the window is placed even though the patron's

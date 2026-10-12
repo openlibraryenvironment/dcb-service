@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
+import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
@@ -30,6 +31,7 @@ import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.security.authentication.Authentication;
@@ -41,6 +43,7 @@ import reactor.core.publisher.Flux;
 class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheckTests {
 	private static final String SYSTEM = "duplicate-check-system";
 	private static final String PATRON = "duplicate-check-patron";
+	private static final String SUPPLYING_SYSTEM = "duplicate-check-supplier";
 
 	@Inject
 	private PreventDuplicateRequestsPreFlightCheck check;
@@ -52,6 +55,8 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private StaffClients staffClients;
+	@Inject
+	private SupplierRequestsFixture supplierRequestsFixture;
 
 	private final UUID title = UUID.randomUUID();
 
@@ -134,15 +139,55 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	void shouldPassARequestForAChosenCopy() {
 		earlierRequest(CONFIRMED, UnaryOperator.identity());
 
-		final var chosenCopy = command(PATRON, title).toBuilder()
-			.item(PlacePatronRequestCommand.Item.builder()
-				.localId("chosen-copy")
-				.localSystemCode("supplying-system")
-				.agencyCode("supplying-agency")
-				.build())
-			.build();
+		assertThat(check(chosenCopyCommand("chosen-copy", "supplying-agency")), containsInAnyOrder(passedCheck()));
+	}
 
-		assertThat(check(chosenCopy), containsInAnyOrder(passedCheck()));
+	@Test
+	void shouldRefuseTheSameCopyThePatronAlreadyHasComing() {
+		supplying(earlierRequest(CONFIRMED, UnaryOperator.identity()), "copy-1", true);
+
+		assertThat(check(chosenCopyCommand("copy-1", "supplying-agency")),
+			containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+	}
+
+	@Test
+	void shouldPassAnotherCopyOfATitleThePatronHasComing() {
+		supplying(earlierRequest(CONFIRMED, UnaryOperator.identity()), "copy-1", true);
+
+		assertThat(check(chosenCopyCommand("copy-2", "supplying-agency")), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldRefuseAChosenCopyAnEarlierRequestHasChosenButNotYetResolved() {
+		earlierRequest(SUBMITTED_TO_DCB, request -> request
+			.isManuallySelectedItem(true)
+			.localItemId("copy-1")
+			.localItemHostlmsCode(SUPPLYING_SYSTEM));
+
+		assertThat(check(chosenCopyCommand("copy-1", "supplying-agency")),
+			containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+	}
+
+	@Test
+	void shouldPassTheSameCopyWhenTheEarlierRequestForItFailed() {
+		supplying(earlierRequest(ERROR, UnaryOperator.identity()), "copy-1", true);
+
+		assertThat(check(chosenCopyCommand("copy-1", "supplying-agency")), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldPassTheSameCopyOnceItIsNoLongerTheEarlierRequestsSupplier() {
+		supplying(earlierRequest(CONFIRMED, UnaryOperator.identity()), "copy-1", false);
+
+		assertThat(check(chosenCopyCommand("copy-1", "supplying-agency")), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldCheckAnIncompleteChosenCopyAsARequestForTheTitle() {
+		earlierRequest(CONFIRMED, UnaryOperator.identity());
+
+		assertThat(check(chosenCopyCommand("copy-1", null)),
+			containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
 	}
 
 	@Test
@@ -228,14 +273,29 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 			.build();
 	}
 
-	private void earlierRequest(PatronRequest.Status status,
+	private PlacePatronRequestCommand chosenCopyCommand(String localId, String agencyCode) {
+		return command(PATRON, title).toBuilder()
+			.item(PlacePatronRequestCommand.Item.builder()
+				.localId(localId)
+				.localSystemCode(SUPPLYING_SYSTEM)
+				.agencyCode(agencyCode)
+				.build())
+			.build();
+	}
+
+	private void supplying(PatronRequest request, String localItemId, boolean isActive) {
+		supplierRequestsFixture.saveSupplierRequest(UUID.randomUUID(), request, "supplier-bib", localItemId,
+			"supplier-location", "supplier-barcode", SUPPLYING_SYSTEM, isActive, "supplier-location");
+	}
+
+	private PatronRequest earlierRequest(PatronRequest.Status status,
 		UnaryOperator<PatronRequest.PatronRequestBuilder> details) {
 
 		final var hostLms = hostLmsFixture.createSierraHostLms(SYSTEM);
 		final var patron = patronFixture.savePatron("home-library");
 		final var identity = patronFixture.saveIdentityAndReturn(patron, hostLms, PATRON, true, "-", SYSTEM, null);
 
-		patronRequestsFixture.savePatronRequest(details.apply(PatronRequest.builder()
+		return patronRequestsFixture.savePatronRequest(details.apply(PatronRequest.builder()
 				.id(UUID.randomUUID())
 				.patron(patron)
 				.patronHostlmsCode(SYSTEM)
