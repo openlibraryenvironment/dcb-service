@@ -1,6 +1,7 @@
 package org.olf.dcb.test;
 
 import static java.util.UUID.randomUUID;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrThrow;
 
@@ -330,6 +331,12 @@ public class HostLmsFixture {
 	}
 
 	public DataHostLms saveHostLms(DataHostLms hostLms) {
+		// host_lms.code is not unique, and a lookup by code takes whichever row the database returns first
+		if (!manyValuesFrom(hostLmsRepository.findByCode(hostLms.getCode())).isEmpty()) {
+			throw new IllegalStateException(
+				"A host LMS with code \"%s\" already exists".formatted(hostLms.getCode()));
+		}
+
 		final DataHostLms savedHostLms = singleValueFrom(hostLmsRepository.save(hostLms));
 
 		log.debug("Saved host LMS: {}", savedHostLms);

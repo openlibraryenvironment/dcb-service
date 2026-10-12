@@ -941,7 +941,7 @@ class StandardWorkflowPatronRequestApiTests {
 		final var patronRequestId = UUID.randomUUID();
 		final var bibClusterId = UUID.randomUUID();
 		final var LOCAL_ID = "local-identity";
-		final var homeHostLms = hostLmsFixture.createSierraHostLms(BORROWING_HOST_LMS_CODE);
+		final var homeHostLms = hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE);
 		final var existingPatron = patronFixture.savePatron("home-library");
 		final var patronIdentity = patronFixture.saveIdentityAndReturn(existingPatron, homeHostLms,
 			LOCAL_ID, true, "-", BORROWING_HOST_LMS_CODE, null);
