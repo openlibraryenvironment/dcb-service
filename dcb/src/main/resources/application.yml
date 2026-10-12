@@ -144,6 +144,7 @@ info:
           enabled: ${dcb.requests.preflight-checks.resolve-patron.enabled:}
         duplicate-requests:
           enabled: ${dcb.requests.preflight-checks.duplicate-requests.enabled:}
+          active-window: ${dcb.requests.preflight-checks.duplicate-requests.active-window:}
       staff-client-ids: ${dcb.requests.staff-client-ids:}
 
   # git:

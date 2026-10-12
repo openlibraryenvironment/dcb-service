@@ -5,6 +5,8 @@ import static org.olf.dcb.request.fulfilment.CheckResult.failedUm;
 import static org.olf.dcb.request.fulfilment.CheckResult.passed;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import org.olf.dcb.core.IntMessageService;
@@ -13,21 +15,22 @@ import org.olf.dcb.security.StaffClients;
 import org.olf.dcb.storage.PatronRequestRepository;
 
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.context.annotation.Value;
+import io.micronaut.core.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Singleton;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 /**
  * Refuses a request a patron places for a title, and volume, they already have an active request
- * for: in flight or on loan, and still tracked. Staff are never refused, so a request this refuses
- * can always be placed by a library. A request for a chosen copy is never refused either: a patron
- * who picks a different copy of a title they already have on request means to.
+ * for: in flight or on loan, and still tracked, and placed within the active window when one is
+ * set. Staff are never refused, so a request this refuses can always be placed by a library. A
+ * request for a chosen copy is never refused either: a patron who picks a different copy of a
+ * title they already have on request means to.
  */
 @Slf4j
 @Singleton
-@AllArgsConstructor
 @Requires(property = "dcb.requests.preflight-checks.duplicate-requests.enabled", defaultValue = "false", notEquals = "false")
 public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 	public static final String DUPLICATE_REQUEST_ATTEMPT = "DUPLICATE_REQUEST_ATTEMPT";
@@ -35,15 +38,43 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 	private final PatronRequestRepository patronRequestRepository;
 	private final IntMessageService intMessageService;
 	private final StaffClients staffClients;
+	@Nullable private final Duration activeWindow;
+	@Nullable private final String removedRequestWindow;
+
+	public PreventDuplicateRequestsPreFlightCheck(PatronRequestRepository patronRequestRepository,
+		IntMessageService intMessageService, StaffClients staffClients,
+		@Value("${dcb.requests.preflight-checks.duplicate-requests.active-window:}") @Nullable Duration activeWindow,
+		@Value("${dcb.requests.preflight-checks.duplicate-requests.request-window:}") @Nullable String removedRequestWindow) {
+
+		if (activeWindow != null && (activeWindow.isZero() || activeWindow.isNegative())) {
+			throw new IllegalArgumentException(
+				"dcb.requests.preflight-checks.duplicate-requests.active-window must be positive, or unset to "
+					+ "refuse for as long as the earlier request is active: " + activeWindow);
+		}
+
+		this.patronRequestRepository = patronRequestRepository;
+		this.intMessageService = intMessageService;
+		this.staffClients = staffClients;
+		this.activeWindow = activeWindow;
+		this.removedRequestWindow = removedRequestWindow;
+	}
 
 	@PostConstruct
 	void announce() {
+		if (hasText(removedRequestWindow)) {
+			log.warn("dcb.requests.preflight-checks.duplicate-requests.request-window is no longer read; "
+				+ "set active-window to limit the check to recent requests");
+		}
+
 		if (!staffClients.isConfigured()) {
 			log.warn("Duplicate request check is OFF: dcb.requests.staff-client-ids is empty, so staff "
 				+ "could not place a request it refused");
 		}
 		else {
-			log.info("Duplicate request check is ON; requests placed through clients {} are staff's",
+			log.info("Duplicate request check is ON ({}); requests placed through clients {} are staff's",
+				activeWindow == null
+					? "while the earlier request is active"
+					: "active requests placed within " + activeWindow,
 				staffClients.clientIds());
 		}
 	}
@@ -67,8 +98,10 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 			return Mono.just(List.of(passed()));
 		}
 
+		final var placedSince = activeWindow == null ? null : Instant.now().minus(activeWindow);
+
 		return Mono.from(patronRequestRepository.findActiveRequestForPatronAndTitle(hostLmsCode, patronLocalId,
-				bibClusterId, null, Status.ACTIVE_STATE_CODES))
+				bibClusterId, null, Status.ACTIVE_STATE_CODES, placedSince))
 			.map(existing -> failedUm(DUPLICATE_REQUEST_ATTEMPT,
 				"The patron already has active request %s for this title".formatted(existing),
 				intMessageService.getMessage(DUPLICATE_REQUEST_ATTEMPT)))

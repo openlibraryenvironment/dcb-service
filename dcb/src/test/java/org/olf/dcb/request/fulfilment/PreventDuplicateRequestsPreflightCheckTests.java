@@ -3,6 +3,7 @@ package org.olf.dcb.request.fulfilment;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -13,6 +14,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -171,7 +173,7 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 		final var repository = mock(PatronRequestRepository.class);
 
 		final var unarmed = new PreventDuplicateRequestsPreFlightCheck(repository, new IntMessageService(),
-			new StaffClients(List.of()));
+			new StaffClients(List.of()), null, null);
 
 		assertThat(singleValueFrom(unarmed.check(command(PATRON, title))), containsInAnyOrder(passedCheck()));
 
@@ -181,14 +183,21 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	@Test
 	void shouldPassWhenThePatronsRequestsCannotBeRead() {
 		final var repository = mock(PatronRequestRepository.class);
-		when(repository.findActiveRequestForPatronAndTitle(any(), any(), any(), any(), any()))
+		when(repository.findActiveRequestForPatronAndTitle(any(), any(), any(), any(), any(), any()))
 			.thenReturn(Mono.error(new RuntimeException("database unavailable")));
 
 		final var overUnreadableRequests = new PreventDuplicateRequestsPreFlightCheck(repository,
-			new IntMessageService(), new StaffClients(List.of("dcb-admin")));
+			new IntMessageService(), new StaffClients(List.of("dcb-admin")), null, null);
 
 		assertThat(singleValueFrom(overUnreadableRequests.check(command(PATRON, title))),
 			containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldRefuseAnActiveWindowThatIsNotPositive() {
+		assertThrows(IllegalArgumentException.class, () -> new PreventDuplicateRequestsPreFlightCheck(
+			mock(PatronRequestRepository.class), new IntMessageService(), new StaffClients(List.of("dcb-admin")),
+			Duration.ZERO, null));
 	}
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {

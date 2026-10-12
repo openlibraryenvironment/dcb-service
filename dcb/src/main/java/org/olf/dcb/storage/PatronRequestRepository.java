@@ -179,11 +179,13 @@ public interface PatronRequestRepository {
 		  and coalesce(pr.requested_volume_designation, '') = coalesce(cast(:volumeDesignation as varchar), '')
 		  and pr.status_code in (:activeStates)
 		  and pr.is_too_long is not true
+		  and (:placedSince is null or pr.date_created >= :placedSince)
 		order by pr.date_created
 		limit 1
 		""", nativeQuery = true)
 	Publisher<UUID> findActiveRequestForPatronAndTitle(String patronHostLmsCode, String patronLocalId,
-		UUID bibClusterId, @Nullable String volumeDesignation, Collection<String> activeStates);
+		UUID bibClusterId, @Nullable String volumeDesignation, Collection<String> activeStates,
+		@Nullable Instant placedSince);
 
 	Publisher<PatronRequest> findAllByPickupLocationCode(String pickupLocationCode);
 

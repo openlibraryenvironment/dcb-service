@@ -20,8 +20,8 @@ Two kinds of request are never refused:
   request that names a volume is not checked. A blank volume counts as none.
 
 A request that failed, was cancelled, found no items or has finished never blocks a new one, so a
-patron can always retry. There is no time window: a second request is refused for as long as the
-first is active.
+patron can always retry. By default a second request is refused for as long as the first is
+active; an active window narrows that (see "How strict").
 
 The patron sees the standard "you already have an existing request for this resource" message. The
 refusal is recorded in the event log like every failed preflight check, so it is still counted.
@@ -64,4 +64,42 @@ placed through clients [...] are staff's".
 Setting `staff-client-ids` empty turns the check off even when it is enabled, because staff
 could then not place a request it refused. DCB logs a warning at startup when it does.
 
-The `request-window` setting of earlier releases no longer exists.
+## How strict
+
+One optional setting, the **active window**, chooses how strict the check is:
+
+| Level | Setting | Refuses a patron's repeat request for a title when an earlier one is… |
+|---|---|---|
+| Off | `enabled: false` (the default) | never refused |
+| Recent | `enabled: true`, `active-window: 24h` (any positive duration: `15m`, `7d`) | still active, **and** placed within the window |
+| Active | `enabled: true`, no `active-window` | still active, however old |
+
+```yaml
+dcb:
+  requests:
+    preflight-checks:
+      duplicate-requests:
+        enabled: true
+        active-window: 24h
+```
+
+or `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ACTIVE_WINDOW=24h`.
+
+The levels are nested: Recent is Active limited to recent requests, so a shorter window is always
+less strict, and no level refuses a request a stricter one would allow. At every level, staff are
+never refused, a chosen copy and a volume request are not checked, and a failed, cancelled or
+finished request never counts. A window of zero or less fails startup.
+
+**What a window gives up.** A request outside the window is placed even though the patron's
+first request for the title is still in transit or on loan. DCB then sends a second copy, or the
+supplier refuses the second hold and the request goes to ERROR. In one production consortium's
+data, 85 of 150 repeat requests came more than 15 minutes after the patron's previous request
+for the title. Use a window as a rollout step, watching refusals in the event log before
+removing it, or where a consortium's policy allows a patron a repeat request over time.
+
+The startup log names the level: "Duplicate request check is ON (active requests placed within
+PT24H)", or "(while the earlier request is active)".
+
+The `request-window` setting of earlier releases is no longer read, and DCB logs a warning at
+startup if it is still set. It counted any request, whatever its state, in the last 15 minutes,
+so it refused a patron's retry after a failure. `active-window` never does.
