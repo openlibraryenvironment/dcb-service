@@ -16,6 +16,7 @@ import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.VolumeDesignation;
 import org.olf.dcb.security.StaffClients;
+import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 
 import io.micronaut.context.annotation.Requires;
@@ -32,7 +33,8 @@ import reactor.core.publisher.Mono;
  * for: in flight or on loan, and still tracked, and placed within the active window when one is
  * set. Staff are never refused, so a request this refuses can always be placed by a library. A
  * request for a chosen copy is refused only when the patron already has that same copy coming: a
- * patron who picks a different copy of a title they already have on request means to.
+ * patron who picks a different copy of a title they already have on request means to. On a
+ * multi-volume title a request without a volume is never refused, since the title is not one thing.
  */
 @Slf4j
 @Singleton
@@ -47,13 +49,14 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 		.toList();
 
 	private final PatronRequestRepository patronRequestRepository;
+	private final BibRepository bibRepository;
 	private final IntMessageService intMessageService;
 	private final StaffClients staffClients;
 	@Nullable private final Duration activeWindow;
 	@Nullable private final String removedRequestWindow;
 
 	public PreventDuplicateRequestsPreFlightCheck(PatronRequestRepository patronRequestRepository,
-		IntMessageService intMessageService, StaffClients staffClients,
+		BibRepository bibRepository, IntMessageService intMessageService, StaffClients staffClients,
 		@Value("${dcb.requests.preflight-checks.duplicate-requests.active-window:}") @Nullable Duration activeWindow,
 		@Value("${dcb.requests.preflight-checks.duplicate-requests.request-window:}") @Nullable String removedRequestWindow) {
 
@@ -64,6 +67,7 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 		}
 
 		this.patronRequestRepository = patronRequestRepository;
+		this.bibRepository = bibRepository;
 		this.intMessageService = intMessageService;
 		this.staffClients = staffClients;
 		this.activeWindow = activeWindow;
@@ -127,8 +131,19 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 				.filter(existing -> Objects.equals(requestedVolume,
 					VolumeDesignation.normalise(existing.requestedVolumeDesignation())))
 				.map(PatronRequestRepository.ActiveTitleRequest::id)
-				.next(),
+				.next()
+				// A multi-volume title is not one thing, so a request for it without a volume is no
+				// duplicate of another: only the same copy or the same named volume is
+				.filterWhen(existing -> requestedVolume != null
+					? Mono.just(true)
+					: isSingleVolume(bibClusterId)),
 			requestedVolume == null ? "this title" : "this title and volume", hostLmsCode);
+	}
+
+	private Mono<Boolean> isSingleVolume(UUID bibClusterId) {
+		return Flux.from(bibRepository.findPhysicalDescriptionsForCluster(bibClusterId))
+			.any(VolumeDesignation::describesSeveralVolumes)
+			.map(severalVolumes -> !severalVolumes);
 	}
 
 	private Mono<List<CheckResult>> refuseOnFirst(Mono<UUID> existingRequest, String what, String hostLmsCode) {

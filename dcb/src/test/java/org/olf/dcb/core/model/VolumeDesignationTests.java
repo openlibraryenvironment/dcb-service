@@ -117,6 +117,39 @@ class VolumeDesignationTests {
 		assertThat(VolumeDesignation.matches(requested, copy), is(false));
 	}
 
+	// The open entries, "10v." and "v. 423 p." are MOBIUS FOLIO extents measured on 12 Oct
+	@ParameterizedTest(name = "\"{0}\" is several volumes")
+	@ValueSource(strings = {
+		"3 v. : ill. ; 24 cm",
+		"10v., v.10 supplementary",
+		"12 vols.",
+		"2 volumes",
+		"1 online resource (3 v.)",
+		"v. 1-4 ; 28 cm",
+		"v. : ill. ; 24 cm",
+		"v.",
+		"volumes <1-5, pt. 1> :",
+		"v. <1-3, pt. 2, 4, pt. 2-5, pt. 2 > :",
+	})
+	void shouldRecogniseAnExtentOfSeveralVolumes(String physicalDescription) {
+		assertThat(VolumeDesignation.describesSeveralVolumes(physicalDescription), is(true));
+	}
+
+	@ParameterizedTest(name = "\"{0}\" is not several volumes")
+	@NullSource
+	@ValueSource(strings = {
+		"",
+		"320 p. : ill. ; 24 cm",
+		"xv, 423 p.",
+		"v. 423 p. ;",
+		"1 v. (various pagings)",
+		"2 v. in 1",
+		"3 videodiscs (180 min.)",
+	})
+	void shouldNotTakeAnyOtherExtentForSeveralVolumes(String physicalDescription) {
+		assertThat(VolumeDesignation.describesSeveralVolumes(physicalDescription), is(false));
+	}
+
 	@ParameterizedTest(name = "\"{0}\" reads back as itself")
 	@ValueSource(strings = { "v22y1990", "v2p1", "v3n4y1998" })
 	void shouldReadACanonicalFormBackAsItself(String canonical) {

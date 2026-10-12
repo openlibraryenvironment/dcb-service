@@ -26,7 +26,10 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.security.StaffClients;
+import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
@@ -57,14 +60,57 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	private StaffClients staffClients;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
+	@Inject
+	private BibRecordFixture bibRecordFixture;
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
 
 	private final UUID title = UUID.randomUUID();
 
 	@BeforeEach
 	void beforeEach() {
 		patronRequestsFixture.deleteAll();
+		clusterRecordFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		hostLmsFixture.deleteAll();
+	}
+
+	@Test
+	void shouldPassARequestWithoutAVolumeForAMultiVolumeTitleThePatronHasRequested() {
+		earlierRequest(CONFIRMED, UnaryOperator.identity());
+		titleDescribedAs("3 v. : ill. ; 24 cm");
+
+		assertThat(check(command(PATRON, title)), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldPassATitleRequestAfterAChosenCopyOfAMultiVolumeTitle() {
+		earlierRequest(CONFIRMED, request -> request
+			.isManuallySelectedItem(true)
+			.localItemId("copy-1")
+			.localItemHostlmsCode(SUPPLYING_SYSTEM));
+		titleDescribedAs("v. 1-4 ; 28 cm");
+
+		assertThat(check(command(PATRON, title)), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldRefuseATitleRequestAfterAChosenCopyOfASingleVolumeTitle() {
+		earlierRequest(CONFIRMED, request -> request
+			.isManuallySelectedItem(true)
+			.localItemId("copy-1")
+			.localItemHostlmsCode(SUPPLYING_SYSTEM));
+		titleDescribedAs("320 p. : ill. ; 24 cm");
+
+		assertThat(check(command(PATRON, title)), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+	}
+
+	@Test
+	void shouldStillRefuseTheSameVolumeOfAMultiVolumeTitle() {
+		earlierRequest(CONFIRMED, request -> request.requestedVolumeDesignation("v1"));
+		titleDescribedAs("3 v. : ill. ; 24 cm");
+
+		assertThat(check(volumeCommand("v.1")), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
 	}
 
 	@Test
@@ -224,7 +270,7 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	void shouldPassEverythingWhenNoStaffClientIsConfigured() {
 		final var repository = mock(PatronRequestRepository.class);
 
-		final var unarmed = new PreventDuplicateRequestsPreFlightCheck(repository, new IntMessageService(),
+		final var unarmed = new PreventDuplicateRequestsPreFlightCheck(repository, mock(BibRepository.class), new IntMessageService(),
 			new StaffClients(List.of()), null, null);
 
 		assertThat(singleValueFrom(unarmed.check(command(PATRON, title))), containsInAnyOrder(passedCheck()));
@@ -238,7 +284,7 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 		when(repository.findActiveRequestsForPatronAndTitle(any(), any(), any(), any(), any()))
 			.thenReturn(Flux.error(new RuntimeException("database unavailable")));
 
-		final var overUnreadableRequests = new PreventDuplicateRequestsPreFlightCheck(repository,
+		final var overUnreadableRequests = new PreventDuplicateRequestsPreFlightCheck(repository, mock(BibRepository.class),
 			new IntMessageService(), new StaffClients(List.of("dcb-admin")), null, null);
 
 		assertThat(singleValueFrom(overUnreadableRequests.check(command(PATRON, title))),
@@ -248,7 +294,7 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	@Test
 	void shouldRefuseAnActiveWindowThatIsNotPositive() {
 		assertThrows(IllegalArgumentException.class, () -> new PreventDuplicateRequestsPreFlightCheck(
-			mock(PatronRequestRepository.class), new IntMessageService(), new StaffClients(List.of("dcb-admin")),
+			mock(PatronRequestRepository.class), mock(BibRepository.class), new IntMessageService(), new StaffClients(List.of("dcb-admin")),
 			Duration.ZERO, null));
 	}
 
@@ -271,6 +317,15 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 				.volumeDesignator(volumeDesignator)
 				.build())
 			.build();
+	}
+
+	// The title's one record, on the Host LMS earlierRequest created
+	private void titleDescribedAs(String physicalDescription) {
+		final var bibRecordId = UUID.randomUUID();
+		final var cluster = clusterRecordFixture.createClusterRecord(title, bibRecordId);
+
+		bibRecordFixture.createBibRecordDescribedAs(bibRecordId, hostLmsFixture.findByCode(SYSTEM).getId(),
+			"duplicate-check-bib", cluster, physicalDescription);
 	}
 
 	private PlacePatronRequestCommand chosenCopyCommand(String localId, String agencyCode) {

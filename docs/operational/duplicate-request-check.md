@@ -24,9 +24,15 @@ is being supplied with. Another copy of the same title is never refused, which c
 choosing a different volume of a set catalogued as one record. A chosen copy must name its item,
 system and agency; one missing any of them is placed, and checked, as a request for the title.
 
-A request for the title made after a request for a chosen copy is still refused: for most titles
-it would be a second copy of the same thing. A patron who wants another copy of a set catalogued
-as one record chooses that copy.
+A **multi-volume title** is not one thing, so a request for it without a volume is never refused
+as a duplicate of the title, whatever the patron already has on request: only the same chosen copy,
+or the same named volume, is. DCB takes a title to be multi-volume when any of its records'
+physical descriptions (MARC 300, as ingested) is of more than one volume: "3 v.", "v. 1-4", or an
+open entry such as "v. :". "2 v. in 1" is one item, and "v, 423 p." is one volume with roman
+numbered front matter. A record without a physical description counts as a single volume.
+
+On a single-volume title, a request for the title made after any active request for it, including
+one for a chosen copy, is refused: it would be a second copy of the same thing.
 
 A request that failed, was cancelled, found no items or has finished never blocks a new one, so a
 patron can always retry. By default a second request is refused for as long as the first is

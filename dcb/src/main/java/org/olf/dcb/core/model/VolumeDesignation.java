@@ -34,7 +34,26 @@ public final class VolumeDesignation {
 		"n", NUMBER, "no", NUMBER, "number", NUMBER,
 		"y", YEAR_PART);
 
+	// A MARC 300 extent of more than one volume: "3 v.", "10v.", "12 vols", "v. 1-4", or an open
+	// entry, "v. :" or "volumes <1-5> :". A leading "v" before a page count is a roman page number:
+	// "v, 423 p." is one volume
+	private static final Pattern SEVERAL_VOLUMES = Pattern.compile(
+		"(?<!\\d)(?:[2-9]|[1-9]\\d+)\\s*(?:v|vol|vols|volumes?)\\b"
+			+ "|\\bv\\.\\s*\\d+\\s*-\\s*\\d+"
+			+ "|^\\s*(?:v|volumes?)\\b\\.?\\s*(?:[:;(<]|$)",
+		Pattern.CASE_INSENSITIVE);
+
+	// "2 v. in 1": several volumes bound as one item
+	private static final Pattern BOUND_AS_ONE = Pattern.compile("\\bin\\s+1\\b", Pattern.CASE_INSENSITIVE);
+
 	private VolumeDesignation() { }
+
+	/** Whether a physical description (a MARC 300 extent) is of more than one volume */
+	public static boolean describesSeveralVolumes(String physicalDescription) {
+		return physicalDescription != null
+			&& SEVERAL_VOLUMES.matcher(physicalDescription).find()
+			&& !BOUND_AS_ONE.matcher(physicalDescription).find();
+	}
 
 	/** The canonical volume a copy states: its parsed statement, else its raw one, or null when it states none */
 	public static String of(Item item) {

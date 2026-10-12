@@ -6,6 +6,7 @@ import jakarta.inject.Singleton;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -49,9 +50,26 @@ public class BibRecordFixture {
 	public void createBibRecord(UUID bibRecordId, UUID sourceSystemId,
 		String sourceRecordId, ClusterRecord clusterRecord, @Nullable String derivedType) {
 
+		createBibRecord(bibRecordId, sourceSystemId, sourceRecordId, clusterRecord, derivedType, null);
+	}
+
+	/** A record whose MARC 300 extent is physicalDescription, stored the way ingest stores it */
+	public void createBibRecordDescribedAs(UUID bibRecordId, UUID sourceSystemId,
+		String sourceRecordId, ClusterRecord clusterRecord, String physicalDescription) {
+
+		createBibRecord(bibRecordId, sourceSystemId, sourceRecordId, clusterRecord, "Book", physicalDescription);
+	}
+
+	private void createBibRecord(UUID bibRecordId, UUID sourceSystemId, String sourceRecordId,
+		ClusterRecord clusterRecord, @Nullable String derivedType, @Nullable String physicalDescription) {
+
 		Map<String, Object> bookInfo = new HashMap<>();
 		bookInfo.put("author", Author.builder().name("Stafford Beer").build());
 		bookInfo.put("title", "Brain of the Firm");
+
+		if (physicalDescription != null) {
+			bookInfo.put("physical-description", List.of(Map.of("label", physicalDescription)));
+		}
 
 		final var bibRecord = BibRecord
 			.builder()
