@@ -56,14 +56,6 @@ class CreateLibraryChangeLogTests {
 		hostLmsFixture.createSierraHostLms("change-log-sierra");
 	}
 
-	// The libraries created here reference agencies, so a later class deleting agencies fails if they survive
-	@AfterAll
-	void afterAll() {
-		libraryFixture.deleteAll();
-		agencyFixture.deleteAll();
-		hostLmsFixture.deleteAll();
-	}
-
 	@Test
 	void shouldRecordTheReasonCategoryAndReferenceItWasGiven() throws Exception {
 		final var input = libraryInput("change-log-given");
