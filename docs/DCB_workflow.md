@@ -38,9 +38,12 @@ What happens on place request?
   and requestor `localId`, `localSystemCode`, and `agencyCode`. `homeLibraryCode`, notes, description,
   explicit item, volume designator, and expedited flag are optional.
 - When `citation.volumeDesignator` is present, resolution chooses only a copy whose volume statement
-  normalises to the same designation (`VolumeDesignation`: `v.2`, `Vol. 2` and Polaris `Vol [ 2 ]` are
-  all `v2`). A copy with no volume statement is not chosen for such a request. A manually selected item
-  is taken to be the volume asked for. Without a designator every copy is considered, as before.
+  states that volume (`VolumeDesignation.matches`: `v.2`, `Vol. 2` and Polaris `Vol [ 2 ]` are all `v2`).
+  Volume, part and number must be the same; a copy may add the year, so `Vol [ 22].(1990)` meets a
+  request for `v.22`, but `v.22 pt.1` does not. A copy with no volume statement is not chosen for such
+  a request, and when no copy of the title states the volume the request is refused with
+  `REQUESTED_VOLUME_NOT_FOUND`. A manually selected item is taken to be the volume asked for. Without a
+  designator every copy is considered, as before.
 - This then calls [patronRequestService.placePatronRequest](https://github.com/openlibraryenvironment/dcb-service/blob/main/dcb/src/main/java/org/olf/dcb/request/fulfilment/PatronRequestService.java)
 - placePatronRequest first executes prefligt checks.
 - If the command passes we upsert a patron record based on the requesting patron identity
