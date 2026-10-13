@@ -118,7 +118,7 @@ class VolumeDesignationTests {
 	}
 
 	// The open entries, "10v.", "134 v.ill.", "25 volumes in 12" and the roman page numbers are
-	// MOBIUS extents measured on 12 and 13 Oct
+	// extents measured in a production consortium's catalogue
 	@ParameterizedTest(name = "\"{0}\" is several volumes")
 	@ValueSource(strings = {
 		"3 v. : ill. ; 24 cm",
