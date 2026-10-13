@@ -117,17 +117,26 @@ class VolumeDesignationTests {
 		assertThat(VolumeDesignation.matches(requested, copy), is(false));
 	}
 
-	// The open entries, "10v." and "v. 423 p." are MOBIUS FOLIO extents measured on 12 Oct
+	// The open entries, "10v.", "134 v.ill.", "25 volumes in 12" and the roman page numbers are
+	// MOBIUS extents measured on 12 and 13 Oct
 	@ParameterizedTest(name = "\"{0}\" is several volumes")
 	@ValueSource(strings = {
 		"3 v. : ill. ; 24 cm",
 		"10v., v.10 supplementary",
+		"134 v.ill., plates 29-41 cm.",
 		"12 vols.",
 		"2 volumes",
+		"25 volumes in 12 : illustrations ; 20 cm",
 		"1 online resource (3 v.)",
+		"1 online resource (volumes)",
+		"1 portfolio (2 volumes) : chiefly color illustrations ; 42 cm",
 		"v. 1-4 ; 28 cm",
 		"v. : ill. ; 24 cm",
 		"v.",
+		"v.ill.24 cm.",
+		"v. of music ; 28 cm.",
+		"volumes ; 28 cm",
+		"volume <1-2> ; 24 cm",
 		"volumes <1-5, pt. 1> :",
 		"v. <1-3, pt. 2, 4, pt. 2-5, pt. 2 > :",
 	})
@@ -142,8 +151,15 @@ class VolumeDesignationTests {
 		"320 p. : ill. ; 24 cm",
 		"xv, 423 p.",
 		"v. 423 p. ;",
+		"v, 393 p.",
+		"2 p. l., v, [1], 236 p., 1 l. : front., illus., plates ; 22 cm.",
+		"3 preliminary leaves, v-x pages, 1 leaf, 13-136 pages ; 20 cm",
+		"1 online resource (v, 53 pages) : illustrations",
 		"1 v. (various pagings)",
+		"1 volume (unpaged) : color illustrations ; 29 cm",
+		"1 atlas (1 v. (various pagings)) : ill., maps ; 35 cm",
 		"2 v. in 1",
+		"10 v. in 1, [26] leaves of plates (part col.) ; 26 cm.",
 		"3 videodiscs (180 min.)",
 	})
 	void shouldNotTakeAnyOtherExtentForSeveralVolumes(String physicalDescription) {

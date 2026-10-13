@@ -35,12 +35,13 @@ public final class VolumeDesignation {
 		"y", YEAR_PART);
 
 	// A MARC 300 extent of more than one volume: "3 v.", "10v.", "12 vols", "v. 1-4", or an open
-	// entry, "v. :" or "volumes <1-5> :". A leading "v" before a page count is a roman page number:
-	// "v, 423 p." is one volume
+	// entry with no count, "v. :", "v.ill.", "volumes <1-5> :" or "(volumes)". A "v" before a page
+	// count is a roman page number: "v, 423 p." and "v. 423 p." are one volume
 	private static final Pattern SEVERAL_VOLUMES = Pattern.compile(
 		"(?<!\\d)(?:[2-9]|[1-9]\\d+)\\s*(?:v|vol|vols|volumes?)\\b"
 			+ "|\\bv\\.\\s*\\d+\\s*-\\s*\\d+"
-			+ "|^\\s*(?:v|volumes?)\\b\\.?\\s*(?:[:;(<]|$)",
+			+ "|^\\s*(?:v\\.(?!\\s*\\d)|v\\s*(?:[:;(<]|$)|volumes?\\b(?!\\s*\\d))"
+			+ "|\\(\\s*volumes\\s*\\)",
 		Pattern.CASE_INSENSITIVE);
 
 	// "2 v. in 1": several volumes bound as one item
