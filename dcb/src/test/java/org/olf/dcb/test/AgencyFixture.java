@@ -10,21 +10,25 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.storage.AgencyRepository;
 
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Singleton
+@AllArgsConstructor
 public class AgencyFixture {
-	private final DataAccess dataAccess = new DataAccess();
-
+	@Inject
+	private final DataAccess dataAccess;
+	@Inject
 	private final AgencyRepository agencyRepository;
-
-	public AgencyFixture(AgencyRepository agencyRepository) {
-		this.agencyRepository = agencyRepository;
-	}
+	@Inject
+	private final LibraryFixture libraryFixture;
 
 	public void deleteAll() {
+		libraryFixture.deleteAll();
+
 		dataAccess.deleteAll(agencyRepository.queryAll(),
 			mapping -> agencyRepository.delete(mapping.getId()));
 	}

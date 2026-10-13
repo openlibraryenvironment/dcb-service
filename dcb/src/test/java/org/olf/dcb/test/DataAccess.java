@@ -4,8 +4,10 @@ import java.util.function.Function;
 
 import org.reactivestreams.Publisher;
 
+import jakarta.inject.Singleton;
 import reactor.core.publisher.Flux;
 
+@Singleton
 public class DataAccess {
 	// queryAll retains one test R2DBC connection while it streams rows. Keep the
 	// delete on the second connection and do not create a queued delete fan-out.
