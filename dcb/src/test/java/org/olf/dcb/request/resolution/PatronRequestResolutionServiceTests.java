@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -18,6 +19,8 @@ import static org.olf.dcb.test.matchers.ItemMatchers.hasHostLmsCode;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalBibId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.ItemMatchers.hasLocationCode;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasParsedVolumeStatement;
+import static org.olf.dcb.test.matchers.ItemMatchers.hasRawVolumeStatement;
 import static org.olf.dcb.test.matchers.ResolutionMatchers.hasAllItemsInAnyOrder;
 import static org.olf.dcb.test.matchers.ResolutionMatchers.hasChosenItem;
 import static org.olf.dcb.test.matchers.ResolutionMatchers.hasFilteredItems;
@@ -47,6 +50,8 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.FunctionalSettingType;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -1225,6 +1230,127 @@ class PatronRequestResolutionServiceTests {
 	}
 
 	@Test
+	void shouldChooseCopyOfRequestedVolume() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = createClusterRecord(bibRecordId);
+
+		final var sourceRecordId = "735146";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var firstVolumeItemId = "735147";
+		final var noVolumeItemId = "735148";
+		final var secondVolumeItemId = "735149";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(firstVolumeItemId, "73514701", ITEM_LOCATION_CODE, "v.1"),
+			availableItem(noVolumeItemId, "73514801", ITEM_LOCATION_CODE),
+			availableItem(secondVolumeItemId, "73514901", ITEM_LOCATION_CODE, "Vol. 2")
+		));
+
+		// Act
+		final var resolution = resolve(parametersRequestingVolume(clusterRecord, "v.2", null));
+
+		// Assert
+		assertThat(resolution, allOf(
+			hasChosenItem(
+				hasLocalId(secondVolumeItemId),
+				hasRawVolumeStatement("Vol. 2"),
+				hasParsedVolumeStatement("v2")
+			),
+			hasFilteredItems(hasLocalId(secondVolumeItemId))
+		));
+	}
+
+	@Test
+	void shouldChooseNoCopyWhenNoneIsOfRequestedVolume() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = createClusterRecord(bibRecordId);
+
+		final var sourceRecordId = "735246";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem("735247", "73524701", ITEM_LOCATION_CODE, "v.1"),
+			availableItem("735248", "73524801", ITEM_LOCATION_CODE)
+		));
+
+		// Act
+		final var resolution = resolve(parametersRequestingVolume(clusterRecord, "v.2", null));
+
+		// Assert
+		assertThat(resolution, allOf(
+			hasNoChosenItem(),
+			hasFilteredItemsSize(0)
+		));
+	}
+
+	@Test
+	void shouldChooseManuallySelectedCopyWhateverItsVolume() {
+		// Arrange
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = createClusterRecord(bibRecordId);
+
+		final var sourceRecordId = "735346";
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var selectedItemId = "735347";
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			availableItem(selectedItemId, "73534701", ITEM_LOCATION_CODE, "v.1"),
+			availableItem("735348", "73534801", ITEM_LOCATION_CODE, "v.2")
+		));
+
+		// Act
+		final var resolution = resolve(parametersRequestingVolume(clusterRecord, "v.2",
+			ManualItemSelection.builder()
+				.isManuallySelected(true)
+				.localItemId(selectedItemId)
+				.hostLmsCode(CIRCULATING_HOST_LMS_CODE)
+				.agencyCode(SUPPLYING_AGENCY_CODE)
+				.build()));
+
+		// Assert
+		assertThat(resolution, hasChosenItem(hasLocalId(selectedItemId)));
+	}
+
+	@Test
+	void shouldCarryRequestedVolumeIntoResolutionParameters() {
+		final var fromPatronRequest = singleValueFrom(patronRequestResolutionService.resolutionParametersFor(
+			PatronRequest.builder()
+				.pickupLocationCode(borrowingAgencyPickupLocationId)
+				.requestedVolumeDesignation("v2")
+				.build(),
+			emptyList(), false));
+
+		final var fromCommand = singleValueFrom(patronRequestResolutionService.resolutionParametersFor(
+			PlacePatronRequestCommand.builder()
+				.citation(PlacePatronRequestCommand.Citation.builder()
+					.bibClusterId(randomUUID())
+					.volumeDesignator("v3")
+					.build())
+				.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder()
+					.code(borrowingAgencyPickupLocationId)
+					.build())
+				.requestor(PlacePatronRequestCommand.Requestor.builder().build())
+				.build(),
+			null));
+
+		assertThat(fromPatronRequest.getRequestedVolumeDesignation(), is("v2"));
+		assertThat(fromCommand.getRequestedVolumeDesignation(), is("v3"));
+	}
+
+	@Test
 	void shouldNotTolerateNullClusterRecordId() {
 		// Act
 		final var parameters = ResolutionParameters.builder()
@@ -1258,6 +1384,35 @@ class PatronRequestResolutionServiceTests {
 			// needs to align with NumericRangeMapping
 			.itemType("1")
 			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
+			.build();
+	}
+
+	private SierraItem availableItem(String id, String barcode, String itemLocationCode,
+		String volume) {
+
+		return SierraItem.builder()
+			.id(id)
+			.barcode(barcode)
+			.locationCode(itemLocationCode)
+			.statusCode("-")
+			.itemType("1")
+			.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
+			.volume(volume)
+			.build();
+	}
+
+	private ResolutionParameters parametersRequestingVolume(ClusterRecord clusterRecord,
+		String volume, ManualItemSelection manualItemSelection) {
+
+		return ResolutionParameters.builder()
+			.borrowingAgencyCode(BORROWING_AGENCY_CODE)
+			.borrowingHostLmsCode(BORROWING_HOST_LMS_CODE)
+			.bibClusterId(getValueOrNull(clusterRecord, ClusterRecord::getId))
+			.pickupLocationCode(borrowingAgencyPickupLocationId)
+			.pickupAgencyCode(getValueOrNull(borrowingAgency, DataAgency::getCode))
+			.excludedSupplyingAgencyCodes(emptyList())
+			.requestedVolumeDesignation(volume)
+			.manualItemSelection(manualItemSelection)
 			.build();
 	}
 

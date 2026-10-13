@@ -5,26 +5,42 @@ check turned away.
 
 ## What counts as a duplicate
 
-The same patron, at the same library system, already has a request for the same title (cluster),
-placed without a volume, and that request is:
+The same patron, at the same library system, already has a request for the same title (cluster)
+and the same volume, and that request is:
 
 - in flight (submitted, resolved, placed, confirmed, in transit, awaiting pickup) or on loan; and
 - still tracked: a request flagged as stuck for too long does not count.
 
-Two kinds of request are never refused:
+Volumes are compared the way resolution compares them, so "v.2", "Vol. 2" and "Vol [2]" are the
+same volume. A request for volume 2 never blocks one for volume 3 of the same set, and a request
+without a volume never blocks one with a volume, or the other way round. A blank volume counts as
+none.
 
-- **A request for a chosen copy.** A patron who picks a copy in a discovery interface, rather than
-  letting DCB choose one, means to request that copy even if they already have the title on request.
-- **A request for a volume.** DCB does not yet choose a copy by volume, so it cannot tell a second
-  request for the same volume from a request for another volume of the same set. Until it can, a
-  request that names a volume is not checked. A blank volume counts as none.
+A **request for a chosen copy** is compared by copy, not by title. A patron who picks a copy in a
+discovery interface, rather than letting DCB choose one, means to request that copy even if they
+already have the title on request, so it is refused only when that same copy (the same Host LMS
+and item) is already coming to them: chosen by an earlier request, or the copy an earlier request
+is being supplied with. Another copy of the same title is never refused, which covers a patron
+choosing a different volume of a set catalogued as one record. A chosen copy must name its item,
+system and agency; one missing any of them is placed, and checked, as a request for the title.
+
+A **multi-volume title** is not one thing, so a request for it without a volume is never refused
+as a duplicate of the title, whatever the patron already has on request: only the same chosen copy,
+or the same named volume, is. DCB takes a title to be multi-volume when any of its records'
+physical descriptions (MARC 300, as ingested) is of more than one volume: "3 v.", "v. 1-4", or an
+open entry such as "v. :". "2 v. in 1" is one item, and "v, 423 p." is one volume with roman
+numbered front matter. A record without a physical description counts as a single volume.
+
+On a single-volume title, a request for the title made after any active request for it, including
+one for a chosen copy, is refused: it would be a second copy of the same thing.
 
 A request that failed, was cancelled, found no items or has finished never blocks a new one, so a
 patron can always retry. By default a second request is refused for as long as the first is
 active; an active window narrows that (see "How strict").
 
-The patron sees the standard "you already have an existing request for this resource" message. The
-refusal is recorded in the event log like every failed preflight check, so it is still counted.
+The patron sees "Sorry. It appears that you have already requested this item. If you think this
+is a mistake, please see library staff for assistance." The refusal is recorded in the event log
+like every failed preflight check, so it is still counted.
 
 If DCB cannot read the patron's requests, the request is allowed.
 
@@ -87,7 +103,7 @@ or `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ACTIVE_WINDOW=24h`.
 
 The levels are nested: Recent is Active limited to recent requests, so a shorter window is always
 less strict, and no level refuses a request a stricter one would allow. At every level, staff are
-never refused, a chosen copy and a volume request are not checked, and a failed, cancelled or
+never refused, a chosen copy is compared only with the same copy, volumes are compared as above, and a failed, cancelled or
 finished request never counts. A window of zero or less fails startup.
 
 **What a window gives up.** A request outside the window is placed even though the patron's

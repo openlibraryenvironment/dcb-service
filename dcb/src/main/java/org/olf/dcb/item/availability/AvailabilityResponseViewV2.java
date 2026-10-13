@@ -14,6 +14,7 @@ import org.olf.dcb.core.model.Item;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.serde.annotation.Serdeable;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Value;
@@ -88,8 +89,8 @@ public class AvailabilityResponseViewV2 {
 		String canonicalItemType;
 		String localItemTypeCode;
 		AvailabilityResponseView.Agency agency;
-		@Nullable String rawVolumeStatement;
-		@Nullable String parsedVolumeStatement;
+		@Nullable @Schema(description = AvailabilityResponseView.RAW_VOLUME_STATEMENT) String rawVolumeStatement;
+		@Nullable @Schema(description = AvailabilityResponseView.PARSED_VOLUME_STATEMENT) String parsedVolumeStatement;
 		Map<String, String> rawDataValues;
 		List<String> decisionLogEntries;
 		Instant statusCorrectAsOf;

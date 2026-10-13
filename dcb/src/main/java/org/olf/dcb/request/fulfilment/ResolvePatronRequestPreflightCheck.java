@@ -17,6 +17,7 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.VolumeDesignation;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
@@ -110,6 +111,14 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 
 		final var chosenItem = getValueOrNull(resolution, Resolution::getChosenItem);
 
+		if (chosenItem == null && noCopyStatesTheRequestedVolume(resolution)) {
+			return List.of(failedUm("REQUESTED_VOLUME_NOT_FOUND",
+				"No copy states volume \"%s\" (%d copies checked)".formatted(
+					VolumeDesignation.normalise(resolution.requestedVolumeDesignation()),
+					resolution.getAllItems().size()),
+				intMessageService.getMessage("REQUESTED_VOLUME_NOT_FOUND")));
+		}
+
 		if (chosenItem == null) {
 			return List.of(failedUm("NO_ITEM_SELECTABLE_FOR_REQUEST",
 				"Patron request for cluster record \"%s\" could not be resolved to an item"
@@ -119,6 +128,16 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 		}
 
 		return List.of(passed());
+	}
+
+	// Copies that do state the volume but cannot be supplied are the ordinary no-item refusal,
+	// and so is a title with no copies at all: requesting without a volume would not help either
+	private static boolean noCopyStatesTheRequestedVolume(Resolution resolution) {
+		final var requestedVolume = VolumeDesignation.normalise(resolution.requestedVolumeDesignation());
+		final var allItems = resolution.getAllItems();
+
+		return requestedVolume != null && !allItems.isEmpty()
+			&& allItems.stream().noneMatch(item -> VolumeDesignation.matches(requestedVolume, VolumeDesignation.of(item)));
 	}
 
 	private Mono<List<CheckResult>> clusterRecordNotFound(CannotFindClusterRecordException error) {

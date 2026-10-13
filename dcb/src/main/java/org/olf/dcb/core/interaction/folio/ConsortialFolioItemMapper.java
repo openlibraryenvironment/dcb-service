@@ -12,6 +12,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.VolumeDesignation;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 
 import jakarta.inject.Singleton;
@@ -58,7 +59,7 @@ public class ConsortialFolioItemMapper {
 			.localItemTypeCode(getValue(holding, Holding::getMaterialType, MaterialType::getName, null))
 			.location(buildLocation(holding))
 			.rawVolumeStatement(getValueOrNull(holding, Holding::getVolume))
-			.parsedVolumeStatement(getValueOrNull(holding, Holding::getVolume))
+			.parsedVolumeStatement(VolumeDesignation.normalise(getValueOrNull(holding, Holding::getVolume)))
 			.suppressed(getValueOrNull(holding, Holding::getSuppressFromDiscovery))
 			.derivedLoanPolicy(DerivedLoanPolicy.GENERAL)
 			.deleted(false)

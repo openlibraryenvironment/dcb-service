@@ -23,4 +23,5 @@ public class ResolutionParameters {
 	@Builder.Default List<String> excludedSupplyingAgencyCodes = emptyList();
 	ManualItemSelection manualItemSelection;
 	Boolean isExpeditedCheckout;
+	String requestedVolumeDesignation;
 }

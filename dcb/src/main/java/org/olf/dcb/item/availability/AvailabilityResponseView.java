@@ -23,6 +23,12 @@ import lombok.Value;
 @Data
 @Serdeable
 public class AvailabilityResponseView {
+	static final String RAW_VOLUME_STATEMENT = "The volume as the library recorded it on this copy, for display."
+		+ " Null when the copy states none.";
+	static final String PARSED_VOLUME_STATEMENT = "The copy's volume in DCB's comparison form, such as v2p1y2020:"
+		+ " equal for the same volume however it was written. Use it to match a copy to a requested volume,"
+		+ " not for display. Null when the copy states none.";
+
 	private final List<ARVItem> itemList;
 	private final List<Error> errors;
 	private final Map<String, Long> timings;
@@ -141,8 +147,10 @@ public class AvailabilityResponseView {
 		@Schema(description = "The items specific institution")
 		Agency agency;
 		@Nullable
-    String rawVolumeStatement;
+		@Schema(description = RAW_VOLUME_STATEMENT)
+		String rawVolumeStatement;
 		@Nullable
+		@Schema(description = PARSED_VOLUME_STATEMENT)
 		String parsedVolumeStatement;
 
 		Map<String,String> rawDataValues;

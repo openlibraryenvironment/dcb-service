@@ -20,8 +20,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.olf.dcb.core.interaction.polaris.PAPIClient.ItemGetRow;
 import org.olf.dcb.core.interaction.shared.NumericItemTypeMapper;
@@ -31,6 +29,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.VolumeDesignation;
 import org.olf.dcb.core.svc.AgencyService;
 import org.olf.dcb.core.svc.AlarmsService;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
@@ -93,7 +92,7 @@ public class PolarisItemMapper {
 				final var location = getLocation(itemGetRow, itemAgencyResolutionMethod);
 				final var shelvingLocation = itemGetRow.getShelfLocation();
 				final var suppressionFlag = deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules, decisionLogEntries);
-				final var parsedVolumeStatement = parseVolumeStatement(itemGetRow.getVolumeNumber());
+				final var parsedVolumeStatement = VolumeDesignation.normalise(itemGetRow.getVolumeNumber());
 
 				final var derivedLoanPolicy = deriveLoanPolicy(hostLmsCode, shelvingLocation,
 					polarisConfig.getShelfLocationPolicyMap(), decisionLogEntries);
@@ -310,50 +309,6 @@ public class PolarisItemMapper {
 			return null;
 		}
 	}
-
-  private String parseVolumeStatement(String vol) {
-
-		// In polaris, the volume statement can appear in the call number as Vol [ nn ] Pt [ nn ]
-		// this regex "(Vol|Pt)\\s*\\[\\s*(\\d+)\\s*\\]" can extract those statements
-
-    String result = null;
-    if ( vol != null ) {
-
-			// Extract Vol and Pt statements
-			String regex = "(Vol|Pt)\\s*\\[\\s*(\\d+)\\s*\\]";
-			Pattern pattern = Pattern.compile(regex);
-			Matcher matcher = pattern.matcher(vol);
-			while (matcher.find()) {
-				String type = matcher.group(1);
-				int number = Integer.parseInt(matcher.group(2));
-				log.debug(type + ": " + number);
-				if ( result == null )
-					result = "";
-
-				switch ( type ) {
-					case "Vol":
-						result = result + "v" + number;
-						break;
-					case "Pt":
-						result = result + "p" + number;
-						break;
-				}
-			}
-
-			// Check for a 4 digit year at the end of the volume statement
-			String year_regex = "\\d{4}$";
-			Pattern p2 = Pattern.compile(year_regex);
-
-      Matcher m2 = p2.matcher(vol);
-			if ( m2.find() ) {
-				if ( result == null )
-				  result = "y"+m2.group();
-				else
-					result = result + "y" + m2.group();
-			}
-    }
-    return result;
-  }
 
 	public Mono<ItemStatus> mapStatus(String statusCode, String hostLmsCode) {
 		log.debug("mapStatus(statusCode: {}, hostLmsCode: {})", statusCode, hostLmsCode);

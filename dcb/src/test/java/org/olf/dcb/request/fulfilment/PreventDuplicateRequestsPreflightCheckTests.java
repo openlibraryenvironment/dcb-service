@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
+import static org.olf.dcb.core.model.PatronRequest.Status.SUBMITTED_TO_DCB;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
@@ -25,22 +26,27 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.security.StaffClients;
+import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.test.BibRecordFixture;
+import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
+import org.olf.dcb.test.SupplierRequestsFixture;
 
 import io.micronaut.context.annotation.Property;
 import io.micronaut.security.authentication.Authentication;
 import jakarta.inject.Inject;
-import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 
 @Property(name = "dcb.requests.preflight-checks.duplicate-requests.enabled", value = "true")
 @DcbTest
 class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheckTests {
 	private static final String SYSTEM = "duplicate-check-system";
 	private static final String PATRON = "duplicate-check-patron";
+	private static final String SUPPLYING_SYSTEM = "duplicate-check-supplier";
 
 	@Inject
 	private PreventDuplicateRequestsPreFlightCheck check;
@@ -52,14 +58,59 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private StaffClients staffClients;
+	@Inject
+	private SupplierRequestsFixture supplierRequestsFixture;
+	@Inject
+	private BibRecordFixture bibRecordFixture;
+	@Inject
+	private ClusterRecordFixture clusterRecordFixture;
 
 	private final UUID title = UUID.randomUUID();
 
 	@BeforeEach
 	void beforeEach() {
 		patronRequestsFixture.deleteAll();
+		clusterRecordFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 		hostLmsFixture.deleteAll();
+	}
+
+	@Test
+	void shouldPassARequestWithoutAVolumeForAMultiVolumeTitleThePatronHasRequested() {
+		earlierRequest(CONFIRMED, UnaryOperator.identity());
+		titleDescribedAs("3 v. : ill. ; 24 cm");
+
+		assertThat(check(command(PATRON, title)), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldPassATitleRequestAfterAChosenCopyOfAMultiVolumeTitle() {
+		earlierRequest(CONFIRMED, request -> request
+			.isManuallySelectedItem(true)
+			.localItemId("copy-1")
+			.localItemHostlmsCode(SUPPLYING_SYSTEM));
+		titleDescribedAs("v. 1-4 ; 28 cm");
+
+		assertThat(check(command(PATRON, title)), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldRefuseATitleRequestAfterAChosenCopyOfASingleVolumeTitle() {
+		earlierRequest(CONFIRMED, request -> request
+			.isManuallySelectedItem(true)
+			.localItemId("copy-1")
+			.localItemHostlmsCode(SUPPLYING_SYSTEM));
+		titleDescribedAs("320 p. : ill. ; 24 cm");
+
+		assertThat(check(command(PATRON, title)), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+	}
+
+	@Test
+	void shouldStillRefuseTheSameVolumeOfAMultiVolumeTitle() {
+		earlierRequest(CONFIRMED, request -> request.requestedVolumeDesignation("v1"));
+		titleDescribedAs("3 v. : ill. ; 24 cm");
+
+		assertThat(check(volumeCommand("v.1")), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
 	}
 
 	@Test
@@ -103,10 +154,17 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	}
 
 	@Test
-	void shouldPassForTheSameVolumeOfTheTitle() {
+	void shouldFailForTheSameVolumeOfTheTitle() {
 		earlierRequest(CONFIRMED, request -> request.requestedVolumeDesignation("v1"));
 
-		assertThat(check(volumeCommand("v1")), containsInAnyOrder(passedCheck()));
+		assertThat(check(volumeCommand("v1")), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+	}
+
+	@Test
+	void shouldTreatTheSameVolumeWrittenDifferentlyAsTheSame() {
+		earlierRequest(CONFIRMED, request -> request.requestedVolumeDesignation("v.2"));
+
+		assertThat(check(volumeCommand("Vol. 2")), containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
 	}
 
 	@Test
@@ -127,15 +185,55 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	void shouldPassARequestForAChosenCopy() {
 		earlierRequest(CONFIRMED, UnaryOperator.identity());
 
-		final var chosenCopy = command(PATRON, title).toBuilder()
-			.item(PlacePatronRequestCommand.Item.builder()
-				.localId("chosen-copy")
-				.localSystemCode("supplying-system")
-				.agencyCode("supplying-agency")
-				.build())
-			.build();
+		assertThat(check(chosenCopyCommand("chosen-copy", "supplying-agency")), containsInAnyOrder(passedCheck()));
+	}
 
-		assertThat(check(chosenCopy), containsInAnyOrder(passedCheck()));
+	@Test
+	void shouldRefuseTheSameCopyThePatronAlreadyHasComing() {
+		supplying(earlierRequest(CONFIRMED, UnaryOperator.identity()), "copy-1", true);
+
+		assertThat(check(chosenCopyCommand("copy-1", "supplying-agency")),
+			containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+	}
+
+	@Test
+	void shouldPassAnotherCopyOfATitleThePatronHasComing() {
+		supplying(earlierRequest(CONFIRMED, UnaryOperator.identity()), "copy-1", true);
+
+		assertThat(check(chosenCopyCommand("copy-2", "supplying-agency")), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldRefuseAChosenCopyAnEarlierRequestHasChosenButNotYetResolved() {
+		earlierRequest(SUBMITTED_TO_DCB, request -> request
+			.isManuallySelectedItem(true)
+			.localItemId("copy-1")
+			.localItemHostlmsCode(SUPPLYING_SYSTEM));
+
+		assertThat(check(chosenCopyCommand("copy-1", "supplying-agency")),
+			containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
+	}
+
+	@Test
+	void shouldPassTheSameCopyWhenTheEarlierRequestForItFailed() {
+		supplying(earlierRequest(ERROR, UnaryOperator.identity()), "copy-1", true);
+
+		assertThat(check(chosenCopyCommand("copy-1", "supplying-agency")), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldPassTheSameCopyOnceItIsNoLongerTheEarlierRequestsSupplier() {
+		supplying(earlierRequest(CONFIRMED, UnaryOperator.identity()), "copy-1", false);
+
+		assertThat(check(chosenCopyCommand("copy-1", "supplying-agency")), containsInAnyOrder(passedCheck()));
+	}
+
+	@Test
+	void shouldCheckAnIncompleteChosenCopyAsARequestForTheTitle() {
+		earlierRequest(CONFIRMED, UnaryOperator.identity());
+
+		assertThat(check(chosenCopyCommand("copy-1", null)),
+			containsInAnyOrder(failedCheck("DUPLICATE_REQUEST_ATTEMPT")));
 	}
 
 	@Test
@@ -172,7 +270,7 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	void shouldPassEverythingWhenNoStaffClientIsConfigured() {
 		final var repository = mock(PatronRequestRepository.class);
 
-		final var unarmed = new PreventDuplicateRequestsPreFlightCheck(repository, new IntMessageService(),
+		final var unarmed = new PreventDuplicateRequestsPreFlightCheck(repository, mock(BibRepository.class), new IntMessageService(),
 			new StaffClients(List.of()), null, null);
 
 		assertThat(singleValueFrom(unarmed.check(command(PATRON, title))), containsInAnyOrder(passedCheck()));
@@ -183,10 +281,10 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	@Test
 	void shouldPassWhenThePatronsRequestsCannotBeRead() {
 		final var repository = mock(PatronRequestRepository.class);
-		when(repository.findActiveRequestForPatronAndTitle(any(), any(), any(), any(), any(), any()))
-			.thenReturn(Mono.error(new RuntimeException("database unavailable")));
+		when(repository.findActiveRequestsForPatronAndTitle(any(), any(), any(), any(), any()))
+			.thenReturn(Flux.error(new RuntimeException("database unavailable")));
 
-		final var overUnreadableRequests = new PreventDuplicateRequestsPreFlightCheck(repository,
+		final var overUnreadableRequests = new PreventDuplicateRequestsPreFlightCheck(repository, mock(BibRepository.class),
 			new IntMessageService(), new StaffClients(List.of("dcb-admin")), null, null);
 
 		assertThat(singleValueFrom(overUnreadableRequests.check(command(PATRON, title))),
@@ -196,7 +294,7 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	@Test
 	void shouldRefuseAnActiveWindowThatIsNotPositive() {
 		assertThrows(IllegalArgumentException.class, () -> new PreventDuplicateRequestsPreFlightCheck(
-			mock(PatronRequestRepository.class), new IntMessageService(), new StaffClients(List.of("dcb-admin")),
+			mock(PatronRequestRepository.class), mock(BibRepository.class), new IntMessageService(), new StaffClients(List.of("dcb-admin")),
 			Duration.ZERO, null));
 	}
 
@@ -221,14 +319,38 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 			.build();
 	}
 
-	private void earlierRequest(PatronRequest.Status status,
+	// The title's one record, on the Host LMS earlierRequest created
+	private void titleDescribedAs(String physicalDescription) {
+		final var bibRecordId = UUID.randomUUID();
+		final var cluster = clusterRecordFixture.createClusterRecord(title, bibRecordId);
+
+		bibRecordFixture.createBibRecordDescribedAs(bibRecordId, hostLmsFixture.findByCode(SYSTEM).getId(),
+			"duplicate-check-bib", cluster, physicalDescription);
+	}
+
+	private PlacePatronRequestCommand chosenCopyCommand(String localId, String agencyCode) {
+		return command(PATRON, title).toBuilder()
+			.item(PlacePatronRequestCommand.Item.builder()
+				.localId(localId)
+				.localSystemCode(SUPPLYING_SYSTEM)
+				.agencyCode(agencyCode)
+				.build())
+			.build();
+	}
+
+	private void supplying(PatronRequest request, String localItemId, boolean isActive) {
+		supplierRequestsFixture.saveSupplierRequest(UUID.randomUUID(), request, "supplier-bib", localItemId,
+			"supplier-location", "supplier-barcode", SUPPLYING_SYSTEM, isActive, "supplier-location");
+	}
+
+	private PatronRequest earlierRequest(PatronRequest.Status status,
 		UnaryOperator<PatronRequest.PatronRequestBuilder> details) {
 
 		final var hostLms = hostLmsFixture.createSierraHostLms(SYSTEM);
 		final var patron = patronFixture.savePatron("home-library");
 		final var identity = patronFixture.saveIdentityAndReturn(patron, hostLms, PATRON, true, "-", SYSTEM, null);
 
-		patronRequestsFixture.savePatronRequest(details.apply(PatronRequest.builder()
+		return patronRequestsFixture.savePatronRequest(details.apply(PatronRequest.builder()
 				.id(UUID.randomUUID())
 				.patron(patron)
 				.patronHostlmsCode(SYSTEM)

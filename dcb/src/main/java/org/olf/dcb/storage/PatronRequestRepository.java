@@ -164,7 +164,34 @@ public interface PatronRequestRepository {
 	Publisher<Long> updatePickupRequestTracking(@Id @NotNull UUID id, @Nullable String pickupRequestStatus, @Nullable String rawPickupRequestStatus, Instant pickupRequestLastCheckTimestamp, Long pickupRequestStatusRepeat);
 	Publisher<Long> updatePickupItemTracking(@Id @NotNull UUID id, @Nullable String pickupItemStatus, @Nullable String rawPickupItemStatus, Instant pickupItemLastCheckTimestamp, Long pickupItemStatusRepeat);
 
-	// Bounded by one patron's own requests, through idx_pr_patron
+	// Bounded by one patron's own requests, through idx_pr_patron, and to 50 by the limit.
+	// Volumes are compared by the caller: only VolumeDesignation can say two are the same
+	@Query(value = """
+		select pr.id as id, pr.requested_volume_designation as requested_volume_designation
+		from patron_request pr
+		where pr.patron_id = (
+			select pi.patron_id
+			from patron_identity pi
+			join host_lms h on h.id = pi.host_lms_id
+			where pi.local_id = :patronLocalId and h.code = :patronHostLmsCode
+			limit 1)
+		  and pr.bib_cluster_id = :bibClusterId
+		  and pr.status_code in (:activeStates)
+		  and pr.is_too_long is not true
+		  and (:placedSince is null or pr.date_created >= :placedSince)
+		order by pr.date_created
+		limit 50
+		""", nativeQuery = true)
+	Publisher<ActiveTitleRequest> findActiveRequestsForPatronAndTitle(String patronHostLmsCode,
+		String patronLocalId, UUID bibClusterId, Collection<String> activeStates, @Nullable Instant placedSince);
+
+	@Introspected
+	record ActiveTitleRequest(UUID id, @Nullable String requestedVolumeDesignation) {
+	}
+
+	// The copy's active supplier requests through idx_supplier_request_item, met with one patron's
+	// requests through idx_pr_patron. A chosen copy is on the request itself only until the borrower
+	// hold is placed, when those fields take the virtual item: the supplier request carries it after
 	@SingleResult
 	@Query(value = """
 		select pr.id
@@ -175,17 +202,23 @@ public interface PatronRequestRepository {
 			join host_lms h on h.id = pi.host_lms_id
 			where pi.local_id = :patronLocalId and h.code = :patronHostLmsCode
 			limit 1)
-		  and pr.bib_cluster_id = :bibClusterId
-		  and coalesce(pr.requested_volume_designation, '') = coalesce(cast(:volumeDesignation as varchar), '')
 		  and pr.status_code in (:activeStates)
 		  and pr.is_too_long is not true
 		  and (:placedSince is null or pr.date_created >= :placedSince)
+		  and (
+			pr.id in (
+				select sr.patron_request_id
+				from supplier_request sr
+				where sr.is_active and sr.host_lms_code = :itemHostLmsCode and sr.local_item_id = :itemLocalId)
+			or (pr.is_manually_selected_item is true
+				and pr.local_item_hostlms_code = :itemHostLmsCode and pr.local_item_id = :itemLocalId
+				and pr.status_code in (:beforeBorrowerPlacement)))
 		order by pr.date_created
 		limit 1
 		""", nativeQuery = true)
-	Publisher<UUID> findActiveRequestForPatronAndTitle(String patronHostLmsCode, String patronLocalId,
-		UUID bibClusterId, @Nullable String volumeDesignation, Collection<String> activeStates,
-		@Nullable Instant placedSince);
+	Publisher<UUID> findActiveRequestForPatronAndCopy(String patronHostLmsCode, String patronLocalId,
+		String itemHostLmsCode, String itemLocalId, Collection<String> activeStates,
+		Collection<String> beforeBorrowerPlacement, @Nullable Instant placedSince);
 
 	Publisher<PatronRequest> findAllByPickupLocationCode(String pickupLocationCode);
 

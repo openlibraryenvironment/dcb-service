@@ -173,7 +173,7 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 					hasCanonicalItemType("UNKNOWN - No mapping found"),
 					hasLocation("Crerar, Lower Level, Bookstacks", "CLLA"),
 					hasRawVolumeStatement("volume one"),
-					hasParsedVolumeStatement("volume one"),
+					hasParsedVolumeStatement("volumeone"),
 					isSuppressed(),
 					isNotDeleted(),
 					hasAgencyCode("known-agency"),

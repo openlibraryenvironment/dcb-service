@@ -26,7 +26,20 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
 public interface BibRepository {
-	
+
+	// One title's records through idx_bib_contributes_to: a handful, and 100 at most by the limit
+	@Query(value = """
+		select d.value ->> 'label'
+		from bib_record b
+		cross join lateral jsonb_array_elements(
+			case when jsonb_typeof(b.canonical_metadata -> 'physical-description') = 'array'
+				then b.canonical_metadata -> 'physical-description'
+				else cast('[]' as jsonb) end) d
+		where b.contributes_to = :clusterId
+		  and d.value ->> 'label' is not null
+		limit 100
+		""", nativeQuery = true)
+	Publisher<String> findPhysicalDescriptionsForCluster(@NonNull UUID clusterId);
 
 	@NonNull
 	@SingleResult
