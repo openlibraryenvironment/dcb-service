@@ -236,7 +236,7 @@ class HostLmsConfigValidatorTests {
 	void shouldAcceptEveryItemAgencyResolutionMethodPolarisImplements() {
 		for (String method : PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS) {
 			final var config = polarisConfig();
-			config.put("item", Map.of("item-agency-resolution-method", method));
+			config.put("item", polarisItemConfigWith("item-agency-resolution-method", method));
 
 			assertDoesNotThrow(() -> validator.validate(POLARIS, config));
 		}
@@ -245,7 +245,7 @@ class HostLmsConfigValidatorTests {
 	@Test
 	void shouldRejectAnItemAgencyResolutionMethodPolarisDoesNotImplement() {
 		final var config = polarisConfig();
-		config.put("item", Map.of("item-agency-resolution-method", "locationid"));
+		config.put("item", polarisItemConfigWith("item-agency-resolution-method", "locationid"));
 
 		final var exception = assertThrows(HttpStatusException.class,
 			() -> validator.validate(POLARIS, config));
@@ -386,6 +386,12 @@ class HostLmsConfigValidatorTests {
 		item.put("loan-period-code-id", 7);
 		item.put("av-loan-period-code-id", 8);
 		item.put("renewal-limit", 0);
+		return item;
+	}
+
+	private Map<String, Object> polarisItemConfigWith(String key, Object value) {
+		final var item = polarisItemConfig();
+		item.put(key, value);
 		return item;
 	}
 }
