@@ -19,7 +19,6 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.workflow.exceptions.AgencyNotParticipatingInBorrowingException;
 import org.olf.dcb.storage.PatronIdentityRepository;
 
-import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import lombok.extern.slf4j.Slf4j;
 import org.zalando.problem.Problem;
@@ -35,18 +34,12 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final LocalPatronService localPatronService;
 
-	// Provider to prevent circular reference exception by allowing lazy access to
-	// this singleton.
-	private final BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider;
-
 	private static final List<Status> possibleSourceStatus = List.of(Status.SUBMITTED_TO_DCB);
 
 	public ValidatePatronTransition(PatronIdentityRepository patronIdentityRepository,
-		BeanProvider<PatronRequestWorkflowService> patronRequestWorkflowServiceProvider,
 		LocalPatronService localPatronService) {
 
 		this.patronIdentityRepository = patronIdentityRepository;
-		this.patronRequestWorkflowServiceProvider = patronRequestWorkflowServiceProvider;
 		this.localPatronService = localPatronService;
 	}
 
@@ -197,7 +190,7 @@ public class ValidatePatronTransition implements PatronRequestStateTransition {
 			.then(validateLocations(patronRequest))
 			.doOnSuccess( pr -> log.debug("Validated patron request: {}", pr))
 			.doOnError( error -> log.error( "Error occurred validating a patron request: {}", error.getMessage()))
-			.transform(patronRequestWorkflowServiceProvider.get().getErrorTransformerFor(patronRequest))
+			// No error transformer here: the workflow applies one to every transition, and a second audited each failure twice
 			.thenReturn(ctx);
 	}
 
