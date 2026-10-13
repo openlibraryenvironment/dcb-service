@@ -7,8 +7,10 @@ import java.util.Optional;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
+import org.olf.dcb.core.svc.HostLmsPingService;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
 import org.olf.dcb.storage.AgencyRepository;
 
@@ -26,10 +28,14 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class HostLmsVerificationService {
 	private final HostLmsService hostLmsService;
+	private final HostLmsPingService hostLmsPingService;
 	private final AgencyRepository agencyRepository;
 
-	public HostLmsVerificationService(HostLmsService hostLmsService, AgencyRepository agencyRepository) {
+	public HostLmsVerificationService(HostLmsService hostLmsService,
+		HostLmsPingService hostLmsPingService, AgencyRepository agencyRepository) {
+
 		this.hostLmsService = hostLmsService;
+		this.hostLmsPingService = hostLmsPingService;
 		this.agencyRepository = agencyRepository;
 	}
 
@@ -39,10 +45,8 @@ public class HostLmsVerificationService {
 	public Mono<Verification> verify(DataHostLms hostLms) {
 		final var client = hostLmsService.getClientFor(hostLms).cache();
 
-		final Mono<String> ping = client
-			.flatMap(HostLmsClient::ping)
-			.map(pingResponse -> "Status: " + pingResponse.getStatus() +
-				(pingResponse.getAdditional() != null ? " - " + pingResponse.getAdditional() : ""))
+		final Mono<String> ping = hostLmsPingService.pingAndRecord(hostLms)
+			.map(PingResponse::summary)
 			.defaultIfEmpty("Ping Skipped or Missing")
 			.onErrorResume(e -> Mono.just("Ping Failed: " + e.getMessage()));
 
