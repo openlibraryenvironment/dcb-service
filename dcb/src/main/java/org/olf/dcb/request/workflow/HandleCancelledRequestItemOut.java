@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
@@ -141,7 +142,8 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 	private static boolean isPatronHoldGoneWithItemReadSince(PatronRequest patronRequest) {
 		if (cancelledHoldStatus.contains(
 				getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus))
-			&& isItemReadSinceHold(patronRequest.getLocalItemLastCheckTimestamp(),
+			&& isItemReadSinceHold(patronRequest.getLocalItemStatus(),
+				patronRequest.getLocalItemLastCheckTimestamp(),
 				patronRequest.getLocalRequestLastCheckTimestamp())) {
 
 			return true;
@@ -150,15 +152,16 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 		return patronRequest.isUsingPickupAnywhereWorkflow()
 			&& cancelledHoldStatus.contains(
 				getValueOrNull(patronRequest, PatronRequest::getPickupRequestStatus))
-			&& isItemReadSinceHold(patronRequest.getPickupItemLastCheckTimestamp(),
+			&& isItemReadSinceHold(patronRequest.getPickupItemStatus(),
+				patronRequest.getPickupItemLastCheckTimestamp(),
 				patronRequest.getPickupRequestLastCheckTimestamp());
 	}
 
 	// A gone hold counts only once its item was read no earlier than the hold: a failed item read leaves a
 	// stale status that cannot rule out a loan. No hold timestamp means inbound protocol evidence, not a
-	// poll, set the status, so there is nothing to compare. See docs/cancellation-handling.md §4.3
-	private static boolean isItemReadSinceHold(Instant itemCheckedAt, Instant holdCheckedAt) {
-		if (holdCheckedAt == null) return true;
+	// poll, set the status; a MISSING item is never read again and cannot be on loan. See docs/cancellation-handling.md §4.3
+	private static boolean isItemReadSinceHold(String itemStatus, Instant itemCheckedAt, Instant holdCheckedAt) {
+		if (holdCheckedAt == null || ITEM_MISSING.equals(itemStatus)) return true;
 
 		return itemCheckedAt != null && !itemCheckedAt.isBefore(holdCheckedAt);
 	}
