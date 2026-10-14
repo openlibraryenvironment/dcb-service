@@ -52,6 +52,7 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
+import java.time.Instant;
 import java.util.Map;
 
 import jakarta.inject.Inject;
@@ -180,6 +181,79 @@ class HandleCancelledRequestItemOutTests {
 
 		assertThat("A PUA patron cancelling at their home library is still a cancellation",
 			handleCancelledRequestItemOut.isApplicableFor(ctx), is(true));
+	}
+
+	@Test
+	void shouldNotBeApplicableWhenTheItemWasLastReadBeforeTheHoldWentMissing() {
+		// The item read failed in the cycle that found the hold gone, so its status predates the hold's
+		// and cannot rule out that the patron has the book.
+		final var holdCheckedAt = Instant.parse("2026-10-09T10:00:00Z");
+
+		final var ctx = contextFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(READY_FOR_PICKUP)
+			.localRequestStatus(HOLD_MISSING)
+			.localRequestLastCheckTimestamp(holdCheckedAt)
+			.localItemStatus(ITEM_AVAILABLE)
+			.localItemLastCheckTimestamp(holdCheckedAt.minusSeconds(300))
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.build());
+
+		assertThat("A stale item status must wait for the next poll",
+			handleCancelledRequestItemOut.isApplicableFor(ctx), is(false));
+	}
+
+	@Test
+	void shouldBeApplicableWhenTheItemWasReadAfterTheHoldWentMissing() {
+		final var holdCheckedAt = Instant.parse("2026-10-09T10:00:00Z");
+
+		final var ctx = contextFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(READY_FOR_PICKUP)
+			.localRequestStatus(HOLD_MISSING)
+			.localRequestLastCheckTimestamp(holdCheckedAt)
+			.localItemStatus(ITEM_AVAILABLE)
+			.localItemLastCheckTimestamp(holdCheckedAt.plusSeconds(1))
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.build());
+
+		assertThat(handleCancelledRequestItemOut.isApplicableFor(ctx), is(true));
+	}
+
+	@Test
+	void shouldNotBeApplicableForPickupAnywhereWhenThePickupItemWasNeverReadSinceItsHoldWentMissing() {
+		final var holdCheckedAt = Instant.parse("2026-10-09T10:00:00Z");
+
+		final var ctx = contextFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(RECEIVED_AT_PICKUP)
+			.localRequestStatus(HOLD_CONFIRMED)
+			.pickupRequestStatus(HOLD_MISSING)
+			.pickupRequestLastCheckTimestamp(holdCheckedAt)
+			.pickupItemStatus(ITEM_AVAILABLE)
+			.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
+			.build());
+
+		assertThat("A pickup item with no read cannot rule out a loan",
+			handleCancelledRequestItemOut.isApplicableFor(ctx), is(false));
+	}
+
+	@Test
+	void shouldBeApplicableForPickupAnywhereWhenThePickupItemWasReadAfterItsHoldWentMissing() {
+		final var holdCheckedAt = Instant.parse("2026-10-09T10:00:00Z");
+
+		final var ctx = contextFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(RECEIVED_AT_PICKUP)
+			.localRequestStatus(HOLD_CONFIRMED)
+			.pickupRequestStatus(HOLD_MISSING)
+			.pickupRequestLastCheckTimestamp(holdCheckedAt)
+			.pickupItemStatus(ITEM_AVAILABLE)
+			.pickupItemLastCheckTimestamp(holdCheckedAt.plusSeconds(1))
+			.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
+			.build());
+
+		assertThat(handleCancelledRequestItemOut.isApplicableFor(ctx), is(true));
 	}
 
 	@Test

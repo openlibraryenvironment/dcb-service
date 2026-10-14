@@ -128,7 +128,7 @@ The item is still on the supplier's shelf. Nothing has moved, so there is nothin
 
 **Source states:** `PICKUP_TRANSIT`, `RECEIVED_AT_PICKUP`, `READY_FOR_PICKUP`
 **Guard:** borrower hold (or, for PUA, borrower **or** pickup hold) is `MISSING`/`CANCELLED`,
-**and the item is not `LOANED`**
+**and the item is not `LOANED`**, read no earlier than the hold (§4.3)
 
 The item has left the supplier. Finalising now would delete the borrowing library's virtual records while
 the physical item is still out — see §6 for why that is so damaging. Instead:
@@ -153,6 +153,21 @@ Two transitions are therefore applicable at once, and alphabetical ordering pick
 
 > Covered by `patronCollectingTheItemMustNotBeTreatedAsACancellation` and its PUA twin. Without that
 > guard, **every successful pickup is parked as a cancellation.**
+
+That guard is only as good as the item status it reads. Tracking reads the hold and the item separately,
+so a cycle can read the hold as gone and then fail to read the item (a Polaris read timeout, for
+example). The item status is then the one from an earlier poll, and cannot show that the patron has
+just collected the item. So a gone hold counts only once its item has been read no earlier than the
+hold: `localItemLastCheckTimestamp` against `localRequestLastCheckTimestamp`, and for PUA the pickup
+item and hold the same way. Until then the request waits, and the next poll re-reads the item. This
+relies on tracking advancing those timestamps on every poll, unchanged or not.
+
+A hold whose status never came from a poll has no read time, because inbound protocol evidence (NCIP)
+sets none. Such a hold counts as gone at once: a `CancelRequestItem` message is the borrowing system
+reporting a cancellation, not half of a poll that failed, and requiring an item read instead would
+leave a request whose item is never polled waiting indefinitely.
+
+> Covered by `shouldNotBeApplicableWhenTheItemWasLastReadBeforeTheHoldWentMissing` and its PUA twin.
 
 ### 4.4 Pickup Anywhere: which hold is the patron's?
 
