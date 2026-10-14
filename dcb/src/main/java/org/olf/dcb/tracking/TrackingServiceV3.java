@@ -514,23 +514,6 @@ public class TrackingServiceV3 implements TrackingService {
 		}
 	}
 
-  private boolean hasValueChanged(Object o1, Object o2) {
-    return (
-      ((o1 == null) && ( o2 != null)) ||
-      ((o1 != null) && ( o2 == null)) ||
-      (! o1.equals(o2) )
-    );
-  }
-
-  private boolean hasSupplierItemChanged(SupplierRequest sr, HostLmsItem item) {
-    return ( 
-      hasValueChanged(item.getStatus(), sr.getLocalItemStatus() ) ||
-      hasValueChanged(item.getRenewable(), sr.getLocalRenewable() ) ||
-      hasValueChanged(item.getRenewalCount(), sr.getLocalRenewalCount() ) ||
-			hasValueChanged(item.getHoldCount(), sr.getLocalHoldCount())
-    );
-  }
-
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)
 	protected Mono<SupplierRequest> checkSupplierItem(SupplierRequest sr) {
@@ -565,7 +548,7 @@ public class TrackingServiceV3 implements TrackingService {
 						sr.setLocalHoldCount(item.getHoldCount());
 					}
 
-					if ( hasSupplierItemChanged(sr, item) ) {
+					if ( SupplierItemChanges.hasChanged(sr, item) ) {
 						log.debug("TRACKING Detected supplying system - supplier item status change {} to {}", sr.getLocalItemStatus(), item.getStatus());
 						StateChange sc = supplierItemStatusChanged(sr, item);
 						log.info("TRACKING-EVENT supplier-item state change {}", sc);

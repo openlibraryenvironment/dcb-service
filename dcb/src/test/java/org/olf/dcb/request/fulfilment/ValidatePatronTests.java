@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
@@ -33,6 +34,7 @@ import org.olf.dcb.core.interaction.sierra.SierraPatronsAPIFixture;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Patron;
 import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.request.workflow.ValidatePatronTransition;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -42,6 +44,7 @@ import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -58,6 +61,8 @@ public class ValidatePatronTests {
 
 	@Inject
 	private ValidatePatronTransition validatePatronTransition;
+	@Inject
+	private PatronRequestWorkflowService patronRequestWorkflowService;
 	@Inject
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
@@ -132,7 +137,7 @@ public class ValidatePatronTests {
 		// Act
 		final var validatedPatronRequest =
 			requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> validatePatronTransition.attempt(ctx))
+				.flatMap(this::attemptAsTheWorkflowDoes)
 				.thenReturn(patronRequest)
 				.block();
 
@@ -169,7 +174,7 @@ public class ValidatePatronTests {
 
 		// Act
 		final var validatedPatronRequest = requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.flatMap(ctx -> validatePatronTransition.attempt(ctx))
+			.flatMap(this::attemptAsTheWorkflowDoes)
 			.map(RequestWorkflowContext::getPatronRequest)
 			.block();
 
@@ -221,7 +226,7 @@ public class ValidatePatronTests {
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
 			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> validatePatronTransition.attempt(ctx))
+				.flatMap(this::attemptAsTheWorkflowDoes)
 				.block());
 
 		// Assert
@@ -263,7 +268,7 @@ public class ValidatePatronTests {
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
 			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap( ctx -> validatePatronTransition.attempt(ctx))
+				.flatMap(this::attemptAsTheWorkflowDoes)
 				.block());
 
 		// Assert
@@ -293,7 +298,7 @@ public class ValidatePatronTests {
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
 			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap( ctx -> validatePatronTransition.attempt(ctx))
+				.flatMap(this::attemptAsTheWorkflowDoes)
 				.block());
 
 		// Assert
@@ -302,6 +307,30 @@ public class ValidatePatronTests {
 		assertThat(exception.getMessage(), is(expectedMessage));
 
 		checkPatronRequestHasError(patronRequest.getId(), expectedMessage);
+	}
+
+	@Test
+	void shouldAuditAFailedValidationOnce() {
+		final var localId = "672955";
+
+		final var patron = patronFixture.definePatron(localId, HOME_LIBRARY_CODE,
+			hostLmsFixture.findByCode(BORROWING_HOST_LMS_CODE));
+
+		final var patronRequest = savePatronRequest(patron);
+
+		sierraPatronsAPIFixture.noRecordsFoundWhenGettingPatronByLocalId(localId);
+		sierraPatronsAPIFixture.patronNotFoundResponse("u", localId);
+
+		assertThrows(RuntimeException.class,
+			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
+				.flatMap(this::attemptAsTheWorkflowDoes)
+				.block());
+
+		final var errorEntries = patronRequestsFixture.findAuditEntries(patronRequest).stream()
+			.filter(entry -> entry.getToStatus() == ERROR)
+			.toList();
+
+		assertThat(errorEntries, hasSize(1));
 	}
 
 	@Test
@@ -320,7 +349,7 @@ public class ValidatePatronTests {
 		// Act
 		final var problem = assertThrows(ThrowableProblem.class,
 			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap( ctx -> validatePatronTransition.attempt(ctx))
+				.flatMap(this::attemptAsTheWorkflowDoes)
 				.block());
 
 		// Assert
@@ -363,7 +392,7 @@ public class ValidatePatronTests {
 		// Act
 		final var exception = assertThrows(RuntimeException.class,
 			() -> requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-				.flatMap(ctx -> validatePatronTransition.attempt(ctx))
+				.flatMap(this::attemptAsTheWorkflowDoes)
 				.block());
 
 		// Assert
@@ -384,6 +413,11 @@ public class ValidatePatronTests {
 		patronRequestsFixture.savePatronRequest(patronRequest);
 
 		return patronRequest;
+	}
+
+	private Mono<RequestWorkflowContext> attemptAsTheWorkflowDoes(RequestWorkflowContext ctx) {
+		return patronRequestWorkflowService.attemptTransitionWithErrorTransformer(validatePatronTransition, ctx)
+			.apply(ctx.getPatronRequest());
 	}
 
 	private void checkPatronRequestHasError(UUID id, String expectedMessage) {
