@@ -218,6 +218,7 @@ public class HostLmsConfigValidator {
 		throwIfMissing("Polaris", missing);
 		validatePolarisShelfLocationPolicies(config);
 		validatePolarisItemAgencyResolutionMethod(config);
+		refusePolarisBorrowerLendingFlow(config);
 		validateVirtualPatronEmail("Polaris", config);
 	}
 
@@ -232,6 +233,15 @@ public class HostLmsConfigValidator {
 			throw new HttpStatusException(HttpStatus.BAD_REQUEST, String.format(
 				"Invalid Polaris Configuration. 'item.item-agency-resolution-method' must be one of %s, not '%s'.",
 				String.join(", ", POLARIS_ITEM_AGENCY_RESOLUTION_METHODS), method));
+		}
+	}
+
+	// The ILL borrowing flow stops at placement: tracking reads the ILL request as a hold and the item as a
+	// placeholder. No consortium uses it, so it cannot be set until it is finished
+	private void refusePolarisBorrowerLendingFlow(Map<String, Object> config) {
+		if (isPresent(config, "borrower-lending-flow")) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Invalid Polaris Configuration. 'borrower-lending-flow' is not supported; remove it.");
 		}
 	}
 

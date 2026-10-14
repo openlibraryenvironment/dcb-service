@@ -254,6 +254,27 @@ class HostLmsConfigValidatorTests {
 	}
 
 	@Test
+	void shouldRefuseAnyPolarisBorrowerLendingFlow() {
+		for (String flow : List.of("ILL", "STANDARD")) {
+			final var config = polarisConfig();
+			config.put("borrower-lending-flow", flow);
+
+			final var exception = assertThrows(HttpStatusException.class,
+				() -> validator.validate(POLARIS, config));
+
+			assertThat(exception.getMessage(), containsString("borrower-lending-flow"));
+		}
+	}
+
+	@Test
+	void shouldAcceptAnEmptyPolarisBorrowerLendingFlow() {
+		final var config = polarisConfig();
+		config.put("borrower-lending-flow", "");
+
+		assertDoesNotThrow(() -> validator.validate(POLARIS, config));
+	}
+
+	@Test
 	void shouldAcceptAFolioWithoutARecordSyntaxBecauseItHasADefault() {
 		final var config = folioConfig();
 		config.remove("record-syntax");
