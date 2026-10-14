@@ -167,7 +167,12 @@ sets none. Such a hold counts as gone at once: a `CancelRequestItem` message is 
 reporting a cancellation, not half of a poll that failed, and requiring an item read instead would
 leave a request whose item is never polled waiting indefinitely.
 
-> Covered by `shouldNotBeApplicableWhenTheItemWasLastReadBeforeTheHoldWentMissing` and its PUA twin.
+An item that is already `MISSING` counts as read. Tracking stops polling an item once it is `MISSING`,
+so its read time would never pass the hold's and the request would wait for ever; and an item the
+borrowing system no longer has cannot be on loan to the patron.
+
+> Covered by `shouldNotBeApplicableWhenTheItemWasLastReadBeforeTheHoldWentMissing` and its PUA twin, and
+> by `shouldBeApplicableWhenTheItemWentMissingBeforeTheHold` and its PUA twin.
 
 ### 4.4 Pickup Anywhere: which hold is the patron's?
 

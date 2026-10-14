@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.response;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
+import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_MISSING;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
@@ -250,6 +251,43 @@ class HandleCancelledRequestItemOutTests {
 			.pickupRequestLastCheckTimestamp(holdCheckedAt)
 			.pickupItemStatus(ITEM_AVAILABLE)
 			.pickupItemLastCheckTimestamp(holdCheckedAt.plusSeconds(1))
+			.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
+			.build());
+
+		assertThat(handleCancelledRequestItemOut.isApplicableFor(ctx), is(true));
+	}
+
+	@Test
+	void shouldBeApplicableWhenTheItemWentMissingBeforeTheHold() {
+		// Tracking stops reading an item once it is MISSING, so its read time never passes the hold's
+		final var holdCheckedAt = Instant.parse("2026-10-09T10:00:00Z");
+
+		final var ctx = contextFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(READY_FOR_PICKUP)
+			.localRequestStatus(HOLD_MISSING)
+			.localRequestLastCheckTimestamp(holdCheckedAt)
+			.localItemStatus(ITEM_MISSING)
+			.localItemLastCheckTimestamp(holdCheckedAt.minusSeconds(86400))
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.build());
+
+		assertThat("A MISSING item is final and cannot be on loan",
+			handleCancelledRequestItemOut.isApplicableFor(ctx), is(true));
+	}
+
+	@Test
+	void shouldBeApplicableForPickupAnywhereWhenThePickupItemWentMissingBeforeItsHold() {
+		final var holdCheckedAt = Instant.parse("2026-10-09T10:00:00Z");
+
+		final var ctx = contextFor(PatronRequest.builder()
+			.id(randomUUID())
+			.status(RECEIVED_AT_PICKUP)
+			.localRequestStatus(HOLD_CONFIRMED)
+			.pickupRequestStatus(HOLD_MISSING)
+			.pickupRequestLastCheckTimestamp(holdCheckedAt)
+			.pickupItemStatus(ITEM_MISSING)
+			.pickupItemLastCheckTimestamp(holdCheckedAt.minusSeconds(86400))
 			.activeWorkflow(PICKUP_ANYWHERE_WORKFLOW)
 			.build());
 
