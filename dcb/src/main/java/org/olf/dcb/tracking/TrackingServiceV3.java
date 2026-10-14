@@ -412,8 +412,13 @@ public class TrackingServiceV3 implements TrackingService {
 				if ( hold.getStatus().equals(pr.getLocalRequestStatus()) ) {
 					// The hold status is the same as the last time we checked - update the tracking info and return
 					log.debug("TRACKING - update PR repeat counter {} {} {}",pr.getId(), pr.getLocalRequestStatus(), pr.getLocalRequestStatusRepeat());
-					return Mono.from(patronRequestRepository.updateLocalRequestTracking(pr.getId(), pr.getLocalRequestStatus(), hold.getRawStatus(), Instant.now(),
-							incrementRepeatCounter(pr.getLocalRequestStatusRepeat())))
+					final var checkedAt = Instant.now();
+					final var repeat = incrementRepeatCounter(pr.getLocalRequestStatusRepeat());
+					// Held on the entity as well: a whole-entity save later in the cycle would undo the write alone.
+					pr.setRawLocalRequestStatus(hold.getRawStatus())
+						.setLocalRequestLastCheckTimestamp(checkedAt)
+						.setLocalRequestStatusRepeat(repeat);
+					return Mono.from(patronRequestRepository.updateLocalRequestTracking(pr.getId(), pr.getLocalRequestStatus(), hold.getRawStatus(), checkedAt, repeat))
 						.doOnNext(count -> log.debug("update count {}",count))
 						.thenReturn(pr);
 				}
@@ -490,8 +495,13 @@ public class TrackingServiceV3 implements TrackingService {
 					else {
 						// virtual item status or renewal count has not changed - just update tracking stats
 						log.debug("TRACKING - update virtual item repeat counter {} {} {}",pr.getId(), pr.getLocalItemStatus(), pr.getLocalItemStatusRepeat());
-						return Mono.from(patronRequestRepository.updateLocalItemTracking(pr.getId(), pr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
-							incrementRepeatCounter(pr.getLocalItemStatusRepeat())))
+						final var checkedAt = Instant.now();
+						final var repeat = incrementRepeatCounter(pr.getLocalItemStatusRepeat());
+						// Held on the entity as well: a whole-entity save later in the cycle would undo the write alone.
+						pr.setRawLocalItemStatus(item.getRawStatus())
+							.setLocalItemLastCheckTimestamp(checkedAt)
+							.setLocalItemStatusRepeat(repeat);
+						return Mono.from(patronRequestRepository.updateLocalItemTracking(pr.getId(), pr.getLocalItemStatus(), item.getRawStatus(), checkedAt, repeat))
 							.doOnNext(count -> log.debug("update count {}",count))
 							.thenReturn(pr);
 					}
@@ -565,8 +575,13 @@ public class TrackingServiceV3 implements TrackingService {
 					else {
 						log.debug("TRACKING - update supplier item counter {} {} {}",sr.getId(), sr.getLocalItemStatus(), sr.getLocalItemStatusRepeat());
 						// ToDo - add required methods to supplier repo
-						return Mono.from(supplierRequestRepository.updateLocalItemTracking(sr.getId(), sr.getLocalItemStatus(), item.getRawStatus(), Instant.now(),
-								incrementRepeatCounter(sr.getLocalItemStatusRepeat())))
+						final var checkedAt = Instant.now();
+						final var repeat = incrementRepeatCounter(sr.getLocalItemStatusRepeat());
+						// Held on the entity as well: a whole-entity save later in the cycle would undo the write alone.
+						sr.setRawLocalItemStatus(item.getRawStatus())
+							.setLocalItemLastCheckTimestamp(checkedAt)
+							.setLocalItemStatusRepeat(repeat);
+						return Mono.from(supplierRequestRepository.updateLocalItemTracking(sr.getId(), sr.getLocalItemStatus(), item.getRawStatus(), checkedAt, repeat))
 							.doOnNext(count -> log.debug("update count {}",count))
 							.thenReturn(sr);
 					}
@@ -622,8 +637,13 @@ public class TrackingServiceV3 implements TrackingService {
 				}
 				else {
 					log.debug("TRACKING - update supplier request counter {} {} {}",sr.getId(), sr.getLocalStatus(), sr.getLocalRequestStatusRepeat());
-					return Mono.from(supplierRequestRepository.updateLocalRequestTracking(sr.getId(), sr.getLocalStatus(), hold.getRawStatus(), sr.getLocalHoldCount(), Instant.now(),
-								incrementRepeatCounter(sr.getLocalRequestStatusRepeat())))
+					final var checkedAt = Instant.now();
+					final var repeat = incrementRepeatCounter(sr.getLocalRequestStatusRepeat());
+					// Held on the entity as well: a whole-entity save later in the cycle would undo the write alone.
+					sr.setRawLocalStatus(hold.getRawStatus())
+						.setLocalRequestLastCheckTimestamp(checkedAt)
+						.setLocalRequestStatusRepeat(repeat);
+					return Mono.from(supplierRequestRepository.updateLocalRequestTracking(sr.getId(), sr.getLocalStatus(), hold.getRawStatus(), sr.getLocalHoldCount(), checkedAt, repeat))
 						.doOnNext(count -> log.debug("update count {}",count))
 						.thenReturn(sr);
 
@@ -669,8 +689,13 @@ public class TrackingServiceV3 implements TrackingService {
 				if ( hold.getStatus().equals(pr.getPickupRequestStatus()) ) {
 					// The hold status is the same as the last time we checked - update the tracking info and return
 					log.debug("TRACKING - update PR repeat counter {} {} {}",pr.getId(), pr.getLocalRequestStatus(), pr.getLocalRequestStatusRepeat());
-					return Mono.from(patronRequestRepository.updatePickupRequestTracking(pr.getId(), pr.getPickupRequestStatus(), hold.getRawStatus(), Instant.now(),
-							incrementRepeatCounter(pr.getPickupRequestStatusRepeat())))
+					final var checkedAt = Instant.now();
+					final var repeat = incrementRepeatCounter(pr.getPickupRequestStatusRepeat());
+					// Held on the entity as well: a whole-entity save later in the cycle would undo the write alone.
+					pr.setRawPickupRequestStatus(hold.getRawStatus())
+						.setPickupRequestLastCheckTimestamp(checkedAt)
+						.setPickupRequestStatusRepeat(repeat);
+					return Mono.from(patronRequestRepository.updatePickupRequestTracking(pr.getId(), pr.getPickupRequestStatus(), hold.getRawStatus(), checkedAt, repeat))
 						.doOnNext(count -> log.debug("update count {}",count))
 						.thenReturn(rwc);
 				}
@@ -725,8 +750,13 @@ public class TrackingServiceV3 implements TrackingService {
 					else {
 						// pickup item status has not changed - just update tracking stats
 						log.debug("TRACKING - update pickup item repeat counter {} {} {}",pr.getId(), pr.getPickupItemStatus(), pr.getPickupItemStatusRepeat());
-						return Mono.from(patronRequestRepository.updatePickupItemTracking(pr.getId(), pr.getPickupItemStatus(), item.getRawStatus(), Instant.now(),
-								incrementRepeatCounter(pr.getPickupItemStatusRepeat())))
+						final var checkedAt = Instant.now();
+						final var repeat = incrementRepeatCounter(pr.getPickupItemStatusRepeat());
+						// Held on the entity as well: a whole-entity save later in the cycle would undo the write alone.
+						pr.setRawPickupItemStatus(item.getRawStatus())
+							.setPickupItemLastCheckTimestamp(checkedAt)
+							.setPickupItemStatusRepeat(repeat);
+						return Mono.from(patronRequestRepository.updatePickupItemTracking(pr.getId(), pr.getPickupItemStatus(), item.getRawStatus(), checkedAt, repeat))
 							.doOnNext(count -> log.debug("update count {}",count))
 							.thenReturn(rwc);
 					}

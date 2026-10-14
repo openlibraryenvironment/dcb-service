@@ -208,6 +208,39 @@ public class PatronRequestTrackingTests {
 			is(notNullValue()));
 	}
 
+	@Test
+	void shouldKeepTheTrackingRecordedWhenTheVirtualItemStatusIsUnchanged() {
+		// Arrange
+		final var borrowingAgencyLocalItemId = "1088631";
+
+		final var patronRequest = createPatronRequest(
+			request -> request
+				.localItemId(borrowingAgencyLocalItemId)
+				.localItemStatus("")
+				.status(REQUEST_PLACED_AT_BORROWING_AGENCY));
+
+		sierraItemsAPIFixture.mockGetItemById(borrowingAgencyLocalItemId,
+			exampleSierraItem(borrowingAgencyLocalItemId));
+
+		trackingFixture.trackRequest(patronRequest);
+
+		final var afterStatusChange = getPatronRequest(patronRequest.getId());
+
+		// Act
+		trackingFixture.trackRequest(patronRequest);
+
+		// Assert
+		final var afterUnchangedRead = getPatronRequest(patronRequest.getId());
+
+		assertThat("Status should be unchanged by the second poll",
+			afterUnchangedRead.getLocalItemStatus(), is(afterStatusChange.getLocalItemStatus()));
+		assertThat("Unchanged read should count as a repeat",
+			afterUnchangedRead.getLocalItemStatusRepeat(), is(1L));
+		assertThat("Unchanged read should advance the last check",
+			afterUnchangedRead.getLocalItemLastCheckTimestamp().isAfter(
+				afterStatusChange.getLocalItemLastCheckTimestamp()), is(true));
+	}
+
 	private void defineHostLms(String hostLmsCode, String baseUrl, MockServerClient mockServerClient) {
 		final String TOKEN = "test-token";
 		final String KEY = "patron-request-tracking-tests-key";

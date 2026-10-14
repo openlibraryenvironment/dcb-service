@@ -7,6 +7,7 @@ import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThro
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -120,7 +121,7 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 		if (status == null || !possibleSourceStatus.contains(status)) return false;
 		if (getValueOrNull(patronRequest, PatronRequest::getActiveWorkflow) == null) return false;
 
-		if (!isPatronHoldGone(patronRequest)) return false;
+		if (!isPatronHoldGoneWithItemReadSince(patronRequest)) return false;
 
 		// The hold is also consumed when the patron simply collects the item. If the item is with the
 		// patron this is a loan, not a cancellation - leave it to HandleBorrowerItemLoaned.
@@ -137,16 +138,29 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 	 * hold because losing it also means the item is out with nothing holding it. Watching only the pickup
 	 * hold silently drops every PUA patron cancellation - nothing else claims those states.
 	 */
-	private static boolean isPatronHoldGone(PatronRequest patronRequest) {
+	private static boolean isPatronHoldGoneWithItemReadSince(PatronRequest patronRequest) {
 		if (cancelledHoldStatus.contains(
-			getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus))) {
+				getValueOrNull(patronRequest, PatronRequest::getLocalRequestStatus))
+			&& isItemReadSinceHold(patronRequest.getLocalItemLastCheckTimestamp(),
+				patronRequest.getLocalRequestLastCheckTimestamp())) {
 
 			return true;
 		}
 
 		return patronRequest.isUsingPickupAnywhereWorkflow()
 			&& cancelledHoldStatus.contains(
-				getValueOrNull(patronRequest, PatronRequest::getPickupRequestStatus));
+				getValueOrNull(patronRequest, PatronRequest::getPickupRequestStatus))
+			&& isItemReadSinceHold(patronRequest.getPickupItemLastCheckTimestamp(),
+				patronRequest.getPickupRequestLastCheckTimestamp());
+	}
+
+	// A gone hold counts only once its item was read no earlier than the hold: a failed item read leaves a
+	// stale status that cannot rule out a loan. No hold timestamp means inbound protocol evidence, not a
+	// poll, set the status, so there is nothing to compare. See docs/cancellation-handling.md §4.3
+	private static boolean isItemReadSinceHold(Instant itemCheckedAt, Instant holdCheckedAt) {
+		if (holdCheckedAt == null) return true;
+
+		return itemCheckedAt != null && !itemCheckedAt.isBefore(holdCheckedAt);
 	}
 
 	/**
@@ -341,7 +355,7 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 		return List.of(new DCBGuardCondition(
 			"DCBPatronRequest state is PICKUP_TRANSIT, RECEIVED_AT_PICKUP or READY_FOR_PICKUP, the borrower hold "
 				+ "(or for Pickup Anywhere either the borrower or the pickup hold) is MISSING or CANCELLED, and "
-				+ "the item is not loaned to the patron"));
+				+ "the item, read no earlier than that hold, is not loaned to the patron"));
 	}
 
 	@Override
