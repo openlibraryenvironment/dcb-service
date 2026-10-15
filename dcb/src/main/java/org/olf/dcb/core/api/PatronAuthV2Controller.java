@@ -6,6 +6,7 @@ import static org.olf.dcb.core.api.PatronAuthV2Controller.Status.VALID;
 
 import java.util.List;
 
+import org.olf.dcb.core.interaction.UnsupportedAuthProfileException;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.security.RoleNames;
@@ -91,7 +92,17 @@ public class PatronAuthV2Controller {
 				.flatMap(this::addHostLms)
 				.flatMap(agency -> patronAuth(request, agency, username))
 				.switchIfEmpty( Mono.defer(() -> { return invalid(request); } ) )
-				.map(HttpResponse::ok);
+				.<HttpResponse<LocalPatronDetails>>map(HttpResponse::ok)
+				.onErrorResume(UnsupportedAuthProfileException.class, PatronAuthV2Controller::unusableAuthProfile);
+	}
+
+	// An auth profile the Host LMS cannot use is a configuration error, and this route is anonymous:
+	// one log line names it, where the default handler logged a stack trace for every attempt
+	private static Mono<HttpResponse<LocalPatronDetails>> unusableAuthProfile(
+		UnsupportedAuthProfileException refused) {
+
+		log.error("Patron sign-in refused: {}", refused.getMessage());
+		return Mono.just(HttpResponse.<LocalPatronDetails>serverError());
 	}
 
 	private Mono<LocalPatronDetails> patronAuth(V2PatronCredentials creds, DataAgency agency, String username) {
