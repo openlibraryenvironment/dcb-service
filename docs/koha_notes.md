@@ -83,9 +83,10 @@ Beyond the circulation keys `KohaClientConfig` requires (`api-url`,
 | `oai-set` | no | setSpec, only to harvest a subset |
 | `oai-path` | no | Defaults to `/cgi-bin/koha/oai.pl`; override only where the site rewrites URLs |
 
-`api-url` is where Koha is served, with or without the `/api/v1` on the end:
-`https://staff.example.org` and `https://example.org/koha/api/v1` both work. A
-path in front of `/api/v1` is kept. Before this, it was silently dropped.
+`api-url` is where Koha is served, with or without `/api` or `/api/v1` on the
+end, in any case: `https://staff.example.org`, `https://staff.example.org/api` and
+`https://example.org/koha/api/v1` all work. A path in front of the API root, such
+as `/koha`, is kept, and it is part of what identifies the server.
 
 **`base-url` is not a duplicate of `api-url`.** `oai.pl` is served by the OPAC;
 the REST API is commonly reached through the staff interface. Neither key can
