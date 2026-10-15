@@ -45,17 +45,23 @@ public class HostLmsPropertyDefinition {
 	}
 
 	public String getRequiredConfigValue(HostLms hostLms) {
-		return getRequiredConfigValue(hostLms.getClientConfig(), getName());
+		return getRequiredConfigValue(hostLms.getClientConfig(), getName(), hostLms.getCode());
 	}
 
-	private static String getRequiredConfigValue(Map<String, Object> clientConfig, String key) {
+	private static String getRequiredConfigValue(Map<String, Object> clientConfig, String key,
+		String hostLmsCode) {
+
 		final var optionalConfigValue = getAsOptionalString(clientConfig, key);
 
 		if (optionalConfigValue.isEmpty()) {
-			throw new IllegalArgumentException("Missing required configuration property: \"" + key + "\"");
+			throw new IllegalArgumentException(missingConfigurationMessage(key, hostLmsCode));
 		}
 
 		return optionalConfigValue.get();
+	}
+
+	public static String missingConfigurationMessage(String key, String hostLmsCode) {
+		return "Missing required configuration property: \"" + key + "\" on Host LMS \"" + hostLmsCode + "\"";
 	}
 
 	public static class IntegerHostLmsPropertyDefinition extends HostLmsPropertyDefinition {

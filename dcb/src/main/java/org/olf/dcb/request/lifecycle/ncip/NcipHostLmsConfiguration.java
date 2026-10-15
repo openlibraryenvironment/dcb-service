@@ -48,7 +48,7 @@ final class NcipHostLmsConfiguration {
 	String ncipSystemIdFor(HostLms hostLms) {
 		return findNcipSystemId(hostLms.getClientConfig())
 			.orElseThrow(() -> new IllegalArgumentException(
-				"Missing required configuration property: \"" + NCIP_SYSTEM_ID_KEBAB_KEY + "\""));
+				HostLmsPropertyDefinition.missingConfigurationMessage(NCIP_SYSTEM_ID_KEBAB_KEY, hostLms.getCode())));
 	}
 
 	String ncipAgencyIdFor(HostLms hostLms) {
