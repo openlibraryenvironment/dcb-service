@@ -246,6 +246,24 @@ class StatsQueriesTests {
 			.build());
 	}
 
+	/**
+	 * A cluster as the clustering service builds one rather than through the shared fixture:
+	 * the title queries filter `cr.is_deleted IS NULL`, and a live cluster leaves the flag
+	 * unset - only a merged-away one sets it. The fixture writes FALSE, which the filter
+	 * excludes, so a cluster made that way is invisible to them.
+	 */
+	private UUID saveLiveCluster(String title) {
+		final var id = UUID.randomUUID();
+		clusterRecordFixture.createClusterRecord(ClusterRecord.builder()
+			.id(id)
+			.title(title)
+			.bibs(java.util.Set.of())
+			.dateCreated(java.time.Instant.now())
+			.dateUpdated(java.time.Instant.now())
+			.build());
+		return id;
+	}
+
 	private PatronRequest saveRequestForCluster(Status status, String borrower, UUID clusterId) {
 		return patronRequestsFixture.savePatronRequest(PatronRequest.builder()
 			.id(UUID.randomUUID())
@@ -584,18 +602,7 @@ class StatsQueriesTests {
 	 */
 	@Test
 	void mostRequestedTitlesCarriesTheClusterItCounted() {
-		// Built as the clustering service builds one rather than through the shared
-		// fixture: the query filters `cr.is_deleted IS NULL`, and a live cluster leaves the
-		// flag unset - only a merged-away one sets it. The fixture writes FALSE, which the
-		// filter excludes, so a cluster made that way is invisible to this query.
-		final var wanted = UUID.randomUUID();
-		clusterRecordFixture.createClusterRecord(ClusterRecord.builder()
-			.id(wanted)
-			.title("Brain of the Firm")
-			.bibs(java.util.Set.of())
-			.dateCreated(java.time.Instant.now())
-			.dateUpdated(java.time.Instant.now())
-			.build());
+		final var wanted = saveLiveCluster("Brain of the Firm");
 
 		saveRequestForCluster(LOANED, "LIB_A", wanted);
 		saveRequestForCluster(LOANED, "LIB_A", wanted);
@@ -606,6 +613,28 @@ class StatsQueriesTests {
 		assertThat(page.getContent(), hasSize(1));
 		assertThat(page.getContent().get(0).getClusterId(), equalTo(wanted));
 		assertThat(page.getContent().get(0).getRequestCount(), equalTo(2));
+	}
+
+	@Test
+	void mostRequestedTitlesAreTheMostRequestedFirst() {
+		// Saved least-requested first, so the order they were written is the wrong answer
+		final var clusters = new java.util.ArrayList<UUID>();
+		for (int requests = 1; requests <= 5; requests++) {
+			final var cluster = saveLiveCluster("Requested " + requests + " times");
+			clusters.add(cluster);
+			for (int i = 0; i < requests; i++) {
+				saveRequestForCluster(LOANED, "LIB_A", cluster);
+			}
+		}
+
+		final var page = singleValueFrom(patronRequestRepository
+			.findMostRequestedTitles(null, null, null, Pageable.from(0, 2)));
+
+		assertThat(page.getContent(), hasSize(2));
+		assertThat(page.getContent().get(0).getClusterId(), equalTo(clusters.get(4)));
+		assertThat(page.getContent().get(0).getRequestCount(), equalTo(5));
+		assertThat(page.getContent().get(1).getClusterId(), equalTo(clusters.get(3)));
+		assertThat(page.getContent().get(1).getRequestCount(), equalTo(4));
 	}
 
 	// --- turnaround for library / consortium / combinations ------------------
