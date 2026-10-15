@@ -26,6 +26,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
@@ -136,7 +137,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// The Koha server, not the Host LMS code: several DCB Host LMS records can
 		// point at one Koha, and returning the code would hide that from the
 		// same-server checks entirely.
-		return qualifySystemIdentity(config.getApiUrl().resolve("/").toString());
+		return qualifySystemIdentity(KohaApiClientImpl.resolveBelow(config.getApiUrl(), URI.create("/")).toString());
 	}
 
 	@Override

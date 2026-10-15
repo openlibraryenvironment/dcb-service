@@ -163,6 +163,23 @@ class HostLmsClientIdentityTests {
 		}
 
 		@Test
+		void shouldDistinguishTwoKohasServedBelowDifferentPrefixesOnOneHost() {
+			final var first = kohaClient("KOHA-NORTH", "https://shared.koha.example.com/north/api/v1");
+			final var second = kohaClient("KOHA-SOUTH", "https://shared.koha.example.com/south/api/v1");
+
+			assertThat("Kohas below different prefixes are separate servers",
+				first.compareTo(second), is(not(0)));
+		}
+
+		@Test
+		void shouldTreatTheApiRootAsPartOfNoPrefix() {
+			final var bare = kohaClient("KOHA-NORTH", "https://shared.koha.example.com");
+			final var withApiRoot = kohaClient("KOHA-SOUTH", "https://shared.koha.example.com/api/v1/");
+
+			assertThat(bare.compareTo(withApiRoot), is(0));
+		}
+
+		@Test
 		void shouldDistinguishSeparateKohaServers() {
 			final var first = kohaClient("KOHA-NORTH", "https://north.koha.example.com");
 			final var second = kohaClient("KOHA-SOUTH", "https://south.koha.example.com");

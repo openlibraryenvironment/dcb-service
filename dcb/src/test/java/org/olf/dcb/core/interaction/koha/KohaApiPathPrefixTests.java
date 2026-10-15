@@ -17,7 +17,10 @@ class KohaApiPathPrefixTests {
 		"https://host/api/v1/,          https://host/api/v1/patrons?cardnumber=1",
 		"https://host/koha,             https://host/koha/api/v1/patrons?cardnumber=1",
 		"https://host/koha/api/v1,      https://host/koha/api/v1/patrons?cardnumber=1",
-		"https://host:8443/koha/api/v1/, https://host:8443/koha/api/v1/patrons?cardnumber=1"
+		"https://host:8443/koha/api/v1/, https://host:8443/koha/api/v1/patrons?cardnumber=1",
+		"https://host/api,              https://host/api/v1/patrons?cardnumber=1",
+		"https://host/API/v1,           https://host/api/v1/patrons?cardnumber=1",
+		"https://host/koha/api,         https://host/koha/api/v1/patrons?cardnumber=1"
 	})
 	void shouldKeepThePathTheApiIsServedBelow(String apiUrl, String expected) {
 		assertThat(KohaApiClientImpl.resolveBelow(URI.create(apiUrl),

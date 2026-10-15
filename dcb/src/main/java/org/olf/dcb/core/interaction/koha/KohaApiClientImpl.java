@@ -170,12 +170,12 @@ public class KohaApiClientImpl implements KohaApiClient {
 	}
 
 	// RelativeUriResolver lets an absolute path replace the base path, which dropped the prefix
-	// of a Koha served below one. A trailing /api/v1 is what the form's example ended in, and
-	// every path here starts with it
+	// of a Koha served below one. A trailing /api or /api/v1, in any case, names the API root, not a
+	// prefix: every path here starts with /api/v1
 	static URI resolveBelow(URI apiUrl, URI apiPath) {
 		final var prefix = Objects.requireNonNullElse(apiUrl.getRawPath(), "")
 			.replaceAll("/+$", "")
-			.replaceAll("/api/v1$", "");
+			.replaceAll("(?i)/api(/v1)?$", "");
 
 		return RelativeUriResolver.resolve(apiUrl, URI.create(prefix + apiPath));
 	}
