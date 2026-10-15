@@ -254,6 +254,33 @@ class HostLmsConfigValidatorTests {
 	}
 
 	@Test
+	void shouldRefusePolarisIdsThatAreNotWholeNumbers() {
+		final var config = polarisConfig();
+		config.put("logon-user-id", "staff-user");
+		final var item = polarisItemConfig();
+		item.put("fine-code-id", "7a");
+		item.put("av-renewal-limit", "two");
+		config.put("item", item);
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(POLARIS, config));
+
+		assertThat(exception.getMessage(), containsString(
+			"These must be whole numbers: logon-user-id, item.fine-code-id, item.av-renewal-limit"));
+	}
+
+	@Test
+	void shouldAcceptPolarisIdsWrittenAsNumbersOrAsText() {
+		final var config = polarisConfig();
+		final var item = polarisItemConfig();
+		item.put("fine-code-id", " 7 ");
+		item.put("av-renewal-limit", 2);
+		config.put("item", item);
+
+		assertDoesNotThrow(() -> validator.validate(POLARIS, config));
+	}
+
+	@Test
 	void shouldRefuseAnyPolarisBorrowerLendingFlow() {
 		for (String flow : List.of("ILL", "STANDARD")) {
 			final var config = polarisConfig();
@@ -387,8 +414,8 @@ class HostLmsConfigValidatorTests {
 		config.put("access-id", "access-id");
 		config.put("access-key", "access-key");
 		config.put("domain-id", "domain-id");
-		config.put("logon-branch-id", "branch-id");
-		config.put("logon-user-id", "user-id");
+		config.put("logon-branch-id", "73");
+		config.put("logon-user-id", 1);
 		config.put("staff-username", "staff");
 		config.put("staff-password", "password");
 		config.put("default-agency-code", "agency");

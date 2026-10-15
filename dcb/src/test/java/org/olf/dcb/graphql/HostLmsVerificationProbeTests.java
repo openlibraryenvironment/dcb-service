@@ -111,6 +111,18 @@ class HostLmsVerificationProbeTests {
 		assertThat(configurationStatus(appliance), is("Missing: ncipSystemId"));
 	}
 
+	@Test
+	void shouldNameAPolarisIdThatIsNotANumberAndAMethodPolarisDoesNotImplement() {
+		final var polaris = hostLmsFixture.createPolarisHostLms("probe-polaris", "staff",
+			"password", POLARIS_BASE_URL, "DOMAIN", "access-id", "access-key", "agency", 73,
+			Map.of("item", Map.of("ill-location-id", "73", "fine-code-id", "7a", "history-action-id", "6",
+				"shelving-scheme-id", "3", "loan-period-code-id", "9", "av-loan-period-code-id", "9",
+				"renewal-limit", "0", "item-agency-resolution-method", "LocationID")));
+
+		assertThat(configurationStatus(polaris), is("Missing: item.fine-code-id (not a whole number), "
+			+ "item.item-agency-resolution-method (not one of Legacy, LocationId)"));
+	}
+
 	// Polaris reads the organisation when the client is built, so no client exists to ask
 	@Test
 	void shouldSayWhenTheConfigCannotEvenBuildAClient() {

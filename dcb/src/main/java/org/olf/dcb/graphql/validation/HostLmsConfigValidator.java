@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 
+import org.olf.dcb.core.interaction.polaris.PolarisConfig;
 import org.olf.dcb.core.model.DerivedLoanPolicy;
 
 import io.micronaut.core.util.StringUtils;
@@ -216,23 +217,49 @@ public class HostLmsConfigValidator {
 		}
 
 		throwIfMissing("Polaris", missing);
+		validatePolarisWholeNumbers(config, item);
 		validatePolarisShelfLocationPolicies(config);
 		validatePolarisItemAgencyResolutionMethod(config);
 		refusePolarisBorrowerLendingFlow(config);
 		validateVirtualPatronEmail("Polaris", config);
 	}
 
-	// PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS; any other value silently resolved items' agency by shelf location
-	private static final List<String> POLARIS_ITEM_AGENCY_RESOLUTION_METHODS = List.of("Legacy", "LocationId");
+	// PolarisConfig reads these as Integer, so a value that is not one fails the first request that needs it
+	private void validatePolarisWholeNumbers(Map<String, Object> config, Map<String, Object> item) {
+		final var notWholeNumbers = new ArrayList<String>();
+
+		for (String key : List.of("logon-branch-id", "logon-user-id")) {
+			checkWholeNumber(config, key, "", notWholeNumbers);
+		}
+		for (String key : POLARIS_REQUIRED_ITEM_KEYS) {
+			checkWholeNumber(item, key, "item.", notWholeNumbers);
+		}
+		checkWholeNumber(item, "av-renewal-limit", "item.", notWholeNumbers);
+
+		if (!notWholeNumbers.isEmpty()) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Invalid Polaris Configuration. These must be whole numbers: " + String.join(", ", notWholeNumbers));
+		}
+	}
+
+	private static void checkWholeNumber(Map<String, Object> config, String key, String keyPrefix,
+		List<String> notWholeNumbers) {
+
+		if (isPresent(config, key) && !(config.get(key) instanceof Integer)
+			&& !config.get(key).toString().strip().matches("-?\\d{1,9}")) {
+
+			notWholeNumbers.add(keyPrefix + key);
+		}
+	}
 
 	private void validatePolarisItemAgencyResolutionMethod(Map<String, Object> config) {
 		final var item = nestedObject(config, "item");
 		final var method = item != null ? item.get("item-agency-resolution-method") : null;
 
-		if (method != null && !POLARIS_ITEM_AGENCY_RESOLUTION_METHODS.contains(method.toString())) {
+		if (method != null && !PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS.contains(method.toString())) {
 			throw new HttpStatusException(HttpStatus.BAD_REQUEST, String.format(
 				"Invalid Polaris Configuration. 'item.item-agency-resolution-method' must be one of %s, not '%s'.",
-				String.join(", ", POLARIS_ITEM_AGENCY_RESOLUTION_METHODS), method));
+				String.join(", ", PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS), method));
 		}
 	}
 

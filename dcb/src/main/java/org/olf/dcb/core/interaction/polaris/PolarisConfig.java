@@ -3,6 +3,8 @@ package org.olf.dcb.core.interaction.polaris;
 import org.olf.dcb.core.interaction.VirtualPatronEmail;
 
 import java.time.Duration;
+import java.util.Optional;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -299,7 +301,7 @@ public class PolarisConfig {
 
 	/**
 	 * Legacy (shelf location description) or LocationId (the DCB-1675 Location mapping). Legacy
-	 * whenever the item config or the value is absent: no strategy leaves items with no agency.
+	 * whenever the item config or the value is absent.
 	 */
 	public String getItemAgencyResolutionMethod() {
 		final var value = getNestedProperty(getItem(), ItemConfig::getItemAgencyResolutionMethod);
@@ -326,18 +328,26 @@ public class PolarisConfig {
 		reads.put("item.av-loan-period-code-id", this::getItemAvLoanPeriodCodeId);
 		reads.put("item.renewal-limit", this::getItemRenewalLimit);
 
-		return reads.entrySet().stream()
-			.filter(read -> isMissing(read.getValue()))
-			.map(Map.Entry::getKey)
-			.toList();
+		final var problems = new ArrayList<String>();
+		reads.forEach((key, read) -> problemWith(key, read).ifPresent(problems::add));
+
+		// HostLmsConfigValidator refuses any other method; one stored without it resolves as Legacy
+		if (!ITEM_AGENCY_RESOLUTION_METHODS.contains(getItemAgencyResolutionMethod())) {
+			problems.add("item.item-agency-resolution-method (not one of "
+				+ String.join(", ", ITEM_AGENCY_RESOLUTION_METHODS) + ")");
+		}
+
+		return problems;
 	}
 
-	private static boolean isMissing(Supplier<?> read) {
+	private static Optional<String> problemWith(String key, Supplier<?> read) {
 		try {
 			read.get();
-			return false;
+			return Optional.empty();
 		} catch (PolarisConfigurationException missing) {
-			return true;
+			return Optional.of(key);
+		} catch (NumberFormatException notANumber) {
+			return Optional.of(key + " (not a whole number)");
 		}
 	}
 
