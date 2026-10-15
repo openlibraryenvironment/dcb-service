@@ -15,6 +15,7 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.model.Location;
 import org.olf.dcb.request.lifecycle.ncip.NcipIdentityConfiguration;
 import org.olf.dcb.request.lifecycle.ncip.peerauth.DcbPeerAuthProperties;
 import org.olf.dcb.request.lifecycle.ncip.profile.api.DcbProfileRegistrationApi;
@@ -101,6 +102,25 @@ class DcbProfileRegistrationServiceTests {
 		assertEquals(List.of("BASIC/BARCODE+PIN"), response.policy().allowedAuthProfiles());
 		verify(readinessService).requireReady();
 		verify(membershipRepository).save(any(DcbProfileMembership.class));
+	}
+
+	@Test
+	void aPickupLocationIsTypedPickupSoDiscoveryListsIt() {
+		DcbProfileRegistrationService service = service(
+			mock(DcbProfileMembershipRepository.class), mock(DcbProfileReadinessService.class));
+		DcbProfileMembership membership = DcbProfileMembership.builder()
+			.policy(Map.of("agencyCode", "tech-demo-001"))
+			.build();
+
+		Location pickup = service.location(membership, null, null, null,
+			Map.of("sourceCode", "main / desk", "dcbCode", "TD-DESK", "pickup", true, "supplying", true));
+		Location shelving = service.location(membership, null, null, null,
+			Map.of("sourceCode", "main / stacks", "dcbCode", "TD-STACKS", "pickup", false, "supplying", true));
+
+		assertEquals("PICKUP", pickup.getType());
+		assertTrue(pickup.getIsPickup());
+		assertEquals("LIBRARY", shelving.getType());
+		assertFalse(shelving.getIsPickup());
 	}
 
 	private static DcbProfileRegistrationService service(
