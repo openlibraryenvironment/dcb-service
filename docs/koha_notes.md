@@ -83,6 +83,11 @@ Beyond the circulation keys `KohaClientConfig` requires (`api-url`,
 | `oai-set` | no | setSpec, only to harvest a subset |
 | `oai-path` | no | Defaults to `/cgi-bin/koha/oai.pl`; override only where the site rewrites URLs |
 
+`api-url` is where Koha is served, with or without `/api` or `/api/v1` on the
+end, in any case: `https://staff.example.org`, `https://staff.example.org/api` and
+`https://example.org/koha/api/v1` all work. A path in front of the API root, such
+as `/koha`, is kept, and it is part of what identifies the server.
+
 **`base-url` is not a duplicate of `api-url`.** `oai.pl` is served by the OPAC;
 the REST API is commonly reached through the staff interface. Neither key can
 stand in for the other, and Koha is the only ILS in DCB that needs both.
@@ -508,6 +513,12 @@ value mappings only. Use `patronType` reference value mappings.
 Get the codes from Administration → Patron categories, or
 `GET /api/v1/patron_categories`.
 
+A visiting patron whose DCB patron type has no mapping yet is created in the
+category named by `virtual-patron-category`, `DCB` when unset. Koha refuses the
+patron unless that category exists, so create it or point the setting at one
+that does. The Host LMS configuration check reports it as missing when it is not
+in Koha's list.
+
 ```csv
 fromContext,fromCategory,fromValue,toContext,toCategory,toValue
 KOHA-EXAMPLE,patronType,AD,DCB,patronType,ADULT
@@ -636,3 +647,21 @@ The mappings and the pickup location are only proven together, by a request:
 
 `KohaMappingAndPickupLocationTests` covers all of the above against a stand-in
 Koha, so a change that breaks one of these lookups fails there first.
+
+## Virtual patron notices
+
+The member system sends a virtual patron hold and pickup notices like any other
+patron. Set `virtual-patron-email` to a mailbox the consortium reads, and the
+notices of every virtual patron created after that go there; one created before
+keeps the address it was created with. Without it they have no address, and a
+value that is not an address is not sent. It must be an operational
+address, never a patron's own: every virtual patron on this system shares it.
+
+## Stopping renewals
+
+When the owning library places a hold on an item DCB has lent, DCB sets the
+item's collection code to `no-renew-collection-code` (default `DCB_NO_RENEW`).
+Koha's `ItemsDeniedRenewal` preference must name that code. DCB also adds
+`do-not-renew-note` to the item's internal notes, so staff know why. The default
+is "Hold placed by owning library. Do not renew." Set it in the language this
+library's staff work in.

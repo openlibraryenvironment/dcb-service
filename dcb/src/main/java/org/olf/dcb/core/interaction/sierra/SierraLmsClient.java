@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
+
 import static io.micronaut.core.util.StringUtils.isEmpty;
 import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static java.lang.Boolean.FALSE;
@@ -152,6 +154,9 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_PIN = stringPropertyDefinition(
 		"virtual-patron-pin", "Virtual patrons pin to use", FALSE);
 
+	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_EMAIL = stringPropertyDefinition(
+		VirtualPatronEmail.SETTING, "Consortium mailbox for virtual patrons' notices", FALSE);
+
 	private static final HostLmsPropertyDefinition PATRON_SEARCH_TAG = stringPropertyDefinition(
 		"patron-search-tag", "VarFieldTag to search for patron by", FALSE);
 
@@ -213,20 +218,24 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		this.consortiumService = consortiumService;
 	}
 
+	public static final int DEFAULT_GET_HOLDS_RETRY_ATTEMPTS = 25;
+	public static final int DEFAULT_PLACE_HOLD_DELAY = 2;
+	public static final int DEFAULT_GET_HOLD_DELAY = 1;
+
 	private Integer getGetHoldsRetryAttempts(Map<String, Object> clientConfig) {
-		final var retries = GET_HOLDS_RETRY_ATTEMPTS_PROPERTY.getOptionalValueFrom(clientConfig, 25);
+		final var retries = GET_HOLDS_RETRY_ATTEMPTS_PROPERTY.getOptionalValueFrom(clientConfig, DEFAULT_GET_HOLDS_RETRY_ATTEMPTS);
 		log.info("Get holds retry attempts set to {} retries for HostLMS {}", retries, lms.getName());
 		return retries;
 	}
 
 	private Integer getPlaceHoldDelay(Map<String, Object> clientConfig) {
-		final var delay = GET_PLACE_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, 2);
+		final var delay = GET_PLACE_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, DEFAULT_PLACE_HOLD_DELAY);
 		log.info("Place hold delay set to {} seconds for HostLMS {}", delay, lms.getName());
 		return delay;
 	}
 
 	private Integer getFetchingHoldDelay(Map<String, Object> clientConfig) {
-		final var delay = GET_FETCHING_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, 1);
+		final var delay = GET_FETCHING_HOLD_DELAY_PROPERTY.getOptionalValueFrom(clientConfig, DEFAULT_GET_HOLD_DELAY);
 		log.info("Fetching hold delay set to {} seconds for HostLMS {}", delay, lms.getName());
 		return delay;
 	}
@@ -254,11 +263,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			stringPropertyDefinition("key", "Key for this system", TRUE),
 			PAGE_SIZE_PROPERTY,
 			stringPropertyDefinition("secret", "Secret for this Sierra system", TRUE),
-			booleanPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE),
+			booleanPropertyDefinition("ingest", "Enable record harvesting for this source", FALSE),
 			GET_HOLDS_RETRY_ATTEMPTS_PROPERTY,
 			GET_PLACE_HOLD_DELAY_PROPERTY,
 			GET_FETCHING_HOLD_DELAY_PROPERTY,
-			VIRTUAL_PATRON_PIN);
+			VIRTUAL_PATRON_PIN,
+			VIRTUAL_PATRON_EMAIL,
+			stringPropertyDefinition(HostLmsSierraApiClient.API_VERSION,
+				"Sierra REST API version, one of " + HostLmsSierraApiClient.API_VERSIONS, FALSE));
 	}
 
   public Flux<SourceRecord> getChunk(JsonNode parameters) {
@@ -800,6 +812,14 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.empty();
 	}
 
+	static final List<String> AUTH_PROFILES = List.of("BASIC/BARCODE+PIN", "BASIC/BARCODE+NAME",
+		"BASIC/UNIQUE-ID+PIN", "BASIC/UNIQUE-ID+NAME");
+
+	@Override
+	public List<String> supportedAuthProfiles() {
+		return AUTH_PROFILES;
+	}
+
 	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		log.info("{} attempt patronAuth({})", lms.getCode(), authProfile);
@@ -809,7 +829,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			case "BASIC/BARCODE+NAME" -> validatePatronByIDAndName(patronPrinciple, secret, "b");
 			case "BASIC/UNIQUE-ID+PIN" -> validatePatronCredentials(patronPrinciple, secret,"u");
 			case "BASIC/UNIQUE-ID+NAME" -> validatePatronByIDAndName(patronPrinciple, secret, "u");
-			default -> Mono.empty();
+			case null, default -> Mono.error(
+				new UnsupportedAuthProfileException(lms.getCode(), authProfile, AUTH_PROFILES));
 		};
 	}
 
@@ -945,6 +966,10 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
 					.expirationDate(patronExpirationDate)
 					.pin(getVirtualPatronPin(getConfig()))
+					.emails(Optional.ofNullable(VirtualPatronEmail.addressOrNull(
+							VIRTUAL_PATRON_EMAIL.getOptionalValueFrom(getConfig(), null)))
+						.map(List::of)
+						.orElse(null))
 					.build();
 
 				return Mono.from(client.patrons(patronPatch))
@@ -2114,7 +2139,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		// Uri "toString" behaviour will sometimes return the string provided at initialization.
 		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
 		// will force the toString method to construct a new string representation, meaning it's more comparable.
-		return qualifySystemIdentity(client.getRootUri().toString());
+		return qualifySystemIdentity(HostLmsSierraApiClient.serverRootUriFor(lms.getClientConfig()).toString());
 	}
 
 	public R2dbcOperations getR2dbcOperations() {

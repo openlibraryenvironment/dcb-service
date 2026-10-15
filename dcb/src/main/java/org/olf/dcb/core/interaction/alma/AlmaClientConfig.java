@@ -38,6 +38,9 @@ public class AlmaClientConfig {
 			"Item policy DCB sets to deny renewal, matching a loan rule in this Alma that disallows it", FALSE);
 
 	public static final String DEFAULT_NO_RENEW_ITEM_POLICY = "DCB_NO_RENEW";
+	public static final String DEFAULT_ITEM_POLICY = "BOOK";
+	public static final String DEFAULT_CIRC_DESK = "DEFAULT_CIRC_DESK";
+	public static final String DEFAULT_USER_IDENTIFIER = "INST_ID";
 
 	private static final HostLmsPropertyDefinition PICKUP_CIRC_DESK_SETTING
 		= stringPropertyDefinition("pickup-circ-desk", "Pickup circ desk for this ALMA system", FALSE);

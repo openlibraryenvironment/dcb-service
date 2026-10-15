@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.olf.dcb.core.interaction.UnsupportedAuthProfileException;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
@@ -143,7 +144,7 @@ class AlmaHostLmsClientPatronAuthTests {
 
 	@Test
 	void shouldRefuseAnAuthProfileAlmaCannotVerify() {
-		final var error = assertThrows(IllegalStateException.class,
+		final var error = assertThrows(UnsupportedAuthProfileException.class,
 			() -> sut.patronAuth("BASIC/BARCODE+NAME", "BAR1", "Jane Doe").block());
 
 		assertThat(error.getMessage().contains("BASIC/BARCODE+NAME"), is(true));

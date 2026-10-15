@@ -9,7 +9,12 @@ import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.storage.RawSourceRepository;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.uri.UriBuilder;
@@ -29,9 +34,15 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 
 	private static final String PARAM_RECORD_SYNTAX = "recordSyntax";
 
+	public static final String DEFAULT_RECORD_SYNTAX = "oai_dc";
+
 	private static final String UUID5_PREFIX = "ingest-source:folio-oai";
 
 	private static final String DEFAULT_SUPPRESSION_RULESET_NAME = "folio-default";
+
+	private static final String CONFIG_METADATA_PREFIX = "metadata-prefix";
+
+	public static final String DEFAULT_METADATA_PREFIX = "marc21_withholdings";
 
 	private final String recordSyntax;
 	
@@ -48,11 +59,11 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 		ObjectRulesService objectRulesService,
 		RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService
 	) {
-		super(hostLms, rawSourceRepository, client, conversionService, processStateService, r2dbcOperations, objectMapper, objectRulesService, cacheInvalidator, hostLmsService);
+		super(withDefaultMetadataPrefix(hostLms), rawSourceRepository, client, conversionService, processStateService, r2dbcOperations, objectMapper, objectRulesService, cacheInvalidator, hostLmsService);
 
-		recordSyntax = MapUtils.getAsOptionalString(
-			hostLms.getClientConfig(), CONFIG_RECORD_SYNTAX
-		).get();
+		recordSyntax = MapUtils.getAsOptionalString(hostLms.getClientConfig(), CONFIG_RECORD_SYNTAX)
+			.filter(StringUtils::hasText)
+			.orElse(DEFAULT_RECORD_SYNTAX);
 		
 		apiKey = MapUtils.getAsOptionalString(
 			hostLms.getClientConfig(), CONFIG_API_KEY
@@ -60,6 +71,38 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 
 		setIdentifierSeparator("/");
 		setUuid5Prefix(UUID5_PREFIX);
+	}
+
+	/**
+	 * The FOLIO OAI-PMH prefix that carries holdings, which is what a FOLIO harvest has always
+	 * been configured with. The shared base class requires the key and is not the place for a
+	 * FOLIO default.
+	 */
+	private static HostLms withDefaultMetadataPrefix(HostLms hostLms) {
+		final var stored = hostLms.getClientConfig();
+
+		if (stored != null && MapUtils.getAsOptionalString(stored, CONFIG_METADATA_PREFIX)
+			.filter(StringUtils::hasText).isPresent()) {
+
+			return hostLms;
+		}
+
+		final var config = new HashMap<String, Object>();
+		if (stored != null) {
+			config.putAll(stored);
+		}
+		config.put(CONFIG_METADATA_PREFIX, DEFAULT_METADATA_PREFIX);
+
+		return new HostLms() {
+			@Override public UUID getId() { return hostLms.getId(); }
+			@Override public String getCode() { return hostLms.getCode(); }
+			@Override public String getName() { return hostLms.getName(); }
+			@Override public Class<?> getClientType() { return hostLms.getClientType(); }
+			@Override public Class<?> getIngestSourceType() { return hostLms.getIngestSourceType(); }
+			@Override public String getSuppressionRulesetName() { return hostLms.getSuppressionRulesetName(); }
+			@Override public String getItemSuppressionRulesetName() { return hostLms.getItemSuppressionRulesetName(); }
+			@Override public Map<String, Object> getClientConfig() { return config; }
+		};
 	}
 
 	@Override

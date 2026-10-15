@@ -5,6 +5,8 @@ import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.type.Argument;
+import io.micronaut.core.util.StringUtils;
+import static services.k_int.utils.MapUtils.getAsOptionalString;
 import lombok.extern.slf4j.Slf4j;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
@@ -97,6 +99,20 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 				NcipHostLmsConfiguration.NCIP_SYSTEM_ID,
 				NcipHostLmsConfiguration.NCIP_AGENCY_ID).stream(),
 			NcipPeerAuthProfile.settings().stream()).toList();
+	}
+
+	// The NCIP SystemId is read under three spellings (NcipHostLmsConfiguration.findNcipSystemId);
+	// the by-name check HostLmsClient makes knows only one
+	@Override
+	public List<String> missingConfiguration() {
+		final var systemIdFound = hostLmsConfiguration.findNcipSystemId(getConfig()).isPresent();
+
+		return getSettings().stream()
+			.filter(setting -> Boolean.TRUE.equals(setting.getMandatory()))
+			.map(HostLmsPropertyDefinition::getName)
+			.filter(name -> !(systemIdFound && NcipHostLmsConfiguration.NCIP_SYSTEM_ID_KEY.equals(name)))
+			.filter(name -> getAsOptionalString(getConfig(), name).filter(StringUtils::hasText).isEmpty())
+			.toList();
 	}
 
 	/**

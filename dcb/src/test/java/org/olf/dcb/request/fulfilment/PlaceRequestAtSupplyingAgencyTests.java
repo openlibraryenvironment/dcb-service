@@ -50,6 +50,7 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.Patron;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtSupplyingAgencyStateTransition;
@@ -465,10 +466,18 @@ class PlaceRequestAtSupplyingAgencyTests {
 		return patron;	
 	}
 
+	// Identities come back in no fixed order, so pick by role rather than position
+	private static PatronIdentity homeIdentityOf(Patron patron) {
+		return patron.getPatronIdentities().stream()
+			.filter(identity -> Boolean.TRUE.equals(identity.getHomeIdentity()))
+			.findFirst()
+			.orElseThrow();
+	}
+
 	private PatronRequest savePatronRequest(UUID patronRequestId, Patron patron,
 		UUID clusterRecordId) {
 
-		final var requestingIdentity = patron.getPatronIdentities().get(1);
+		final var requestingIdentity = homeIdentityOf(patron);
 
 		var patronRequest = PatronRequest.builder()
 			.id(patronRequestId)

@@ -1,9 +1,15 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
+
 import java.time.Duration;
+import java.util.Optional;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
 
@@ -60,6 +66,8 @@ public class PolarisConfig {
 	private String borrowerLendingFlow;
 	@JsonProperty("hold-fetching-delay")
 	private Integer holdFetchingDelay;
+	@JsonProperty(VirtualPatronEmail.SETTING)
+	private String virtualPatronEmail;
 	@JsonProperty("hold-fetching-max-retry")
 	private Integer holdFetchingMaxRetry;
 	/**
@@ -97,7 +105,8 @@ public class PolarisConfig {
 	@JsonProperty("harvest-watermark-overlap-minutes")
 	private Integer harvestWatermarkOverlapMinutes;
 	public Duration getHarvestWatermarkOverlap() {
-		return Duration.ofMinutes(valueWithDefault(harvestWatermarkOverlapMinutes, Integer.class, 15));
+		return Duration.ofMinutes(valueWithDefault(harvestWatermarkOverlapMinutes, Integer.class,
+			DEFAULT_HARVEST_WATERMARK_OVERLAP_MINUTES));
 	}
 
 	/**
@@ -151,6 +160,11 @@ public class PolarisConfig {
 
 		return valueWithDefault(value, String.class, "1");
 	}
+
+	public static final String DEFAULT_PATRON_BARCODE_PREFIX = "DCB-";
+	public static final int DEFAULT_HOLD_FETCHING_DELAY = 5;
+	public static final int DEFAULT_HOLD_FETCHING_MAX_RETRY = 10;
+	public static final int DEFAULT_HARVEST_WATERMARK_OVERLAP_MINUTES = 15;
 
 	public String getPatronBarcodePrefix(String defaultValue) {
 
@@ -285,10 +299,65 @@ public class PolarisConfig {
 		return Duration.ofSeconds(valueWithDefault(this.tokenCacheTtlSeconds, Integer.class, 3600));
 	}
 
+	/**
+	 * Legacy (shelf location description) or LocationId (the DCB-1675 Location mapping). Legacy
+	 * whenever the item config or the value is absent.
+	 */
+	public String getItemAgencyResolutionMethod() {
+		final var value = getNestedProperty(getItem(), ItemConfig::getItemAgencyResolutionMethod);
+
+		return value == null || value.isBlank() ? DEFAULT_ITEM_AGENCY_RESOLUTION_METHOD : value;
+	}
+
+	public static final String DEFAULT_ITEM_AGENCY_RESOLUTION_METHOD = "Legacy";
+
+	public static final List<String> ITEM_AGENCY_RESOLUTION_METHODS = List.of("Legacy", "LocationId");
+
+	/** The keys a request reads through a required getter that this config lacks. */
+	public List<String> missingRequiredValues() {
+		final var reads = new LinkedHashMap<String, Supplier<?>>();
+		reads.put("base-url", this::getBaseUrl);
+		reads.put("logon-branch-id", this::getLogonBranchId);
+		reads.put("logon-user-id", this::getLogonUserId);
+		reads.put("services.organisation-id", this::getServicesOrganisationId);
+		reads.put("item.ill-location-id", this::getIllLocationId);
+		reads.put("item.fine-code-id", this::getItemFindCodeId);
+		reads.put("item.history-action-id", this::getItemHistoryActionId);
+		reads.put("item.shelving-scheme-id", this::getItemShelvingSchemeId);
+		reads.put("item.loan-period-code-id", this::getItemLoanPeriodCodeId);
+		reads.put("item.av-loan-period-code-id", this::getItemAvLoanPeriodCodeId);
+		reads.put("item.renewal-limit", this::getItemRenewalLimit);
+
+		final var problems = new ArrayList<String>();
+		reads.forEach((key, read) -> problemWith(key, read).ifPresent(problems::add));
+
+		// HostLmsConfigValidator refuses any other method; one stored without it resolves as Legacy
+		if (!ITEM_AGENCY_RESOLUTION_METHODS.contains(getItemAgencyResolutionMethod())) {
+			problems.add("item.item-agency-resolution-method (not one of "
+				+ String.join(", ", ITEM_AGENCY_RESOLUTION_METHODS) + ")");
+		}
+
+		return problems;
+	}
+
+	private static Optional<String> problemWith(String key, Supplier<?> read) {
+		try {
+			read.get();
+			return Optional.empty();
+		} catch (PolarisConfigurationException missing) {
+			return Optional.of(key);
+		} catch (NumberFormatException notANumber) {
+			return Optional.of(key + " (not a whole number)");
+		}
+	}
+
 	public Integer getItemAvRenewalLimit()
 	{
-		final var value = getNestedProperty(getItem(), ItemConfig::getRenewalLimit);
-		return requiredValue("AV item Renewal Limit", value, Integer.class);
+		final var value = getNestedProperty(getItem(), ItemConfig::getAvRenewalLimit);
+
+		return value != null
+			? requiredValue("AV item Renewal Limit", value, Integer.class)
+			: getItemRenewalLimit();
 	}
 
 
@@ -352,17 +421,8 @@ public class PolarisConfig {
 		@JsonProperty("ill-location-id")
 		private Object illLocationId;
 
-		/** Should enrichItemWithAgency in PolarisItemMapper use the strategy set out in DCB-1675 or the legacy 
-		 * locationCode method. Default to the DCB-1675 method. N.B. This method relies upon the catalog instance (Which
-     * may be different to the Circ Instance for shared systems, or the same for singletons) to have the required
-     * Location to Agency mapping values installed. N.B. setting this to null in config will override the default */
-		// NB: @Builder.Default is required. Without it Lombok discards the initialiser
-		// entirely for builder-constructed instances (it warns about this at compile
-		// time), so itemAgencyResolutionMethod arrives null and PolarisItemMapper's
-		// switch on it throws NullPointerException.
 		@JsonProperty("item-agency-resolution-method")
-		@Builder.Default
-		private String itemAgencyResolutionMethod = "Legacy";
+		private String itemAgencyResolutionMethod;
 	}
 
 	public String applicationServicesUriParameters() {

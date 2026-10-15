@@ -28,6 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
@@ -137,7 +138,7 @@ public class PAPIClient {
 	}
 
 	private PatronRegistration getPatronRegistration(Patron patron, Boolean namesVisible) {
-		final var patronBarcodePrefix = polarisConfig.getPatronBarcodePrefix("DCB-");
+		final var patronBarcodePrefix = polarisConfig.getPatronBarcodePrefix(PolarisConfig.DEFAULT_PATRON_BARCODE_PREFIX);
 		// Stick with the anonymised defaults, only use local names if the setting is enabled and localnames exist
 		String firstName = patron.getLocalBarcodes().get(0);
 		String lastName = patron.getUniqueIds().get(0);
@@ -163,6 +164,7 @@ public class PAPIClient {
 			.nameLast(lastName)
 			.patronCode(parseInt(patron.getLocalPatronType()))
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
+			.emailAddress(VirtualPatronEmail.addressOrNull(polarisConfig.getVirtualPatronEmail()))
 			.birthdate("1999-11-01")
 			// Stamp the address check date well into the future so the patron is born without the
 			// block Polaris otherwise derives from a past date. The create has no override, so on
@@ -469,15 +471,15 @@ public class PAPIClient {
 		final var path = createPath(PROTECTED_PARAMETERS, "search", "patrons", "boolean");
 
 		AtomicInteger retryCount = new AtomicInteger(0);
-		final var findDelay = polarisConfig.getHoldFetchingDelay(5);
-		final var maxRetry = polarisConfig.getMaxHoldFetchingRetry(10);
+		final var findDelay = polarisConfig.getHoldFetchingDelay(PolarisConfig.DEFAULT_HOLD_FETCHING_DELAY);
+		final var maxRetry = polarisConfig.getMaxHoldFetchingRetry(PolarisConfig.DEFAULT_HOLD_FETCHING_MAX_RETRY);
 
 		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_POLARIS)
 			.map(enabled -> {
 				if (enabled) {
 					// If VIRTUAL_PATRON_NAMES_POLARIS is enabled, the first name will be a real name, not the barcode.
 					// Therefore we must search by barcode index (PATB) using the full prefixed barcode.
-					final var patronBarcodePrefix = polarisConfig.getPatronBarcodePrefix("DCB-");
+					final var patronBarcodePrefix = polarisConfig.getPatronBarcodePrefix(PolarisConfig.DEFAULT_PATRON_BARCODE_PREFIX);
 					return "PATB=\"" + patronBarcodePrefix + barcode + "\"";
 				} else {
 					// If disabled, the first name is the barcode (without prefix), so we search PATNF.

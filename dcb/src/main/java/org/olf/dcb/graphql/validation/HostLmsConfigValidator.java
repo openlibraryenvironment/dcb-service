@@ -1,5 +1,9 @@
 package org.olf.dcb.graphql.validation;
 
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
+
+import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClient;
+
 import static org.olf.dcb.core.interaction.HostLmsClient.SHARED_SYSTEM;
 
 import java.util.Collections;
@@ -7,6 +11,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 
+import org.olf.dcb.core.interaction.polaris.PolarisConfig;
 import org.olf.dcb.core.model.DerivedLoanPolicy;
 
 import io.micronaut.core.util.StringUtils;
@@ -41,6 +46,10 @@ public class HostLmsConfigValidator {
 	// default FoundationClient applies.
 	private static final String PROTOCOL_NCIP = "NCIP";
 	private static final String PROTOCOL_SIP2 = "SIP2";
+
+	private static final List<String> POLARIS_REQUIRED_ITEM_KEYS = List.of("ill-location-id",
+		"fine-code-id", "history-action-id", "shelving-scheme-id", "loan-period-code-id",
+		"av-loan-period-code-id", "renewal-limit");
 
 	public void validate(String lmsClientClass, Map<String, Object> clientConfig) {
 		if (lmsClientClass == null || lmsClientClass.isBlank()) {
@@ -129,9 +138,15 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "key", missing);
 		checkPresent(config, "secret", missing);
 		checkDefaultAgencyCode(config, missing);
-		checkPresent(config, "page-size", missing);
 
 		throwIfMissing("Sierra", missing);
+		validateVirtualPatronEmail("Sierra", config);
+
+		final var apiVersion = config.get(HostLmsSierraApiClient.API_VERSION);
+		if (apiVersion != null && !HostLmsSierraApiClient.API_VERSIONS.contains(apiVersion)) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "Sierra '%s' must be one of %s, not '%s'."
+				.formatted(HostLmsSierraApiClient.API_VERSION, HostLmsSierraApiClient.API_VERSIONS, apiVersion));
+		}
 	}
 
 	private void validateAlma(Map<String, Object> config) {
@@ -161,6 +176,7 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "base-url", missing);
 		checkPresent(config, "apikey", missing);
 		checkDefaultAgencyCode(config, missing);
+
 		throwIfMissing("Folio", missing);
 	}
 
@@ -187,8 +203,73 @@ public class HostLmsConfigValidator {
 			missing.add("item (object)");
 		}
 
+		// PolarisConfig requires each of these the first time a request needs it
+		final var services = nestedObject(config, "services");
+		if (services != null) {
+			checkPresent(services, "organisation-id", missing, "services.");
+		}
+
+		final var item = nestedObject(config, "item");
+		if (item != null) {
+			for (String key : POLARIS_REQUIRED_ITEM_KEYS) {
+				checkPresent(item, key, missing, "item.");
+			}
+		}
+
 		throwIfMissing("Polaris", missing);
+		validatePolarisWholeNumbers(config, item);
 		validatePolarisShelfLocationPolicies(config);
+		validatePolarisItemAgencyResolutionMethod(config);
+		refusePolarisBorrowerLendingFlow(config);
+		validateVirtualPatronEmail("Polaris", config);
+	}
+
+	// PolarisConfig reads these as Integer, so a value that is not one fails the first request that needs it
+	private void validatePolarisWholeNumbers(Map<String, Object> config, Map<String, Object> item) {
+		final var notWholeNumbers = new ArrayList<String>();
+
+		for (String key : List.of("logon-branch-id", "logon-user-id")) {
+			checkWholeNumber(config, key, "", notWholeNumbers);
+		}
+		for (String key : POLARIS_REQUIRED_ITEM_KEYS) {
+			checkWholeNumber(item, key, "item.", notWholeNumbers);
+		}
+		checkWholeNumber(item, "av-renewal-limit", "item.", notWholeNumbers);
+
+		if (!notWholeNumbers.isEmpty()) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Invalid Polaris Configuration. These must be whole numbers: " + String.join(", ", notWholeNumbers));
+		}
+	}
+
+	private static void checkWholeNumber(Map<String, Object> config, String key, String keyPrefix,
+		List<String> notWholeNumbers) {
+
+		if (isPresent(config, key) && !(config.get(key) instanceof Integer)
+			&& !config.get(key).toString().strip().matches("-?\\d{1,9}")) {
+
+			notWholeNumbers.add(keyPrefix + key);
+		}
+	}
+
+	private void validatePolarisItemAgencyResolutionMethod(Map<String, Object> config) {
+		final var item = nestedObject(config, "item");
+		final var method = item != null ? item.get("item-agency-resolution-method") : null;
+
+		if (method != null && !PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS.contains(method.toString())) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, String.format(
+				"Invalid Polaris Configuration. 'item.item-agency-resolution-method' must be one of %s, not '%s'.",
+				String.join(", ", PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS), method));
+		}
+	}
+
+	// The ILL borrowing flow stops at placement: tracking reads the ILL request as a hold and the item as a
+	// placeholder. No consortium uses it, so it cannot be set until it is finished
+	private void refusePolarisBorrowerLendingFlow(Map<String, Object> config) {
+		if (isPresent(config, "borrower-lending-flow")) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Invalid Polaris Configuration. 'borrower-lending-flow' is not supported; remove it.");
+		}
 	}
 
 	private void validatePolarisShelfLocationPolicies(Map<String, Object> config) {
@@ -241,6 +322,15 @@ public class HostLmsConfigValidator {
 		checkPresent(config, "virtual-item-library-code", missing);
 
 		throwIfMissing("Koha", missing);
+		validateVirtualPatronEmail("Koha", config);
+	}
+
+	private void validateVirtualPatronEmail(String system, Map<String, Object> config) {
+		final var value = config.get(VirtualPatronEmail.SETTING);
+		if (value != null && !VirtualPatronEmail.isAddress(value)) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "%s '%s' must be an email address."
+				.formatted(system, VirtualPatronEmail.SETTING));
+		}
 	}
 
 	/**

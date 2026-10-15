@@ -20,6 +20,7 @@ import reactor.core.publisher.Mono;
 
 
 import java.net.URI;
+import java.util.Objects;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -165,7 +166,18 @@ public class KohaApiClientImpl implements KohaApiClient {
 	}
 
 	private URI resolve(URI relativeURI) {
-		return RelativeUriResolver.resolve(config.getApiUrl(), relativeURI);
+		return resolveBelow(config.getApiUrl(), relativeURI);
+	}
+
+	// RelativeUriResolver lets an absolute path replace the base path, which dropped the prefix
+	// of a Koha served below one. A trailing /api or /api/v1, in any case, names the API root, not a
+	// prefix: every path here starts with /api/v1
+	static URI resolveBelow(URI apiUrl, URI apiPath) {
+		final var prefix = Objects.requireNonNullElse(apiUrl.getRawPath(), "")
+			.replaceAll("/+$", "")
+			.replaceAll("(?i)/api(/v1)?$", "");
+
+		return RelativeUriResolver.resolve(apiUrl, URI.create(prefix + apiPath));
 	}
 
 	private <T> Mono<HttpResponse<T>> doExchange(MutableHttpRequest<?> request, Argument<T> argumentType) {

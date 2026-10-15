@@ -1,10 +1,14 @@
 package org.olf.dcb.api;
 
+import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
@@ -13,6 +17,11 @@ import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalId;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
+import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.BeforeAll;
@@ -34,6 +43,7 @@ import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.inject.Inject;
 import lombok.Builder;
@@ -178,26 +188,44 @@ public class PatronAuthApiTests {
 	}
 
 	@Test
-	void shouldFailWhenAuthMethodIsUnknown() {
+	void shouldReportAnUnknownAuthMethodAsAServerErrorNotAWrongPin() {
 		// Arrange
 		final var agencyCode = defineAgency("UNKNOWN");
 
 		savePatronTypeMappings();
 
 		// Act
-		final var response = authenticatePatron(agencyCode, generateBarcode(), "382655gskg");
+		final var error = assertThrows(HttpClientResponseException.class,
+			() -> authenticatePatron(agencyCode, generateBarcode(), "382655gskg"));
 
 		// Assert
-		assertThat(response.getStatus(), is(OK));
-		assertThat(response.getBody().isPresent(), is(true));
+		assertThat(error.getStatus(), is(INTERNAL_SERVER_ERROR));
+	}
 
-		final var verificationResponse = response.getBody().get();
+	@Test
+	void shouldLogAnUnknownAuthMethodOnceWithoutAStackTrace() {
+		final var agencyCode = defineAgency("UNKNOWN");
 
-		assertThat(verificationResponse.status, is("INVALID"));
-		assertThat(verificationResponse.localPatronId, is(nullValue()));
-		assertThat(verificationResponse.agencyCode, is(nullValue()));
-		assertThat(verificationResponse.systemCode, is(nullValue()));
-		assertThat(verificationResponse.homeLocationCode, is(nullValue()));
+		final var errors = errorsLoggedWhile(() -> assertThrows(HttpClientResponseException.class,
+			() -> authenticatePatron(agencyCode, generateBarcode(), "382655gskg")));
+
+		assertThat(errors, hasSize(1));
+		assertThat("no stack trace per anonymous attempt", errors.get(0).getThrowableProxy(), nullValue());
+		assertThat(errors.get(0).getFormattedMessage(), containsString("does not support auth profile \"UNKNOWN\""));
+	}
+
+	private List<ILoggingEvent> errorsLoggedWhile(Runnable action) {
+		final var rootLogger = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+		final var captured = new ListAppender<ILoggingEvent>();
+		captured.start();
+		rootLogger.addAppender(captured);
+		try {
+			action.run();
+		}
+		finally {
+			rootLogger.detachAppender(captured);
+		}
+		return captured.list.stream().filter(event -> event.getLevel() == Level.ERROR).toList();
 	}
 
 	private io.micronaut.http.HttpResponse<VerificationResponse> authenticatePatron(String agencyCode,
