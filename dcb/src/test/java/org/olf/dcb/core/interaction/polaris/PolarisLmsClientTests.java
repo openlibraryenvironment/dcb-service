@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import java.util.Map;
+
 import static java.lang.Integer.parseInt;
 import static java.lang.Long.parseLong;
 import static java.time.ZoneOffset.UTC;
@@ -106,6 +108,7 @@ import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.polaris.exceptions.PolarisConfigurationException;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.AnswerData;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.AnswerExtension;
@@ -157,6 +160,8 @@ class PolarisLmsClientTests {
 	private static final int REGISTRATION_HAS_EXPIRED_BLOCK = 100;
 	private static final String CIRCULATING_HOST_LMS_CODE = "polaris-circulating";
 	private static final int ILL_LOCATION_ID = 50;
+	// Saved without the validator, as REST and the configuration import do
+	private static final String ILL_FLOW_HOST_LMS_CODE = "polaris-ill-flow";
 
 	@Inject
 	private TestResourceLoaderProvider testResourceLoaderProvider;
@@ -183,10 +188,14 @@ class PolarisLmsClientTests {
 
 		hostLmsFixture.createPolarisHostLms(CATALOGUING_HOST_LMS_CODE, key,
 			secret, baseUrl, domain, key, secret, "default-agency-code",
-			ILL_LOCATION_ID);
+			ILL_LOCATION_ID, Map.of("virtual-patron-email", "ill-notices@consortium.example.org"));
 
 		hostLmsFixture.createPolarisHostLms(CIRCULATING_HOST_LMS_CODE, key,
 			secret, baseUrl, domain, key, secret);
+
+		hostLmsFixture.createPolarisHostLms(ILL_FLOW_HOST_LMS_CODE, key,
+			secret, baseUrl, domain, key, secret, "default-agency-code",
+			ILL_LOCATION_ID, Map.of("borrower-lending-flow", "ILL"));
 
 		mockPolarisFixture = new MockPolarisFixture(host,
 			mockServerClient, testResourceLoaderProvider);
@@ -1322,6 +1331,9 @@ class PolarisLmsClientTests {
 
 		// The patron is registered at the branch assigned to the item being requested
 		mockPolarisFixture.verifyCreatePatronBodyContains("\"PatronBranchID\":" + itemAssignedBranchId);
+
+		// Notices for the virtual patron go to the consortium's mailbox
+		mockPolarisFixture.verifyCreatePatronBodyContains("\"EmailAddress\":\"ill-notices@consortium.example.org\"");
 
 		// The patron is born with the address check date already pushed into the future, so it never
 		// carries the block Polaris derives from a past date
@@ -2511,5 +2523,23 @@ class PolarisLmsClientTests {
 				.data(extensionData)
 				.build())
 			.build();
+	}
+
+	@Test
+	void shouldRefuseEveryBorrowingStepWhenTheStoredConfigSetsTheIllFlow() {
+		final var client = hostLmsFixture.createClient(ILL_FLOW_HOST_LMS_CODE);
+
+		final var bib = assertThrows(PolarisConfigurationException.class,
+			() -> singleValueFrom(client.createBib(Bib.builder().title("Title").build())));
+		final var item = assertThrows(PolarisConfigurationException.class,
+			() -> singleValueFrom(client.createItem(CreateItemCommand.builder().build())));
+		final var hold = assertThrows(PolarisConfigurationException.class,
+			() -> singleValueFrom(client.placeHoldRequestAtBorrowingAgency(
+				PlaceHoldRequestParameters.builder().localPatronId("1").build())));
+
+		for (final var refusal : List.of(bib, item, hold)) {
+			assertThat(refusal.getMessage(), containsString(
+				"Host LMS polaris-ill-flow sets borrower-lending-flow ILL, which DCB does not support"));
+		}
 	}
 }

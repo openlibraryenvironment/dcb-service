@@ -1,5 +1,28 @@
 # Polaris notes
 
+## Settings the admin API requires
+
+Creating or changing a Polaris Host LMS is refused unless these are set, as well as the
+connection and staff settings:
+
+| Setting | What it is |
+|---|---|
+| `services.organisation-id` | The organisation Application Services calls are made as. |
+| `item.ill-location-id` | The branch virtual items are created at. Also the default branch for virtual patrons. |
+| `item.fine-code-id` | The fine code on virtual items. |
+| `item.history-action-id` | The history action recorded when a virtual item is created. |
+| `item.shelving-scheme-id` | The call number scheme on virtual items. |
+| `item.loan-period-code-id` | The loan period on virtual items. |
+| `item.av-loan-period-code-id` | The loan period on virtual audio-visual items. |
+| `item.renewal-limit` | The renewal limit on virtual items. |
+
+`item.av-renewal-limit` is optional. It sets the renewal limit on audio-visual items, and
+`item.renewal-limit` applies to them when it is not set.
+
+Earlier releases accepted a Host LMS without these and failed at the first request that read
+one. A Host LMS saved before this release keeps working, but its next change in DCB Admin,
+including rotating a key, is refused until all eight are present.
+
 ## Harvesting bibs over OAI-PMH
 
 By default DCB harvests a Polaris catalogue through the PAPI `Synch_Bibs*`
@@ -233,3 +256,12 @@ to 1 is rejected with an error naming the setting.
 
 If the listing fails part way, the sweep fails and changes nothing (`lastError`):
 a partial listing would make every unlisted bib look vanished.
+
+## Virtual patron notices
+
+The member system sends a virtual patron hold and pickup notices like any other
+patron. Set `virtual-patron-email` to a mailbox the consortium reads, and the
+notices of every virtual patron created after that go there; one created before
+keeps the address it was created with. Without it they have no address, and a
+value that is not an address is not sent. It must be an operational
+address, never a patron's own: every virtual patron on this system shares it.

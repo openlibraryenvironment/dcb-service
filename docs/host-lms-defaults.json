@@ -1,0 +1,43 @@
+{
+  "org.olf.dcb.core.interaction.alma.AlmaHostLmsClient": {
+    "default-circ-desk-code": "DEFAULT_CIRC_DESK",
+    "item-policy": "BOOK",
+    "no-renew-item-policy": "DCB_NO_RENEW",
+    "pickup-circ-desk": "DEFAULT_CIRC_DESK",
+    "user-identifier": "INST_ID"
+  },
+  "org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient": {
+    "metadata-prefix": "marc21_withholdings",
+    "record-syntax": "oai_dc"
+  },
+  "org.olf.dcb.core.interaction.koha.KohaHostLmsClient": {
+    "do-not-renew-note": "Hold placed by owning library. Do not renew.",
+    "no-renew-collection-code": "DCB_NO_RENEW",
+    "oai-path": "/cgi-bin/koha/oai.pl",
+    "virtual-patron-category": "DCB"
+  },
+  "org.olf.dcb.core.interaction.polaris.PolarisLmsClient": {
+    "enableDoubleDelete": "false",
+    "harvest-watermark-overlap-minutes": "15",
+    "hold-fetching-delay": "5",
+    "hold-fetching-max-retry": "10",
+    "item.item-agency-resolution-method": "Legacy",
+    "papi.app-id": "100",
+    "papi.lang-id": "1033",
+    "papi.org-id": "1",
+    "papi.papi-version": "v1",
+    "services.language": "eng",
+    "services.patron-barcode-prefix": "DCB-",
+    "services.product-id": "19",
+    "services.services-version": "v1",
+    "services.site-domain": "polaris",
+    "services.workstation-id": "1"
+  },
+  "org.olf.dcb.core.interaction.sierra.SierraLmsClient": {
+    "api-version": "v6",
+    "get-hold-delay": "1",
+    "get-holds-retry-attempts": "25",
+    "page-size": "1000",
+    "place-hold-delay": "2"
+  }
+}

@@ -8,7 +8,6 @@ import static io.micronaut.core.util.StringUtils.isNotEmpty;
 import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpMethod.PUT;
-import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static java.lang.Boolean.TRUE;
 import static java.util.function.Function.identity;
@@ -111,7 +110,6 @@ import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.exceptions.ResponseClosedException;
-import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.retry.annotation.Retryable;
 import io.micronaut.serde.annotation.Serdeable;
@@ -888,10 +886,16 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public List<String> supportedAuthProfiles() {
+		return List.of(AUTH_PROFILE_BASIC_BARCODE_PIN);
+	}
+
+	@Override
 	public Mono<Patron> patronAuth(String authProfile, String barcode, String secret) {
 
-		if (!isValidAuthProfile(authProfile)) {
-			return Mono.error(() -> new HttpStatusException(BAD_REQUEST, "Invalid authProfile: " + authProfile));
+		if (!AUTH_PROFILE_BASIC_BARCODE_PIN.equals(authProfile)) {
+			return Mono.error(() -> new UnsupportedAuthProfileException(getHostLmsCode(), authProfile,
+				List.of(AUTH_PROFILE_BASIC_BARCODE_PIN)));
 		}
 
 		return findPatronByBarcode(barcode)
@@ -919,10 +923,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		private PinRejected() {
 			super(null, null, false, false);
 		}
-	}
-
-	private Boolean isValidAuthProfile(String authProfile) {
-		return authProfile.equals(AUTH_PROFILE_BASIC_BARCODE_PIN);
 	}
 
 	/**

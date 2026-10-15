@@ -1,5 +1,9 @@
 package org.olf.dcb.core.interaction.sierra;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
 import static java.lang.Integer.parseInt;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -43,6 +47,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @TestInstance(PER_CLASS)
 class SierraHostLmsClientPatronTests {
 	private static final String HOST_LMS_CODE = "sierra-patron";
+	private static final String MAILBOX_HOST_LMS_CODE = "sierra-patron-mailbox";
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -77,6 +82,26 @@ class SierraHostLmsClientPatronTests {
 		hostLmsFixture.deleteAll();
 
 		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+
+		hostLmsFixture.createHostLms(UUID.randomUUID(), MAILBOX_HOST_LMS_CODE, SierraLmsClient.class,
+			Optional.empty(), Map.of("key", KEY, "secret", SECRET, "base-url", BASE_URL,
+				"virtual-patron-email", "ill-notices@consortium.example.org"));
+	}
+
+	@Test
+	void shouldCreateTheVirtualPatronWithTheConsortiumMailbox() {
+		final var uniqueId = generateNumericLocalIdAsString();
+		sierraPatronsAPIFixture.postPatronResponse(uniqueId, 4567, "https://patron-api-tests.com");
+
+		final var client = hostLmsFixture.createClient(MAILBOX_HOST_LMS_CODE);
+
+		singleValueFrom(client.createPatron(org.olf.dcb.core.interaction.Patron.builder()
+			.uniqueIds(List.of(uniqueId))
+			.localPatronType("15")
+			.localBarcodes(List.of(generateBarcode()))
+			.build()));
+
+		sierraPatronsAPIFixture.verifyCreatePatronRequestMade(uniqueId, "ill-notices@consortium.example.org");
 	}
 
 	@BeforeEach

@@ -146,6 +146,13 @@ public class SierraPatronsAPIFixture {
 		mockServer.verify(postPatronRequest(uniqueId));
 	}
 
+	public void verifyCreatePatronRequestMade(String uniqueId, String email) {
+		mockServer.verify(sierraMockServerRequests.post(PatronPatch.builder()
+			.uniqueIds(List.of(uniqueId))
+			.emails(List.of(email))
+			.build()));
+	}
+
 	public void verifyCreatePatronRequestNotMade(String uniqueId) {
 		mockServer.verifyNever(postPatronRequest(uniqueId));
 	}

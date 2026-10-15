@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.koha;
 
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
+
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.model.HostLms;
 
@@ -42,6 +44,23 @@ public class KohaClientConfig {
 
 	public static final String DEFAULT_NO_RENEW_COLLECTION_CODE = "DCB_NO_RENEW";
 
+	// The category a visiting patron is created in until patron type mappings exist. Koha
+	// refuses the patron unless a category with exactly this code exists
+	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_CATEGORY = stringPropertyDefinition(
+		"virtual-patron-category",
+		"Koha patron category for a visiting patron whose patron type has no mapping yet", FALSE);
+
+	public static final String DEFAULT_VIRTUAL_PATRON_CATEGORY = "DCB";
+
+	// Shown to the owning library's staff on the item, so it is theirs to word and translate
+	private static final HostLmsPropertyDefinition DO_NOT_RENEW_NOTE = stringPropertyDefinition(
+		"do-not-renew-note", "Internal note set on an item DCB has stopped being renewed", FALSE);
+
+	public static final String DEFAULT_DO_NOT_RENEW_NOTE = "Hold placed by owning library. Do not renew.";
+
+	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_EMAIL = stringPropertyDefinition(
+		VirtualPatronEmail.SETTING, "Consortium mailbox for virtual patrons' notices", FALSE);
+
 
 
 	private final HostLms hostLms;
@@ -63,7 +82,13 @@ public class KohaClientConfig {
 		return List.of(
 			API_URL,
 			CLIENT_ID,
-			CLIENT_SECRET
+			CLIENT_SECRET,
+			DCB_SHARING_LIBRARY_CODE,
+			VIRTUAL_ITEM_LIBRARY_CODE,
+			NO_RENEW_COLLECTION_CODE,
+			VIRTUAL_PATRON_CATEGORY,
+			VIRTUAL_PATRON_EMAIL,
+			DO_NOT_RENEW_NOTE
 		);
 	}
 
@@ -73,6 +98,20 @@ public class KohaClientConfig {
 
 	public String getVirtualItemLibraryCode() {
 		return VIRTUAL_ITEM_LIBRARY_CODE.getRequiredConfigValue(hostLms);
+	}
+
+	public String getDoNotRenewNote() {
+		return DO_NOT_RENEW_NOTE.getOptionalValueFrom(hostLms.getClientConfig(), DEFAULT_DO_NOT_RENEW_NOTE);
+	}
+
+	public String getVirtualPatronEmail() {
+		return VirtualPatronEmail.addressOrNull(
+			VIRTUAL_PATRON_EMAIL.getOptionalValueFrom(hostLms.getClientConfig(), null));
+	}
+
+	public String getVirtualPatronCategory() {
+		return VIRTUAL_PATRON_CATEGORY.getOptionalValueFrom(
+			hostLms.getClientConfig(), DEFAULT_VIRTUAL_PATRON_CATEGORY);
 	}
 
 	public String getNoRenewCollectionCode() {

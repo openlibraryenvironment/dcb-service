@@ -9,9 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.polaris.PolarisConfig;
 
 import io.micronaut.http.exceptions.HttpStatusException;
 
@@ -23,6 +25,7 @@ class HostLmsConfigValidatorTests {
 	private static final String ORS_APPLIANCE = "org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS";
 	private static final String KOHA = "org.olf.dcb.core.interaction.koha.KohaHostLmsClient";
 	private static final String POLARIS = "org.olf.dcb.core.interaction.polaris.PolarisLmsClient";
+	private static final String FOLIO = "org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient";
 
 	private final HostLmsConfigValidator validator = new HostLmsConfigValidator();
 
@@ -208,6 +211,125 @@ class HostLmsConfigValidatorTests {
 	}
 
 	@Test
+	void shouldRequireTheValuesThePolarisClientReadsWhenARequestNeedsThem() {
+		final var config = polarisConfig();
+		config.put("services", Map.of());
+		config.put("item", Map.of());
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(POLARIS, config));
+
+		for (String key : new String[] { "services.organisation-id", "item.ill-location-id",
+			"item.fine-code-id", "item.history-action-id", "item.shelving-scheme-id",
+			"item.loan-period-code-id", "item.av-loan-period-code-id", "item.renewal-limit" }) {
+
+			assertThat(exception.getMessage(), containsString(key));
+		}
+	}
+
+	@Test
+	void shouldAcceptACompletePolarisConfiguration() {
+		assertDoesNotThrow(() -> validator.validate(POLARIS, polarisConfig()));
+	}
+
+	@Test
+	void shouldAcceptEveryItemAgencyResolutionMethodPolarisImplements() {
+		for (String method : PolarisConfig.ITEM_AGENCY_RESOLUTION_METHODS) {
+			final var config = polarisConfig();
+			config.put("item", polarisItemConfigWith("item-agency-resolution-method", method));
+
+			assertDoesNotThrow(() -> validator.validate(POLARIS, config));
+		}
+	}
+
+	@Test
+	void shouldRejectAnItemAgencyResolutionMethodPolarisDoesNotImplement() {
+		final var config = polarisConfig();
+		config.put("item", polarisItemConfigWith("item-agency-resolution-method", "locationid"));
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(POLARIS, config));
+
+		assertThat(exception.getMessage(), containsString("item-agency-resolution-method"));
+	}
+
+	@Test
+	void shouldRefusePolarisIdsThatAreNotWholeNumbers() {
+		final var config = polarisConfig();
+		config.put("logon-user-id", "staff-user");
+		final var item = polarisItemConfig();
+		item.put("fine-code-id", "7a");
+		item.put("av-renewal-limit", "two");
+		config.put("item", item);
+
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(POLARIS, config));
+
+		assertThat(exception.getMessage(), containsString(
+			"These must be whole numbers: logon-user-id, item.fine-code-id, item.av-renewal-limit"));
+	}
+
+	@Test
+	void shouldAcceptPolarisIdsWrittenAsNumbersOrAsText() {
+		final var config = polarisConfig();
+		final var item = polarisItemConfig();
+		item.put("fine-code-id", " 7 ");
+		item.put("av-renewal-limit", 2);
+		config.put("item", item);
+
+		assertDoesNotThrow(() -> validator.validate(POLARIS, config));
+	}
+
+	@Test
+	void shouldRefuseAnyPolarisBorrowerLendingFlow() {
+		for (String flow : List.of("ILL", "STANDARD")) {
+			final var config = polarisConfig();
+			config.put("borrower-lending-flow", flow);
+
+			final var exception = assertThrows(HttpStatusException.class,
+				() -> validator.validate(POLARIS, config));
+
+			assertThat(exception.getMessage(), containsString("borrower-lending-flow"));
+		}
+	}
+
+	@Test
+	void shouldAcceptAnEmptyPolarisBorrowerLendingFlow() {
+		final var config = polarisConfig();
+		config.put("borrower-lending-flow", "");
+
+		assertDoesNotThrow(() -> validator.validate(POLARIS, config));
+	}
+
+	@Test
+	void shouldAcceptAFolioWithoutARecordSyntaxBecauseItHasADefault() {
+		final var config = folioConfig();
+		config.remove("record-syntax");
+
+		assertDoesNotThrow(() -> validator.validate(FOLIO, config));
+	}
+
+	private Map<String, Object> folioConfig() {
+		final Map<String, Object> config = new HashMap<>();
+		config.put("base-url", "https://folio.example.org");
+		config.put("apikey", "any-key");
+		config.put("default-agency-code", "any-agency");
+		config.put("record-syntax", "oai_dc");
+		return config;
+	}
+
+	// The adapter harvests 1000 at a time when it is absent, so requiring it only invited a
+	// smaller guess
+	@Test
+	void shouldNotRequireASierraPageSize() {
+		final var config = sierraConfig();
+		config.remove("page-size");
+		config.put("default-agency-code", "any-agency");
+
+		assertDoesNotThrow(() -> validator.validate(SIERRA, config));
+	}
+
+	@Test
 	void shouldRejectInvalidPolarisShelfLocationLoanPolicy() {
 		final var config = polarisConfig();
 		config.put("shelfLocationPolicyMap", Map.of("Reference", "REFERENCE"));
@@ -217,6 +339,36 @@ class HostLmsConfigValidatorTests {
 
 		assertThat(exception.getMessage(), containsString("Reference=REFERENCE"));
 		assertThat(exception.getMessage(), containsString("REFERENCE_ONLY"));
+	}
+
+	@Test
+	void shouldAcceptOnlyAnAddressForTheVirtualPatronMailbox() {
+		for (final var lmsClass : List.of(SIERRA, POLARIS, KOHA)) {
+			final var config = SIERRA.equals(lmsClass) ? sierraConfig()
+				: POLARIS.equals(lmsClass) ? polarisConfig() : kohaConfig();
+			config.put("default-agency-code", "AGENCY");
+
+			config.put("virtual-patron-email", "ill-notices@consortium.example.org");
+			assertDoesNotThrow(() -> validator.validate(lmsClass, config), lmsClass);
+
+			config.put("virtual-patron-email", "the ILL desk");
+			final var exception = assertThrows(HttpStatusException.class,
+				() -> validator.validate(lmsClass, config), lmsClass);
+			assertThat(exception.getMessage(), containsString("must be an email address"));
+		}
+	}
+
+	@Test
+	void shouldAcceptOnlyTheSierraApiVersionsSierraServes() {
+		final var config = sierraConfig();
+		config.put("default-agency-code", "AGENCY");
+		config.put("api-version", "v5");
+		assertDoesNotThrow(() -> validator.validate(SIERRA, config));
+
+		config.put("api-version", "6");
+		final var exception = assertThrows(HttpStatusException.class,
+			() -> validator.validate(SIERRA, config));
+		assertThat(exception.getMessage(), containsString("[v4, v5, v6]"));
 	}
 
 	private Map<String, Object> kohaConfig() {
@@ -262,14 +414,32 @@ class HostLmsConfigValidatorTests {
 		config.put("access-id", "access-id");
 		config.put("access-key", "access-key");
 		config.put("domain-id", "domain-id");
-		config.put("logon-branch-id", "branch-id");
-		config.put("logon-user-id", "user-id");
+		config.put("logon-branch-id", "73");
+		config.put("logon-user-id", 1);
 		config.put("staff-username", "staff");
 		config.put("staff-password", "password");
 		config.put("default-agency-code", "agency");
 		config.put("papi", Map.of());
-		config.put("services", Map.of());
-		config.put("item", Map.of());
+		config.put("services", Map.of("organisation-id", "1"));
+		config.put("item", polarisItemConfig());
 		return config;
+	}
+
+	private Map<String, Object> polarisItemConfig() {
+		final Map<String, Object> item = new HashMap<>();
+		item.put("ill-location-id", 73);
+		item.put("fine-code-id", 1);
+		item.put("history-action-id", 6);
+		item.put("shelving-scheme-id", 1);
+		item.put("loan-period-code-id", 7);
+		item.put("av-loan-period-code-id", 8);
+		item.put("renewal-limit", 0);
+		return item;
+	}
+
+	private Map<String, Object> polarisItemConfigWith(String key, Object value) {
+		final var item = polarisItemConfig();
+		item.put(key, value);
+		return item;
 	}
 }

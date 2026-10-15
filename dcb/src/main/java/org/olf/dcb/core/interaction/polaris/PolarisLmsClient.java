@@ -72,6 +72,7 @@ import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
+import org.olf.dcb.core.interaction.UnsupportedAuthProfileException;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibInfo;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.CirculationData;
@@ -243,7 +244,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.objectRuleService = objectRuleService;
 	}
 
-	private PolarisConfig convertConfig(HostLms hostLms) {
+	static PolarisConfig convertConfig(HostLms hostLms) {
 		Map<String, Object> lmsConf = hostLms.getClientConfig();
 
 		try {
@@ -274,10 +275,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return placeHoldRequest(parameters, false);
 		}
 
-		final String borrowerLendingFlow = borrowerlendingFlow();
-		// If following the ILL flow, default to config refined location ID
-		if(borrowerLendingFlow == ILL_BORROWING_FLOW){
-			return placeILLHoldRequest(polarisConfig.getIllLocationId(), parameters);
+		if (followsIllBorrowingFlow(polarisConfig)) {
+			return refuseIllBorrowingFlow();
 		}
 
 		// Default response is the same as the DCB_BORROWING_FLOW
@@ -344,78 +343,22 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				.build());
 	}
 
-	private String borrowerlendingFlow() {
-		return polarisConfig.getBorrowerLendingFlow();
+	static boolean followsIllBorrowingFlow(PolarisConfig config) {
+		return ILL_BORROWING_FLOW.equals(config.getBorrowerLendingFlow());
 	}
 
-	private Mono<LocalRequest> placeILLHoldRequest(Integer illLocationId, PlaceHoldRequestParameters parameters) {
-		log.info("placeILLHoldRequest {}", parameters);
-
-		final var patronLocalId = parameters.getLocalPatronId();
-		final var title = "DCB-" + parameters.getTitle();
-		final var pickupLocation = getPickupLocation(parameters, TRUE);
-		final var note = parameters.getNote();
-
-		final var createHoldParams = HoldRequestParameters.builder()
-			.localPatronId(patronLocalId)
-			.title(title)
-			.pickupLocation(pickupLocation)
-			.note(note)
-			// TODO: change this to it's own field
-			.localItemLocationId(illLocationId)
-			.build();
-
-		return ApplicationServices.createILLHoldRequestWorkflow(createHoldParams)
-			.doOnNext( hr -> log.info("got hold response {}",hr) )
-			.flatMap(function(this::getLocalHoldRequestIdv2))
-			.flatMap(localRequest -> ApplicationServices.convertToIll(illLocationId, localRequest.getLocalId()))
-			.flatMap(listOfILLRequests -> getILLRequestId(patronLocalId, title))
-			.flatMap(illRequestId -> ApplicationServices.transferRequest(illLocationId, illRequestId))
-			.map(this::extractNeededInfo);
-	}
-
-	private LocalRequest extractNeededInfo(ApplicationServicesClient.ILLRequestInfo illRequestInfo) {
-		log.info("extractNeededInfo for {}",illRequestInfo);
-
-		return LocalRequest.builder()
-				.localId(illRequestInfo.getIllRequestID() != null
-					? illRequestInfo.getIllRequestID().toString()
-					: "")
-				.localStatus( String.valueOf(illRequestInfo.getIllRequestID()) )
-				.requestedItemId( String.valueOf(illRequestInfo.getItemRecordID()) )
-				.requestedItemBarcode( illRequestInfo.getItemBarcode() )
-				.build();
+	// HostLmsConfigValidator refuses this flow on save; a value stored without it (REST, import)
+	// is refused here too, because the flow does not work after placement
+	private <T> Mono<T> refuseIllBorrowingFlow() {
+		return Mono.error(new PolarisConfigurationException(
+			"Host LMS %s sets borrower-lending-flow %s, which DCB does not support. Remove it from the Host LMS configuration."
+				.formatted(getHostLmsCode(), ILL_BORROWING_FLOW)));
 	}
 
 	@Retryable(attempts = "2", delay = "2s")
 	protected <T> Mono<T> delayAndRetryTransformer ( Mono<T> targetFunction ) {
 		return Mono.delay(Duration.ofSeconds(2))
 			.then(targetFunction);
-	}
-
-	/**
-	 * Waits for a fixed delay and retries on failure.
-	 * @param patronLocalId ID of patron in Polaris
-	 * @param title Title of the requested item
-	 * @return Polaris ILL request ID or HoldRequestException if we can't get the hold
-	 */
-	private Mono<Integer> getILLRequestId(String patronLocalId, String title) {
-		
-		return Mono.just(patronLocalId)
-			.flatMap(ApplicationServices::getIllRequest)
-			.transform(this::delayAndRetryTransformer)
-			.doOnNext(entries -> log.debug("Got Polaris Holds: {}", entries))
-			.flatMapMany(Flux::fromIterable)
-			.filter(illRequest -> Objects.equals(illRequest.getTitle(), title))
-			.next()
-			.map(ApplicationServicesClient.ILLRequest::getIllRequestID)
-			// We should retrieve the item record for the selected hold and store the barcode here
-			.switchIfEmpty(Mono.error(new HoldRequestException("Error occurred when getting ILL Hold - filtering by title didn't match any request")))
-			.onErrorResume(NullPointerException.class, error -> {
-				log.debug("NullPointerException occurred when getting Hold: {}", error.getMessage());
-				return Mono.error(new HoldRequestException("NullPointerException occurred when getting ILL Hold"));
-			});
-
 	}
 
 	public Mono<LocalRequest> getLocalHoldRequestIdv2(String patronId, String title, String note, String activationDate) {
@@ -506,8 +449,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		log.debug("getPatronHoldRequestId({}, {})", bibId, activationDate);
 
-		final var fetchDelay = polarisConfig.getHoldFetchingDelay(5);
-		final var maxFetchRetry = polarisConfig.getMaxHoldFetchingRetry(10);
+		final var fetchDelay = polarisConfig.getHoldFetchingDelay(PolarisConfig.DEFAULT_HOLD_FETCHING_DELAY);
+		final var maxFetchRetry = polarisConfig.getMaxHoldFetchingRetry(PolarisConfig.DEFAULT_HOLD_FETCHING_MAX_RETRY);
 		AtomicInteger retryCount = new AtomicInteger(0);
 
 		return fetchAndProcessHolds(patronId, bibId, activationDate, note, parameters, fetchDelay)
@@ -747,9 +690,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
-		if (ILL_BORROWING_FLOW.equals(borrowerlendingFlow())) {
-			log.warn(ILL_BORROWING_FLOW + " SET FOR POLARIS, CREATE BIB WILL RETURN PLACEHOLDER");
-			return Mono.just("ILL_REQUEST_BIB_ID_PLACEHOLDER");
+		if (followsIllBorrowingFlow(polarisConfig)) {
+			return refuseIllBorrowingFlow();
 		}
 
 		return ApplicationServices.createBibliographicRecord(bib).map(String::valueOf);
@@ -771,9 +713,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
 		log.info("createItem({})",createItemCommand);
 
-		if (ILL_BORROWING_FLOW.equals(borrowerlendingFlow())) {
-			log.warn(ILL_BORROWING_FLOW + " SET FOR POLARIS, CREATE ITEM WILL RETURN PLACEHOLDER");
-			return Mono.just(HostLmsItem.builder().localId("ILL_REQUEST_ITEM_ID_PLACEHOLDER").build());
+		if (followsIllBorrowingFlow(polarisConfig)) {
+			return refuseIllBorrowingFlow();
 		}
 
 		return ApplicationServices.addItemRecord(createItemCommand)
@@ -1321,13 +1262,26 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	@Override
+	public List<String> missingConfiguration() {
+		return polarisConfig.missingRequiredValues();
+	}
+
+	@Override
+	public List<String> supportedAuthProfiles() {
+		return AUTH_PROFILES;
+	}
+
+	@Override
 	public Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret) {
 		return switch (authProfile) {
 			case "BASIC/BARCODE+PIN" -> PAPIService.patronValidate(patronPrinciple, secret);
 			case "BASIC/BARCODE+PASSWORD" -> PAPIService.patronValidate(patronPrinciple, secret);
-			default -> Mono.empty();
+			case null, default -> Mono.error(
+				new UnsupportedAuthProfileException(getHostLmsCode(), authProfile, AUTH_PROFILES));
 		};
 	}
+
+	static final List<String> AUTH_PROFILES = List.of("BASIC/BARCODE+PIN", "BASIC/BARCODE+PASSWORD");
 
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkout) {

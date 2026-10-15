@@ -195,6 +195,24 @@ class KohaRenewalPreventionTests {
 		assertThat(captor.getValue().getCollectionCode(), is("NO_RENEW_ILL"));
 	}
 
+	@Test
+	void shouldTellStaffInTheWordsThisLibraryConfigured() {
+		givenVirtualItem(virtualItem().internalNotes("Créé par le réseau").build());
+		givenTheLoanIsNotRenewable();
+
+		final var captor = ArgumentCaptor.forClass(KohaItem.class);
+
+		when(apiClient.updateItem(eq(BIBLIO_ID), eq(ITEM_ID), captor.capture()))
+			.thenReturn(Mono.just(KohaItem.builder().itemId(99L).build()));
+
+		clientWith(Map.of("do-not-renew-note", "Réservé par la bibliothèque. Ne pas renouveler."))
+			.preventRenewalOnLoan(PreventRenewalCommand.builder().itemId(ITEM_ID).build())
+			.block();
+
+		assertThat(captor.getValue().getInternalNotes(),
+			is("Créé par le réseau | Réservé par la bibliothèque. Ne pas renouveler."));
+	}
+
 	private KohaItem whenRenewalIsPrevented() {
 		final var captor = ArgumentCaptor.forClass(KohaItem.class);
 
