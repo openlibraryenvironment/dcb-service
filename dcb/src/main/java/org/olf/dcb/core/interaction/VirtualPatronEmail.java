@@ -16,5 +16,11 @@ public final class VirtualPatronEmail {
 		return value instanceof String text && ADDRESS.matcher(text).matches();
 	}
 
+	// The validator refuses a malformed value, but REST and the import save without it, and a member
+	// system may refuse the whole patron over one
+	public static String addressOrNull(Object configured) {
+		return isAddress(configured) ? (String) configured : null;
+	}
+
 	private VirtualPatronEmail() { }
 }

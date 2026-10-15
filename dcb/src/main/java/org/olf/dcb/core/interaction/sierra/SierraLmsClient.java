@@ -966,7 +966,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 					.barcodes(Objects.requireNonNullElseGet(patron.getLocalBarcodes(), Collections::emptyList))
 					.expirationDate(patronExpirationDate)
 					.pin(getVirtualPatronPin(getConfig()))
-					.emails(Optional.ofNullable(VIRTUAL_PATRON_EMAIL.getOptionalValueFrom(getConfig(), null))
+					.emails(Optional.ofNullable(VirtualPatronEmail.addressOrNull(
+							VIRTUAL_PATRON_EMAIL.getOptionalValueFrom(getConfig(), null)))
 						.map(List::of)
 						.orElse(null))
 					.build();

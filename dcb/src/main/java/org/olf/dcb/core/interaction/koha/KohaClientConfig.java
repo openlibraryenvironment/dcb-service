@@ -105,7 +105,8 @@ public class KohaClientConfig {
 	}
 
 	public String getVirtualPatronEmail() {
-		return VIRTUAL_PATRON_EMAIL.getOptionalValueFrom(hostLms.getClientConfig(), null);
+		return VirtualPatronEmail.addressOrNull(
+			VIRTUAL_PATRON_EMAIL.getOptionalValueFrom(hostLms.getClientConfig(), null));
 	}
 
 	public String getVirtualPatronCategory() {

@@ -17,6 +17,8 @@ serve v6, and test a full request cycle against it first.
 ## Virtual patron notices
 
 The member system sends a virtual patron hold and pickup notices like any other
-patron. Set `virtual-patron-email` to a mailbox the consortium reads, and those
-notices go there. Without it they have no address. It must be an operational
+patron. Set `virtual-patron-email` to a mailbox the consortium reads, and the
+notices of every virtual patron created after that go there; one created before
+keeps the address it was created with. Without it they have no address, and a
+value that is not an address is not sent. It must be an operational
 address, never a patron's own: every virtual patron on this system shares it.

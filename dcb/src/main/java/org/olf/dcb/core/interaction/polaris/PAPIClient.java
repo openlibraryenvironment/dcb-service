@@ -28,6 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.VirtualPatronEmail;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
@@ -163,7 +164,7 @@ public class PAPIClient {
 			.nameLast(lastName)
 			.patronCode(parseInt(patron.getLocalPatronType()))
 			.barcode(patronBarcodePrefix + patron.getLocalBarcodes().get(0))
-			.emailAddress(polarisConfig.getVirtualPatronEmail())
+			.emailAddress(VirtualPatronEmail.addressOrNull(polarisConfig.getVirtualPatronEmail()))
 			.birthdate("1999-11-01")
 			// Stamp the address check date well into the future so the patron is born without the
 			// block Polaris otherwise derives from a past date. The create has no override, so on
