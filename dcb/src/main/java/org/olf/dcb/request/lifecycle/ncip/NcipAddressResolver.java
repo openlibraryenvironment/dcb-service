@@ -36,8 +36,9 @@ public class NcipAddressResolver {
 		if (!hasText(agencyCode)) {
 			return Mono.just(requireText(fallback, "fallback"));
 		}
+		// An agency on a host with no NCIP identity (Alma, FOLIO, Polaris, Sierra) is named by its own code.
 		return findHostLmsForAgencyCode(agencyCode)
-			.map(this::agencyIdForHost)
+			.flatMap(hostLms -> Mono.justOrEmpty(hostLmsConfiguration.findNcipAgencyIdFor(hostLms)))
 			.switchIfEmpty(Mono.just(agencyCode));
 	}
 

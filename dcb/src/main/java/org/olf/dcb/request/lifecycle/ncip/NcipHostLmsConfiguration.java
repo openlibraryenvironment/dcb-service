@@ -56,6 +56,11 @@ final class NcipHostLmsConfiguration {
 			.orElseGet(() -> ncipSystemIdFor(hostLms));
 	}
 
+	java.util.Optional<String> findNcipAgencyIdFor(HostLms hostLms) {
+		return findNcipAgencyId(hostLms.getClientConfig())
+			.or(() -> findNcipSystemId(hostLms.getClientConfig()));
+	}
+
 	private java.util.Optional<String> findNcipAgencyId(Map<String, Object> clientConfig) {
 		return NCIP_AGENCY_ID_KEYS.stream()
 			.map(key -> getAsOptionalString(clientConfig, key))
