@@ -18,6 +18,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.koha.KohaHostLmsClient;
+import org.olf.dcb.request.lifecycle.ncip.ORSApplianceHostLMS;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.test.AgencyFixture;
@@ -84,6 +85,32 @@ class HostLmsVerificationProbeTests {
 			is("Missing: sharing-library-code, virtual-item-library-code"));
 	}
 
+	@Test
+	void shouldNotCallAnOptionalSettingMissing() {
+		final var sierra = hostLmsFixture.createSierraHostLms("probe-sierra");
+
+		assertThat(configurationStatus(sierra), is("OK"));
+	}
+
+	@Test
+	void shouldFindTheNcipSystemIdUnderTheSpellingRegistrationWrites() {
+		final var appliance = hostLmsFixture.createHostLms(randomUUID(), "probe-appliance",
+			ORSApplianceHostLMS.class, Optional.empty(), Map.of(
+				ORSApplianceHostLMS.NCIP_ENDPOINT_URL_KEY, "https://appliance.example.org/ncip",
+				"ncip-system-id", "probe-system"));
+
+		assertThat(configurationStatus(appliance), is("OK"));
+	}
+
+	@Test
+	void shouldStillNameAnNcipSystemIdThatIsAbsent() {
+		final var appliance = hostLmsFixture.createHostLms(randomUUID(), "probe-appliance",
+			ORSApplianceHostLMS.class, Optional.empty(), Map.of(
+				ORSApplianceHostLMS.NCIP_ENDPOINT_URL_KEY, "https://appliance.example.org/ncip"));
+
+		assertThat(configurationStatus(appliance), is("Missing: ncipSystemId"));
+	}
+
 	// Polaris reads the organisation when the client is built, so no client exists to ask
 	@Test
 	void shouldSayWhenTheConfigCannotEvenBuildAClient() {
@@ -107,6 +134,16 @@ class HostLmsVerificationProbeTests {
 		defineAgency("bad-agency", sierra, "BASIC/BARCODE+PASSWORD");
 
 		assertThat(authProfileStatus(sierra), is("Unsupported: bad-agency=BASIC/BARCODE+PASSWORD. "
+			+ "Supported: BASIC/BARCODE+PIN, BASIC/BARCODE+NAME, BASIC/UNIQUE-ID+PIN, BASIC/UNIQUE-ID+NAME"));
+	}
+
+	@Test
+	void shouldReportAnAgencyWithNoAuthProfileAsUnsupported() {
+		final var sierra = hostLmsFixture.createSierraHostLms("probe-sierra");
+		defineAgency("good-agency", sierra, "BASIC/BARCODE+PIN");
+		defineAgency("no-profile-agency", sierra, null);
+
+		assertThat(authProfileStatus(sierra), is("Unsupported: no-profile-agency=(none). "
 			+ "Supported: BASIC/BARCODE+PIN, BASIC/BARCODE+NAME, BASIC/UNIQUE-ID+PIN, BASIC/UNIQUE-ID+NAME"));
 	}
 

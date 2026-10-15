@@ -263,7 +263,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			stringPropertyDefinition("key", "Key for this system", TRUE),
 			PAGE_SIZE_PROPERTY,
 			stringPropertyDefinition("secret", "Secret for this Sierra system", TRUE),
-			booleanPropertyDefinition("ingest", "Enable record harvesting for this source", TRUE),
+			booleanPropertyDefinition("ingest", "Enable record harvesting for this source", FALSE),
 			GET_HOLDS_RETRY_ATTEMPTS_PROPERTY,
 			GET_PLACE_HOLD_DELAY_PROPERTY,
 			GET_FETCHING_HOLD_DELAY_PROPERTY,

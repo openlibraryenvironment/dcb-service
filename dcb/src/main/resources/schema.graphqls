@@ -1048,9 +1048,9 @@ type CreateHostLmsResult {
 	hostLms: HostLms
 	pingStatus: String
 	ingestStatus: String
-	"OK, or the mandatory settings the stored config lacks. Makes no call to the Host LMS."
+	"OK; Missing: the mandatory settings the stored config lacks; or Failed: why no client could be built. Makes no call to the Host LMS."
 	configurationStatus: String
-	"OK, or the agencies whose auth profile this Host LMS cannot authenticate with."
+	"OK; Unsupported: each agency whose auth profile this Host LMS cannot authenticate with, (none) where it has no profile; Not checked: why; or Failed: why."
 	authProfileStatus: String
 	warnings: [String]
 }
@@ -1059,9 +1059,9 @@ type UpdateHostLmsResult {
 	hostLms: HostLms
 	pingStatus: String
 	ingestStatus: String
-	"OK, or the mandatory settings the stored config lacks. Makes no call to the Host LMS."
+	"OK; Missing: the mandatory settings the stored config lacks; or Failed: why no client could be built. Makes no call to the Host LMS."
 	configurationStatus: String
-	"OK, or the agencies whose auth profile this Host LMS cannot authenticate with."
+	"OK; Unsupported: each agency whose auth profile this Host LMS cannot authenticate with, (none) where it has no profile; Not checked: why; or Failed: why."
 	authProfileStatus: String
 	warnings: [String]
 }

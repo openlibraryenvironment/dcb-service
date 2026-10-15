@@ -2,6 +2,7 @@ package org.olf.dcb.graphql;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -102,9 +103,10 @@ public class HostLmsVerificationService {
 			return "Not checked: no agency uses this Host LMS yet";
 		}
 
+		// supported is a List.of, whose contains(null) throws: an agency with no profile is unsupported
 		final var unsupported = agencies.stream()
-			.filter(agency -> !supported.contains(agency.getAuthProfile()))
-			.map(agency -> agency.getCode() + "=" + agency.getAuthProfile())
+			.filter(agency -> agency.getAuthProfile() == null || !supported.contains(agency.getAuthProfile()))
+			.map(agency -> agency.getCode() + "=" + Objects.requireNonNullElse(agency.getAuthProfile(), "(none)"))
 			.toList();
 
 		return unsupported.isEmpty()
