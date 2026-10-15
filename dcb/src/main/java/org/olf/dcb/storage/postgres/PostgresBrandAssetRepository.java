@@ -38,10 +38,10 @@ public interface PostgresBrandAssetRepository
 		@NonNull byte[] bytes, @NonNull Instant now);
 
 	/**
-	 * Four columns can hold an uploaded asset, and every one of them has to be named here.
-	 * A fifth added without touching this query would have its images swept out from under
-	 * it — which is why {@code BrandAssetSweepTests} asserts one case per column rather
-	 * than one case overall.
+	 * Four columns can hold an uploaded asset, and every one of them has to be named here and
+	 * in deleteIfUnreferenced. A fifth added without touching both would have its images
+	 * deleted out from under it — which is why {@code BrandAssetSweepTests} asserts one case
+	 * per column rather than one case overall.
 	 */
 	@Override
 	@NonNull
@@ -58,4 +58,20 @@ public interface PostgresBrandAssetRepository
 				WHERE :pathPrefix || a.asset_key = l.brand_logo_url)
 		""", nativeQuery = true)
 	Publisher<Long> deleteUnreferencedBefore(@NonNull String pathPrefix, @NonNull Instant cutoff);
+
+	@Override
+	@NonNull
+	@SingleResult
+	@Query(value = """
+		DELETE FROM brand_asset a
+		WHERE a.asset_key = :assetKey
+			AND NOT EXISTS (
+				SELECT 1 FROM consortium c
+				WHERE :pathPrefix || a.asset_key IN (
+					c.brand_logo_url, c.brand_header_icon_url, c.brand_background_image_url))
+			AND NOT EXISTS (
+				SELECT 1 FROM library l
+				WHERE :pathPrefix || a.asset_key = l.brand_logo_url)
+		""", nativeQuery = true)
+	Publisher<Long> deleteIfUnreferenced(@NonNull String pathPrefix, @NonNull String assetKey);
 }

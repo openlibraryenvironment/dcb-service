@@ -12,12 +12,17 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.olf.dcb.core.model.Consortium;
+import org.olf.dcb.core.model.Library;
 import org.olf.dcb.storage.BrandAssetRepository;
+import org.olf.dcb.storage.ConsortiumRepository;
+import org.olf.dcb.storage.LibraryRepository;
 import org.olf.dcb.test.DcbTest;
 
 import jakarta.inject.Inject;
@@ -43,6 +48,15 @@ class DatabaseBrandAssetStoreTests {
 
 	@Inject
 	private DatabaseBrandAssetStore store;
+
+	@Inject
+	private LibraryRepository libraries;
+
+	@Inject
+	private ConsortiumRepository consortia;
+
+	@Inject
+	private BrandAssetProperties properties;
 
 	@Test
 	void bytesSurviveTheRoundTripExactly() throws IOException {
@@ -104,6 +118,52 @@ class DatabaseBrandAssetStoreTests {
 		singleValueFrom(store.delete(key).thenReturn("done"));
 
 		assertThat(isStored(key), is(false));
+	}
+
+	/**
+	 * Keys are content-addressed and every library's is public, so one library pointing its logo
+	 * at another's and then clearing it must not delete the other's image. Two libraries that
+	 * upload the same file share one object, and an ordinary replacement by one is the same case.
+	 */
+	@Test
+	void anAssetAnotherLibraryStillUsesIsNotDeleted() throws IOException {
+		final var key = singleValueFrom(store.put(new BrandAsset(BrandAssetValidator.PNG, png(21, 21))));
+		final var stillUsing = singleValueFrom(libraries.save(Library.builder()
+			.id(UUID.randomUUID())
+			.agencyCode("SHARED-LOGO")
+			.fullName("Library Still Using The Logo")
+			.shortName("Shared")
+			.abbreviatedName("SHR")
+			.brandLogoUrl(properties.getPublicPathPrefix() + key)
+			.build()));
+
+		try {
+			singleValueFrom(store.delete(key).thenReturn("done"));
+
+			assertThat(isStored(key), is(true));
+		}
+		finally {
+			singleValueFrom(libraries.delete(stillUsing.getId()));
+		}
+	}
+
+	@Test
+	void anAssetTheConsortiumStillUsesIsNotDeleted() throws IOException {
+		final var key = singleValueFrom(store.put(new BrandAsset(BrandAssetValidator.PNG, png(22, 22))));
+		final var consortium = singleValueFrom(consortia.save(Consortium.builder()
+			.id(UUID.randomUUID())
+			.name("Consortium Still Using The Icon")
+			.brandHeaderIconUrl(properties.getPublicPathPrefix() + key)
+			.build()));
+
+		try {
+			singleValueFrom(store.delete(key).thenReturn("done"));
+
+			assertThat(isStored(key), is(true));
+		}
+		finally {
+			singleValueFrom(consortia.delete(consortium.getId()));
+		}
 	}
 
 	/**

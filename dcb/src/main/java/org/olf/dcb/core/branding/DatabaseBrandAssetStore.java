@@ -57,6 +57,7 @@ public class DatabaseBrandAssetStore implements BrandAssetStore {
 	private static final Duration CACHE_TTL = Duration.ofHours(6);
 
 	private final BrandAssetRepository repository;
+	private final String pathPrefix;
 	private final Clock clock;
 
 	private final Cache<String, BrandAsset> served = createServedCache();
@@ -69,12 +70,13 @@ public class DatabaseBrandAssetStore implements BrandAssetStore {
 			.build();
 	}
 
-	public DatabaseBrandAssetStore(BrandAssetRepository repository) {
-		this(repository, Clock.systemUTC());
+	public DatabaseBrandAssetStore(BrandAssetRepository repository, BrandAssetProperties properties) {
+		this(repository, properties, Clock.systemUTC());
 	}
 
-	DatabaseBrandAssetStore(BrandAssetRepository repository, Clock clock) {
+	DatabaseBrandAssetStore(BrandAssetRepository repository, BrandAssetProperties properties, Clock clock) {
 		this.repository = repository;
+		this.pathPrefix = properties.getPublicPathPrefix();
 		this.clock = clock;
 	}
 
@@ -112,7 +114,7 @@ public class DatabaseBrandAssetStore implements BrandAssetStore {
 		// cheap mistake; serving one that no longer exists is not.
 		served.invalidate(key);
 
-		return Mono.from(repository.delete(key))
+		return Mono.from(repository.deleteIfUnreferenced(pathPrefix, key))
 			.doOnError(e -> log.warn("Could not remove replaced brand asset {}: {}", key, e.getMessage()))
 			// Best effort, by design. An administrator whose new logo is live must not be
 			// shown an error because the old row survived.
