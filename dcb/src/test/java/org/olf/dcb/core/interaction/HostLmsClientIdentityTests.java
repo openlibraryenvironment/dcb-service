@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.net.URI;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.Nested;
@@ -19,6 +21,18 @@ import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.interaction.koha.KohaApiClient;
 import org.olf.dcb.core.interaction.koha.KohaClientFactory;
 import org.olf.dcb.core.interaction.koha.KohaHostLmsClient;
+import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
+import org.olf.dcb.core.interaction.sierra.HostLmsSierraApiClientFactory;
+import org.olf.dcb.core.interaction.sierra.SierraItemMapper;
+import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
+import org.olf.dcb.core.interaction.sierra.SierraPatronMapper;
+import org.olf.dcb.core.ProcessStateService;
+import org.olf.dcb.storage.RawSourceRepository;
+import io.micronaut.core.convert.ConversionService;
+import io.micronaut.data.r2dbc.operations.R2dbcOperations;
+import io.micronaut.serde.ObjectMapper;
+import services.k_int.interaction.sierra.SierraApiClient;
+import services.k_int.micronaut.PublisherTransformationService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.model.HostLms;
@@ -90,6 +104,48 @@ class HostLmsClientIdentityTests {
 				mock(ReferenceValueMappingService.class),
 				mock(MaterialTypeToItemTypeMappingService.class),
 				mock(LocationToAgencyMappingService.class), mock(ConsortiumService.class));
+		}
+	}
+
+	@Nested
+	class SierraIdentity {
+		private static final String SHARED_SIERRA = "https://shared.sierra.example.com";
+
+		@Test
+		void shouldTreatTwoHostLmsOnOneSierraAsOneSystemWhateverApiVersionEachSets() {
+			final var first = sierraClient("SIERRA-NORTH", Map.of());
+			final var second = sierraClient("SIERRA-SOUTH", Map.of("api-version", "v5"));
+
+			assertThat("Two Host LMS records on one Sierra must compare equal",
+				first.compareTo(second), is(0));
+		}
+
+		@Test
+		void shouldKeepTheIdentityTheDefaultVersionAlwaysGave() {
+			assertThat(sierraClient("SIERRA", Map.of("api-version", "v4")).getClientId(),
+				is(SHARED_SIERRA + "/iii/sierra-api/v6/"));
+		}
+
+		private SierraLmsClient sierraClient(String code, Map<String, Object> extraConfig) {
+			final var config = new HashMap<String, Object>(Map.of(
+				"base-url", SHARED_SIERRA, "key", "any-key", "secret", "any-secret"));
+			config.putAll(extraConfig);
+			final var hostLms = hostLmsWith(code, config);
+
+			// The API client's own root carries the configured version, as HostLmsSierraApiClient's does
+			final var apiClient = mock(SierraApiClient.class);
+			when(apiClient.getRootUri()).thenReturn(URI.create(SHARED_SIERRA + "/iii/sierra-api/"
+				+ config.getOrDefault("api-version", "v6") + "/"));
+			final var clientFactory = mock(HostLmsSierraApiClientFactory.class);
+			when(clientFactory.createClientFor(hostLms)).thenReturn(apiClient);
+
+			return new SierraLmsClient(hostLms, clientFactory, mock(RawSourceRepository.class),
+				mock(ProcessStateService.class), mock(ReferenceValueMappingService.class),
+				mock(ConversionService.class), mock(NumericPatronTypeMapper.class),
+				mock(SierraItemMapper.class), mock(ObjectRulesService.class),
+				mock(PublisherTransformationService.class), mock(SierraPatronMapper.class),
+				mock(R2dbcOperations.class), mock(ObjectMapper.class), new RulesetCacheInvalidator(),
+				mock(HostLmsService.class), mock(ConsortiumService.class));
 		}
 	}
 

@@ -13,6 +13,7 @@ import static reactor.core.publisher.Mono.empty;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -104,6 +105,15 @@ public class HostLmsSierraApiClient implements SierraApiClient {
 		lms = hostLms;
 		this.client = client;
 		this.conversionService = conversionService;
+	}
+
+	// Identifies the server: the default version's root whatever api-version a record sets, so two
+	// records on one Sierra compare equal and the identity is the one it was before the setting
+	static URI serverRootUriFor(Map<String, Object> clientConfig) {
+		final var withoutVersion = new HashMap<>(clientConfig);
+		withoutVersion.remove(API_VERSION);
+
+		return rootUriFor(withoutVersion);
 	}
 
 	static URI rootUriFor(Map<String, Object> clientConfig) {
