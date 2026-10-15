@@ -34,6 +34,9 @@ import org.olf.dcb.core.model.AvailabilityReason;
 import org.olf.dcb.core.model.ItemStatus;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
@@ -66,6 +69,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 	private final AgencyRepository agencyRepository;
 	private final LocationRepository locationRepository;
 	private final NcipPeerAuthorizationService peerAuthorizationService;
+	private final ReferenceValueMappingService referenceValueMappingService;
 
 	@Creator
 	public ORSApplianceHostLMS(
@@ -77,7 +81,8 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		NcipAddressResolver addressResolver,
 		AgencyRepository agencyRepository,
 		LocationRepository locationRepository,
-		NcipPeerAuthorizationService peerAuthorizationService) {
+		NcipPeerAuthorizationService peerAuthorizationService,
+		ReferenceValueMappingService referenceValueMappingService) {
 
 		super(hostLms);
 		this.transport = transport;
@@ -89,6 +94,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		this.agencyRepository = agencyRepository;
 		this.locationRepository = locationRepository;
 		this.peerAuthorizationService = peerAuthorizationService;
+		this.referenceValueMappingService = referenceValueMappingService;
 	}
 
 	@Override
@@ -270,6 +276,36 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 
 		return postLookupUser(payload)
 			.map(ORSApplianceHostLMS::lookupUserResponseToPatron);
+	}
+
+	@Override
+	public Mono<String> findCanonicalPatronType(String localPatronType, String localId) {
+		if (localPatronType == null) {
+			return Mono.empty();
+		}
+
+		return referenceValueMappingService.findMapping("patronType",
+				getHostLmsCode(), localPatronType, "patronType", "DCB")
+			.map(ReferenceValueMapping::getToValue)
+			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+				"Unable to map patron type \"" + localPatronType + "\" on ORS Appliance Host LMS: \""
+					+ getHostLmsCode() + "\" to canonical value",
+				getHostLmsCode(), localPatronType)));
+	}
+
+	@Override
+	public Mono<String> findLocalPatronType(String canonicalPatronType) {
+		if (canonicalPatronType == null) {
+			return Mono.empty();
+		}
+
+		return referenceValueMappingService.findMapping("patronType",
+				"DCB", canonicalPatronType, "patronType", getHostLmsCode())
+			.map(ReferenceValueMapping::getToValue)
+			.switchIfEmpty(Mono.error(new NoPatronTypeMappingFoundException(
+				"Unable to map canonical patron type \"" + canonicalPatronType
+					+ "\" to a patron type on ORS Appliance Host LMS: \"" + getHostLmsCode() + "\"",
+				getHostLmsCode(), canonicalPatronType)));
 	}
 
 	@Override
@@ -464,9 +500,13 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 		final var localId = requiredText(lookupUserResponse, "UserIdentifierValue");
 		final var displayName = optionalText(lookupUserResponse, "UnstructuredPersonalUserName")
 			.orElse(localId);
-		final var homeLocationCode = firstDescendant(lookupUserResponse, "UserPrivilege")
-			.flatMap(userPrivilege -> optionalText(userPrivilege, "AgencyId"))
+		final var userPrivilege = firstDescendant(lookupUserResponse, "UserPrivilege");
+		final var homeLocationCode = userPrivilege
+			.flatMap(privilege -> optionalText(privilege, "AgencyId"))
 			.or(() -> optionalText(lookupUserResponse, "AgencyId"))
+			.orElse(null);
+		final var patronType = userPrivilege
+			.flatMap(privilege -> optionalText(privilege, "AgencyUserPrivilegeType"))
 			.orElse(null);
 
 		return Patron.builder()
@@ -474,6 +514,7 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			.localNames(List.of(displayName))
 			.localBarcodes(List.of(localId))
 			.uniqueIds(List.of(localId))
+			.localPatronType(patronType)
 			.localHomeLibraryCode(homeLocationCode)
 			.isActive(true)
 			.build();

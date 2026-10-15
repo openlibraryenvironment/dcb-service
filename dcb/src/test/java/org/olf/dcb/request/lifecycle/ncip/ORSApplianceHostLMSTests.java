@@ -40,6 +40,8 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.request.lifecycle.DeclarativeRequestTransport;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportRequest;
 import org.olf.dcb.request.lifecycle.DeclarativeTransportResponse;
@@ -173,6 +175,28 @@ class ORSApplianceHostLMSTests {
 		assertThat(patron.getFirstLocalId(), is("rincewind-user-0001"));
 		assertThat(patron.getLocalNames(), is(List.of("Rincewind")));
 		assertThat(patron.getLocalHomeLibraryCode(), is("unseen-main"));
+		assertThat(patron.getLocalPatronType(), is("Patron"));
+	}
+
+	@Test
+	void mapsTheAppliancePatronTypeToTheCanonicalOne() {
+		final var mappings = mock(ReferenceValueMappingService.class);
+		when(mappings.findMapping("patronType", "ors-host", "Patron", "patronType", "DCB"))
+			.thenReturn(Mono.just(ReferenceValueMapping.builder().toValue("ADULT").build()));
+		final var client = clientWith(mappings);
+
+		assertThat(singleValueFrom(client.findCanonicalPatronType("Patron", "rincewind-user-0001")),
+			is("ADULT"));
+	}
+
+	@Test
+	void mapsTheCanonicalPatronTypeToTheApplianceOne() {
+		final var mappings = mock(ReferenceValueMappingService.class);
+		when(mappings.findMapping("patronType", "DCB", "ADULT", "patronType", "ors-host"))
+			.thenReturn(Mono.just(ReferenceValueMapping.builder().toValue("Patron").build()));
+		final var client = clientWith(mappings);
+
+		assertThat(singleValueFrom(client.findLocalPatronType("ADULT")), is("Patron"));
 	}
 
 	@Test
@@ -394,6 +418,24 @@ class ORSApplianceHostLMSTests {
 		AgencyRepository agencyRepository,
 		LocationRepository locationRepository) {
 
+		return clientWith(transport, httpClient, agencyRepository, locationRepository,
+			mock(ReferenceValueMappingService.class));
+	}
+
+	private static ORSApplianceHostLMS clientWith(ReferenceValueMappingService mappings) {
+		final var agencyRepository = mock(AgencyRepository.class);
+
+		return clientWith(new CapturingTransport(response("remote-request")),
+			mock(HttpClient.class), agencyRepository, mock(LocationRepository.class), mappings);
+	}
+
+	private static ORSApplianceHostLMS clientWith(
+		DeclarativeRequestTransport transport,
+		HttpClient httpClient,
+		AgencyRepository agencyRepository,
+		LocationRepository locationRepository,
+		ReferenceValueMappingService mappings) {
+
 		return new ORSApplianceHostLMS(
 			hostLms(),
 			transport,
@@ -403,7 +445,8 @@ class ORSApplianceHostLMSTests {
 			new NcipAddressResolver(agencyRepository, mock(HostLmsService.class)),
 			agencyRepository,
 			locationRepository,
-			disabledPeerAuthorizationService());
+			disabledPeerAuthorizationService(),
+			mappings);
 	}
 
 	private static NcipPeerAuthorizationService disabledPeerAuthorizationService() {
