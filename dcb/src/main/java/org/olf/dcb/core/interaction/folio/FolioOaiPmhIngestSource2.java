@@ -34,7 +34,6 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 
 	private static final String PARAM_RECORD_SYNTAX = "recordSyntax";
 
-	// What every FOLIO on production is configured with
 	public static final String DEFAULT_RECORD_SYNTAX = "oai_dc";
 
 	private static final String UUID5_PREFIX = "ingest-source:folio-oai";
@@ -43,7 +42,7 @@ public class FolioOaiPmhIngestSource2 extends OaiPmhIngestSource {
 
 	private static final String CONFIG_METADATA_PREFIX = "metadata-prefix";
 
-	private static final String DEFAULT_METADATA_PREFIX = "marc21_withholdings";
+	public static final String DEFAULT_METADATA_PREFIX = "marc21_withholdings";
 
 	private final String recordSyntax;
 	

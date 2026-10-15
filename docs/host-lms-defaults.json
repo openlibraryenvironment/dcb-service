@@ -6,6 +6,10 @@
     "pickup-circ-desk": "DEFAULT_CIRC_DESK",
     "user-identifier": "INST_ID"
   },
+  "org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient": {
+    "metadata-prefix": "marc21_withholdings",
+    "record-syntax": "oai_dc"
+  },
   "org.olf.dcb.core.interaction.koha.KohaHostLmsClient": {
     "do-not-renew-note": "Hold placed by owning library. Do not renew.",
     "no-renew-collection-code": "DCB_NO_RENEW",
@@ -17,6 +21,7 @@
     "harvest-watermark-overlap-minutes": "15",
     "hold-fetching-delay": "5",
     "hold-fetching-max-retry": "10",
+    "item.item-agency-resolution-method": "Legacy",
     "papi.app-id": "100",
     "papi.lang-id": "1033",
     "papi.org-id": "1",

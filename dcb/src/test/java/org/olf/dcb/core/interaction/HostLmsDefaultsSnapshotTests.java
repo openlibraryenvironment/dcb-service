@@ -10,6 +10,7 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.alma.AlmaClientConfig;
+import org.olf.dcb.core.interaction.folio.FolioOaiPmhIngestSource2;
 import org.olf.dcb.core.interaction.koha.KohaClientConfig;
 import org.olf.dcb.core.interaction.koha.KohaOaiPmhIngestSource;
 import org.olf.dcb.core.interaction.polaris.PolarisConfig;
@@ -37,6 +38,9 @@ class HostLmsDefaultsSnapshotTests {
 				"no-renew-item-policy", AlmaClientConfig.DEFAULT_NO_RENEW_ITEM_POLICY,
 				"pickup-circ-desk", AlmaClientConfig.DEFAULT_CIRC_DESK,
 				"user-identifier", AlmaClientConfig.DEFAULT_USER_IDENTIFIER)),
+			"org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient", new TreeMap<>(Map.of(
+				"metadata-prefix", FolioOaiPmhIngestSource2.DEFAULT_METADATA_PREFIX,
+				"record-syntax", FolioOaiPmhIngestSource2.DEFAULT_RECORD_SYNTAX)),
 			"org.olf.dcb.core.interaction.koha.KohaHostLmsClient", new TreeMap<>(Map.of(
 				"do-not-renew-note", KohaClientConfig.DEFAULT_DO_NOT_RENEW_NOTE,
 				"no-renew-collection-code", KohaClientConfig.DEFAULT_NO_RENEW_COLLECTION_CODE,
@@ -48,6 +52,7 @@ class HostLmsDefaultsSnapshotTests {
 					String.valueOf(polaris.getHarvestWatermarkOverlap().toMinutes())),
 				Map.entry("hold-fetching-delay", String.valueOf(PolarisConfig.DEFAULT_HOLD_FETCHING_DELAY)),
 				Map.entry("hold-fetching-max-retry", String.valueOf(PolarisConfig.DEFAULT_HOLD_FETCHING_MAX_RETRY)),
+				Map.entry("item.item-agency-resolution-method", polaris.getItemAgencyResolutionMethod()),
 				Map.entry("papi.app-id", polaris.getPapiAppId()),
 				Map.entry("papi.lang-id", polaris.getPapiLangId()),
 				Map.entry("papi.org-id", polaris.getPapiOrgId()),

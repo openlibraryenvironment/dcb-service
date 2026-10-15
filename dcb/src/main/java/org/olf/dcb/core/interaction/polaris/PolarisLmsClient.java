@@ -450,7 +450,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		log.debug("getPatronHoldRequestId({}, {})", bibId, activationDate);
 
 		final var fetchDelay = polarisConfig.getHoldFetchingDelay(PolarisConfig.DEFAULT_HOLD_FETCHING_DELAY);
-		final var maxFetchRetry = polarisConfig.getMaxHoldFetchingRetry(10);
+		final var maxFetchRetry = polarisConfig.getMaxHoldFetchingRetry(PolarisConfig.DEFAULT_HOLD_FETCHING_MAX_RETRY);
 		AtomicInteger retryCount = new AtomicInteger(0);
 
 		return fetchAndProcessHolds(patronId, bibId, activationDate, note, parameters, fetchDelay)
