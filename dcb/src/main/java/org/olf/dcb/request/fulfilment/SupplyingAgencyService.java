@@ -253,7 +253,7 @@ public class SupplyingAgencyService {
 				final var message = "Delete supplier hold : Skipped";
 				final var auditData = new HashMap<String, Object>();
 				auditData.put("hold", hostLmsRequest);
-				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).then(Mono.<HostLmsClient>empty());
 			})
 			.onErrorResume(error -> {
 
@@ -261,7 +261,7 @@ public class SupplyingAgencyService {
 				final var message = "Delete supplier hold : Skipped";
 				final var auditData = new HashMap<String, Object>();
 				auditThrowable(auditData, "Throwable", error);
-				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).then(Mono.empty());
 			});
 	}
 

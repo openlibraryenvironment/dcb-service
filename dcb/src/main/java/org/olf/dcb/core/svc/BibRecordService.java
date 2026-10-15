@@ -333,7 +333,7 @@ public class BibRecordService {
 				.count()
 				.flatMap( size -> size > 1 ? recordClusteringServiceProvider.get()
 						.electSelectedBib(cr, Optional.ofNullable(bib))
-						.then(Mono.empty()) : Mono.just( cr ) )
+						.then(Mono.<ClusterRecord>empty()) : Mono.just( cr ) )
 			)
 			// .doOnNext( cr -> log.debug("Soft deleteing cluster record {} as single referenced bib to be deleted.", cr.getId()) )
 			.flatMap( recordClusteringServiceProvider.get()::softDelete )

@@ -149,14 +149,14 @@ public class PickupAgencyService {
 				final var message = "Delete pickup item : Skipped";
 				final var auditData = new HashMap<String, Object>();
 				auditData.put("item", item);
-				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).then(Mono.<HostLmsClient>empty());
 			})
 			.onErrorResume(error -> {
 				// we encountered an error when confirming the item exists
 				final var message = "Delete pickup item : Skipped";
 				final var auditData = new HashMap<String, Object>();
 				auditThrowable(auditData, "Throwable", error);
-				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).then(Mono.empty());
 			});
 	}
 
@@ -199,7 +199,7 @@ public class PickupAgencyService {
 				final var message = operation + " pickup hold : Skipped";
 				final var auditData = new HashMap<String, Object>();
 				auditData.put("hold", hostLmsRequest);
-				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).then(Mono.<String>empty());
 			})
 			.onErrorResume(error -> {
 
@@ -207,7 +207,7 @@ public class PickupAgencyService {
 				final var message = operation + " pickup hold : Skipped";
 				final var auditData = new HashMap<String, Object>();
 				auditThrowable(auditData, "Throwable", error);
-				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).flatMap(audit -> Mono.empty());
+				return patronRequestAuditService.addAuditEntry(patronRequest, message, auditData).then(Mono.empty());
 			});
 	}
 

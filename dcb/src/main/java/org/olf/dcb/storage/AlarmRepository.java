@@ -1,6 +1,7 @@
 package org.olf.dcb.storage;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.model.Page;
@@ -71,6 +72,7 @@ public interface AlarmRepository {
 	 * @return true when this call inserted the alarm, false when it updated an
 	 * existing one - so the caller can notify only on first sighting
 	 */
+	@Vetoed
 	@NonNull
 	@SingleResult
 	Publisher<Boolean> accumulateDetailValue(@NonNull UUID id, String code,

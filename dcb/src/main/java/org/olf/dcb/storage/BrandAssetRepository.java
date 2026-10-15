@@ -6,6 +6,7 @@ import org.olf.dcb.core.model.StoredBrandAsset;
 import org.reactivestreams.Publisher;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Vetoed;
 import io.micronaut.core.async.annotation.SingleResult;
 
 public interface BrandAssetRepository {
@@ -24,6 +25,7 @@ public interface BrandAssetRepository {
 	 * rather than a race worth reporting. The existing row is left alone: it is byte for
 	 * byte the same asset, and its {@code date_created} is the one the sweep should use.
 	 */
+	@Vetoed
 	@NonNull
 	@SingleResult
 	Publisher<Long> upsert(@NonNull String assetKey, @NonNull String contentType,
@@ -45,6 +47,7 @@ public interface BrandAssetRepository {
 	 *
 	 * @return rows deleted
 	 */
+	@Vetoed
 	@NonNull
 	@SingleResult
 	Publisher<Long> deleteUnreferencedBefore(@NonNull String pathPrefix, @NonNull Instant cutoff);
