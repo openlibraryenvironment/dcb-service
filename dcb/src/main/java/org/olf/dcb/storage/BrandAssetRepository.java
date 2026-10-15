@@ -51,4 +51,14 @@ public interface BrandAssetRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Long> deleteUnreferencedBefore(@NonNull String pathPrefix, @NonNull Instant cutoff);
+
+	/**
+	 * Delete one asset unless a brand field still refers to it. Keys are content-addressed and
+	 * public, so an image one edit stops using may be another library's or the consortium's.
+	 *
+	 * @return rows deleted: 0 when it is still in use or was not there
+	 */
+	@NonNull
+	@SingleResult
+	Publisher<Long> deleteIfUnreferenced(@NonNull String pathPrefix, @NonNull String assetKey);
 }

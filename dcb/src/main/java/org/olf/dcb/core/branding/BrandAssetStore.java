@@ -49,6 +49,9 @@ public interface BrandAssetStore {
 	/** Empty when there is no such key — a 404, not an error. */
 	Mono<BrandAsset> get(String key);
 
-	/** Best-effort. Completes empty whether or not anything was there to remove. */
+	/**
+	 * Best-effort, and never an asset a brand field on any library or consortium still refers
+	 * to. Completes empty whether or not anything was removed.
+	 */
 	Mono<Void> delete(String key);
 }
