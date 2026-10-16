@@ -77,6 +77,11 @@ public interface AgencyRepository {
 	 * agency with no library row in the directory, unbranded, which is the common case
 	 * on a deployment that has not filled the fields in.
 	 *
+	 * The name is the library's full name, falling back to the agency's: setup commonly
+	 * leaves agency.name as the Host LMS code, which a patron then reads in the picker.
+	 * ORDER BY `name` sorts on that output column, which Postgres prefers over the
+	 * agency and host_lms input columns of the same name.
+	 *
 	 * Still ONE query. The lateral is an index lookup on library.agency_id per agency
 	 * row — see V9_0_002 for the index — against a table bounded by the consortium's
 	 * membership, not by the corpus.
@@ -84,23 +89,32 @@ public interface AgencyRepository {
 	@Query(value = """
 		SELECT a.code      AS code,
 		       h.code      AS host_lms_code,
-		       a.name      AS name,
+		       COALESCE(NULLIF(BTRIM(l.full_name), ''), a.name) AS name,
 		       a.latitude  AS latitude,
 		       a.longitude AS longitude,
+		       (a.auth_profile IS NOT NULL AND LOWER(a.auth_profile) <> 'saml') AS accepts_library_card, -- 'saml' is AuthProfiles.SAML
+		       a.auth_profile AS auth_profile,
 		       l.brand_logo_url     AS brand_logo_url,
 		       l.brand_logo_alt     AS brand_logo_alt,
-		       l.default_theme_name AS default_theme_name
+		       l.default_theme_name AS default_theme_name,
+		       l.principal_label    AS principal_label,
+		       l.secret_label       AS secret_label,
+		       l.patron_website     AS patron_website,
+		       l.support_url        AS support_url,
+		       l.classification_scheme AS classification_scheme
 		FROM agency a
 		JOIN host_lms h ON a.host_lms_id = h.id
 		LEFT JOIN LATERAL (
-		  SELECT lib.brand_logo_url, lib.brand_logo_alt, lib.default_theme_name
+		  SELECT lib.full_name, lib.brand_logo_url, lib.brand_logo_alt, lib.default_theme_name,
+		         lib.principal_label, lib.secret_label, lib.patron_website,
+		         lib.support_url, lib.classification_scheme
 		  FROM library lib
 		  WHERE lib.agency_id = a.id
 		  ORDER BY lib.id
 		  LIMIT 1
 		) l ON TRUE
 		WHERE (:includeAll = true OR a.is_borrowing_agency IS TRUE)
-		ORDER BY a.name
+		ORDER BY name
 		""", nativeQuery = true)
 	Publisher<LibraryDirectoryEntry> findLibraryDirectory(boolean includeAll);
 
@@ -112,9 +126,17 @@ public interface AgencyRepository {
 		String name,
 		@Nullable Double latitude,
 		@Nullable Double longitude,
+		// Whether the agency has an authProfile: no profile, no library-account sign-in
+		boolean acceptsLibraryCard,
+		@Nullable String authProfile,
 		@Nullable String brandLogoUrl,
 		@Nullable String brandLogoAlt,
-		@Nullable String defaultThemeName) {
+		@Nullable String defaultThemeName,
+		@Nullable String principalLabel,
+		@Nullable String secretLabel,
+		@Nullable String patronWebsite,
+		@Nullable String supportUrl,
+		@Nullable String classificationScheme) {
 	}
 
 	Publisher<Void> delete(UUID id);

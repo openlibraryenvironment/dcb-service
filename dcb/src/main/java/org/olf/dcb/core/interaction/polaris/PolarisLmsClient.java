@@ -58,6 +58,7 @@ import org.olf.dcb.core.interaction.ConfigurationReport;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.interaction.DeleteCommand;
+import org.olf.dcb.core.interaction.DueDates;
 import org.olf.dcb.core.interaction.HttpResponsePredicates;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
@@ -840,6 +841,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					// As such we will need to re-work the above.
 					.barcode(itemRecord.getBarcode())
 					.renewalCount(renewalCount)
+					.dueDate(DueDates.parse(getValue(itemRecord, ItemRecordFull::getCirculationData,
+						CirculationData::getDueDate, null)))
 					// If the item is renewable at the top level AND we're not at the renewal limit
 					.renewable(isItemRenewable && !isAtRenewalLimit) // Seems to be false until the item is checked out.
 					.build();

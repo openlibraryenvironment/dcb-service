@@ -195,6 +195,100 @@ class WalkUpRequestTests {
 		assertThat(checked.getValue().getIsExpeditedRequest(), is(false));
 	}
 
+	@Test
+	void aDiscoveryWalkUpThatDoesNotNameThePatronsLibraryIsRefusedBeforeAskingAnySystem() {
+		assertThat(discoveryRefusalCode(discoveryCommand(null, PICKUP_LOCATION)), is("WALK_UP_LIBRARY_REQUIRED"));
+
+		verifyNoInteractions(hostLmsService);
+		verify(preflightChecksService, never()).check(any());
+	}
+
+	@Test
+	void aDiscoveryWalkUpRefusesThePatronsOwnLibraryBeforeAskingAnySystem() {
+		assertThat(discoveryRefusalCode(discoveryCommand("lender", PICKUP_LOCATION)), is("WALK_UP_SAME_LIBRARY"));
+
+		verifyNoInteractions(hostLmsService);
+	}
+
+	@Test
+	void aDiscoveryWalkUpRefusesAPickupAwayFromTheItemsLibrary() {
+		final var elsewhere = DataAgency.builder().id(UUID.randomUUID()).code("elsewhere").build();
+		when(locationService.findById(PICKUP_LOCATION))
+			.thenReturn(Mono.just(Location.builder().agency(elsewhere).build()));
+		when(agencyRepository.findById(elsewhere.getId())).thenReturn(Mono.just(elsewhere));
+
+		assertThat(discoveryRefusalCode(discoveryCommand("borrower", PICKUP_LOCATION)),
+			is("WALK_UP_PICKUP_ELSEWHERE"));
+
+		verify(preflightChecksService, never()).check(any());
+	}
+
+	@Test
+	void aDiscoveryWalkUpRefusesAnItemLibraryThatIsNotOnTheNamedSystem() {
+		when(agencyRepository.findHostLmsIdById(lender.getId())).thenReturn(Mono.just(UUID.randomUUID()));
+
+		assertThat(discoveryRefusalCode(discoveryCommand("borrower", PICKUP_LOCATION)),
+			is("WALK_UP_ITEM_AGENCY_MISMATCH"));
+	}
+
+	@Test
+	void aDiscoveryWalkUpRefusesAnItemAnotherRequestAlreadyHolds() {
+		when(patronRequestRepository.findActiveRequestHoldingSupplierItem(ITEM_SYSTEM, "item-1"))
+			.thenReturn(Mono.just(PatronRequest.builder().id(UUID.randomUUID())
+				.status(PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY).build()));
+
+		assertThat(discoveryRefusalCode(discoveryCommand("borrower", PICKUP_LOCATION)),
+			is("WALK_UP_ITEM_ALREADY_REQUESTED"));
+
+		verify(preflightChecksService, never()).check(any());
+	}
+
+	@Test
+	void aWalkUpRefusalDoesNotDescribeAnotherPatronsRequest() {
+		final var existingId = UUID.randomUUID();
+
+		when(patronRequestRepository.findActiveRequestHoldingSupplierItem(ITEM_SYSTEM, "item-1"))
+			.thenReturn(Mono.just(PatronRequest.builder().id(existingId)
+				.status(PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY).build()));
+
+		final var refusal = assertThrows(PreflightCheckFailedException.class,
+			() -> service.placeDiscoveryWalkUp(discoveryCommand("borrower", PICKUP_LOCATION)).block())
+			.getFailedChecks().get(0);
+
+		assertThat(refusal.getDescription(), is("Item item-1 is already part of a request in progress"));
+		assertThat(refusal.getDescription(), not(containsString(existingId.toString())));
+	}
+
+	@Test
+	void aDiscoveryWalkUpThatPassesEveryRefusalIsPlacedAsAnExpeditedCheckout() {
+		when(preflightChecksService.check(any())).thenReturn(Mono.empty());
+
+		service.placeDiscoveryWalkUp(discoveryCommand("borrower", PICKUP_LOCATION)).block();
+
+		final var placed = ArgumentCaptor.forClass(PlacePatronRequestCommand.class);
+		verify(preflightChecksService).check(placed.capture());
+		assertThat(placed.getValue().getIsExpeditedRequest(), is(true));
+	}
+
+	private String discoveryRefusalCode(PlacePatronRequestCommand command) {
+		final var refusal = assertThrows(PreflightCheckFailedException.class,
+			() -> service.placeDiscoveryWalkUp(command).block());
+
+		return refusal.getFailedChecks().get(0).getCode();
+	}
+
+	private static PlacePatronRequestCommand discoveryCommand(String patronAgency, String pickupLocation) {
+		return PlacePatronRequestCommand.builder()
+			.citation(PlacePatronRequestCommand.Citation.builder().bibClusterId(UUID.randomUUID()).build())
+			.pickupLocation(PlacePatronRequestCommand.PickupLocation.builder().code(pickupLocation).build())
+			.requestor(PlacePatronRequestCommand.Requestor.builder()
+				.localId("patron-1").localSystemCode("BORROWER-SYSTEM").agencyCode(patronAgency).build())
+			.item(PlacePatronRequestCommand.Item.builder()
+				.localId("item-1").localSystemCode(ITEM_SYSTEM).agencyCode("lender").build())
+			.isExpeditedRequest(true)
+			.build();
+	}
+
 	private String refusalCode(WalkUpRequestCommand command) {
 		final var refusal = assertThrows(PreflightCheckFailedException.class,
 			() -> service.placeWalkUpRequest(command).block());

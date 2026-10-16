@@ -13,7 +13,11 @@ import com.k_int.peerauth.TrustedPeer;
 import com.k_int.peerauth.TrustedPeerBinding;
 import com.k_int.peerauth.store.TrustedPeerStore;
 
-import jakarta.inject.Singleton;
+import org.olf.dcb.security.AdminUiAccessPolicy;
+
+import io.micronaut.context.annotation.Context;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.security.authentication.Authentication;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -30,14 +34,38 @@ import lombok.extern.slf4j.Slf4j;
  * {@link PatronAssertionVerifier}.
  */
 @Slf4j
-@Singleton
+// Created at startup, not on first use: a duplicate issuer or malformed trust JSON must
+// stop the application starting, not fail the first patron call after a green rollout.
+@Context
 public class DiscoveryTrustedServiceStore implements TrustedPeerStore {
 
 	private final Map<String, TrustedPeer> peersByIssuer;
+	private final Map<String, DiscoveryServiceProperties.TrustedService> servicesById;
+	private final Map<String, DiscoveryServiceProperties.TrustedService> servicesByClientId;
 
 	public DiscoveryTrustedServiceStore(DiscoveryServiceProperties properties) {
-		this.peersByIssuer = properties.getTrustedServices().stream()
-			.filter(DiscoveryTrustedServiceStore::isUsable)
+		properties.getTrustedServices().forEach(DiscoveryTrustedServiceStore::requireComplete);
+
+		final var usable = properties.getTrustedServices();
+
+		this.servicesById = usable.stream().collect(Collectors.toUnmodifiableMap(
+			DiscoveryServiceProperties.TrustedService::getServiceId, service -> service,
+			(first, duplicate) -> {
+				throw new IllegalStateException(
+					"Duplicate discovery service id in dcb.discovery.trusted-services: "
+						+ first.getServiceId());
+			}));
+
+		// One client acting as two services could spend assertions either one signed.
+		this.servicesByClientId = usable.stream().collect(Collectors.toUnmodifiableMap(
+			DiscoveryServiceProperties.TrustedService::getClientId, service -> service,
+			(first, duplicate) -> {
+				throw new IllegalStateException(
+					"Duplicate discovery service client-id in dcb.discovery.trusted-services: "
+						+ first.getClientId());
+			}));
+
+		this.peersByIssuer = usable.stream()
 			.collect(Collectors.toUnmodifiableMap(
 				DiscoveryServiceProperties.TrustedService::getIssuer,
 				service -> toTrustedPeer(service, properties.getAudience()),
@@ -53,18 +81,30 @@ public class DiscoveryTrustedServiceStore implements TrustedPeerStore {
 			peersByIssuer.size(), peersByIssuer.values().stream().map(TrustedPeer::peerId).toList());
 	}
 
-	private static boolean isUsable(DiscoveryServiceProperties.TrustedService service) {
-		final var usable = service.getServiceId() != null && !service.getServiceId().isBlank()
+	private static void requireComplete(DiscoveryServiceProperties.TrustedService service) {
+		final var complete = service.getServiceId() != null && !service.getServiceId().isBlank()
 			&& service.getIssuer() != null && !service.getIssuer().isBlank()
 			&& (service.getJwksUri() != null || service.getJwks() != null);
 
-		if (!usable) {
-			log.error("Ignoring incomplete dcb.discovery.trusted-services entry (serviceId={}): "
-				+ "serviceId, issuer and one of jwksUri/jwks are all required",
-				service.getServiceId());
+		if (!complete) {
+			throw new IllegalStateException("Incomplete dcb.discovery.trusted-services entry (serviceId="
+				+ service.getServiceId() + "): serviceId, issuer and one of jwksUri/jwks are all required");
 		}
+	}
 
-		return usable;
+	public Optional<DiscoveryServiceProperties.TrustedService> findByServiceId(String serviceId) {
+		return Optional.ofNullable(serviceId).map(servicesById::get);
+	}
+
+	/** The service whose OIDC client obtained the caller's bearer, if any. */
+	public Optional<DiscoveryServiceProperties.TrustedService> findByCaller(
+		@Nullable Authentication caller) {
+
+		return Optional.ofNullable(caller)
+			.map(authentication -> authentication.getAttributes().get(AdminUiAccessPolicy.AUTHORIZED_PARTY))
+			.filter(String.class::isInstance)
+			.map(String.class::cast)
+			.map(servicesByClientId::get);
 	}
 
 	private static TrustedPeer toTrustedPeer(DiscoveryServiceProperties.TrustedService service,

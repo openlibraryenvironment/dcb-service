@@ -18,6 +18,7 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.model.HostLms;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -383,12 +384,21 @@ public class PAPIClient {
       .doOnError( e -> log.error("Problem in  synch_BibsPagedGet {}",e) );
 	}
 
+	/** Everything: a bib modified before this does not exist. */
+	private static final Instant FULL_HARVEST_FROM = Instant.EPOCH;
+
 	@SingleResult
 	public Publisher<JsonNode> synch_BibsPagedGetRaw( BibsPagedGetParams params ) {
 
+		// A null start date is our internal signal for "full harvest, no checkpoint yet" — it
+		// is NOT permission to omit the parameter. PAPI documents startdatemodified as
+		// required on Synch_BibsPagedGet, Micronaut's UriBuilder drops a null query param,
+		// and a real Polaris answers the resulting request with PAPIErrorCode -1
+		// "An unhandled exception occurred". So the full harvest asks from the epoch.
 		String dateStr = Optional.ofNullable(params.getStartdatemodified())
-					.map( inst -> inst.truncatedTo(ChronoUnit.MILLIS).toString() )
-					.orElse(null);
+					.orElse(FULL_HARVEST_FROM)
+					.truncatedTo(ChronoUnit.MILLIS)
+					.toString();
 
     log.info("get page : {} {} {}",lms.getCode(),params, dateStr);
 

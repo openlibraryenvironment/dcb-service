@@ -41,6 +41,18 @@ import jakarta.inject.Singleton;
  * "starts with" would accept {@code /discovery/brand-assets/../../something} and a prefix
  * test that can be walked out of is not a prefix test.
  *
+ * <h2>The links are validated too, and for the same reason</h2>
+ *
+ * {@code patronWebsite} and {@code supportUrl} on a library, {@code websiteUrl} and
+ * {@code supportUrl} on a consortium, become the {@code href} of an anchor in the footer
+ * of every page of the patron app. {@code javascript:} is as dangerous in an href as in
+ * an img src, so {@link #linkUrl} applies the same scheme rule — minus the asset-prefix
+ * case, which is a stored image and is never a website.
+ *
+ * patronWebsite and websiteUrl predate the check, so a value stored before it is served as it
+ * stands, and kept when an edit sends it back unchanged ({@link #changedLinkUrl}). The
+ * discovery app validates on read for exactly that reason.
+ *
  * <h2>Blank clears the field</h2>
  *
  * An administrator who has uploaded the wrong mark must be able to remove it. The
@@ -115,6 +127,55 @@ public class BrandingValidator {
 		}
 
 		return value;
+	}
+
+	/**
+	 * @return the trimmed URL, or null to clear the field
+	 * @throws HttpStatusException if it is not an absolute http(s) URL naming a host
+	 */
+	@Nullable
+	public String linkUrl(@Nullable String raw) {
+		final var value = trimmed(raw);
+
+		if (value == null) {
+			return null;
+		}
+
+		// Deliberately NOT the asset-prefix form logoUrl accepts. That prefix names an
+		// image this service stored; a website is somewhere else entirely, and accepting
+		// a path here would let a support link point at a PNG.
+		final URI uri;
+		try {
+			uri = new URI(value);
+		}
+		catch (URISyntaxException e) {
+			throw badRequest("link URL is not a valid URL");
+		}
+
+		final var scheme = uri.getScheme() == null
+			? null
+			: uri.getScheme().toLowerCase(Locale.ROOT);
+
+		if (!"https".equals(scheme) && !"http".equals(scheme)) {
+			throw badRequest("link URL must be an absolute http(s) URL");
+		}
+
+		if (uri.getHost() == null || uri.getHost().isBlank()) {
+			throw badRequest("link URL must name a host");
+		}
+
+		return value;
+	}
+
+	/**
+	 * As {@link #linkUrl}, but a value equal to the one already stored is kept as it is: a link
+	 * saved before this check existed must not stop the rest of the record being saved.
+	 */
+	@Nullable
+	public String changedLinkUrl(@Nullable String raw, @Nullable String stored) {
+		final var value = trimmed(raw);
+
+		return value != null && value.equals(stored) ? stored : linkUrl(raw);
 	}
 
 	/**

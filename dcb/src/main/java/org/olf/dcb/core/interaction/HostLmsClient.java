@@ -234,6 +234,17 @@ public interface HostLmsClient
 		return Mono.empty();
 	}
 
+	/**
+	 * What the patron holds at their own library, which DCB never saw - see
+	 * docs/discovery-service-approach.md section 6.4. Empty means this system will not say,
+	 * which a caller must report rather than show as an empty account.
+	 *
+	 * @param maxRows bound on the loans and charges returned: one live read per account page
+	 */
+	default Mono<LocalPatronAccount> getLocalPatronAccount(String localPatronId, int maxRows) {
+		return Mono.empty();
+	}
+
 	Mono<Patron> patronAuth(String authProfile, String patronPrinciple, String secret);
 
 	Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand);

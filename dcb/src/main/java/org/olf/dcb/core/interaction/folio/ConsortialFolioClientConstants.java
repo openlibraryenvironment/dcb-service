@@ -45,6 +45,7 @@ final class ConsortialFolioClientConstants {
 	static final String PATH_DCB_TRANSACTION_RENEW = "/dcbService/transactions/%s/renew";
 	static final String PATH_DCB_TRANSACTION_BLOCK_RENEWAL = "/dcbService/transactions/%s/block-renewal";
 	static final String PATH_USERS = "/users/users";
+	static final String PATH_PATRON_ACCOUNT = "/patron/account/%s";
 	static final String PATH_PATRON_PIN_VERIFY = "/users/patron-pin/verify";
 	static final String PATH_INVENTORY_ITEMS = "/inventory/items";
 	static final String PATH_INVENTORY_INSTANCES = "/inventory/instances";

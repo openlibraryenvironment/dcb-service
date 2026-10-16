@@ -13,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import lombok.extern.slf4j.Slf4j;
+import org.olf.dcb.core.branding.BrandingValidator;
 import org.olf.dcb.core.model.Agency;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Library;
@@ -41,6 +42,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 	private final AgencyRepository agencyRepository;
 	private final HostLmsRepository hostLmsRepository;
 	private final R2dbcOperations r2dbcOperations;
+	private final BrandingValidator brandingValidator;
 
 	public CreateLibraryDataFetcher(LibraryRepository libraryRepository,
 																	PersonRepository personRepository,
@@ -48,8 +50,10 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 																	RoleRepository roleRepository,
 																	AgencyRepository agencyRepository,
 																	HostLmsRepository hostLmsRepository,
-																	R2dbcOperations r2dbcOperations) {
+																	R2dbcOperations r2dbcOperations,
+																	BrandingValidator brandingValidator) {
 		this.libraryRepository = libraryRepository;
+		this.brandingValidator = brandingValidator;
 		this.personRepository = personRepository;
 		this.roleRepository = roleRepository;
 		this.agencyRepository = agencyRepository;
@@ -92,7 +96,9 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		String backupDowntimeSchedule = InputValues.stringValue(input_map, "backupDowntimeSchedule");
 		String supportHours = InputValues.stringValue(input_map, "supportHours");
 		String discoverySystem = InputValues.stringValue(input_map, "discoverySystem");
-		String patronWebsite = InputValues.stringValue(input_map, "patronWebsite");
+		// Validated as updateLibrary validates them, so create is not a way round the rule
+		String patronWebsite = brandingValidator.linkUrl(InputValues.asString(input_map.get("patronWebsite")));
+		String supportUrl = brandingValidator.linkUrl(InputValues.asString(input_map.get("supportUrl")));
 		String hostLmsConfiguration = InputValues.stringValue(input_map, "hostLmsConfiguration");
 
 		String targetLoanToBorrowRatio = InputValues.stringValue(input_map, "targetLoanToBorrowRatio");
@@ -118,6 +124,7 @@ public class CreateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 			.backupDowntimeSchedule(backupDowntimeSchedule)
 			.discoverySystem(discoverySystem)
 			.patronWebsite(patronWebsite)
+			.supportUrl(supportUrl)
 			.hostLmsConfiguration(hostLmsConfiguration)
 			.targetLoanToBorrowRatio(targetLoanToBorrowRatio)
 			.reason(textOr(input_map, "reason", "Adding a new library"))

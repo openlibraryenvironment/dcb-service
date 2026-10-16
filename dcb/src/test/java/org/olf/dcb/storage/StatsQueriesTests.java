@@ -42,6 +42,7 @@ import org.olf.dcb.core.api.serde.CollectionBalanceStat;
 import org.olf.dcb.core.api.serde.ConsortialLifelineStat;
 import org.olf.dcb.core.api.serde.DemandHeatCell;
 import org.olf.dcb.core.api.serde.FailureReasonStat;
+import org.olf.dcb.core.api.serde.LibraryBreakdownStat;
 import org.olf.dcb.core.api.serde.NetFlowStat;
 import org.olf.dcb.core.api.serde.PartnerStat;
 import org.olf.dcb.core.api.serde.PeerBenchmarkStat;
@@ -878,6 +879,91 @@ class StatsQueriesTests {
 
 		assertThat(scoped, hasSize(1));
 		assertThat(scoped.get(0).sampleCount(), equalTo(1L));
+	}
+
+	// --- per-library breakdown ---------------------------------------------
+
+	@Test
+	void theLibraryBreakdownSplitsWalkUpFromShipped() {
+		// The courier saving from walk-up is an assertion until it is counted. A
+		// request collected in person at the supplying library moved no van; a shipped one
+		// did. These are the two numbers that turn the claim into evidence.
+		saveWalkUp("LIB_A", "SUP_A");
+		saveWalkUp("LIB_A", "SUP_A");
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		saveRequest(LOANED, "LIB_B", "SUP_A", null, STANDARD_WORKFLOW);
+
+		final var byLibrary = manyValuesFrom(
+			patronRequestRepository.findLibraryBreakdown(null, null, null)).stream()
+			.collect(Collectors.toMap(LibraryBreakdownStat::libraryCode, row -> row));
+
+		assertThat(byLibrary.get("LIB_A").totalRequests(), equalTo(3L));
+		assertThat(byLibrary.get("LIB_A").walkUpRequests(), equalTo(2L));
+		assertThat(byLibrary.get("LIB_A").shippedRequests(), equalTo(1L));
+
+		assertThat(byLibrary.get("LIB_B").walkUpRequests(), equalTo(0L));
+		assertThat(byLibrary.get("LIB_B").shippedRequests(), equalTo(1L));
+	}
+
+	@Test
+	void theTwoCountsAlwaysSumToTheTotal() {
+		// is_expedited_checkout is nullable. Counting "false" rather than "not true" would
+		// drop every request written before V8_23_0_002's default applied, and the two halves
+		// would silently stop adding up to the total shown beside them.
+		final var nullFlagged = saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		assertThat(patronRequestsFixture.findById(nullFlagged.getId()).getIsExpeditedCheckout(),
+			nullValue());
+
+		saveWalkUp("LIB_A", "SUP_A");
+
+		final var row = manyValuesFrom(
+			patronRequestRepository.findLibraryBreakdown("LIB_A", null, null)).get(0);
+
+		assertThat(row.walkUpRequests() + row.shippedRequests(), equalTo(row.totalRequests()));
+		assertThat(row.shippedRequests(), equalTo(1L));
+	}
+
+	@Test
+	void theLibraryBreakdownNarrowsToTheCallersOwnLibrary() {
+		// Unlike peer benchmarking beside it, this one is scoped: it answers "what did MY
+		// library do", and a library-level caller must not read a neighbour's volume from it.
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		saveRequest(LOANED, "LIB_B", "SUP_A", null, STANDARD_WORKFLOW);
+
+		final var scoped = manyValuesFrom(
+			patronRequestRepository.findLibraryBreakdown("LIB_A", null, null));
+
+		assertThat(scoped, hasSize(1));
+		assertThat(scoped.get(0).libraryCode(), equalTo("LIB_A"));
+	}
+
+	@Test
+	void theLibraryBreakdownNamesTheLibraryWhereThereIsOne() {
+		// Degrade honestly where there are no libraries rather than reporting zero. A
+		// Host LMS with requests that is not onboarded has a null name and the caller shows
+		// the code - it is a fact about the configuration, not an empty row.
+		onboard("LIB_A", "AG_LIB_A", "Riverside Public Library");
+
+		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
+		saveRequest(LOANED, "LIB_UNKNOWN", "SUP_A", null, STANDARD_WORKFLOW);
+
+		final var byLibrary = manyValuesFrom(
+			patronRequestRepository.findLibraryBreakdown(null, null, null)).stream()
+			.collect(Collectors.toMap(LibraryBreakdownStat::libraryCode, row -> row));
+
+		assertThat(byLibrary.get("LIB_A").libraryName(), equalTo("Riverside Public Library"));
+		assertThat(byLibrary.get("LIB_UNKNOWN").libraryName(), nullValue());
+	}
+
+	private PatronRequest saveWalkUp(String borrower, String supplier) {
+		return patronRequestsFixture.savePatronRequest(PatronRequest.builder()
+			.id(UUID.randomUUID())
+			.status(LOANED)
+			.patronHostlmsCode(borrower)
+			.localItemHostlmsCode(supplier)
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.isExpeditedCheckout(true)
+			.build());
 	}
 
 	// --- trading partners ----------------------------------------------------

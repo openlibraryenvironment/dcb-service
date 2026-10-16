@@ -190,6 +190,70 @@ class BrandingValidatorTests {
 		assertBadRequest(() -> validator.logoUrl("//evil.example.org/logo.png"));
 	}
 
+	/**
+	 * patronWebsite, supportUrl and websiteUrl become the href of an anchor in the
+	 * footer of every page of the patron app. An href is not a safer place for
+	 * {@code javascript:} than an img src is, so the scheme rule is the same one.
+	 */
+	@Test
+	void shouldAcceptAnAbsoluteLink() {
+		assertThat(validator.linkUrl("https://library.example.org/opening-hours"),
+			is("https://library.example.org/opening-hours"));
+	}
+
+	@Test
+	void shouldClearALinkWhenItIsBlank() {
+		// A library that typed the wrong address has to be able to remove it, and the
+		// update fetchers have no other way to say "set this to null".
+		assertThat(validator.linkUrl("   "), is(nullValue()));
+		assertThat(validator.linkUrl(null), is(nullValue()));
+	}
+
+	@Test
+	void shouldKeepALinkStoredBeforeTheCheckWhenItIsSentBackUnchanged() {
+		assertThat(validator.changedLinkUrl("www.library.example.org", "www.library.example.org"),
+			is("www.library.example.org"));
+		assertThat(validator.changedLinkUrl(" www.library.example.org ", "www.library.example.org"),
+			is("www.library.example.org"));
+	}
+
+	@Test
+	void shouldCheckALinkThatChanges() {
+		assertBadRequest(() -> validator.changedLinkUrl("www.other.example.org", "www.library.example.org"));
+		assertThat(validator.changedLinkUrl("https://library.example.org", "www.library.example.org"),
+			is("https://library.example.org"));
+		assertThat(validator.changedLinkUrl("", "www.library.example.org"), is(nullValue()));
+	}
+
+	@Test
+	void shouldRefuseInALinkWhatItRefusesInAnImage() {
+		assertBadRequest(() -> validator.linkUrl("javascript:alert(1)"));
+		assertBadRequest(() -> validator.linkUrl("data:text/html,<h1>hi"));
+		assertBadRequest(() -> validator.linkUrl("//evil.example.org/phish"));
+		assertBadRequest(() -> validator.linkUrl("mailto:librarian@example.org"));
+	}
+
+	/**
+	 * The one place the two rules deliberately DIFFER. logoUrl accepts a path under this
+	 * service's asset prefix because an uploaded mark really is served from there; a
+	 * website is somewhere else entirely, and accepting the prefix here would let "report
+	 * a problem" point at a stored PNG.
+	 */
+	@Test
+	void shouldRefuseAnAssetPathAsALink() {
+		final var asset = "/discovery/brand-assets/"
+			+ "0".repeat(64) + ".png";
+
+		assertThat("the same value is a valid IMAGE", validator.logoUrl(asset), is(asset));
+		assertBadRequest(() -> validator.linkUrl(asset));
+	}
+
+	@Test
+	void shouldRefuseALinkWithNoHost() {
+		assertBadRequest(() -> validator.linkUrl("https:///opening-hours"));
+		assertBadRequest(() -> validator.linkUrl("/opening-hours"));
+	}
+
 	private static BrandingValidator validatorAccepting(String... themeNames) {
 		final var properties = new BrandingProperties();
 		properties.setThemeNames(List.of(themeNames));

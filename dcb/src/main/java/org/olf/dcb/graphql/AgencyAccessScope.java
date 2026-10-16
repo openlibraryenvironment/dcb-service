@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import graphql.schema.DataFetchingEnvironment;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import services.k_int.data.querying.QueryPath;
 
@@ -170,6 +171,12 @@ public final class AgencyAccessScope {
 
 	public static boolean isUnrestricted(DataFetchingEnvironment env) {
 		return rolesOf(env).stream().anyMatch(UNRESTRICTED_ROLES::contains);
+	}
+
+	/** Whether this caller may act on one agency's own records. */
+	public static boolean permitsAgency(DataFetchingEnvironment env, @Nullable String agencyCode) {
+		return isUnrestricted(env)
+			|| (agencyCode != null && visibleAgencyCodes(env).contains(agencyCode));
 	}
 
 	/**

@@ -55,6 +55,10 @@ public class GraphQLFactory {
 			CreateContactDataFetcher createContactDataFetcher, DeleteConsortiumDataFetcher deleteConsortiumDataFetcher,
 			CreateRoleDataFetcher createRoleDataFetcher, UpdateRoleDataFetcher updateRoleDataFetcher,
 			CreateFunctionalSettingDataFetcher createFunctionalSettingDataFetcher,
+			AnnouncementsDataFetcher announcementsDataFetcher,
+			CreateAnnouncementDataFetcher createAnnouncementDataFetcher,
+			UpdateAnnouncementDataFetcher updateAnnouncementDataFetcher,
+			DeleteAnnouncementDataFetcher deleteAnnouncementDataFetcher,
 			CreateReferenceValueMappingDataFetcher createReferenceValueMappingDataFetcher,
 			CreateLocationDataFetcher createLocationDataFetcher, CreateLibraryContactDataFetcher createLibraryContactDataFetcher,
 			DeleteLibraryContactDataFetcher deleteLibraryContactDataFetcher,
@@ -94,6 +98,7 @@ public class GraphQLFactory {
 						.dataFetcher("sourceBibs", sourceBibDataFetcher)
 						.dataFetcher("processStates", dataFetchers.getProcessStateDataFetcher())
 						.dataFetcher("audits", dataFetchers.getAuditsDataFetcher())
+						.dataFetcher("announcements", announcementsDataFetcher)
 						.dataFetcher("patronIdentities", dataFetchers.getPatronIdentitiesDataFetcher())
 						.dataFetcher("numericRangeMappings", dataFetchers.getNumericRangeMappingsDataFetcher())
 						.dataFetcher("referenceValueMappings", dataFetchers.getReferenceValueMappingsDataFetcher())
@@ -136,6 +141,9 @@ public class GraphQLFactory {
 						.dataFetcher("createRole", createRoleDataFetcher)
 						.dataFetcher("updateRole", updateRoleDataFetcher)
 						.dataFetcher("createFunctionalSetting", createFunctionalSettingDataFetcher)
+						.dataFetcher("createAnnouncement", createAnnouncementDataFetcher)
+						.dataFetcher("updateAnnouncement", updateAnnouncementDataFetcher)
+						.dataFetcher("deleteAnnouncement", deleteAnnouncementDataFetcher)
 						.dataFetcher("createReferenceValueMapping", createReferenceValueMappingDataFetcher)
 						.dataFetcher("createLocation", createLocationDataFetcher)
 						.dataFetcher("createLibraryContact", createLibraryContactDataFetcher)

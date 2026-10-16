@@ -31,6 +31,12 @@ public interface PatronIdentityRepository {
 		@NotNull Boolean homeIdentity);
 
 	@NonNull
+	@SingleResult
+	Publisher<Boolean> existsByLocalIdAndHostLmsAndHomeIdentity(
+		@NotNull String localId, @NotNull DataHostLms hostLms,
+		@NotNull Boolean homeIdentity);
+
+	@NonNull
 	Publisher<PatronIdentity> findAllByPatron(Patron patron);
 
 	@NonNull

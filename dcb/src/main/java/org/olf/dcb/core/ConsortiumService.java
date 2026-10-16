@@ -72,6 +72,14 @@ public class ConsortiumService {
 	}
 
 	/**
+	 * The sole consortium's id, for the announcement scope. Empty on a standalone DCB, which
+	 * is a fact rather than a failure.
+	 */
+	public Mono<java.util.UUID> findOneConsortiumId() {
+		return findOneConsortium().map(Consortium::getId);
+	}
+
+	/**
 	 * Determine whether a setting is enabled for the sole consortia
 	 *
 	 * @param settingType setting to check

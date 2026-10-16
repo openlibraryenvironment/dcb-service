@@ -136,6 +136,9 @@ info:
       supplying:
         patron-type: ${dcb.requests.supplying.patron-type:}
       preflight-checks:
+        # A bound on all of them together, so a slow member system refuses the request
+        # rather than holding the caller open.
+        timeout: ${dcb.requests.preflight-checks.timeout:PT55S}
         pickup-location:
           enabled: ${dcb.requests.preflight-checks.pickup-location.enabled:}
         pickup-location-to-agency-mapping:

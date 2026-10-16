@@ -960,7 +960,24 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 	
 	protected Mono<String> getSuppressionRulesetName() {
 		return refetchLms()
-			.mapNotNull( HostLms::getSuppressionRulesetName );
+			.mapNotNull( lms -> suppressionRulesetName(lms.getSuppressionRulesetName()) );
+	}
+
+	/**
+	 * The ruleset name to look up, or null where the Host LMS names none.
+	 *
+	 * Blank counts as none. objectRulesService.findByName rejects "" with
+	 * "findByName.name: must not be empty", and that fails the whole harvest rather than
+	 * one record — so a Host LMS whose ruleset was cleared in the admin UI, which stores
+	 * "" and not null, ingests nothing at all until the column is edited in the database.
+	 */
+	static String suppressionRulesetName(String configured) {
+		if (configured == null) {
+			return null;
+		}
+
+		final var trimmed = configured.strip();
+		return trimmed.isEmpty() ? null : trimmed;
 	}
 	
 	private Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;

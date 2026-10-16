@@ -10,6 +10,10 @@ import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsStrin
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,6 +35,7 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Citation;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.PickupLocation;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand.Requestor;
+import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.BibRecordFixture;
 import org.olf.dcb.test.ClusterRecordFixture;
@@ -80,6 +85,9 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 	@Inject
 	private LocationFixture locationFixture;
 
+	@Inject
+	private ConsortiumFixture consortiumFixture;
+
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 
@@ -116,6 +124,7 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 
 	@BeforeEach
 	void beforeEach() {
+		consortiumFixture.deleteAll();
 		clusterRecordFixture.deleteAll();
 		referenceValueMappingFixture.deleteAll();
 		locationFixture.deleteAll();
@@ -301,6 +310,128 @@ class ResolvePatronRequestPreflightCheckTests extends AbstractPreflightCheckTest
 				"Patron request for cluster record \"%s\" could not be resolved to an item"
 					.formatted(clusterRecordId))
 		));
+	}
+
+	@Test
+	void shouldFailAnExpeditedCheckoutOfACopyThatIsNotAvailable() {
+		// Arrange: with unavailable items selectable, resolution would choose the copy on loan
+		consortiumFixture.enableSetting(SELECT_UNAVAILABLE_ITEMS);
+
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = generateNumericLocalIdAsString();
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var onLoanItemId = generateNumericLocalIdAsString();
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			"resolution-cataloguing", 1, 1, "loanable-item");
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id(onLoanItemId)
+				.barcode(generateBarcode())
+				.locationCode(ITEM_LOCATION_CODE)
+				.statusCode("-")
+				// A Sierra item with a due date is on loan
+				.dueDate(Instant.now().plus(3, ChronoUnit.HOURS))
+				.itemType("1")
+				.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
+				.build()));
+
+		final var localPatronId = definePatron(generateNumericLocalIdAsString());
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecord.getId())
+				.build())
+			.item(PlacePatronRequestCommand.Item.builder()
+				.localId(onLoanItemId)
+				.agencyCode(SUPPLYING_AGENCY_CODE)
+				.localSystemCode(CIRCULATING_HOST_LMS_CODE)
+				.build())
+			.isExpeditedRequest(true)
+			.pickupLocation(PickupLocation.builder()
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("ITEM_NOT_AVAILABLE",
+				"Item %s is not available to check out".formatted(onLoanItemId))));
+	}
+
+	@Test
+	void shouldFailAnExpeditedCheckoutOfAnAvailableCopyHeldForSomeoneElse() {
+		// Arrange: FOLIO reports "Awaiting pickup" and "Paged" copies as available, with their holds,
+		// and with unavailable items selectable, resolution would choose one
+		consortiumFixture.enableSetting(SELECT_UNAVAILABLE_ITEMS);
+
+		final var bibRecordId = randomUUID();
+
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(randomUUID(), bibRecordId);
+
+		final var sourceRecordId = generateNumericLocalIdAsString();
+
+		bibRecordFixture.createBibRecord(bibRecordId, cataloguingHostLms.getId(),
+			sourceRecordId, clusterRecord);
+
+		final var heldItemId = generateNumericLocalIdAsString();
+
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			"resolution-cataloguing", 1, 1, "loanable-item");
+
+		sierraItemsAPIFixture.itemsForBibId(sourceRecordId, List.of(
+			SierraItem.builder()
+				.id(heldItemId)
+				.barcode(generateBarcode())
+				.locationCode(ITEM_LOCATION_CODE)
+				.statusCode("-")
+				.holdCount(1)
+				.itemType("1")
+				.fixedFields(Map.of(61, FixedField.builder().value("1").build()))
+				.build()));
+
+		final var localPatronId = definePatron(generateNumericLocalIdAsString());
+
+		// Act
+		final var command = PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localSystemCode(BORROWING_HOST_LMS_CODE)
+				.localId(localPatronId)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(clusterRecord.getId())
+				.build())
+			.item(PlacePatronRequestCommand.Item.builder()
+				.localId(heldItemId)
+				.agencyCode(SUPPLYING_AGENCY_CODE)
+				.localSystemCode(CIRCULATING_HOST_LMS_CODE)
+				.build())
+			.isExpeditedRequest(true)
+			.pickupLocation(PickupLocation.builder()
+				.code(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+				.build())
+			.build();
+
+		final var results = check(command);
+
+		// Assert
+		assertThat(results, containsInAnyOrder(
+			failedCheck("ITEM_NOT_AVAILABLE",
+				"Item %s is held for another patron".formatted(heldItemId))));
 	}
 
 	@Test

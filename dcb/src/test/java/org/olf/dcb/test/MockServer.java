@@ -129,6 +129,10 @@ public class MockServer {
 		verifyNever(commonRequests.put(path));
 	}
 
+	public void verifyGetNever(String path) {
+		verifyNever(commonRequests.get(path));
+	}
+
 	public Object getResource(String jsonResourcePath) {
 		return resourceLoader.getResource(jsonResourcePath);
 	}

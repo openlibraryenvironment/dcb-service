@@ -51,6 +51,18 @@ public interface LibraryRepository {
 
 	@Query(value = "SELECT * from library where agency_code in (:agencyCodes) order by full_name", nativeQuery = true)
 	Publisher<Library> findByAgencyCodes(@NonNull Collection<String> agencyCodes);
+
+	/**
+	 * Case-insensitive, for a code that arrived from a URL a patron may have typed.
+	 *
+	 * {@link #findOneByAgencyCode} is exact and is the right call wherever the code came from
+	 * our own data. This one exists for the anonymous discovery surface, where a case
+	 * mismatch would silently answer about the wrong scope rather than fail.
+	 */
+	@SingleResult
+	@Query(value = "SELECT * from library where upper(agency_code) = upper(:agencyCode) limit 1",
+		nativeQuery = true)
+	Publisher<Library> findOneByAgencyCodeIgnoringCase(@NonNull String agencyCode);
 	
 	Publisher<Library> queryAll();
 

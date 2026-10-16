@@ -72,6 +72,29 @@ class ApiSecurityArchitectureTests {
 	private static final Set<String> KNOWN_OPEN_STAFF_ROUTES = Set.of();
 
 	/**
+	 * Anonymous routes that predate RULE 1c. Each serves a caller that cannot hold a DCB token:
+	 * patron login, NCIP and profile peers, and public catalogue, state-model and JWKS reads.
+	 * A new anonymous route carries @OpenToAllPrincipals instead of joining this list.
+	 */
+	private static final Set<String> KNOWN_ANONYMOUS_ROUTES = Set.of(
+		"BibController#list",
+		"BrandAssetServeController#serve",
+		"ClusterRecordController#listMapped",
+		"ClusterRecordController#show",
+		"ClusterRecordController#auditLog",
+		"LocationController#list",
+		"PatronAuthController#patronAuth",
+		"PatronAuthV2Controller#patronAuth",
+		"StateModelController#getDiagramSVG",
+		"StateModelController#getDiagramPNG",
+		"StateModelController#getDiagram",
+		"NcipController#receive",
+		"DcbPeerJwksController#jwks",
+		"DcbProfileRegistrationController#invitation",
+		"DcbProfileRegistrationController#validate",
+		"DcbProfileRegistrationController#redeem");
+
+	/**
 	 * Anonymous POST/PUT/PATCH/DELETE routes, each with the reason it needs no credential.
 	 * Every one authenticates its caller in its own code. An entry here is a decision a
 	 * reviewer can see.
@@ -214,6 +237,24 @@ class ApiSecurityArchitectureTests {
 			Name the roles the route is actually for. If it genuinely confers no authority \
 			and returns no tenant-scoped data, annotate it @OpenToAllPrincipals with a \
 			justification so the decision is visible in review:
+
+			""" + String.join("\n", undocumented));
+	}
+
+	/** RULE 1c. An anonymous route is open to callers with no token at all, so it needs a reason too. */
+	@Test
+	void everyAnonymousRouteIsADeliberateDocumentedDecision() {
+		final var undocumented = routes.stream()
+			.filter(route -> route.effectiveRules().contains(SecurityRule.IS_ANONYMOUS))
+			.filter(route -> !route.methodMetadata().hasAnnotation(OpenToAllPrincipals.class))
+			.filter(route -> !KNOWN_ANONYMOUS_ROUTES.contains(route.controllerClass() + "#" + route.methodName()))
+			.map(Route::describe)
+			.toList();
+
+		assertTrue(undocumented.isEmpty(),
+			"""
+			These routes answer callers with no token at all, with no recorded reason. Name the \
+			roles the route is for, or annotate it @OpenToAllPrincipals with a justification:
 
 			""" + String.join("\n", undocumented));
 	}
@@ -370,6 +411,91 @@ class ApiSecurityArchitectureTests {
 			principal, or ungated:
 
 			""" + String.join("\n", open));
+	}
+
+	/**
+	 * Walk-up checkout on the STAFF api stays closed to discovery.
+	 *
+	 * The route that takes its borrower FROM THE REQUEST BODY must never be reachable by a
+	 * discovery credential. The staff endpoint does exactly that, so a discovery service reaching it
+	 * could lend to anybody rather than to the patron it vouched for. The discovery endpoint
+	 * derives the borrower from a verified assertion instead, which is why it may do this at
+	 * all — and {@link #noDiscoveryRequestBodyCarriesAPatronIdentity()} is what holds that
+	 * distinction in place.
+	 */
+	@Test
+	void staffWalkUpCheckoutIsNeverReachableFromDiscovery() {
+		// Matched on METHOD name, not path: the scan records the controller's path, so every
+		// method of PatronRequestController reads as "/patrons/requests" and a path filter
+		// here would silently match nothing — which is how a guard passes while guarding
+		// nothing at all.
+		final var checkoutRoutes = routes.stream()
+			.filter(route -> !route.path().startsWith("/discovery"))
+			.filter(route -> route.methodName().toLowerCase().contains("expeditedcheckout")
+				|| route.methodName().toLowerCase().contains("walkup"))
+			.toList();
+
+		assertFalse(checkoutRoutes.isEmpty(),
+			"the staff walk-up checkout routes were not found by the scan");
+
+		final var reachable = checkoutRoutes.stream()
+			.filter(route -> route.effectiveRules().contains(RoleNames.DISCOVERY_SERVICE)
+				|| route.effectiveRules().contains(SecurityRule.IS_AUTHENTICATED)
+				|| route.effectiveRules().contains(SecurityRule.IS_ANONYMOUS)
+				|| route.effectiveRules().isEmpty())
+			.map(route -> route.describe() + " -> " + route.effectiveRules())
+			.toList();
+
+		assertTrue(reachable.isEmpty(),
+			"""
+			These checkout routes take the borrower from the REQUEST BODY, so a caller \
+			reaching them can lend to an arbitrary patron. None may be anonymous, open to \
+			every authenticated principal, ungated, or granted to DISCOVERY_SERVICE — a \
+			discovery service checks out through /discovery/requests/place/expedited, where \
+			the borrower comes from a verified assertion:
+
+			""" + String.join("\n", reachable));
+	}
+
+	/**
+	 * No DiscoveryPatronRequestsController request body may carry a patron identity — the
+	 * invariant walk-up rests on, since that controller can create a LOAN. Every record nested
+	 * in it is a request body; the pickup location, the item and the agency hints are choices.
+	 */
+	@Test
+	void noDiscoveryRequestBodyCarriesAPatronIdentity() {
+		final var forbidden = List.of(
+			"patron", "requestor", "requester", "borrower", "localid", "barcode", "pin",
+			"userid", "username", "sub");
+
+		final var offences = Arrays.stream(
+				org.olf.dcb.core.api.discovery.DiscoveryPatronRequestsController.class
+					.getDeclaredClasses())
+			.filter(Class::isRecord)
+			.flatMap(body -> Arrays.stream(body.getRecordComponents())
+				.filter(component -> {
+					final var name = component.getName().toLowerCase();
+
+					// Two exclusions, both because the rule is about IDENTIFIERS and neither of
+					// these identifies anybody. itemLocalId names the item the patron is
+					// holding; requesterNote is free text the patron typed. Both were found by
+					// this gate on its first run, which is the argument for stating them here
+					// rather than narrowing the token list until nothing fires.
+					if (name.startsWith("item") || name.endsWith("note")) return false;
+
+					return forbidden.stream().anyMatch(name::contains);
+				})
+				.map(component -> body.getSimpleName() + "." + component.getName()))
+			.toList();
+
+		assertTrue(offences.isEmpty(),
+			"""
+			A discovery request body names a patron. The borrower on this controller comes \
+			from the verified assertion and from nowhere else — a body field that identifies \
+			a patron lets a discovery service act as one it has not vouched for, and these \
+			routes now create loans:
+
+			""" + String.join("\n", offences));
 	}
 
 	/**

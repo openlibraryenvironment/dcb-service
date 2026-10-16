@@ -119,6 +119,18 @@ when creating an index and reconciles the current version at startup.
   event loop only when every reachable operation is non-blocking; reactive return
   types alone are not proof. Do not replace this classification with a global
   `micronaut.server.thread-selection` change.
+- Live availability fans out to every contributing library's LMS. `/items/availability`
+  answers for one cluster, so N clusters is N inbound requests this service cannot see as
+  one page of one list. `/items/availability/batch` exists to give that a bound: a cap on
+  clusters per request (`dcb.live-availability.batch.max-clusters`) and an explicit
+  concurrency across them (`dcb.live-availability.batch.concurrency`). Outbound concurrency
+  is that second number times the members of a cluster. **Neither route is authenticated**,
+  so the ingress rate limit is still required.
+- A Host LMS that cannot answer a patron-facing question leaves the `HostLmsClient` method
+  unimplemented, so the capability is ABSENT rather than reported as zero. `countHoldsForPatron`
+  and `getLocalPatronAccount` both work this way: an empty Mono means "this system will not
+  say", and every caller must render that differently from "there is nothing". Do not give
+  either a default that returns a value.
 - DCB request state changes belong in `Handle...` workflow transitions.
 - DCB state-model documentation is generated from `PatronRequestStateTransition`
   beans through `StateModelService`. Do not maintain a parallel static state

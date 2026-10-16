@@ -16,6 +16,10 @@ A discovery service needs three things from DCB on behalf of a patron:
 2. Show me this patron's requests, in language a patron can read.
 3. Let this patron place a request, and cancel their own request.
 
+All three assume the discovery service already knows who the patron is. Signing the patron in
+comes first, and it is not part of the contract this document describes. §2.7 covers what DCB
+offers for that step, and why it stayed where it was.
+
 Before this work, none of that had a home. Discovery traffic was pointed at the staff API,
 patron identity was carried as a role on a token, and the "my requests" endpoint lived on the
 same controller as request placement and state-machine rollback. That arrangement had three
@@ -27,18 +31,31 @@ distinct defects, and each one drove a change described below.
 
 ### 2.1 A dedicated discovery surface
 
-Everything a discovery service may call now lives under `/discovery/`:
+Everything a discovery service does on a patron's behalf now lives under `/discovery/`:
 
 | Route | Auth | Purpose |
 |---|---|---|
-| `GET /discovery/libraries` | anonymous | Public library directory: code, host LMS code, name, lat/long |
+| `GET /discovery/libraries` | anonymous | Public library directory (fields in §6.4) |
+| `GET /discovery/pickup-locations?agencyCode=` | anonymous | Where a patron of that library may collect a request (§6.4) |
+| `GET /discovery/consortium` | anonymous | The consortium's own brand |
+| `GET /discovery/announcements` | anonymous | The notices live now, for a library, its groups and the consortium |
+| `GET /discovery/brand-assets/{key}` | anonymous | A logo or other brand image named by the routes above |
 | `GET /discovery/requests` | `DISCOVERY_SERVICE` + patron assertion | The asserted patron's requests, paged |
 | `POST /discovery/requests/place` | `DISCOVERY_SERVICE` + patron assertion | Place a request as the asserted patron |
+| `POST /discovery/requests/place/expedited` | `DISCOVERY_SERVICE` + patron assertion | Check out the item the asserted patron is holding (walk-up). This creates a **loan**, not a hold |
 | `POST /discovery/requests/{id}/cancel` | `DISCOVERY_SERVICE` + patron assertion | Cancel the asserted patron's own request |
+| `GET /discovery/loans` | `DISCOVERY_SERVICE` + patron assertion | What the asserted patron has on loan through DCB |
+| `GET /discovery/account` | `DISCOVERY_SERVICE` + patron assertion | Loans and charges at the asserted patron's own library |
+| `POST /discovery/patrons/resolve` | `DISCOVERY_SERVICE`, no assertion | Turn an institution sign-in into a borrower, so that you can mint an assertion |
 
-`DiscoveryPatronRequestsController` is the only place the `DISCOVERY_SERVICE` role appears in
-a `@Secured`, and a build-time test enforces that (§4). The staff API is not reachable with a
-discovery credential, and no route under `/discovery/` is reachable with anything else.
+Two kinds of call fall outside `/discovery/`. Checking a library card uses DCB's patron
+authentication endpoints, which this work did not change (§2.7). Search results, cluster ids
+and live availability come from anonymous catalogue routes (§6.9).
+
+Only routes under `/discovery/` carry the `DISCOVERY_SERVICE` role, and a build-time test
+enforces that for REST routes (§4). The staff REST API is not reachable with a discovery
+credential. Every route under `/discovery/` either requires `DISCOVERY_SERVICE` or is anonymous.
+The anonymous ones are read-only and return no patron data.
 
 ### 2.2 Caller identity and patron identity were separated
 
@@ -68,9 +85,12 @@ X-OpenRS-Patron-Assertion: <signed JWT>        -> WHICH PATRON    (caller's key,
 `PatronAssertionVerifier` checks signature, trusted issuer, subject, audience, expiry, `iat`
 sanity, and a **DCB-chosen upper bound on lifetime** — an issuer that mints twelve-hour
 assertions has built a bearer token, and the replay window is DCB's to bound, not theirs. It
-returns a `PatronAssertion` record, which is the only way to obtain a verified patron identity
-in the codebase. "I checked" and "I did not check" are now different types the compiler can
-see.
+also checks that the Keycloak client presenting the assertion is the service that signed it:
+the bearer token's `azp` must equal that trusted service's `client-id`, and a token with no
+`azp` is refused. It returns a
+`PatronAssertion` record. In production code only the verifier constructs one, so a method that
+holds one holds a verified identity. That is a convention the code follows, not a guarantee the
+compiler gives: the record has a public constructor, and tests use it.
 
 The verification mechanism is deliberately the existing `ki-mn-peer-auth` library, the same one
 that guards inbound NCIP. A second hand-rolled JWT verifier is a bug with a long fuse. The
@@ -83,6 +103,10 @@ Because DCB derives the patron itself, every discovery route is self-scoped by c
 No method on the discovery controller accepts a patron identity from a path variable, query
 parameter, or request body. On `/discovery/requests/place` the requestor is built from the
 verified assertion and the body carries no identity at all.
+
+The place body may still carry `agencyCode` and `homeLibraryCode`. Neither carries authority.
+Request limits use the agency DCB resolves from the patron's home library at their own library
+system, not an agency the caller names.
 
 One SQL predicate defines ownership (`findOwnedRequest`), and the "my requests" query uses the
 identical join, so "which requests are mine" and "may I cancel this one" cannot disagree. It
@@ -121,9 +145,11 @@ cancellation. **The state machine remains the sole owner of transitions.** Hence
 
 Three behaviours worth knowing about as an integrator:
 
-- **Idempotent.** If the local hold is already cancelled, DCB converges without calling the LMS
-  again. A patron mashing the cancel button must not become a load test against a member
-  library.
+- **Idempotent while it is in flight.** If the local hold is already cancelled, DCB converges
+  without calling the LMS again. A patron mashing the cancel button must not become a load test
+  against a member library. Once the request itself has reached `CANCELLED`, a repeat call
+  answers `409 NOT_CANCELLABLE` with `discoveryStatus` `CANCELLED`, which means the earlier
+  cancellation worked.
 - **Never a false success.** `AbstractHostLmsClient.cancelHoldRequest` defaults to a silent
   no-op, which some clients inherit. An empty result is treated as failure (`502`), not
   success. Telling a patron their request is cancelled while the item still ships is the worst
@@ -153,6 +179,45 @@ Three behaviours worth knowing about as an integrator:
   agency cannot place a request, so the picker does not advertise one. `includeAll=true` returns
   the full directory.
 
+### 2.7 What did not move: signing a patron in
+
+Everything in §2.1 starts from a patron the discovery service has already identified. Identifying
+the patron is a separate step. For a patron who signs in with a library card, DCB already had
+endpoints for it. This work left them where they were and did not change their security:
+
+| Route | Auth | What it does |
+|---|---|---|
+| `POST /patron/auth` | anonymous | Checks a barcode and its PIN, password or name against the patron's home library system, through that library's adapter. Answers `status` (`VALID` or `INVALID`), `localPatronId`, `systemCode`, `agencyCode` and `homeLocationCode` |
+| `POST /v2/patron/auth` | anonymous | The same check, with the agency carried in the principal as `AGENCY/barcode` |
+
+They are not under `/discovery/` because they are not patron-scoped. Until they answer, there is
+no verified patron and nothing to assert. A discovery service calls them the way any other caller
+does, with no `DISCOVERY_SERVICE` credential and no patron assertion. They are not specific to
+discovery either: existing integrations call them at these paths, including the one described in
+§8. Moving them would break those callers and would not change what the endpoints do.
+
+For a library-card sign-in, the sequence is:
+
+1. Call `POST /patron/auth` with `agencyCode`, `patronPrinciple` (the barcode) and `secret`.
+   `GET /discovery/libraries` tells you which libraries accept a card (`acceptsLibraryCard`) and
+   what the secret is (`secretKind`).
+2. On `VALID`, map `systemCode` to `localSystemCode`, and the first entry of `localPatronId` to
+   `localSystemPatronId`.
+3. Mint the patron assertion (§6.3), and send it with your `/discovery/` calls.
+
+Only a `200` that carries a `status` is an answer. Any other response means the library system
+could not be asked. Never show it to the patron as a wrong PIN.
+
+`INVALID` can also mean that DCB does not know the `agencyCode` you sent. Take the code from
+`GET /discovery/libraries` rather than from anything the patron types.
+
+DCB does not rate-limit these checks or lock out a card after failed attempts. Throttle sign-in
+attempts yourself, per card and per client, as you would on any login form.
+
+A patron whom your identity provider signed in through their institution, not their library, has
+no library credential to check. For that patron, use `POST /discovery/patrons/resolve` (§6.4). It
+is part of the contract because it needs your service credential.
+
 ---
 
 ## 3. Why: the reasoning in one paragraph
@@ -169,22 +234,31 @@ one commitment.
 ## 4. Secure by Design compliance
 
 **Secure defaults.** `dcb.discovery.enabled` is `false`. A deployment that has not been
-configured for discovery accepts no patron assertions at all and fails closed on every
-`/discovery/requests` call — it does not quietly behave as though it has been configured.
-The trusted-services list is empty by default. Duplicate issuers refuse to start rather than
-picking a winner, because two services claiming one issuer means either can mint the other's
-assertions.
+configured for discovery accepts no patron assertions at all: every patron-scoped route answers
+`401 INVALID_PATRON_ASSERTION`, and `/discovery/patrons/resolve` answers `403 DISCOVERY_DISABLED`.
+It does not quietly behave as though it has been configured. The trusted-services list is empty
+by default. Duplicate issuers refuse to start rather than picking a winner, because two services
+claiming one issuer means either can mint the other's assertions.
 
 **Least privilege.** `DISCOVERY_SERVICE` buys the patron self-service surface and nothing else.
-It is confined to `/discovery/` by construction, and `/discovery/` is reachable by nothing else.
-Within that surface, a credential can only act on patrons it can cryptographically vouch for.
-(One pre-existing integration sits outside this model on an `ADMIN` service credential — §8 states
+Only routes under `/discovery/` carry it, and the build-time test below enforces that for REST
+routes. `POST /graphql` admits any authenticated token at the URL; there, each data fetcher's
+own role check is what refuses a discovery credential. Within the surface, a credential can act
+only on a patron named in an assertion its own service signed: DCB checks that the bearer
+token's `azp` is the `client-id` of the service that signed the assertion. A trusted service may
+vouch for a patron at any library in the consortium, which is why only a consortium-wide service
+is onboarded (§6.2). The surface includes
+walk-up checkout (`/discovery/requests/place/expedited`), so a discovery credential with a valid
+assertion can cause a loan, not only a hold. Protect the signing key accordingly. (One
+pre-existing integration sits outside this model on an `ADMIN` service credential — §8 states
 that exception and what it costs.)
 
-**Complete mediation.** Every discovery method calls `assertionVerifier.verify(request)` before
-doing anything, and the verified `PatronAssertion` is the only source of patron identity
-available to it. There is no code path that reaches patron-scoped data with an unverified
-identity, because there is no way to construct the type that carries one.
+**Complete mediation.** Every discovery method that acts on a patron calls
+`assertionVerifier.verify(request)` before doing anything, and the verified `PatronAssertion` is
+the only source of patron identity available to it. Resolve (§6.4) is the one that cannot, since
+it is how a service learns whom to assert. It answers with an identity only, and only to a client
+that is a trusted service. By convention, only the verifier constructs a `PatronAssertion` in production
+code, so no code path reaches patron-scoped data with an unverified identity.
 
 **Make the invalid state unrepresentable.** This is the part that matters most and is easiest to
 skip. `ApiSecurityArchitectureTests` reads Micronaut's compiled bean definitions at build time —
@@ -193,28 +267,37 @@ no database, no container, milliseconds — and fails the build when:
 - a route is open to every authenticated principal without an explicit `@OpenToAllPrincipals`
   justification;
 - a justification is blank;
-- **any** mutating route is open to every principal, justification or not;
+- **any** mutating route is open to every authenticated principal, justification or not;
+- an anonymous mutating route is not on the test's explicit allow-list (today, the two
+  library-card checks in §2.7);
 - `DISCOVERY_SERVICE` appears on a route outside `/discovery/`;
-- a route under `/discovery/` is secured by anything other than `DISCOVERY_SERVICE` (or
-  anonymous, for the public directory);
+- a route under `/discovery/` is secured by anything other than `DISCOVERY_SERVICE` or anonymous.
+  The test allows anonymous on any `/discovery/` route, so review a new anonymous one as you
+  would any public endpoint;
 - any staff request route is anonymous, open to all principals, or ungated;
-- a patron-held role (`PATRON`, `PATRON_*`) reappears in any `@Secured`.
+- a patron-held role (`PATRON`, `PATRON_*`) reappears in any `@Secured`;
+- a staff walk-up checkout route, which takes its borrower from the request body, is reachable
+  by `DISCOVERY_SERVICE`, anonymously, by every principal, or ungated;
+- a request body on `DiscoveryPatronRequestsController` has a component that reads as a patron
+  identity.
 
-The test also asserts it can still see the controllers, so a refactor cannot turn it into a
-silent no-op. `@Secured(IS_AUTHENTICATED)` is not banned — it is made *visible*, so it becomes a
+The test also asserts that it can still see the controllers it names, so a refactor cannot turn
+those checks into a silent no-op. `DiscoveryApiSecurityTests` exercises the discovery routes
+directly. `@Secured(IS_AUTHENTICATED)` is not banned — it is made *visible*, so it becomes a
 decision a reviewer sees in a diff rather than a default nobody noticed.
 
-**Defence in depth.** Signature, issuer, subject, audience, `exp`, `iat` sanity, and a
-DCB-enforced lifetime cap are all checked independently. Ownership is then re-checked in SQL at
-the point of use, not inferred from the fact that authentication succeeded.
+**Defence in depth.** Signature, issuer, subject, audience, `exp`, `nbf`, `iat` sanity, a
+DCB-enforced lifetime cap, and the match between the bearer's client and the signing service are
+all checked independently. Ownership is then re-checked in SQL at the point of use, not inferred
+from the fact that authentication succeeded.
 
 **Fail securely, and say nothing useful while doing it.** One exception type covers every
 assertion rejection: a caller learns its assertion was not accepted, not which check it tripped.
 Not-yours and not-found are the same 404. Patron-facing errors carry patron vocabulary; the raw
 state and the internal detail go to the log and the audit trail.
 
-**Auditability as a first-class output.** Every patron-initiated mutation records the patron and
-the asserting service. Onboarding a discovery service is a reviewable configuration change —
+**Auditability as a first-class output.** Placement, walk-up checkout and cancellation each write
+an audit entry naming the patron and the asserting service. Onboarding a discovery service is a reviewable configuration change —
 deliberately not a runtime admin screen — so the decision leaves a trail wherever that
 configuration is version-controlled. See §7 for what that means in each hosting environment.
 
@@ -230,19 +313,22 @@ knowing.
   a role, and an assertion format. Two implementations that satisfy them are indistinguishable
   to DCB.
 - **Trust is configuration, not code.** Onboarding is a `trusted-services` entry: a service id,
-  an issuer, a JWKS URL. Adding the second, fifth, or twentieth discovery service requires no
+  an issuer, a JWKS URL, and the Keycloak client id where it differs from the service id. Adding the second, fifth, or twentieth discovery service requires no
   DCB change, no release, and no schema migration.
 - **The identity model assumes nothing about the caller's architecture.** DCB requires only
   that the caller can authenticate itself and sign a short-lived assertion. How the caller
   establishes patron identity — SAML, OIDC, an ILS session, a PIN check at the desk — is
-  entirely its own business, and DCB is deliberately incurious about it.
+  entirely its own business, and DCB is deliberately incurious about it. A caller that wants
+  DCB to check a library card can use the patron authentication endpoint (§2.7). That check
+  happens before the contract starts, not inside it.
 - **The response shape serves both kinds of consumer.** A discovery service with strong opinions
   about status presentation reads the raw `status`. One that wants to render and move on reads
   `discoveryStatus` and `statusDescription`. Neither is privileged, and the mapping is not
   tuned for any particular UI.
-- **The public directory is genuinely public.** Code, host LMS code, name, coordinates. Enough
-  to build an institution picker or resolve a nearest library; nothing that maps the
-  consortium's internals. Anyone can build against it without an onboarding conversation first.
+- **The public directory is genuinely public.** It returns what an institution picker and a
+  sign-in screen need: codes, names, coordinates, branding, and what each library's card is
+  checked against (§6.4). It returns nothing that maps the consortium's internals. Anyone can
+  build against it without an onboarding conversation first.
 - **The security model does not assume a trusted caller.** Because ownership is enforced inside
   DCB, a third-party discovery service is not a more dangerous integration than a first-party
   one. That is what makes "any discovery service" a viable position rather than a slogan.
@@ -252,15 +338,20 @@ knowing.
 ## 6. For discovery service vendors: adding OpenRS DCB support
 
 If you build a discovery layer and want it to place and track OpenRS consortial requests, this
-section is the whole integration.
+section is the whole patron-facing integration. The catalogue data you show beside it, such as
+cluster ids and live availability, comes from the anonymous routes in §6.9.
 
 ### 6.1 What you will need from the consortium's DCB operator
 
 - The base URL of the DCB deployment.
 - A Keycloak client credential (client id + secret) for your service, granted the
   `DISCOVERY_SERVICE` role. **Confidential client, server-side only.** This credential must
-  never reach a browser.
-- The `audience` value that deployment expects in patron assertions (`dcb` by default).
+  never reach a browser. DCB accepts your assertions only when they arrive with this client's
+  token.
+- The `audience` value that deployment expects in patron assertions. It is `dcb` by default,
+  but each deployment should set its own, so that an assertion minted for one consortium is
+  worthless at another. If you serve several consortia, you need a client, an audience and an
+  assertion per deployment.
 - Confirmation of the deployment's `max-assertion-lifetime` (`PT2M` in the shipped defaults).
 
 ### 6.2 What the operator will need from you
@@ -278,27 +369,37 @@ dcb:
       - service-id: your-service-id
         issuer: https://discovery.example.org
         jwks-uri: https://discovery.example.org/.well-known/jwks.json
+        # client-id: your-keycloak-client   # only if it differs from service-id
 ```
 
 So, concretely: a stable service id, the `iss` value you will put in your assertions, and a
-JWKS endpoint publishing your public signing keys. Key rotation at the same URL is picked up
-automatically; a change of issuer or JWKS URL is a configuration change and should be reviewed
-as one.
+JWKS endpoint publishing your public signing keys. `client-id` is the Keycloak client your
+calls arrive with, and it defaults to `service-id`. A new key at the same JWKS URL is accepted
+on first use (§7.9). A change of issuer or JWKS URL is a configuration change and should be
+reviewed as one.
 
-Your JWKS endpoint must be reachable from the DCB deployment. If it sits behind an IP
-allow-list, say so during onboarding — the operator can supply a stable egress address (§7.6).
+**A trusted service can act for any patron at any library in the consortium.** Onboard only a
+service that discovers for the whole consortium. A product serving one library hands its patrons
+off to the consortium's discovery front end rather than becoming a trusted service.
+
+Your JWKS endpoint must be served over HTTPS and reachable from the DCB deployment, and each key
+in it must carry the `kid` you put in your assertion headers. If it sits behind an IP allow-list,
+say so during onboarding — the operator can supply a stable egress address (§7.6). If your
+platform cannot serve a JWKS at all, the operator can hold your public key inline (`jwks`,
+§7.6), at the cost of updating it by hand whenever you rotate.
 
 How the operator actually applies this configuration depends on how their DCB is hosted; §7
 covers the Kubernetes and AWS Fargate routes.
 
-Generate an asymmetric signing key (RSA or EC). The private key stays in your backend. DCB never
-sees it and never needs to.
+Generate an RSA key pair. DCB accepts RS256 signatures only and rejects every other algorithm,
+EC and RSA-PSS included. The private key stays in your backend. DCB never sees it and never
+needs to.
 
 ### 6.3 Minting a patron assertion
 
 Every call that acts on a patron carries one, signed with your key:
 
-**Header:** `alg` (your signing algorithm), `kid` (matching a key in your JWKS)
+**Header:** `alg` `RS256` (the only algorithm DCB accepts), `kid` (matching a key in your JWKS)
 
 **Claims:**
 
@@ -307,17 +408,22 @@ Every call that acts on a patron carries one, signed with your key:
 | `iss` | your configured issuer, exactly |
 | `sub` | your configured `service-id` — the *service*, not the patron |
 | `aud` | the deployment's configured audience |
-| `iat` | now (must not be in the future; 60s forward tolerance) |
-| `exp` | `iat` + your chosen lifetime, **not exceeding** `max-assertion-lifetime` |
+| `iat` | now. This is the only time claim with any clock tolerance: up to 60 seconds in the future is accepted |
+| `exp` | `iat` + your chosen lifetime, **not exceeding** `max-assertion-lifetime`. Checked with no tolerance |
+| `nbf` | optional. Checked with no tolerance, so omit it or set it a few seconds before `iat` |
 | `localSystemCode` | the patron's home Host LMS code, as DCB knows it |
 | `localSystemPatronId` | the patron's local id in that system |
+
+Send the assertion with your own client's access token. DCB rejects an assertion whose signing
+service is not the client that presented it, with the same `401` as any other rejection.
 
 Mint one per request, or per short-lived patron session. Do not cache them for hours; DCB will
 reject an over-long lifetime outright, and the bound exists precisely so that a stolen assertion
 is worth almost nothing.
 
 `localSystemCode` and `localSystemPatronId` are the patron identity contract. Get them from
-whatever authentication you already perform against the patron's home library system. **You are
+whatever authentication you already perform against the patron's home library system. If you
+check library cards through DCB, `POST /patron/auth` returns both (§2.7). **You are
 asserting that you authenticated this patron.** DCB verifies that the assertion is genuinely
 yours and unexpired; it cannot verify your login flow, so the strength of the whole chain is the
 strength of that flow.
@@ -338,15 +444,47 @@ Content-Type: application/json
   "volumeDesignator": null,
   "homeLibraryCode": null,
   "agencyCode": null,
-  "requesterNote": null
+  "requesterNote": null,
+  "itemLocalId": null,
+  "itemHostLmsCode": null,
+  "itemAgencyCode": null
 }
 ```
 
 Note what the body does *not* contain: a requestor. You cannot name the patron you are
-requesting for — only assert them and be verified. `homeLibraryCode` and `agencyCode` are hints
-DCB may resolve for itself; they carry no authority.
+requesting for — only assert them and be verified. `homeLibraryCode` and `agencyCode` carry no
+authority. Request limits apply to the agency DCB resolves from the patron's own library system,
+whatever you send (§2.3).
 
-**`GET /discovery/requests?number=0&size=100`** returns a page of the asserted patron's requests.
+`pickupLocationCode` is a pickup location's `id`, a UUID, taken from
+`GET /discovery/pickup-locations` below. A location code or name is refused at preflight with
+`UNKNOWN_PICKUP_LOCATION_CODE`.
+
+The three `item*` fields request one specific copy. Send all three, taken from that copy's `id`,
+`hostLmsCode` and `agency.code` in live availability (§6.9), or send none and let DCB choose.
+Sending one or two of them is a `400`. Put a copy's `parsedVolumeStatement` in
+`volumeDesignator`.
+
+**`POST /discovery/requests/place/expedited`** checks out the item a patron is standing at the
+desk holding (walk-up). It takes the same fields, except that `itemLocalId`, `itemHostLmsCode`,
+`itemAgencyCode` and `agencyCode` (the patron's own library) are all required, and
+`pickupLocationCode` is the location the patron is in. Without `agencyCode` the walk-up is
+refused with `WALK_UP_LIBRARY_REQUIRED`, because DCB could not otherwise refuse a loan at the
+patron's own library (`WALK_UP_SAME_LIBRARY`). It creates a loan immediately, so offer it only
+where a patron has the item in hand.
+
+**`GET /discovery/pickup-locations?agencyCode=&page=0&size=100`** lists the places a patron of
+that library may collect a request. It needs no credential. The response is
+`{"locations": [...], "page", "size", "hasMore"}`, and each location carries `id`, `code`, `name`,
+`agencyCode` and `agencyName`. `size` is clamped to between 1 and 100; follow `hasMore` for the
+rest. For a library that allows pickup anywhere, the list is every pickup location, at any
+library, that is enabled for pickup anywhere, in place of its own. An unknown `agencyCode` is a `404`. Send the
+`id` as `pickupLocationCode`.
+
+**`GET /discovery/requests?page=0&size=100`** returns a page of the asserted patron's requests.
+The page number parameter is `page`. (The generated API description calls it `number`, which DCB
+ignores.) Always send `size`: without it DCB applies its server-wide maximum of 2500 rows. The
+response is a page envelope, with the rows in `content`.
 Each carries `id`, raw `status`, `discoveryStatus`, `statusDescription`, `outcome`,
 `nextExpectedStatus`, `timeInState`, `title`, `pickupLocationCode`, `pickupLocationName`,
 `activeWorkflow`, `bibClusterId`, `dateCreated`, `dateUpdated`. `activeWorkflow` of `RET-LOCAL`
@@ -355,9 +493,120 @@ requests.
 
 **`POST /discovery/requests/{patronRequestId}/cancel`** cancels the patron's own request.
 
+**`GET /discovery/loans`** returns what the patron currently has out through DCB. Each entry
+carries `id` (the request id, which is the only handle any patron action takes), `title`,
+`bibClusterId`, the pickup location, `dueDate`, `dueDateKnown`, `renewalCount`, `renewable`,
+`renewalStatus` and `dateUpdated`.
+
+**Read `dueDateKnown` before you render `dueDate`.** DCB does not store a due date: it knows
+a request reached `LOANED`, and it asks the borrowing library for the date when you call
+this. `dueDateKnown: false` means that library could not be asked, or answered without one -
+and "we could not find out" is a different sentence from "there is no due date". A patron
+shown a blank cell will read it as the second and plan around it.
+
+**This endpoint costs the member library one item read per loan**, which is why it is
+separate from `GET /discovery/requests` rather than folded into it. The list is capped
+(`dcb.discovery.max-loans`, default 25), the reads are throttled
+(`dcb.discovery.loan-lookup-concurrency`, default 2, against what is usually a single
+library) and each is time-bounded (`dcb.discovery.loan-lookup-timeout`, default 8s). Call it
+when a patron opens their account, not on a timer.
+
+**Loans a patron holds directly from their own library are NOT here.** DCB can only see what
+passed through it. An account page that presents this as "everything you have out" is
+wrong wherever the patron also borrows locally, which is nearly everywhere. `GET
+/discovery/account` is the other half.
+
+**`GET /discovery/account`** returns what the patron holds at their OWN library - the loans
+and charges DCB never saw. It carries `available`, `loans`, `charges`, `totalLoans`,
+`totalCharges`, `amountOwed` and `currency`. A loan carries `title`, `author`, `isbn`,
+`localBibId`, `loanDate`, `dueDate` and `overdue`; a charge carries `title`, `description`,
+`reason`, `state`, `amount`, `currency` and `accrualDate`.
+
+**Read `available` before you render anything else.** A library DCB cannot ask and a patron
+with nothing out both produce empty lists, and showing the second for the first tells a
+patron they owe nothing and have nothing due. `available: false` is returned, with a 200,
+whenever the home Host LMS has no route to a patron account, the patron cannot be found in
+it, or it did not answer in time. **Say so on the page.**
+
+**Not every Host LMS can answer this.** It is unimplemented by default, so a system with no
+patron-account route is an absent capability rather than a silent zero. FOLIO answers it
+through **edge-patron**, which the consortium must have deployed for that tenant and which
+is off unless the Host LMS carries `patron-account: true` in its client configuration.
+edge-patron finds a patron by `externalSystemId` and by nothing else - a FOLIO library that
+does not populate that field on its user records cannot answer for its own patrons at all,
+and every patron there sees `available: false`.
+
+**This endpoint costs the member library ONE read**, not one per row, because the account
+arrives whole. `dcb.discovery.max-account-rows` (default 25) caps the loans and charges
+returned and `dcb.discovery.account-lookup-timeout` (default 8s) bounds the wait. It is
+still patron data read live and stored nowhere: call it when a patron opens their account.
+
+`localBibId` on a loan is the library's own bib record id. DCB offers no lookup from it to a
+cluster, so linking a local loan to a catalogue record is up to your own index.
+
+**`POST /discovery/patrons/resolve`** turns an institution sign-in into a borrower, for a
+patron whose identity provider authenticated them against their institution rather than
+their library and so cannot name their record in the library system. It takes your service
+credential and **no** patron assertion, because this is the step that lets you mint one:
+
+```json
+{ "agencyCode": "ab6", "principal": "…" }
+```
+
+It answers `systemCode`, `patronId`, `agencyCode` and `homeLocationCode`, which are what a
+patron assertion carries, and no name or barcode. `404` means the library has no such patron:
+refuse borrowing, not the sign-in. `502` with `LIBRARY_UNAVAILABLE` means the library could
+not be asked; `403` with `DISCOVERY_DISABLED` means this DCB accepts no discovery patrons.
+Each call is a live read at a member library, so a service may make at most
+`dcb.discovery.patron-resolves-per-minute` (default 600) a minute, counted from its first call
+in the window. Beyond that it gets `429` with `TOO_MANY_RESOLVES` and `Retry-After: 60`.
+`403` with `NOT_A_TRUSTED_SERVICE` means your bearer's client is not the `client-id` of any
+trusted service.
+Take `agencyCode` from your identity provider's configuration, never from anything the patron
+sends.
+
+`principal` is matched the way the library system matches a sign-in name, which differs by
+system: Alma matches any unique user identifier (a SAML match point, for example), Sierra a
+unique id and then a barcode, Koha a `userid`, and FOLIO and Polaris a barcode only. The
+principal travels in the body so it never reaches a URL or an access log, and DCB does not log
+it. It costs the library one read per call, bounded by `dcb.discovery.patron-resolve-timeout`
+(default 8s), and nothing is cached, because the cache key would be the person.
+
+#### Announcements
+
+**`GET /discovery/announcements`** needs no authentication. Add `?libraryCode=` for a patron of
+one library. It answers at most two notices, narrowest first:
+
+1. The library's newest live notice; else the newest live notice of any group the library
+   belongs to; else the consortium's newest live notice.
+2. Beneath a library's notice, the newest live *urgent* notice of its groups or the consortium,
+   whichever started last. Beneath a group's notice, the consortium's newest live urgent one.
+
+With no library, an unknown one, or a library with nothing live at any level, the answer is the
+consortium's newest live notice. Consortium administrators publish group and consortium notices;
+a library administrator publishes only for their own library. Three rules are held by the
+schema rather than by the code that writes it:
+
+- **Every notice expires.** There is no "no expiry" value, because a banner still up months
+  after it mattered teaches patrons to ignore the strip, including on the day it matters.
+- **The body is plain text**, with no markup column and no flag that could enable one.
+  Operator-written markup rendered into every patron's page would be stored XSS behind an admin
+  form.
+- **Precedence is a query per scope**, using `ScopeLevel` (`LIBRARY`, `LIBRARY_GROUP`,
+  `CONSORTIUM`).
+
+Dismissal is per patron and is not stored here: DCB holds no patron identity, so the discovery
+service remembers it. A notice is one of discovery-affecting news (an ILS migration, a
+requesting outage, a branch closure, a new source going live), not a newsletter: for those the
+directory publishes the library's own website.
+
 **`GET /discovery/libraries`** needs no authentication at all. Add `?includeAll=true` for
-non-borrowing agencies. Coordinates may be null — filter accordingly if you are doing
-nearest-library resolution.
+non-borrowing agencies. Each entry carries `code`, `hostLmsCode`, `name`, `latitude`,
+`longitude`, `acceptsLibraryCard`, `secretKind` (`PIN`, `PASSWORD` or `NAME`: what the card is
+checked against), `principalLabel` and `secretLabel` (the library's own wording for the two
+sign-in fields, or null for your default), `brandLogoUrl`, `brandLogoAlt`, `defaultThemeName`,
+`patronWebsite`, `supportUrl` and `classificationScheme`. Coordinates may be null — filter
+accordingly if you are doing nearest-library resolution.
 
 ### 6.5 Responses to handle
 
@@ -365,11 +614,27 @@ nearest-library resolution.
 |---|---|---|
 | `200` | payload | Fine. |
 | `202` | `{"id": …}` | Cancellation accepted. `CANCELLED` lands asynchronously — poll `GET /discovery/requests`, do not assume it is immediate. |
-| `400` | `{"failedChecks": [...]}` | Preflight rejection on placement: bad pickup location, patron not eligible, and so on. These are actionable and should be shown to the patron. |
-| `401` | `{"code": "INVALID_PATRON_ASSERTION"}` | Your assertion was not accepted. Deliberately does not say why. Check issuer, audience, `kid`, clock skew, and lifetime. |
-| `404` | — | No such request *for this patron*. Not-yours and not-found are the same answer by design. |
-| `409` | `{"code": "NOT_CANCELLABLE", "discoveryStatus": …}` | Too late to cancel. `discoveryStatus` tells you where it got to. |
+| `400` | `{"failedChecks": [...]}` | Preflight rejection on placement. Each entry carries `code`, `description`, `notes` and `userMessage`. Show the patron `userMessage`; the codes are listed below. |
+| `400` | Micronaut's standard error body | A malformed body, or a chosen copy with only one or two of its three `item*` fields. Not every `400` carries `failedChecks`, so check for it. |
+| `401` | `{"code": "INVALID_PATRON_ASSERTION"}` | Your assertion was not accepted. Deliberately does not say why. Check issuer, audience, `kid`, `alg`, clock skew, lifetime, and that you sent it with your own client's token. It is also what every patron-scoped route answers while discovery is disabled. |
+| `403` | `{"code": "DISCOVERY_DISABLED"}` | From `/discovery/patrons/resolve` only: this deployment accepts no discovery patrons. |
+| `403` | `{"code": "NOT_A_TRUSTED_SERVICE"}` | From `/discovery/patrons/resolve` only: your bearer's client is not the `client-id` of any trusted service. |
+| `404` | — | No such request *for this patron*. Not-yours and not-found are the same answer by design. From `/discovery/patrons/resolve`, the library has no such patron, or DCB does not know the agency you named. |
+| `409` | `{"code": "NOT_CANCELLABLE", "discoveryStatus": …}` | Not cancellable now: too early (not yet placed at the patron's library), too late, or already cancelled. `discoveryStatus` says which; `CANCELLED` means an earlier cancellation worked. |
+| `429` | `{"code": "TOO_MANY_RESOLVES"}` | From `/discovery/patrons/resolve` only: your service has resolved `dcb.discovery.patron-resolves-per-minute` sign-ins this minute. Retry after the `Retry-After` seconds. |
 | `502` | `{"code": "CANCELLATION_NOT_CONFIRMED"}` | The borrowing system did not confirm. **The hold may still be live.** Do not tell the patron it is cancelled — direct them to library staff. |
+| `502` | `{"code": "LIBRARY_UNAVAILABLE"}` | From `/discovery/patrons/resolve`: the library system could not be asked. |
+| `500` | — | From cancel, treat it exactly like `CANCELLATION_NOT_CONFIRMED`: the hold may still be live. |
+
+The preflight failure codes are a stable vocabulary: `EXCEEDS_GLOBAL_LIMIT`,
+`EXCEEDS_AGENCY_LIMIT`, `REQUEST_LIMITS_UNCHECKED`, `PATRON_HOLD_LIMIT_REACHED`,
+`DUPLICATE_REQUEST_ATTEMPT`, `INVALID_PATRON_BARCODE`, `PATRON_INELIGIBLE`, `PATRON_BLOCKED`,
+`PATRON_INACTIVE`, `PATRON_EXPIRED`, `PATRON_DELETED`, `PATRON_NOT_FOUND`,
+`PATRON_TYPE_NOT_MAPPED`, `LOCAL_PATRON_TYPE_IS_NON_NUMERIC`,
+`PATRON_AGENCY_NOT_PARTICIPATING_IN_BORROWING`, `PATRON_NOT_ASSOCIATED_WITH_AGENCY`,
+`UNKNOWN_BORROWING_HOST_LMS`, `NO_ITEM_SELECTABLE_FOR_REQUEST`, `CLUSTER_RECORD_NOT_FOUND`,
+`UNKNOWN_PICKUP_LOCATION_CODE` and `UNKNOWN_PICKUP_LOCATION_AGENCY`. Codes may be added, so
+show `userMessage` for any code you do not recognise rather than failing.
 
 ### 6.6 Rendering status
 
@@ -380,8 +645,9 @@ machine gains states, and your integration should not break when it does. The
 
 ### 6.7 Operational courtesy
 
-- Rate-limit yourself. Behind these endpoints are real member library systems with real
-  API budgets, some of them decades old.
+- Rate-limit yourself. DCB itself does not rate-limit these routes; at most the deployment's
+  ingress does. Behind them are real member library systems with real API budgets, some of them
+  decades old.
 - Do not poll `GET /discovery/requests` aggressively per patron session. Requests move on the
   timescale of physical stock in vans.
 - Treat cancellation as idempotent from your side too; DCB will converge, but the network will
@@ -393,6 +659,27 @@ machine gains states, and your integration should not break when it does. The
 onboard a service without an HTTP endpoint. The same mechanism works for an air-gapped or
 local-development deployment, so you can exercise the full assertion path without publishing a
 JWKS URL first.
+
+### 6.9 The catalogue routes beside the contract
+
+A discovery front end also shows records and availability. These routes need no credential and
+no assertion, and they are not part of the patron contract above:
+
+| Route | What it gives you |
+|---|---|
+| The consortium's search proxy | Search results. Each instance's `id` is the `bibClusterId` that placement takes |
+| `GET /clusters?since=&page=&size=` | Every cluster, paged, for a layer that keeps its own index. `since` limits it to clusters changed after that instant |
+| `GET /clusters/{id}` | One cluster |
+| `GET /items/availability?clusteredBibId=` | Live availability for one cluster. Each item carries `id`, `hostLmsCode`, `agency.code`, `isRequestable` and `parsedVolumeStatement` |
+| `GET /items/availability/batch?clusteredBibId=…` | The same for up to 25 clusters at once |
+| `GET /discovery/consortium`, `GET /discovery/announcements` | The consortium's brand and its current announcements |
+
+There is no lookup from a library's own bib id or an ISBN to a cluster. A layer with its own
+index must harvest clusters from `GET /clusters` or take ids from the search proxy.
+
+Live availability reaches every member library that holds the record, so it is the most
+expensive call you can make. Use the batch route for a results page rather than one call per
+row, and do not refresh it on a timer.
 
 ---
 
@@ -412,14 +699,29 @@ generic schedulers), **§7.5** AWS ECS/Fargate. §7.2 applies to all three.
 
 ### 7.1 Part one: Keycloak (environment-independent)
 
-Create a **confidential** client for the vendor with service accounts enabled, and grant it the
-`DISCOVERY_SERVICE` role. Hand the client id and secret over a channel that is not email.
+Create a **confidential** client for the vendor with service accounts enabled. Then:
+
+1. Create `DISCOVERY_SERVICE` as a **realm** role, not a client role, if the realm does not
+   already have it.
+2. Assign it to the client's service-account user.
+3. Give the client a realm-role protocol mapper that writes the user's realm roles to a
+   top-level `roles` claim in the access token, as the staff clients already have.
+
+DCB reads roles from that top-level `roles` claim and nowhere else. Keycloak's default puts
+realm roles only in `realm_access.roles`, so a client without the mapper, or with the role
+granted as a client role, gets `403` on every `/discovery/` call. Use the vendor's `service-id`
+as the client id. If you cannot, record the client id as `client-id` in their trust entry
+(§7.2), because DCB rejects their assertions unless the token's `azp` matches it. **Check this
+for every existing trust entry before upgrading to a DCB that binds the client:** an entry whose
+client id differs from its `service-id`, and has no `client-id`, stops working at the upgrade.
+An identity provider other than Keycloak must stamp `azp` on its access tokens.
+
+Hand the client id and secret over a channel that is not email.
 
 Nothing about this step depends on how DCB is hosted. Keycloak is a separate system, and a
 discovery service's credential is issued there whether DCB runs on Kubernetes, Fargate, or a
-laptop. Nor does it need new DCB wiring: DCB validates the bearer token against `KEYCLOAK_CERT_URL`
-exactly as it does for every other role, and `DISCOVERY_SERVICE` is just a role in that realm.
-If that variable is already set for staff traffic, discovery authentication needs nothing further.
+laptop. DCB validates the bearer token against `KEYCLOAK_CERT_URL` exactly as it does for every
+other role, so if that variable is already set for staff traffic, it needs no new DCB wiring.
 
 ### 7.2 Part two: everything can be an environment variable
 
@@ -430,9 +732,9 @@ work differently, though, and the difference is not arbitrary:
 | Environment variable | Config key | Type | Default | Required |
 |---|---|---|---|---|
 | `DCB_DISCOVERY_ENABLED` | `dcb.discovery.enabled` | boolean | `false` | yes, to serve discovery at all |
-| `DCB_DISCOVERY_AUDIENCE` | `dcb.discovery.audience` | string | `dcb` | only if not `dcb` |
+| `DCB_DISCOVERY_AUDIENCE` | `dcb.discovery.audience` | string | `dcb` | recommended: set a value unique to this deployment, such as its base URL |
 | `DCB_DISCOVERY_MAX_ASSERTION_LIFETIME` | `dcb.discovery.max-assertion-lifetime` | ISO-8601 duration | `PT2M` | no |
-| `DCB_DISCOVERY_TRUSTED_SERVICES_JSON` | `dcb.discovery.trusted-services` | JSON array (string) | empty | yes, unless supplied as YAML |
+| `DCB_DISCOVERY_TRUSTED_SERVICES_JSON` | `dcb.discovery.trusted-services-json` (merged into `trusted-services`) | JSON array (string) | unset; set but blank stops startup | yes, unless supplied as YAML |
 
 Two further variables are not discovery-specific but decide whether the above arrives at all:
 
@@ -456,7 +758,12 @@ JSON array in one value, using **the same kebab-case keys as the YAML**:
 DCB_DISCOVERY_TRUSTED_SERVICES_JSON=[{"service-id":"their-service-id","issuer":"https://discovery.example.org","jwks-uri":"https://discovery.example.org/.well-known/jwks.json"}]
 ```
 
-Inline `jwks` works here too, for the egress-less case in §7.6.
+Inline `jwks` works here too, for the egress-less case in §7.6. Add `"client-id"` to an entry
+only when the vendor's Keycloak client id differs from its `service-id` (§7.1).
+
+Every deployment ships with the audience `dcb`. A discovery service that serves two consortia
+would then mint assertions either deployment accepts. Set `DCB_DISCOVERY_AUDIENCE` to a value
+unique to this deployment, and tell the vendor (§6.1).
 
 **If the variable is absent, empty, or blank, that is "not configured", not an error.** The setter
 is simply never called, the JSON contribution is an empty list, and the effective trust anchor is
@@ -470,8 +777,9 @@ Both forms feed one effective list, so you can use either or both, and the dupli
 check in §7.8 covers a collision *between* them. Malformed JSON fails the application at
 startup rather than binding an empty list — a trust anchor that silently binds nothing is
 indistinguishable from a deployment nobody configured, which is the one outcome worth crashing
-to avoid. (`DiscoveryServicePropertiesBindingTests` pins all of this, including the indexed-env-var
-limitation, so nobody removes the JSON route on the assumption that indices would do.)
+to avoid. (`DiscoveryServicePropertiesBindingTests` pins the JSON parsing and the indexed-env-var
+limitation, so nobody removes the JSON route on the assumption that indices would do. It calls the
+property setters directly. No test yet binds the variable through a running application.)
 
 Note also that the trust anchor contains **no secrets**. A service id, an issuer URL and a JWKS
 URL are all public information; the vendor's *private* key never comes near DCB. Treat this as
@@ -637,7 +945,7 @@ the entrypoint fetch it before exec'ing the application:
 set -euo pipefail                      # the fetch MUST be able to fail the container
 aws s3 cp "s3://dcb-config/${ENVIRONMENT}/discovery.yml" /tmp/discovery.yml
 export MICRONAUT_CONFIG_FILES=/bootstrap.yml,/tmp/discovery.yml
-exec java -jar /app/dcb.jar
+exec java -server -jar /home/app/application.jar
 ```
 
 Grant whatever identity the container runs as read access to that object; on ECS that is the
@@ -802,8 +1110,9 @@ ConfigMap trap in §7.3 — `aws ecs update-service --cluster … --service dcb 
 ### 7.6 Part three: egress to the vendor's JWKS URL
 
 DCB fetches the vendor's public keys from `jwks-uri` over HTTPS and caches them for **15 minutes**
-(`DiscoveryTrustedServiceStore`, not configurable). This is an outbound call to a host named in
-configuration, and it has to be possible.
+(`DiscoveryTrustedServiceStore`, not configurable). An assertion whose `kid` is not in the cache
+makes DCB fetch the set again at once. This is an outbound call to a host named in configuration,
+and it has to be possible.
 
 | | Kubernetes | Docker / systemd / VM | ECS on Fargate |
 |---|---|---|---|
@@ -840,9 +1149,10 @@ deployment that truly cannot egress.
 
 ### 7.7 Clock skew
 
-Assertion lifetimes are short by design (`PT2M` by default) and an `iat` more than 60 seconds in
-the future is rejected outright. That makes clock discipline an operational requirement rather
-than a nicety.
+Assertion lifetimes are short by design (`PT2M` by default). An `iat` more than 60 seconds in
+the future is rejected outright, and `exp` and `nbf` are checked with no tolerance at all. A
+vendor whose clock runs a second fast and who sets `nbf` to `iat` fails every call. That makes
+clock discipline an operational requirement rather than a nicety.
 
 Managed container runtimes generally handle this for you — ECS/Fargate tasks get Amazon Time
 Sync automatically, for instance. Self-managed Kubernetes nodes and VMs need NTP configured. In
@@ -861,12 +1171,14 @@ or the CloudWatch log group named in the task definition):
   new service is not in the list, the configuration did not reach the process — check
   `MICRONAUT_CONFIG_FILES` or `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`, and the precedence rules in
   §7.4 B3, before suspecting anything else.
-- **Incomplete entry.** An entry missing `service-id`, `issuer`, or both of `jwks-uri`/`jwks` is
-  logged at ERROR and **skipped**. The service starts normally and rejects that vendor's calls.
-  This is the failure mode that looks like nothing happened, so check the count.
+- **Incomplete or blank entry.** An entry missing `service-id`, `issuer`, or both of
+  `jwks-uri`/`jwks`, or with any of its fields set but blank, stops the application starting and
+  names the entry. So does `DCB_DISCOVERY_TRUSTED_SERVICES_JSON` set but blank, and a blank
+  `audience` or a non-positive `max-assertion-lifetime`. Leave a setting out to take its default.
 - **Duplicate issuer.** Two entries sharing an issuer throw at bean construction and the
   application does not start. Deliberate: two services on one issuer means either can mint the
-  other's assertions, and picking a winner silently would be worse than failing loudly.
+  other's assertions, and picking a winner silently would be worse than failing loudly. A
+  duplicate `service-id` or `client-id` refuses to start for the same reason.
 
 Then smoke-test the surface. All three of these should hold before you tell the vendor they are
 live:
@@ -890,15 +1202,22 @@ curl -sS -o - -w '%{http_code}\n' \
 Check (2) explicitly rather than assuming: a `401` from a missing or wrong `KEYCLOAK_CERT_URL`
 looks similar from the outside but is a different fault, and the `INVALID_PATRON_ASSERTION` code in
 the body is what distinguishes "your token was accepted, your assertion was not" from "your token
-never got in".
+never got in". A `403` at (2) means the token got in without the role: check the `roles` mapper
+in §7.1.
+
+Do not skip (3) because the startup log looked right. The startup checks prove the configuration
+parses. Only a real assertion proves that the vendor's key, issuer, audience and Keycloak client
+all line up.
 
 ### 7.9 Offboarding and rotation
 
-- **Key rotation at the same JWKS URL is automatic.** The vendor publishes the new key, DCB picks
-  it up when its 15-minute JWKS cache expires (§7.6). No configuration change, no deployment. Tell
-  the vendor that number: a rotation that removes the old key before DCB's cache has turned over
-  fails assertions for up to fifteen minutes, so they must publish both keys and retire the old one
-  afterwards.
+- **Key rotation at the same JWKS URL is automatic.** A new key is accepted on first use: an
+  assertion carrying a `kid` DCB has not seen makes it fetch the JWKS again (§7.6). No
+  configuration change, no deployment. The vendor should keep the old key published for one
+  assertion lifetime after switching, so assertions already in flight still verify.
+- **A withdrawn key is not dropped at once.** DCB keeps trusting a key the vendor has removed
+  until its 15-minute cache expires. After a key compromise, restart DCB, or remove the trust
+  entry and roll, to stop trusting it immediately.
 - **Changing `issuer` or `jwks-uri` is a re-onboarding.** It moves the trust anchor, so review it
   the way you reviewed the original — not as a routine config tweak.
 - **Offboarding is removing the entry and redeploying.** Until the deployment rolls, the vendor
@@ -907,8 +1226,9 @@ never got in".
 - **Revoking the Keycloak client is the faster lever**, and it is the one to reach for in an
   incident. It takes effect as soon as the vendor's current access token expires, without touching
   DCB's configuration or restarting anything. Do that first, then remove the trust anchor entry at
-  the next deployment. A vendor whose Keycloak credential is gone cannot call `/discovery/` at all,
-  however good their assertions are.
+  the next deployment. Because DCB accepts a vendor's assertions only with that vendor's own
+  client token, a vendor whose Keycloak credential is gone cannot reach any patron-scoped route,
+  however good their assertions are. The anonymous routes stay open to them, as to anyone.
 
 Whatever the change, it lands only when the process restarts:
 
@@ -942,17 +1262,20 @@ staff API has always allowed. It is closed-source and outside OpenRS: it may ado
 
 ### 8.3 The surfaces Locate uses, audited against this branch
 
-Locate calls the following, outside what the `dcb-locate` search proxy handles. Every one was
-checked against `main`:
+The `dcb-locate` search proxy reads the shared index and never calls dcb-service, so Locate's
+`ADMIN` credential is used only on the calls below, which Locate makes to dcb-service directly:
 
 | Surface | Endpoint | Security | Touched by this branch? |
 |---|---|---|---|
 | Pickup locations | `GET /agencies/{id}/pickupLocations` | `@Secured(ADMINISTRATOR)` (class default) | No |
-| Pickup locations (alternative) | `GET /locations…` | `@Secured(ADMINISTRATOR)` (class default) | No |
-| Patron auth and lookup | `/patron/auth/**`, `/v2/patron/auth/**` | `{ADMINISTRATOR, INTERNAL_API}`; some routes anonymous | No |
-| Agencies | `POST /graphql` | `isAuthenticated()` via `intercept-url-map` | No |
+| Pickup locations (alternative) | `GET /locations` (list); `GET /locations/{id}` | list anonymous; `/{id}` `@Secured(ADMINISTRATOR)` (class default) | No |
+| Patron authentication | `POST /patron/auth`, `POST /v2/patron/auth` | anonymous (§2.7) | No |
+| Patron lookup | `POST /patron/auth/lookup`, `POST /v2/patron/auth/lookup` | `{ADMINISTRATOR, INTERNAL_API, CONSORTIUM_ADMIN, LIBRARY_ADMIN, LIBRARY_READ_ONLY}` | No |
+| Agencies | `POST /graphql` | `isAuthenticated()` via `intercept-url-map` at the URL, then `STAFF` roles in the data fetcher | No |
+| Live availability | `GET /items/availability?clusteredBibId=` | anonymous, deliberately public | No |
 | Placement | `POST /patrons/requests/place` | `{CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN, LIBRARY_READ_ONLY, INTERNAL_API}` | Role set made explicit; ADMIN retained |
 | Patron request summary | `GET /patrons/requests/patrons/{hostLmsCode}/requests?barcode=…` | `@Secured(ADMINISTRATOR)` | **Renamed — restored, see §8.4** |
+| Request browse | `GET /patrons/requests` | `@Secured(ADMINISTRATOR)` | Narrowed to `ADMINISTRATOR`; marked LEGACY |
 
 ### 8.4 What did *not* change for Locate
 
@@ -985,8 +1308,10 @@ Ideally, Locate will migrate to using a `DISCOVERY_SERVICE` credential and sign 
 At that point both legacy routes get deleted and the `ADMIN` service account is revoked. Until then:
 
 - **This is the only exception, and it is `ADMIN`-only.** Both legacy routes name `ADMINISTRATOR`
-  and nothing else, and `DiscoveryApiSecurityTests` fails if that widens — including if someone
-  folds the alias back onto the current method and it inherits the wider role set. A second
+  and nothing else. `DiscoveryApiSecurityTests` fails if a `CONSORTIUM_ADMIN` or a
+  `DISCOVERY_SERVICE` token reaches either of them — which is what happens if someone folds the
+  alias back onto the current method and it inherits the wider role set. It does not try every
+  other role, so review any change to those two `@Secured` lines by eye. A second
   integration asking for an `ADMIN` credential because "Locate has one" is not a precedent being
   followed, it is the exception becoming the rule. The answer is §6.
 - **Do not widen it.** No new route gets added to `PatronRequestController` on the grounds that Locate might want it. Anything genuinely new belongs on the discovery surface with an assertion
@@ -1003,7 +1328,7 @@ At that point both legacy routes get deleted and the `ADMIN` service account is 
 - `docs/ncip-peer-authentication.md` — the same verification library, applied to inbound NCIP.
   Separate trust store, deliberately.
 - `ApiSecurityArchitectureTests` — the build-time rules described in §4.
-- `DiscoveryServicePropertiesBindingTests` — pins the configuration binding in §7.2, including the
+- `DiscoveryServicePropertiesBindingTests` — pins the JSON parsing in §7.2, including the
   indexed-environment-variable limitation that makes `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`
   necessary.
 - `DiscoveryApiSecurityTests`, `PatronAssertionVerifierTests`,

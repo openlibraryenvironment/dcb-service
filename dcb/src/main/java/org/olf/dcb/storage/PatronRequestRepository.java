@@ -440,6 +440,43 @@ public interface PatronRequestRepository {
     """, nativeQuery = true)
 	Publisher<Page<PatronRequestSummaryProjection>> findSummariesForPatron(String patronSystem, String patronId, Pageable pageable);
 
+	// What the patron currently has OUT through DCB. Same ownership predicate as
+	// findSummariesForPatron above, narrowed to LOANED, and selecting the borrowing
+	// system and virtual item as well - DCB records that a request reached LOANED but
+	// never records a due date, so the caller has to go and ask that system.
+	//
+	// LIMIT rather than a Pageable, and that IS the bound: each row this returns becomes
+	// one live read against a member LMS. A patron with an implausible number of loans
+	// gets the most recent :max of them rather than turning one page view into an
+	// unbounded fan-out at somebody else's library.
+	@Query(value = """
+        SELECT DISTINCT
+            pr.id,
+            cr.title as title,
+            pr.bib_cluster_id,
+            pr.pickup_location_code,
+            (SELECT l.name FROM location l WHERE l.code = pr.pickup_location_code LIMIT 1) as pickup_location_name,
+            pr.local_item_id,
+            pr.local_request_id,
+            pr.local_holding_id,
+            pr.local_bib_id,
+            pr.patron_hostlms_code,
+            pr.local_renewal_count,
+            CAST(pr.renewal_status AS VARCHAR) as renewal_status,
+            pr.date_updated
+        FROM patron_request pr
+        JOIN patron_identity pi ON pr.patron_id = pi.patron_id
+        JOIN host_lms h ON pi.host_lms_id = h.id
+        LEFT JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+        WHERE h.code = :patronSystem
+          AND pi.local_id = :patronId
+          AND pi.home_identity = true
+          AND pr.status_code = 'LOANED'
+        ORDER BY pr.date_updated DESC
+        LIMIT :max
+    """, nativeQuery = true)
+	Flux<PatronLoanProjection> findLoansForPatron(String patronSystem, String patronId, int max);
+
 	@Query(
 		value = """
 			SELECT cr.id AS cluster_id, cr.title, COUNT(pr.id) AS request_count
@@ -988,6 +1025,51 @@ public interface PatronRequestRepository {
 		nativeQuery = true
 	)
 	Publisher<CollectionSummaryStat> findCollectionSummary(
+		@Nullable String libraryCode,
+		@Nullable Instant startDate,
+		@Nullable Instant endDate
+	);
+
+	// Per-library volume, split by whether a van moved.
+	//
+	// is_expedited_checkout has been on this table since V8_23_0_002 and is nullable with a
+	// FALSE default, so the two counts are written to sum to total_requests rather than left
+	// to a caller that would have to guess what a null means.
+	//
+	// SCOPED, unlike peer benchmarking beside it. That endpoint is cross-tenant by design
+	// because ranking against the network cannot be done from one row; this one answers "what
+	// did MY library do", so it takes the same libraryCode filter every other Insights query
+	// does and a library-level caller sees only their own.
+	@Query(
+		value = """
+			SELECT
+				pr.patron_hostlms_code AS library_code,
+				-- Correlated on the grouping column, so it runs once per library rather than
+				-- once per request. string_agg because a shared Host LMS genuinely serves
+				-- several libraries, and naming the alphabetically-first would be a quiet lie.
+				(SELECT string_agg(DISTINCT l.full_name, ', ')
+				   FROM library l
+				   JOIN agency a ON a.code = l.agency_code
+				   JOIN host_lms h ON h.id = a.host_lms_id
+				  WHERE h.code = pr.patron_hostlms_code) AS library_name,
+				COUNT(*) AS total_requests,
+				COUNT(*) FILTER (WHERE pr.is_expedited_checkout IS TRUE) AS walk_up_requests,
+				COUNT(*) FILTER (WHERE pr.is_expedited_checkout IS NOT TRUE) AS shipped_requests
+			FROM patron_request pr
+			WHERE pr.patron_hostlms_code IS NOT NULL
+			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
+			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
+			GROUP BY pr.patron_hostlms_code
+			ORDER BY total_requests DESC
+			-- Bounded by the member-library scale constant. A consortium has hundreds of
+			-- libraries and this is one row each, but the bound is stated rather than assumed
+			-- so a misconfigured Host LMS vocabulary cannot return an unbounded grid.
+			LIMIT 500
+		""",
+		nativeQuery = true
+	)
+	Flux<LibraryBreakdownStat> findLibraryBreakdown(
 		@Nullable String libraryCode,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate

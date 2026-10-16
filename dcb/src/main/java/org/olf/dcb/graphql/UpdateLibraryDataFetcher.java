@@ -8,6 +8,7 @@ import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
 import org.olf.dcb.core.branding.BrandAssetCleanup;
 import org.olf.dcb.core.branding.BrandingValidator;
+import org.olf.dcb.core.model.ClassificationScheme;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.storage.LibraryRepository;
 
@@ -80,7 +81,23 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 		String principalLabel = InputValues.stringValue(input_map, "principalLabel");
 		String address = InputValues.stringValue(input_map, "address");
 		String discoverySystem = InputValues.stringValue(input_map, "discoverySystem");
-		String patronWebsite = InputValues.stringValue(input_map, "patronWebsite");
+		// Both become an href in the patron app's footer, so both go through the
+		// same scheme check the brand images do. Supplied-but-blank CLEARS, like the brand
+		// fields below: a library that typed the wrong address has to be able to remove it.
+		boolean patronWebsiteSupplied = input_map.containsKey("patronWebsite");
+		String patronWebsite = InputValues.asString(input_map.get("patronWebsite"));
+
+		boolean supportUrlSupplied = input_map.containsKey("supportUrl");
+		String supportUrl = InputValues.asString(input_map.get("supportUrl"));
+		// An allow-list at the write boundary: the value will pick which index field a
+		// browse query sorts on, so an unrecognised one would name a field that does not
+		// exist. Explicit null or empty clears it, which is how a library withdraws from
+		// shelf browse.
+		boolean classificationSchemeSupplied = input_map.containsKey("classificationScheme");
+		String classificationScheme = classificationSchemeSupplied
+			? classificationScheme(InputValues.asString(input_map.get("classificationScheme")))
+			: null;
+
 		String type = InputValues.stringValue(input_map, "type");
 
 
@@ -112,6 +129,10 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 
 		Mono<Library> transactionMono = Mono.from(r2dbcOperations.withTransaction(status ->
 			Mono.from(libraryRepository.findById(id))
+				.flatMap(library -> AgencyAccessScope.permitsAgency(env, library.getAgencyCode())
+					? Mono.just(library)
+					: Mono.<Library>error(new HttpStatusException(HttpStatus.FORBIDDEN,
+						"Access denied: this account does not administer that library.")))
 				.flatMap(library -> {
 					if (backupDowntimeSchedule != null) {
 						library.setBackupDowntimeSchedule(backupDowntimeSchedule);
@@ -140,6 +161,12 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 					if (secretLabel != null) {
 						library.setSecretLabel(secretLabel);
 					}
+					if (supportUrlSupplied) {
+						library.setSupportUrl(brandingValidator.changedLinkUrl(supportUrl, library.getSupportUrl()));
+					}
+					if (classificationSchemeSupplied) {
+						library.setClassificationScheme(classificationScheme);
+					}
 					if (principalLabel != null) {
 						library.setPrincipalLabel(principalLabel);
 					}
@@ -149,8 +176,9 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 					if (discoverySystem != null) {
 						library.setDiscoverySystem(discoverySystem);
 					}
-					if (patronWebsite != null) {
-						library.setPatronWebsite(patronWebsite);
+					if (patronWebsiteSupplied) {
+						library.setPatronWebsite(brandingValidator.changedLinkUrl(patronWebsite,
+							library.getPatronWebsite()));
 					}
 					if (type != null) {
 						library.setType(type);
@@ -180,4 +208,28 @@ public class UpdateLibraryDataFetcher implements DataFetcher<CompletableFuture<L
 				.thenReturn(library))
 			.toFuture();
 	}
+
+	/**
+	 * The scheme a library may declare, or null to clear it.
+	 *
+	 * Refused rather than ignored when unrecognised: silently dropping it would leave the
+	 * form showing a value the server did not store, and the administrator would find out
+	 * when shelf browse did not appear.
+	 */
+	private static String classificationScheme(String raw) {
+		if (raw == null || raw.isBlank()) {
+			return null;
+		}
+
+		final var parsed = ClassificationScheme.parse(raw);
+
+		if (parsed == null) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Unknown classification scheme '" + raw + "'. Shelf browse can order by "
+					+ java.util.Arrays.toString(ClassificationScheme.values()) + ".");
+		}
+
+		return parsed.name();
+	}
+
 }

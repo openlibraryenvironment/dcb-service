@@ -168,6 +168,14 @@ class HostLmsVerificationProbeTests {
 	}
 
 	@Test
+	void shouldNotReportAnAgencyWhosePatronsSignInAtTheirInstitution() {
+		final var sierra = hostLmsFixture.createSierraHostLms("sierra-saml");
+		defineAgency("saml-agency", sierra, "saml");
+
+		assertThat(authProfileStatus(sierra), is("OK"));
+	}
+
+	@Test
 	void shouldSaySoWhenNoAgencyUsesTheHostLmsYet() {
 		final var sierra = hostLmsFixture.createSierraHostLms("probe-sierra");
 

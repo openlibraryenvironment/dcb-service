@@ -7,6 +7,7 @@ import static org.olf.dcb.core.api.PatronAuthV2Controller.Status.VALID;
 import java.util.List;
 
 import org.olf.dcb.core.interaction.UnsupportedAuthProfileException;
+import static org.olf.dcb.core.interaction.AuthProfiles.signsInAtInstitution;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.security.RoleNames;
@@ -90,9 +91,10 @@ public class PatronAuthV2Controller {
 
 		return Mono.from(agencyRepository.findOneByCode(agencyCode))
 				.flatMap(this::addHostLms)
-				.flatMap(agency -> patronAuth(request, agency, username))
-				.switchIfEmpty( Mono.defer(() -> { return invalid(request); } ) )
-				.<HttpResponse<LocalPatronDetails>>map(HttpResponse::ok)
+				.flatMap(agency -> signsInAtInstitution(agency.getAuthProfile())
+					? Mono.just(institutionSignIn(agency))
+					: patronAuth(request, agency, username).<HttpResponse<LocalPatronDetails>>map(HttpResponse::ok))
+				.switchIfEmpty(Mono.defer(() -> invalid(request).<HttpResponse<LocalPatronDetails>>map(HttpResponse::ok)))
 				.onErrorResume(UnsupportedAuthProfileException.class, PatronAuthV2Controller::unusableAuthProfile);
 	}
 
@@ -103,6 +105,13 @@ public class PatronAuthV2Controller {
 
 		log.error("Patron sign-in refused: {}", refused.getMessage());
 		return Mono.just(HttpResponse.<LocalPatronDetails>serverError());
+	}
+
+	// Not a configuration error, and not a wrong PIN: this library's patrons sign in at their institution
+	private static HttpResponse<LocalPatronDetails> institutionSignIn(DataAgency agency) {
+		log.info("Agency {} signs its patrons in at their institution ({}): DCB does not check their credentials",
+			agency.getCode(), agency.getAuthProfile());
+		return HttpResponse.badRequest();
 	}
 
 	private Mono<LocalPatronDetails> patronAuth(V2PatronCredentials creds, DataAgency agency, String username) {

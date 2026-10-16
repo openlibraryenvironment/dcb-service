@@ -157,27 +157,65 @@ public class PatronRequestService {
 		}
 
 		return hostLmsService.getClientFor(command.getItemHostLmsCode())
-			.flatMap(client -> requireItemAgencyOnHostLms(command, client.getHostLms().getId())
-				.then(requirePickupAtItemLibrary(command))
+			.flatMap(client -> requireItemAgencyOnHostLms(command.getItemAgencyCode(),
+					command.getItemHostLmsCode(), client.getHostLms().getId())
+				.then(requirePickupAtItemLibrary(command.getPickupLocationCode(), command.getItemAgencyCode()))
 				.then(Mono.defer(() -> findWalkUpItem(command, client))));
 	}
 
-	private Mono<Void> requireItemAgencyOnHostLms(WalkUpRequestCommand command, UUID itemHostLmsId) {
-		return Mono.from(agencyRepository.findOneByCode(command.getItemAgencyCode()))
+	/**
+	 * A walk-up asked for through discovery: the copy is named by local id rather than scanned,
+	 * so it gets the same refusals as {@link #placeWalkUpRequest} that do not need a barcode, and
+	 * the expedited preflight refuses a copy that is not available.
+	 */
+	public Mono<? extends PatronRequest> placeDiscoveryWalkUp(PlacePatronRequestCommand command) {
+		final var item = command.getItem();
+
+		if (item == null || item.getLocalId() == null || item.getLocalSystemCode() == null
+			|| item.getAgencyCode() == null) {
+
+			return refuse("ITEM_NOT_FOUND", "A walk-up names the item, its library system and its library");
+		}
+
+		// The controller's agency hint, checked to be on the patron's own system. Required: without it
+		// a loan at the patron's own library would go through DCB, and DCB has not resolved one yet
+		final var patronAgencyCode = command.getRequestor().getAgencyCode();
+
+		if (patronAgencyCode == null) {
+			return refuse("WALK_UP_LIBRARY_REQUIRED",
+				"A discovery walk-up names the patron's library, so a local loan can be refused");
+		}
+
+		if (item.getAgencyCode().equals(patronAgencyCode)) {
+			return refuse("WALK_UP_SAME_LIBRARY",
+				"The patron belongs to the library that holds the item, so this is a local loan");
+		}
+
+		return hostLmsService.getClientFor(item.getLocalSystemCode())
+			.flatMap(client -> requireItemAgencyOnHostLms(item.getAgencyCode(),
+					item.getLocalSystemCode(), client.getHostLms().getId())
+				.then(requirePickupAtItemLibrary(command.getPickupLocationCode(), item.getAgencyCode()))
+				.then(refuseIfItemAlreadyRequested(item.getLocalSystemCode(), item.getLocalId()))
+				.then(Mono.defer(() -> placePatronRequestExpeditedCheckout(command))));
+	}
+
+	private Mono<Void> requireItemAgencyOnHostLms(String itemAgencyCode, String itemHostLmsCode,
+		UUID itemHostLmsId) {
+
+		return Mono.from(agencyRepository.findOneByCode(itemAgencyCode))
 			.flatMap(agency -> Mono.from(agencyRepository.findHostLmsIdById(agency.getId())))
 			.filter(itemHostLmsId::equals)
 			.switchIfEmpty(refuse("WALK_UP_ITEM_AGENCY_MISMATCH",
-				"Agency %s is not on library system %s".formatted(command.getItemAgencyCode(),
-					command.getItemHostLmsCode())))
+				"Agency %s is not on library system %s".formatted(itemAgencyCode, itemHostLmsCode)))
 			.then();
 	}
 
 	// The patron collects at the desk they are standing at; any other pickup is not a walk-up
-	private Mono<Void> requirePickupAtItemLibrary(WalkUpRequestCommand command) {
-		return locationService.findById(command.getPickupLocationCode())
+	private Mono<Void> requirePickupAtItemLibrary(String pickupLocationCode, String itemAgencyCode) {
+		return locationService.findById(pickupLocationCode)
 			.flatMap(location -> Mono.justOrEmpty(location.getAgency()))
 			.flatMap(agency -> Mono.from(agencyRepository.findById(agency.getId())))
-			.filter(agency -> command.getItemAgencyCode().equals(agency.getCode()))
+			.filter(agency -> itemAgencyCode.equals(agency.getCode()))
 			.switchIfEmpty(refuse("WALK_UP_PICKUP_ELSEWHERE",
 				"The pickup location is not at the library that holds the item"))
 			.then();
@@ -201,7 +239,7 @@ public class PatronRequestService {
 							command.getItemHostLmsCode()));
 				}
 
-				return refuseIfItemAlreadyRequested(command, item)
+				return refuseIfItemAlreadyRequested(command.getItemHostLmsCode(), item.getLocalId())
 					.then(Mono.defer(() -> Mono.from(bibRepository.findBySourceSystemIdAndSourceRecordId(
 						client.getHostLms().getId(), item.getBibId()))))
 					.switchIfEmpty(refuse("ITEM_NOT_IN_SHARED_INDEX",
@@ -213,12 +251,14 @@ public class PatronRequestService {
 
 	// The item can still read available between a first walk-up being placed and its checkout,
 	// so a second scan in that window would place a second request on the same copy
-	private Mono<Void> refuseIfItemAlreadyRequested(WalkUpRequestCommand command, HostLmsItem item) {
+	private Mono<Void> refuseIfItemAlreadyRequested(String itemHostLmsCode, String itemLocalId) {
 		return Mono.from(patronRequestRepository.findActiveRequestHoldingSupplierItem(
-				command.getItemHostLmsCode(), item.getLocalId()))
+				itemHostLmsCode, itemLocalId))
+			// The refusal reaches the walk-up's caller, who may be a patron; the other request is not theirs
+			.doOnNext(existing -> log.info("Walk-up of item {} at {} refused: request {} holds it, status {}",
+				itemLocalId, itemHostLmsCode, existing.getId(), existing.getStatus()))
 			.flatMap(existing -> refuse("WALK_UP_ITEM_ALREADY_REQUESTED",
-				"Item %s is already held by request %s, status %s".formatted(item.getLocalId(),
-					existing.getId(), existing.getStatus())));
+				"Item %s is already part of a request in progress".formatted(itemLocalId)));
 	}
 
 	private Mono<? extends PatronRequest> placeWalkUp(WalkUpRequestCommand command,

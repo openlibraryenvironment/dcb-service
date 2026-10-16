@@ -515,6 +515,25 @@ public class InsightsController {
 	}
 
 	/**
+	 * Per-library volume, split by whether a van moved ({@code is_expedited_checkout}). Scoped
+	 * like every Insights endpoint except peer benchmarking, so a library-level caller sees only
+	 * their own. A Host LMS not onboarded as a library has a null name; show its code.
+	 */
+	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
+	@Get("/library-breakdown")
+	public Mono<List<LibraryBreakdownStat>> getLibraryBreakdown(
+		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue Instant startDate,
+		@Nullable @QueryValue Instant endDate,
+		Authentication authentication) {
+
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+			.flatMap(scope -> Flux.from(patronRequestRepository.findLibraryBreakdown(
+					scope.libraryCode(), startDate, endDate))
+				.collectList());
+	}
+
+	/**
 	 * Peer benchmarking. The one endpoint that is cross-tenant BY DESIGN - ranking a library
 	 * against the network cannot be done from its own row - so peers are NAMED, for every
 	 * caller. Why naming beat pseudonymising: docs/insights.md part 3.

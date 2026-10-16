@@ -2,23 +2,29 @@ package org.olf.dcb.request.fulfilment;
 
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
 import static java.util.Collections.emptyList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.olf.dcb.core.model.EventType.FAILED_CHECK;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.StringUtils.truncate;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.core.UnhandledExceptionProblem;
 import org.olf.dcb.core.model.Event;
 import org.olf.dcb.storage.EventLogRepository;
-import org.olf.dcb.utils.CollectionUtils;
 import org.zalando.problem.Problem;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -27,14 +33,25 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class PatronRequestPreflightChecksService {
-	private final Collection<PreflightCheck> checks;
+	static final String DURATION_METRIC = "dcb.preflight.duration";
+	static final String CHECK_DURATION_METRIC = "dcb.preflight.check.duration";
+
+	private final List<PreflightCheck> checks;
 	private final EventLogRepository eventLogRepository;
+	private final IntMessageService intMessageService;
+	private final Duration timeout;
+	private final MeterRegistry meterRegistry;
 
 	public PatronRequestPreflightChecksService(Collection<PreflightCheck> checks,
-		EventLogRepository eventLogRepository) {
+		EventLogRepository eventLogRepository, IntMessageService intMessageService,
+		PreflightChecksTimeout timeout,
+		MeterRegistry meterRegistry) {
 
-		this.checks = checks;
+		this.checks = List.copyOf(checks);
 		this.eventLogRepository = eventLogRepository;
+		this.intMessageService = intMessageService;
+		this.timeout = timeout.value();
+		this.meterRegistry = meterRegistry;
 	}
 
 	public Mono<PlacePatronRequestCommand> check(PlacePatronRequestCommand command) {
@@ -62,11 +79,106 @@ public class PatronRequestPreflightChecksService {
 			});
 	}
 
+	// Bounded here, before anything is saved, so a slow member system refuses the request rather than
+	// holding the caller open. take, not timeout: what finished in time says which check did not
 	private Mono<List<CheckResult>> performChecks(PlacePatronRequestCommand command) {
-		return Flux.fromIterable(checks)
-			.doOnNext(check -> log.info("Preflight check: {}", check))
-			.concatMap(check -> check.check(command))
-			.reduce(CollectionUtils::concatenate);
+		return Mono.defer(() -> {
+			final long started = System.nanoTime();
+
+			return Flux.fromIterable(checks)
+				.doOnNext(check -> log.info("Preflight check: {}", check))
+				.concatMap(check -> timed(check, command))
+				.take(timeout)
+				.collectList()
+				.map(finished -> conclude(command, finished, System.nanoTime() - started))
+				.doOnError(error -> record("error", System.nanoTime() - started));
+		});
+	}
+
+	private Mono<TimedCheck> timed(PreflightCheck check, PlacePatronRequestCommand command) {
+		// An empty answer is no failures, not an unfinished check
+		return check.check(command)
+			.defaultIfEmpty(List.of())
+			.elapsed()
+			.map(answer -> new TimedCheck(nameOf(check), answer.getT1(), answer.getT2()));
+	}
+
+	private List<CheckResult> conclude(PlacePatronRequestCommand command, List<TimedCheck> finished,
+		long elapsedNanos) {
+
+		final var timedOut = finished.size() < checks.size();
+
+		final List<CheckResult> results = timedOut
+			? List.of(CheckResult.failedUm("PREFLIGHT_CHECKS_TIMED_OUT",
+				"Preflight checks did not finish within " + timeout,
+				intMessageService.getMessage("PREFLIGHT_CHECKS_TIMED_OUT")))
+			: finished.stream().flatMap(check -> check.results().stream()).toList();
+
+		final var outcome = timedOut ? "timed_out" : allPassed(results) ? "passed" : "failed";
+
+		record(outcome, elapsedNanos);
+		finished.forEach(check -> checkTimer(check.name()).record(check.millis(), MILLISECONDS));
+
+		log.info(summary(command, outcome, NANOSECONDS.toMillis(elapsedNanos), finished,
+			timedOut ? nameOf(checks.get(finished.size())) : null, results));
+
+		return results;
+	}
+
+	private void record(String outcome, long elapsedNanos) {
+		Timer.builder(DURATION_METRIC)
+			.description("Time to run every preflight check for one placement")
+			.tag("outcome", outcome)
+			.publishPercentileHistogram()
+			.maximumExpectedValue(Duration.ofMinutes(5))
+			.register(meterRegistry)
+			.record(elapsedNanos, NANOSECONDS);
+	}
+
+	private Timer checkTimer(String check) {
+		return Timer.builder(CHECK_DURATION_METRIC)
+			.description("Time one preflight check took for one placement")
+			.tag("check", check)
+			.publishPercentileHistogram()
+			.maximumExpectedValue(Duration.ofMinutes(5))
+			.register(meterRegistry);
+	}
+
+	/**
+	 * One line per placement, for measuring per library what the timer cannot: the borrowing system,
+	 * whether a copy was chosen, and each check's time. Codes only, never the patron.
+	 */
+	static String summary(PlacePatronRequestCommand command, String outcome, long millis,
+		List<TimedCheck> finished, String unfinishedCheck, List<CheckResult> results) {
+
+		final var perCheck = new ArrayList<String>();
+		finished.forEach(check -> perCheck.add(check.name() + "=" + check.millis() + "ms"));
+		if (unfinishedCheck != null) {
+			perCheck.add(unfinishedCheck + "=unfinished");
+		}
+
+		final var codes = results.stream()
+			.filter(CheckResult::getFailed)
+			.map(CheckResult::getFailureCode)
+			.distinct()
+			.toList();
+
+		return "Preflight checks %s in %d ms: borrowingHostLms=%s copyChosen=%s expedited=%s codes=%s checks=%s"
+			.formatted(outcome, millis,
+				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode),
+				getValueOrNull(command, PlacePatronRequestCommand::getItem) != null,
+				Boolean.TRUE.equals(getValueOrNull(command, PlacePatronRequestCommand::getIsExpeditedRequest)),
+				codes, perCheck);
+	}
+
+	private static String nameOf(PreflightCheck check) {
+		final var name = check.getClass().getSimpleName();
+		final var generated = name.indexOf('$');
+
+		return generated > 0 ? name.substring(0, generated) : name;
+	}
+
+	record TimedCheck(String name, long millis, List<CheckResult> results) {
 	}
 
 	private static boolean allPassed(List<CheckResult> results) {

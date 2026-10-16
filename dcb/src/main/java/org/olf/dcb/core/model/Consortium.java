@@ -72,6 +72,14 @@ public class Consortium implements Auditable {
 	@Size(max = 200)
 	private String websiteUrl;
 
+	/**
+	 * Where a patron reports that discovery itself is wrong, as distinct from
+	 * websiteUrl, which is where they go for opening hours and joining.
+	 */
+	@Nullable
+	@Size(max = 200)
+	private String supportUrl;
+
 	@Nullable
 	@Size(max = 200)
 	private String catalogueSearchUrl;

@@ -78,6 +78,27 @@ public class MockFolioFixture {
 		mockServer.mockGet("/users/users", "query", queryField + "==\"" + queryValue + "\"", response);
 	}
 
+	public void mockGetPatronAccount(String externalSystemId, Object responseBody) {
+		mockServer.mockGet(patronAccountPath(externalSystemId), okJson(responseBody));
+	}
+
+	public void mockGetPatronAccount(String externalSystemId, HttpResponse response) {
+		mockServer.mockGet(patronAccountPath(externalSystemId), response);
+	}
+
+	public void mockGetPatronAccount(String externalSystemId, int limit, Object responseBody) {
+		mockServer.mockGet(patronAccountPath(externalSystemId), "limit",
+			String.valueOf(limit), okJson(responseBody));
+	}
+
+	public void verifyNoPatronAccountRead(String externalSystemId) {
+		mockServer.verifyGetNever(patronAccountPath(externalSystemId));
+	}
+
+	private static String patronAccountPath(String externalSystemId) {
+		return "/patron/account/%s".formatted(externalSystemId);
+	}
+
 	void mockCreateTransaction(CreateTransactionResponse response) {
 		mockCreateTransaction(created(response));
 	}

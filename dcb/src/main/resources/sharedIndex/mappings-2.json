@@ -80,6 +80,19 @@
 				"bibId": {
 					"type": "keyword"
 				},
+				"classification": {
+					"properties": {
+						"dewey": { "type": "keyword" },
+						"lcc": { "type": "keyword" },
+						"other": { "type": "keyword" }
+					}
+				},
+				"shelfSort": {
+					"properties": {
+						"dewey": { "type": "keyword", "ignore_above": 64 },
+						"lcc": { "type": "keyword", "ignore_above": 64 }
+					}
+				},
 				"primary": {
 					"type": "boolean"
 				},
@@ -387,6 +400,9 @@
 			"type": "long"
 		},
 		"lastIndexed": {
+			"type": "date"
+		},
+		"firstSeen": {
 			"type": "date"
 		}
 	}
