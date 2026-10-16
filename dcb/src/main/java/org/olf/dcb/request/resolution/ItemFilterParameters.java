@@ -1,6 +1,7 @@
 package org.olf.dcb.request.resolution;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface ItemFilterParameters {
 	List<String> excludedSupplyingAgencyCodes();
@@ -11,4 +12,17 @@ public interface ItemFilterParameters {
 
 	/** The volume a supplying copy must be, or null when any copy of the title will do */
 	String requestedVolumeDesignation();
+
+	default UUID patronId() {
+		return null;
+	}
+
+	default String patronLocalId() {
+		return null;
+	}
+
+	default UUID patronRequestId() {
+		return null;
+	}
+
 }

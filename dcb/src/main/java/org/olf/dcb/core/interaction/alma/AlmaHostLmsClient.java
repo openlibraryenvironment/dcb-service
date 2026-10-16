@@ -1739,12 +1739,6 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			});
 	}
 
-  @Override
-  public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
-    log.debug("ALMA Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
-    return Mono.just(Boolean.TRUE);
-  }
-
 	@Override
 	public Mono<String> checkInItem(CheckInItemCommand checkInItemCommand){
 		final String bibId = checkInItemCommand.getBibId();

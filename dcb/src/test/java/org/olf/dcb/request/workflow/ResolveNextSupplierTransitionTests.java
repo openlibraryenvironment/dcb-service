@@ -34,6 +34,7 @@ import static org.olf.dcb.test.matchers.PatronRequestAuditMatchers.hasBriefDescr
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasNoResolutionCount;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasResolutionCount;
+import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasErrorMessage;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasStatus;
 import static org.olf.dcb.test.matchers.ResolutionAuditMatchers.isNoSelectableItemResolutionAudit;
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasLocalItemBarcode;
@@ -77,6 +78,9 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
+import java.util.Map;
+import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
+import org.olf.dcb.request.fulfilment.SupplierPlacementGate;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Mono;
@@ -129,6 +133,8 @@ class ResolveNextSupplierTransitionTests {
 
 	@Inject
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
+	@Inject
+	private PatronRequestAuditService patronRequestAuditService;
 
 	private DataHostLms borrowingHostLms;
 	private DataAgency borrowingAgency;
@@ -242,6 +248,49 @@ class ResolveNextSupplierTransitionTests {
 			isNotRequiredAuditEntry("Consortial setting is not enabled")));
 
 		sierraPatronsAPIFixture.verifyDeleteHoldRequestMade(borrowingLocalRequestId);
+	}
+
+	@Test
+	void shouldSayWhyNoValidItemWasFoundWhenTheSupplierCouldNotSupply() {
+		// Arrange
+		disableReResolution();
+
+		final var patron = patronFixture.definePatron("265636", "home-library",
+			borrowingHostLms, borrowingAgency);
+
+		final var pickupLocation = locationFixture.createPickupLocation(borrowingAgency);
+
+		final var patronRequest = PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.status(NOT_SUPPLIED_CURRENT_SUPPLIER)
+			.requestingIdentity(patron.getPatronIdentities().get(0))
+			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+			.bibClusterId(defineClusterRecordWithSingleBib("6927572"))
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		defineCancelledSupplierRequest(patronRequest);
+
+		final var reason = "At its last check (2026-10-09T10:00:00Z) Host LMS SUPPLIER refused DCB's credentials: 401";
+		final var howToFix = "Correct the credentials for Host LMS SUPPLIER in DCB Admin, then save it so DCB checks again";
+
+		singleValueFrom(patronRequestAuditService.addAuditEntry(patronRequest, SupplierPlacementGate.SUPPLIER_CANNOT_SUPPLY,
+			Map.of("supplier", "SUPPLIER", "reason", reason, "howToFix", howToFix)));
+
+		// Act
+		final var updatedPatronRequest = resolveNextSupplier(patronRequest);
+
+		// Assert
+		assertThat(updatedPatronRequest, allOf(
+			hasStatus(NO_ITEMS_SELECTABLE_AT_ANY_AGENCY),
+			hasErrorMessage("Failed to find a valid item: " + reason)));
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), hasItem(allOf(
+			hasBriefDescription("Failed to find a valid item"),
+			hasAuditDataProperty("suppliersThatCannotSupply",
+				List.of(Map.of("supplier", "SUPPLIER", "reason", reason, "howToFix", howToFix))))));
 	}
 
 	@ParameterizedTest

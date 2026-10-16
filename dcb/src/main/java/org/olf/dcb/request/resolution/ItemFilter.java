@@ -31,7 +31,9 @@ public interface ItemFilter {
 	int SUPPLIER_PICKUP_ORDER = 40;
 	int ITEM_WITH_HOLDS_ORDER = 50;
 	int SAME_COPY_ORDER = 55;
+	int SAME_PATRON_ORDER = 56;
 	int SAME_SERVER_ORDER = 60;
+	int SUPPLIER_PREFLIGHT_ORDER = 70;
 
 	Function<Item, Publisher<Boolean>> filterItem(ItemFilterParameters parameters);
 }

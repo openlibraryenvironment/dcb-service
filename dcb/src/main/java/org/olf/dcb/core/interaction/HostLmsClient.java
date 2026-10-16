@@ -280,14 +280,13 @@ public interface HostLmsClient
 	Mono<Void> preventRenewalOnLoan(PreventRenewalCommand prc);
 
 	/**
-	 * Return a boolean value which tests if an agency is able to act as a supplier for an item identified
-	 * via RTAC. Should test if the canonical item and patron types needed to fulfil the role can be mapped.
-	 * Note that a primary concern is also if the item and patron types can be mapped back to the borrowing
-	 * system. For example, when requesting Nonagon Infinity from STLouis the local item type is 9. We must be
-	 * able to sensibly map this into a canonical item type and from the canonical item type into a type for
-	 * the patron home agency.
+	 * Whether this system, as a supplier, can take this request, judged from what DCB holds before a
+	 * hold is placed. Report only what this adapter alone knows; the checks every system shares
+	 * (a client DCB can build, the last ping, patron type mappings) are made for it.
 	 */
-	Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType);
+	default Mono<SupplierPreflight> supplierPreflight(SupplierPreflight.Query query) {
+		return Mono.just(SupplierPreflight.notChecked());
+	}
 
 	default boolean reflectPatronLoanAtSupplier() {
 		return true;

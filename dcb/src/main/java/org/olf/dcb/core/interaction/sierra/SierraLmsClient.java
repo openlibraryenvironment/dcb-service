@@ -2130,11 +2130,6 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);
 	}
 
-	public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
-    log.debug("SIERRA Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
-		return Mono.just(Boolean.TRUE);
-	}
-
 	@Override
 	public @NonNull String getClientId() {
 

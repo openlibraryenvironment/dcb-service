@@ -39,6 +39,7 @@ public class IntMessageService {
 		Map.entry("ITEM_NOT_FOUND", "No item with that barcode was found. Check the barcode and try again."),
 		Map.entry("ITEM_NOT_AVAILABLE", "This item is not available to lend at the moment, for example because it is already on loan or on hold."),
 		Map.entry("WALK_UP_ITEM_ALREADY_REQUESTED", "This item is already part of a request that is still in progress. Finish or cancel that request before lending the item again."),
+		Map.entry("SUPPLIER_CANNOT_SUPPLY", "The library that holds the chosen copy cannot supply it at the moment, because of a problem with its setup. Choose another copy, or ask that library to check its DCB configuration."),
 		Map.entry("ITEM_NOT_IN_SHARED_INDEX", "This item's record is not in the shared catalogue yet, so it cannot be lent through a walk-up."),
 		Map.entry("CLUSTER_DELETED", "This item's catalogue entry has been removed, so it cannot be lent through a walk-up.")
 	);

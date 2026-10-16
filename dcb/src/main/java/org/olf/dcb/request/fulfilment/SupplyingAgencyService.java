@@ -75,6 +75,7 @@ public class SupplyingAgencyService {
 		this.patronRequestAuditService = patronRequestAuditService;
 	}
 
+	/** Places the hold; {@link SupplierPlacementGate} has already decided this supplier may be placed at. */
 	public Mono<PatronRequest> placePatronRequestAtSupplyingAgency(PatronRequest patronRequest) {
 		log.debug("placePatronRequestAtSupplyingAgency... {}", patronRequest.getId());
 
@@ -94,31 +95,10 @@ public class SupplyingAgencyService {
 		// 4. PUA - Lender, Pickup and Borrower systems are all different.
 
 		return requestWorkflowContextHelper.fromPatronRequest(patronRequest)
-			.zipWhen(psrc -> performSupplierPreflight(psrc) )
-			.flatMap(TupleUtils.function((psrc, preflightResult) -> reactToPreflight(preflightResult, psrc) ) );
-      // We do this work a level up at PlacePatronRequestAtSupplyingAgencyStateTransition.createAuditEntry
-      // commenting out as of 2023-08-16. If audit log looks good will remove entirely.;
-	}
-
-	public Mono<Boolean> performSupplierPreflight(RequestWorkflowContext psrc) {
-
-		SupplierRequest supplierRequest = psrc.getSupplierRequest();
-
-		// We need to be sure that we are able to map the canonical patron type to something this supplier can understand
-		// We also would like to know that we can map the local item type at the supplier to our canonical values
-		return hostLmsService.getClientFor(supplierRequest.getHostLmsCode())
-			.flatMap( client -> client.supplierPreflight(
-				psrc.getPatronAgencyCode(),
-				psrc.getLenderAgencyCode(),
-				psrc.getSupplierRequest().getLocalItemType(),
-				psrc.getPatronRequest().getRequestingIdentity().getCanonicalPtype()));
-	}
-
-	public Mono<PatronRequest> reactToPreflight(Boolean preflightResult, RequestWorkflowContext psrc) {
-		return checkAndCreatePatronAtSupplier(psrc)
-	    .flatMap(this::placeRequestAtSupplier)
-      .flatMap(this::updateSupplierRequest)
-      .map(PatronRequest::placedAtSupplyingAgency);
+			.flatMap(this::checkAndCreatePatronAtSupplier)
+			.flatMap(this::placeRequestAtSupplier)
+			.flatMap(this::updateSupplierRequest)
+			.map(PatronRequest::placedAtSupplyingAgency);
 	}
 
 	private enum HoldOperation {

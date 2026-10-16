@@ -37,7 +37,9 @@ class ItemFilterOrderingTests {
 			"ExcludeSupplierPickupFilter",    // consortium functional setting
 			"IncludeItemWithHoldsItemFilter", // consortium functional setting
 			"ExcludeCopyPromisedToBorrowerItemFilter", // one indexed query; a client only on a match
-			"SameServerItemFilter"            // builds two Host LMS clients
+			"ExcludeCopyThePatronAlreadyHoldsItemFilter", // one indexed query
+			"SameServerItemFilter",           // builds two Host LMS clients
+			"ExcludeSupplierThatCannotSupplyItemFilter" // a client and the supplier's last ping
 		));
 	}
 }

@@ -140,11 +140,6 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return qualifySystemIdentity(KohaApiClientImpl.resolveBelow(config.getApiUrl(), URI.create("/")).toString());
 	}
 
-	@Override
-	public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
-		return Mono.error(new NotImplementedException("This functionality has not yet been implemented for Koha"));
-	}
-
 	private String getDcbSharingLibraryCode() {
 		final var sharingLibraryCode = config.getDcbSharingLibraryCode();
 		if (isBlank(sharingLibraryCode)) throw new IllegalStateException("Missing DCB sharing library code in config. Please check the client configuration of this Koha LMS.");
