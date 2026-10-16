@@ -241,13 +241,17 @@ dcb:
     legacy-transaction-operations:
       enabled: false
 
-  # Only `keycloak` is implemented. EMPTY turns DCB Admin for Libraries provisioning off
-  # and is the default; any other value fails startup rather than disabling the feature
-  # silently - IdentityProviderTypeCheck. Leave the connection settings out of this file
-  # rather than empty: an empty key binds as a present value, and blank is treated as
-  # missing so it fails at deploy. What to set: operational:identity-provider-setup.adoc.
-  identity-provider:
-    type: ""
+  # Only `keycloak` is implemented. What to set: operational:identity-provider-setup.adoc.
+#  identity-provider:
+#    keycloak:
+#      realm: Test
+#      client-secret: "secret"
+#      client-id: "KCID"
+#      base-url: "http:l"
+#
+#    not-allowed:
+#      temp: Some value
+
 
   requests:
     # The OIDC clients DCB Admin and DCB Admin for Libraries sign in through: a request placed

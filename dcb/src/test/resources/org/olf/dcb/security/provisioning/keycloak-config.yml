@@ -1,0 +1,7 @@
+dcb:
+  identity-provider:
+    keycloak:
+      base-url: https://keycloak.invalid
+      client-id: clientId
+      client-secret: clientSecret
+      realm: dcb

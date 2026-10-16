@@ -1,10 +1,10 @@
 package org.olf.dcb.security.provisioning;
 
+import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_LIBRARY_USER_ACCOUNTS;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
-import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_LIBRARY_USER_ACCOUNTS;
 
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.core.model.LibraryUserAccount;
@@ -226,7 +226,7 @@ public class LibraryUserProvisioningService {
 
 	private Mono<Void> refuseDuplicate(UUID libraryId, String email) {
 		return Mono.from(accountRepository.findByLibraryIdAndEmail(libraryId, email))
-			.flatMap(existing -> Mono.<Void>error(new HttpStatusException(HttpStatus.CONFLICT,
+			.flatMap(_ -> Mono.<Void>error(new HttpStatusException(HttpStatus.CONFLICT,
 				"This library already has an account for that email address.")))
 			.then();
 	}

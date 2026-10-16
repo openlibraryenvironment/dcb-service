@@ -1,28 +1,25 @@
-package org.olf.dcb.security.provisioning;
+package org.olf.dcb.security.provisioning.keycloak;
 
-import static io.micronaut.http.MediaType.APPLICATION_FORM_URLENCODED;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 
 import java.net.URI;
 import java.util.Arrays;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
+import org.olf.dcb.security.provisioning.IdentityProviderClient;
+import org.olf.dcb.security.provisioning.ProvisionableRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.context.annotation.Context;
-import io.micronaut.context.annotation.Requires;
-import io.micronaut.core.annotation.Nullable;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
-import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.client.annotation.Client;
+import io.micronaut.http.exceptions.HttpStatusException;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.serde.annotation.Serdeable;
 import reactor.core.publisher.Flux;
@@ -38,21 +35,20 @@ import reactor.core.publisher.Mono;
  * <p>Verify that against the deployed Keycloak version — the grant and the commands that
  * prove it: {@code operational:identity-provider-setup.adoc} §2.2–2.3 and §5.3.
  */
-@Context
-@Requires(property = "dcb.identity-provider.type", value = "keycloak")
 public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 
-	private static final Logger log = LoggerFactory.getLogger(KeycloakIdentityProviderClient.class);
+	static final Logger log = LoggerFactory.getLogger(KeycloakIdentityProviderClient.class);
 
 	/** What a newly provisioned person is asked to do before they can sign in. */
 	private static final List<String> REQUIRED_ACTIONS = List.of("UPDATE_PASSWORD", "VERIFY_EMAIL");
 
 	private final HttpClient httpClient;
-	private final IdentityProviderConfig config;
-	private final ClientCredentialsTokenSource tokens;
+	private final KeycloakConfig config;
+	private final KeycloakCredentialsTokenSource tokens;
 
-	public KeycloakIdentityProviderClient(@Client HttpClient httpClient,
-		IdentityProviderConfig config) {
+	public KeycloakIdentityProviderClient(
+		HttpClient httpClient,
+		KeycloakConfig config) {
 
 		this.httpClient = httpClient;
 		this.config = config;
@@ -71,8 +67,9 @@ public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 					+ "has no default");
 		}
 
-		this.tokens = new ClientCredentialsTokenSource(httpClient, tokenUri(config),
-			required(config.getClientId(), "client-id"),
+		this.tokens = new KeycloakCredentialsTokenSource(
+			httpClient, tokenUri(config),
+			config.getClientId(),
 			clientSecret);
 	}
 
@@ -90,7 +87,8 @@ public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 				// behind for somebody to find and wonder about. Best effort by necessity -
 				// this runs on the path that is already failing - so the original error is
 				// what propagates, never the compensation's.
-				.onErrorResume(error -> deleteQuietly(userId).then(Mono.error(error)))
+				.onErrorResume(error -> deleteQuietly(userId)
+						.then(Mono.error(error)))
 				// THE INVITATION IS OUTSIDE THAT. A correctly created, correctly scoped
 				// account must survive a mail failure: SMTP being down or unconfigured is
 				// transient and somebody else's, and the invitation is re-sendable from the
@@ -100,11 +98,13 @@ public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 				// Found by standing the stack up: a local Keycloak with no sender address
 				// returns 500 here, and the account was being rolled back every time.
 				.then(sendInvite(userId)
-					.doOnError(error -> log.error(
-						"Account {} was created but its invitation email could not be sent. It "
-							+ "is enabled and has its role; resend the invitation once mail works.",
-						userId, error))
-					.onErrorResume(error -> Mono.empty()))
+					.onErrorResume(error -> {
+						log.error(
+							"Account {} was created but its invitation email could not be sent. It "
+								+ "is enabled and has its role; resend the invitation once mail works.",
+							userId, error);
+						return Mono.empty();
+					}))
 				.then(readUser(userId)));
 	}
 
@@ -219,12 +219,15 @@ public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 	private Mono<Void> deleteQuietly(String userId) {
 		return authorised(HttpRequest.DELETE(userUri(userId)))
 			.flatMap(delete -> Mono.from(httpClient.exchange(delete, Void.class)))
-			.doOnError(error -> log.error(
-				"Could not remove the half-provisioned Keycloak user {}. It is disabled and "
-					+ "roleless, so it confers nothing, but it should be removed by hand.",
-				userId, error))
-			.onErrorResume(error -> Mono.empty())
-			.then();
+			.then()
+			.onErrorResume(error -> {
+				log.error(
+					"Could not remove the half-provisioned Keycloak user {}. It is disabled and "
+						+ "roleless, so it confers nothing, but it should be removed by hand.",
+					userId, error);
+				
+				return Mono.empty();
+			});
 	}
 
 	private <T> Mono<io.micronaut.http.MutableHttpRequest<T>> authorised(
@@ -273,8 +276,11 @@ public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 	}
 
 	private URI realmUri() {
-		return UriBuilder.of(URI.create(required(config.getBaseUrl(), "base-url")))
-			.path("admin").path("realms").path(realm()).build();
+		return UriBuilder.of(URI.create(config.getBaseUrl()))
+			.path("admin")
+			.path("realms")
+			.path(realm())
+			.build();
 	}
 
 	private URI usersUri() {
@@ -286,109 +292,29 @@ public class KeycloakIdentityProviderClient implements IdentityProviderClient {
 	}
 
 	private String realm() {
-		return required(config.getRealm(), "realm");
+		return config.getRealm();
 	}
 
-	private static URI tokenUri(IdentityProviderConfig config) {
-		return UriBuilder.of(URI.create(required(config.getBaseUrl(), "base-url")))
+	private static URI tokenUri(KeycloakConfig config) {
+		return UriBuilder.of(URI.create(config.getBaseUrl()))
 			.path("realms")
-			.path(required(config.getRealm(), "realm"))
-			.path("protocol").path("openid-connect").path("token").build();
-	}
-
-	/**
-	 * Present but blank is missing. An empty string survives {@code orElseThrow}, so
-	 * {@code base-url: ""} started DCB, reported provisioning as configured, and failed at
-	 * the first account rather than at deploy.
-	 */
-	private static String required(Optional<String> value, String property) {
-		return value.filter(setting -> !setting.isBlank())
-			.orElseThrow(() -> new IllegalStateException(
-				"dcb.identity-provider." + property + " is required when the type is keycloak"));
+			.path(config.getRealm())
+			.path("protocol")
+			.path("openid-connect")
+			.path("token")
+		.build();
 	}
 
 	@Serdeable
-	record KeycloakRole(String id, String name) {
-	}
+	record KeycloakRole(String id, String name) {}
 
 	@Serdeable
 	record KeycloakUser(String id, String email, String firstName, String lastName,
-		Boolean enabled, Boolean emailVerified) {
-	}
-
-	/**
-	 * One access token, refreshed a minute before it expires.
-	 *
-	 * <p>Deliberately a single cached {@link Mono} rather than a map: there is exactly one
-	 * service account, and a map keyed on anything here would be a cache with one entry and
-	 * room for somebody to add a second key without thinking about its bound.
-	 */
-	static final class ClientCredentialsTokenSource {
-		private final HttpClient httpClient;
-		private final URI tokenUri;
-		private final String clientId;
-		private final String clientSecret;
-
-		private volatile Mono<String> current;
-
-		ClientCredentialsTokenSource(HttpClient httpClient, URI tokenUri, String clientId,
-			String clientSecret) {
-
-			this.httpClient = httpClient;
-			this.tokenUri = tokenUri;
-			this.clientId = clientId;
-			this.clientSecret = clientSecret;
-		}
-
-		Mono<String> get() {
-			// Read once into a local: the field can be replaced between the null check and
-			// the return, and a caller receiving a half-built value would be a genuinely
-			// horrible bug to find.
-			final var cached = current;
-
-			if (cached != null) {
-				return cached;
-			}
-
-			final var fetched = fetch().cache(
-				response -> Duration.ofSeconds(Math.max(response.expiresIn() - 60, 30)),
-				error -> Duration.ZERO,
-				() -> Duration.ZERO)
-				.map(TokenResponse::accessToken);
-
-			current = fetched;
-
-			return fetched;
-		}
-
-		private Mono<TokenResponse> fetch() {
-			final var form = Map.of(
-				"grant_type", "client_credentials",
-				"client_id", clientId,
-				"client_secret", clientSecret);
-
-			final var request = HttpRequest.POST(tokenUri, form)
-				.contentType(APPLICATION_FORM_URLENCODED)
-				.accept(APPLICATION_JSON);
-
-			return Mono.from(httpClient.retrieve(request, TokenResponse.class))
-				// The message must never carry the response body: a failed token exchange
-				// can echo the request, and the request contains the client secret.
-				.doOnError(error -> log.error(
-					"Could not obtain an identity provider access token: {}",
-					error.getClass().getSimpleName()));
-		}
-	}
+		Boolean enabled, Boolean emailVerified) {}
 
 	@Serdeable
 	record TokenResponse(
-		@com.fasterxml.jackson.annotation.JsonProperty("access_token") String accessToken,
-		@com.fasterxml.jackson.annotation.JsonProperty("expires_in") long expiresIn) {
-	}
-
-	/** Visible for the fetchers' "is provisioning configured" check. */
-	@Nullable
-	public String projectId() {
-		return config.getProjectId().orElse(null);
+		@JsonProperty("access_token") String accessToken,
+		@JsonProperty("expires_in") long expiresIn) {
 	}
 }

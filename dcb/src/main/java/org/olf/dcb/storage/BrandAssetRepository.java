@@ -58,6 +58,7 @@ public interface BrandAssetRepository {
 	 *
 	 * @return rows deleted: 0 when it is still in use or was not there
 	 */
+	@Vetoed
 	@NonNull
 	@SingleResult
 	Publisher<Long> deleteIfUnreferenced(@NonNull String pathPrefix, @NonNull String assetKey);
