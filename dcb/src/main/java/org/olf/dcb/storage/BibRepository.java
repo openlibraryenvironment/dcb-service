@@ -223,7 +223,7 @@ WITH cluster_source_format AS MATERIALIZED (
     SELECT DISTINCT b.contributes_to AS cluster_id, b.source_system_id, b.derived_type
     FROM bib_record b
     JOIN cluster_record cr ON cr.id = b.contributes_to
-    WHERE cr.is_deleted = false
+    WHERE cr.is_deleted IS NOT TRUE
 ),
 cluster_source AS MATERIALIZED (
     SELECT DISTINCT cluster_id, source_system_id
@@ -273,7 +273,7 @@ WITH mine AS (
     JOIN bib_record b ON b.source_system_id = h.id
     JOIN cluster_record cr ON cr.id = b.contributes_to
     WHERE h.code = ANY(string_to_array(:libraryCode, ','))
-      AND cr.is_deleted = false
+      AND cr.is_deleted IS NOT TRUE
 ),
 holders AS (
     SELECT DISTINCT o.contributes_to AS cluster_id, o.source_system_id
