@@ -54,6 +54,8 @@ import org.olf.dcb.request.resolution.SharedIndexService;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.storage.SupplierRequestRepository;
+import org.olf.dcb.core.interaction.SupplierPreflight;
+import org.olf.dcb.request.fulfilment.SupplierPlacementGate;
 import reactor.core.publisher.Mono;
 
 class NcipDualDeclarativeAgencySpikeTests {
@@ -176,10 +178,16 @@ class NcipDualDeclarativeAgencySpikeTests {
 		when(supplierRequestRepository.saveOrUpdate(any(SupplierRequest.class)))
 			.thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
+		final var admitAll = mock(SupplierPlacementGate.class);
+		when(admitAll.check(any())).thenReturn(Mono.just(SupplierPreflight.notChecked()));
+		when(admitAll.warnIfUnreachable(any(), any()))
+			.thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
 		return new SupplyingAgencyRequestStrategyService(
 			resolver,
 			new SupplyingAgencyRequestProjector(),
-			supplierRequestRepository);
+			supplierRequestRepository,
+			admitAll);
 	}
 
 	private static BorrowingAgencyRequestStrategyService borrowingPlacementService(

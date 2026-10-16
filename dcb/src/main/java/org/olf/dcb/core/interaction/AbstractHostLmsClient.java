@@ -199,16 +199,6 @@ public abstract class AbstractHostLmsClient implements HostLmsClient {
 		return Mono.empty();
 	}
 
-	@Override
-	public Mono<Boolean> supplierPreflight(
-		String borrowingAgencyCode,
-		String supplyingAgencyCode,
-		String canonicalItemType,
-		String canonicalPatronType) {
-
-		return Mono.empty();
-	}
-
 	/**
 	 * Fallback identity for adapters that have not declared how to identify their
 	 * system. The Host LMS code is unique per record, so this is safe in the sense

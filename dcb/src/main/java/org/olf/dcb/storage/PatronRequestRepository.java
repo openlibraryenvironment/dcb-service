@@ -311,6 +311,35 @@ public interface PatronRequestRepository {
 	Publisher<String> findSystemsWithRecordedVirtualItemForSupplierCopy(String supplierHostLmsCode,
 		String supplierLocalItemId, String borrowingHostLmsCode, @Nullable String pickupAgencyCode);
 
+	/**
+	 * Whether this patron has another unfinished request holding this supplier copy: an active
+	 * supplier request with a hold placed whose last recorded status is not one of the given gone
+	 * statuses. The patron is their DCB id, or else their id at the borrowing system.
+	 */
+	@SingleResult
+	@Query(value = """
+		select exists (
+			select 1
+			from supplier_request sr
+			join patron_request pr on pr.id = sr.patron_request_id
+			where sr.host_lms_code = :supplierHostLmsCode
+			  and sr.local_item_id = :supplierLocalItemId
+			  and sr.is_active = true
+			  and sr.local_id is not null
+			  and (sr.local_status is null or sr.local_status not in (:goneStatuses))
+			  and pr.status_code not in ('FINALISED', 'ARCHIVED')
+			  and pr.id is distinct from cast(:patronRequestId as uuid)
+			  and pr.patron_id = coalesce(cast(:patronId as uuid), (
+				select pi.patron_id
+				from patron_identity pi
+				join host_lms h on h.id = pi.host_lms_id
+				where pi.local_id = :patronLocalId and h.code = :patronHostLmsCode
+				limit 1)))
+		""", nativeQuery = true)
+	Publisher<Boolean> existsLiveSupplierHoldForPatronOnCopy(String supplierHostLmsCode,
+		String supplierLocalItemId, @Nullable UUID patronId, @Nullable String patronLocalId,
+		@Nullable String patronHostLmsCode, @Nullable UUID patronRequestId, Collection<String> goneStatuses);
+
 	// Served by idx_supplier_request_item, which covers only active supplier requests
 	@SingleResult
 	@Query(value = """

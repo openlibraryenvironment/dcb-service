@@ -43,6 +43,10 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
+import java.util.LinkedHashMap;
+import java.util.stream.Stream;
+import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.SupplierRequest;
 
 /**
  * ResolveNextSupplierTransition - Called in response to a request in state NOT_SUPPLIED_CURRENT_SUPPLIER
@@ -64,6 +68,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private final ConsortiumService consortiumService;
 	private final ActiveWorkflowService activeWorkflowService;
 	private final ResolutionAuditService resolutionAuditService;
+	private final NoValidItemExplanation noValidItemExplanation;
 
 	public ResolveNextSupplierTransition(HostLmsService hostLmsService,
 		PatronRequestAuditService patronRequestAuditService,
@@ -72,7 +77,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		BeanProvider<SupplierRequestService> supplierRequestServiceProvider,
 		ConsortiumService consortiumService,
 		ActiveWorkflowService activeWorkflowService,
-		ResolutionAuditService resolutionAuditService) {
+		ResolutionAuditService resolutionAuditService, NoValidItemExplanation noValidItemExplanation) {
 
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
 
@@ -84,6 +89,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		this.consortiumService = consortiumService;
 		this.activeWorkflowService = activeWorkflowService;
 		this.resolutionAuditService = resolutionAuditService;
+		this.noValidItemExplanation = noValidItemExplanation;
 	}
 
 	@Override
@@ -112,11 +118,34 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	}
 
 	private Mono<RequestWorkflowContext> cancelRequest(RequestWorkflowContext context) {
+		return cancelRequest(context, List.of());
+	}
+
+	private Mono<RequestWorkflowContext> cancelRequest(RequestWorkflowContext context, List<Item> excludedItems) {
 		log.debug("cancelRequest({})", context);
 
 		return cancelLocalBorrowingRequest(context)
 			.flatMap(this::cancelLocalPickupRequest)
-			.flatMap(this::markNoItemsAvailableAtAnyAgency);
+			.flatMap(this::markNoItemsAvailableAtAnyAgency)
+			.flatMap(cancelled -> explainNoValidItem(cancelled, excludedItems));
+	}
+
+	// Suppliers that refused this request before placement, and any whose copies re-resolution excluded
+	private Mono<RequestWorkflowContext> explainNoValidItem(RequestWorkflowContext context, List<Item> excludedItems) {
+		final var patronRequest = getPatronRequestFromContext(context);
+
+		return Mono.zip(noValidItemExplanation.faultsRecordedOn(patronRequest),
+				noValidItemExplanation.faultsBehind(excludedItems))
+			.map(faults -> {
+				final var bySupplier = new LinkedHashMap<String, NoValidItemExplanation.Fault>();
+
+				Stream.concat(faults.getT1().stream(), faults.getT2().stream())
+					.forEach(fault -> bySupplier.putIfAbsent(fault.supplierHostLmsCode(), fault));
+
+				return List.copyOf(bySupplier.values());
+			})
+			.flatMap(faults -> noValidItemExplanation.explain(getPatronRequestFromContext(context), faults))
+			.thenReturn(context);
 	}
 
 	private Mono<Tuple3<RequestWorkflowContext, Boolean, String>> isReResolutionRequired(
@@ -211,7 +240,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			return applySuccessfulResolution(resolution, context);
 		}
 		else {
-			return cancelRequest(context)
+			return cancelRequest(context, resolution.getExcludedItems())
 				.then();
 		}
 	}

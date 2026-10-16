@@ -1955,11 +1955,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);
 	}
 
-  public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
-		log.debug("POLARIS Supplier Preflight {} {} {} {}",borrowingAgencyCode,supplyingAgencyCode,canonicalItemType,canonicalPatronType);
-    return Mono.just(TRUE);
-  }
-
 	@Override
 	public Mono<String> checkInItem(CheckInItemCommand checkInItemCommand){
 		log.info("Check In Item({})", checkInItemCommand);

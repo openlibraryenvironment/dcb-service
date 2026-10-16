@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
+import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RESOLVED;
 import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
@@ -62,12 +63,15 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
+import org.olf.dcb.storage.AlarmRepository;
+import org.olf.dcb.storage.HostLmsRepository;
 import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.sierra.FixedField;
+import io.micronaut.context.annotation.Property;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -75,6 +79,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 @Slf4j
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
+// The supplier preflight is off unless a deployment turns it on; this class covers it on
+@Property(name = "dcb.requests.supplier-preflight.enabled", value = "true")
 class PlaceRequestAtSupplyingAgencyTests {
 	private static final String HOST_LMS_CODE = "supplying-agency-service-tests";
 
@@ -109,6 +115,10 @@ class PlaceRequestAtSupplyingAgencyTests {
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
 	private PatronRequestWorkflowService patronRequestWorkflowService;
+	@Inject
+	private HostLmsRepository hostLmsRepository;
+	@Inject
+	private AlarmRepository alarmRepository;
 
 	private SierraPatronsAPIFixture sierraPatronsAPIFixture;
 	private SierraItemsAPIFixture sierraItemsAPIFixture;
@@ -342,6 +352,99 @@ class PlaceRequestAtSupplyingAgencyTests {
 		sierraPatronsAPIFixture.verifyPlaceHoldRequestMade("1000003", "b",
 			563653, BORROWING_AGENCY_CODE, "Consortial Hold. tno=%s \nFor 8675309012@%s\n Pickup MISSING-PICKUP-LIB@null"
 				.formatted(patronRequest.getId(), SUPPLYING_AGENCY_CODE));
+	}
+
+	@Test
+	void shouldNotPlaceAtASupplierThatCannotSupply() {
+		// Arrange
+		final var patronRequest = resolvedRequest("546731", false);
+
+		lastPing("REFUSED");
+
+		// Act
+		final var refused = placeAtSupplyingAgency(patronRequest);
+
+		// Assert
+		assertThat("not placed: no Sierra response is set up, so an attempt would have errored",
+			refused, hasStatus(NOT_SUPPLIED_CURRENT_SUPPLIER));
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), hasItem(allOf(
+			briefDescriptionContains("Supplier cannot supply"),
+			hasAuditDataProperty("howToFix",
+				"Correct the credentials for Host LMS %s in DCB Admin, then save it so DCB checks again"
+					.formatted(HOST_LMS_CODE)))));
+
+		assertThat(singleValueFrom(alarmRepository.findByCode("ILS.%s.SUPPLIER_CANNOT_SUPPLY".formatted(HOST_LMS_CODE))),
+			notNullValue());
+	}
+
+	@Test
+	void shouldErrorAChosenCopyAtASupplierThatCannotSupply() {
+		// Arrange
+		final var patronRequest = resolvedRequest("546732", true);
+
+		lastPing("REFUSED");
+
+		// Act
+		assertThrows(SupplierCannotSupplyException.class, () -> placeAtSupplyingAgency(patronRequest));
+
+		// Assert
+		assertThat(patronRequestsFixture.findById(patronRequest.getId()), allOf(
+			hasStatus(ERROR),
+			hasErrorMessage("The chosen copy at %s cannot be supplied".formatted(HOST_LMS_CODE))));
+	}
+
+	@Test
+	void shouldPlaceAtASupplierThatWasUnreachableAndSaySo() {
+		// Arrange
+		final var localId = "546733";
+		final var patronRequest = resolvedRequest(localId, false);
+
+		lastPing("UNREACHABLE");
+
+		sierraPatronsAPIFixture.patronsQueryNotFoundResponse("%s@%s".formatted(localId, SUPPLYING_AGENCY_CODE));
+		sierraPatronsAPIFixture.postPatronResponse("%s@%s".formatted(localId, SUPPLYING_AGENCY_CODE), 1000004, null);
+		sierraPatronsAPIFixture.mockPlacePatronHoldRequest("1000004", "b", 563653);
+		sierraPatronsAPIFixture.mockGetHoldsForPatronReturningSingleItemHold("1000004",
+			"https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/864906",
+			"Consortial Hold. tno=" + patronRequest.getId(), "67384454");
+		sierraItemsAPIFixture.mockGetItemById("67384454",
+			SierraItem.builder().id("67384454").barcode("67324232").statusCode("-").build());
+
+		// Act
+		final var placed = placeAtSupplyingAgency(patronRequest);
+
+		// Assert
+		patronRequestWasPlaced(placed, patronRequest.getId());
+
+		assertThat(patronRequestsFixture.findAuditEntries(patronRequest), hasItem(
+			briefDescriptionContains("Supplier unreachable at its last check: placing anyway")));
+	}
+
+	private PatronRequest resolvedRequest(String localId, boolean copyChosen) {
+		final var hostLms = hostLmsFixture.findByCode(HOST_LMS_CODE);
+		final var patron = createPatron(localId, hostLms);
+
+		final var patronRequest = patronRequestsFixture.savePatronRequest(PatronRequest.builder()
+			.id(randomUUID())
+			.patron(patron)
+			.requestingIdentity(homeIdentityOf(patron))
+			.bibClusterId(createClusterRecord())
+			.pickupLocationCode(getValueOrNull(pickupLocation, Location::getId, UUID::toString))
+			.status(RESOLVED)
+			.activeWorkflow(STANDARD_WORKFLOW)
+			.isManuallySelectedItem(copyChosen)
+			.build());
+
+		saveSupplierRequest(patronRequest, hostLms.getCode());
+
+		return patronRequest;
+	}
+
+	private void lastPing(String failure) {
+		singleValueFrom(hostLmsRepository.updateLastPing(HOST_LMS_CODE,
+			"{\"status\": \"ERROR\", \"failure\": \"%s\", \"checkedAt\": \"%s\", \"additional\": \"detail\"}"
+				.formatted(failure, java.time.Instant.now())));
 	}
 
 	@DisplayName("Do not attempt to place at supplying library when workflow is local")

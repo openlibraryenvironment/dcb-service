@@ -24,4 +24,9 @@ public class ResolutionParameters {
 	ManualItemSelection manualItemSelection;
 	Boolean isExpeditedCheckout;
 	String requestedVolumeDesignation;
+	// The patron: their DCB id once a request is saved, else their id at the borrowing system
+	UUID patronId;
+	String patronLocalId;
+	// The request being resolved, so it is not mistaken for an earlier one
+	UUID patronRequestId;
 }

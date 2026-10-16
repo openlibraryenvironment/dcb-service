@@ -123,4 +123,19 @@ public class Resolution implements ItemFilterParameters {
 			? null
 			: getValueOrNull(parameters, ResolutionParameters::getRequestedVolumeDesignation);
 	}
+
+	@Override
+	public UUID patronId() {
+		return getValueOrNull(parameters, ResolutionParameters::getPatronId);
+	}
+
+	@Override
+	public String patronLocalId() {
+		return getValueOrNull(parameters, ResolutionParameters::getPatronLocalId);
+	}
+
+	@Override
+	public UUID patronRequestId() {
+		return getValueOrNull(parameters, ResolutionParameters::getPatronRequestId);
+	}
 }

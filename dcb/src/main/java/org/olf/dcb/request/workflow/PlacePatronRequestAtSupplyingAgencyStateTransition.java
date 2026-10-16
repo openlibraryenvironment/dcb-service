@@ -48,7 +48,10 @@ public class PlacePatronRequestAtSupplyingAgencyStateTransition implements Patro
 		return supplyingAgencyRequestStrategyService.place(ctx)
 			.doOnSuccess(updatedContext -> {
 				log.debug("Placed patron request to supplier: pr={}", updatedContext.getPatronRequest());
-				ctx.getWorkflowMessages().add("Placed patron request to supplier");
+				ctx.getWorkflowMessages().add(
+					updatedContext.getPatronRequest().getStatus() == Status.NOT_SUPPLIED_CURRENT_SUPPLIER
+						? "Supplier cannot supply: request not placed"
+						: "Placed patron request to supplier");
 				addAuditDetail(ctx);
 			})
 			.doOnError(error -> {

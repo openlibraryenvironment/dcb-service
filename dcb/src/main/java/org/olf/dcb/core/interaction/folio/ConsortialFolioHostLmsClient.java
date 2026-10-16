@@ -1413,17 +1413,6 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		return unexpectedResponseProblem(responseException, request, getHostLmsCode());
 	}
 
-	public Mono<Boolean> supplierPreflight(String borrowingAgencyCode,
-		String supplyingAgencyCode, String canonicalItemType,
-		String canonicalPatronType) {
-
-		log.debug("CONSORTIAL FOLIO Supplier Preflight {} {} {} {}",
-			borrowingAgencyCode, supplyingAgencyCode, canonicalItemType,
-			canonicalPatronType);
-
-		return Mono.just(true);
-	}
-
 	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
 		return new PatronNotFoundInHostLmsException(localId, hostLmsCode);
 	}

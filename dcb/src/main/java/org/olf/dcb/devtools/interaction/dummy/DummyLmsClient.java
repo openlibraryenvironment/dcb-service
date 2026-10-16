@@ -632,10 +632,6 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 		return null;
 	}
 
-  public Mono<Boolean> supplierPreflight(String borrowingAgencyCode, String supplyingAgencyCode, String canonicalItemType, String canonicalPatronType) {
-    return Mono.just(Boolean.TRUE);
-  }
-
   @Override
   public Mono<String> deleteHold(DeleteCommand deleteCommand) {
     log.info("Delete hold is not currently implemented for Dummy");

@@ -2,6 +2,7 @@ package org.olf.dcb.request.lifecycle.placement;
 
 import io.micronaut.context.annotation.Prototype;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
+import org.olf.dcb.request.fulfilment.SupplierPlacementGate;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
 import org.olf.dcb.storage.SupplierRequestRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -13,18 +14,29 @@ public class SupplyingAgencyRequestStrategyService {
 	private final SupplyingAgencyRequestStrategyResolver strategyResolver;
 	private final SupplyingAgencyRequestProjector projector;
 	private final SupplierRequestRepository supplierRequestRepository;
+	private final SupplierPlacementGate supplierPlacementGate;
 
 	public SupplyingAgencyRequestStrategyService(
 		SupplyingAgencyRequestStrategyResolver strategyResolver,
 		SupplyingAgencyRequestProjector projector,
-		SupplierRequestRepository supplierRequestRepository) {
+		SupplierRequestRepository supplierRequestRepository,
+		SupplierPlacementGate supplierPlacementGate) {
 
 		this.strategyResolver = strategyResolver;
 		this.projector = projector;
 		this.supplierRequestRepository = supplierRequestRepository;
+		this.supplierPlacementGate = supplierPlacementGate;
 	}
 
+	// The gate runs ahead of every strategy, and a refusal never reaches the projector, which records a placement
 	public Mono<RequestWorkflowContext> place(RequestWorkflowContext context) {
+		return supplierPlacementGate.check(context)
+			.flatMap(preflight -> preflight.cannotSupply()
+				? supplierPlacementGate.refuse(context, preflight)
+				: supplierPlacementGate.warnIfUnreachable(context, preflight).flatMap(this::placeWithStrategy));
+	}
+
+	private Mono<RequestWorkflowContext> placeWithStrategy(RequestWorkflowContext context) {
 		final var strategy = strategyResolver.resolve(
 			context, LifecycleOperation.PLACE_REQUEST);
 		final var patronRequest = context.getPatronRequest();

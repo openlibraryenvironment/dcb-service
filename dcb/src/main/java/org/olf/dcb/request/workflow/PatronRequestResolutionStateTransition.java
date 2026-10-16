@@ -15,6 +15,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
+import org.olf.dcb.request.fulfilment.SupplierCannotSupplyException;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.resolution.PatronRequestResolutionService;
 import org.olf.dcb.request.resolution.Resolution;
@@ -39,6 +40,7 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private final ActiveWorkflowService activeWorkflowService;
 	// Provider to prevent circular reference exception by allowing lazy access to this singleton.
 	private final ResolutionAuditService resolutionAuditService;
+	private final NoValidItemExplanation noValidItemExplanation;
 
 	private static final List<Status> possibleSourceStatus = List.of(PATRON_VERIFIED);
 
@@ -47,13 +49,14 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		BeanProvider<PatronRequestService> patronRequestServiceProvider,
 		SupplierRequestService supplierRequestService,
 		ActiveWorkflowService activeWorkflowService,
-		ResolutionAuditService resolutionAuditService) {
+		ResolutionAuditService resolutionAuditService, NoValidItemExplanation noValidItemExplanation) {
 
 		this.patronRequestResolutionService = patronRequestResolutionService;
 		this.patronRequestServiceProvider = patronRequestServiceProvider;
 		this.supplierRequestService = supplierRequestService;
 		this.activeWorkflowService = activeWorkflowService;
 		this.resolutionAuditService = resolutionAuditService;
+		this.noValidItemExplanation = noValidItemExplanation;
 	}
 
 	// Right now we assume that this is always the first supplier we are talking to.. In the future we need to
@@ -108,15 +111,17 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 	private Mono<Void> updatePatronRequest(Resolution resolution, PatronRequest patronRequest) {
 		log.debug("updatePatronRequest({}, {})", resolution, patronRequest);
 
-		if (resolution.getChosenItem() != null) {
-			patronRequest.resolve();
-		} else {
-			patronRequest.resolveToNoItemsSelectable();
-		}
-
 		final var patronRequestService = patronRequestServiceProvider.get();
 
-		return patronRequestService.updatePatronRequest(patronRequest)
+		if (resolution.getChosenItem() != null) {
+			return patronRequestService.updatePatronRequest(patronRequest.resolve()).then();
+		}
+
+		return noValidItemExplanation.faultsBehind(resolution.getExcludedItems())
+			.flatMap(faults -> Boolean.TRUE.equals(patronRequest.getIsManuallySelectedItem()) && !faults.isEmpty()
+				? Mono.error(new SupplierCannotSupplyException(faults.get(0).supplierHostLmsCode(), faults.get(0).preflight()))
+				: noValidItemExplanation.explain(patronRequest.resolveToNoItemsSelectable(), faults))
+			.flatMap(patronRequestService::updatePatronRequest)
 			.then();
 	}
 

@@ -15,3 +15,5 @@ For libraries, consortium administrators and hosting providers running OpenRS DC
 
 - [The duplicate-request check](duplicate-request-check.md): refusing a patron's second request
   for a title they already have coming, and how staff are exempted.
+- [The supplier preflight](supplier-preflight.md): skipping a library whose setup means it cannot
+  supply, what staff see when it does, and a copy the patron already holds.
