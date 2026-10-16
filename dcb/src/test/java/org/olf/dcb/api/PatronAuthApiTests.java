@@ -1,5 +1,6 @@
 package org.olf.dcb.api;
 
+import static io.micronaut.http.HttpStatus.BAD_REQUEST;
 import static io.micronaut.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
@@ -200,6 +201,20 @@ public class PatronAuthApiTests {
 
 		// Assert
 		assertThat(error.getStatus(), is(INTERNAL_SERVER_ERROR));
+	}
+
+	@Test
+	void shouldRefuseACredentialCheckForALibraryWhosePatronsSignInAtTheirInstitution() {
+		final var agencyCode = defineAgency("saml");
+
+		final var errors = errorsLoggedWhile(() -> {
+			final var refused = assertThrows(HttpClientResponseException.class,
+				() -> authenticatePatron(agencyCode, generateBarcode(), "382655gskg"));
+
+			assertThat(refused.getStatus(), is(BAD_REQUEST));
+		});
+
+		assertThat("not a configuration error", errors, hasSize(0));
 	}
 
 	@Test

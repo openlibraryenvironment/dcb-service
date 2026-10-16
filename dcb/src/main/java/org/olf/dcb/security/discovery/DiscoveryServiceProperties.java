@@ -41,6 +41,13 @@ public class DiscoveryServiceProperties {
 	private boolean enabled = false;
 	private String audience = "dcb";
 	private Duration maxAssertionLifetime = DEFAULT_MAX_ASSERTION_LIFETIME;
+	private int maxLoans = 25;
+	private int loanLookupConcurrency = 2;
+	private Duration loanLookupTimeout = Duration.ofSeconds(8);
+	private int maxAccountRows = 25;
+	private Duration accountLookupTimeout = Duration.ofSeconds(8);
+	private Duration patronResolveTimeout = Duration.ofSeconds(8);
+	private int patronResolvesPerMinute = 600;
 	private List<TrustedService> trustedServices = new ArrayList<>();
 	private List<TrustedService> trustedServicesFromJson = new ArrayList<>();
 
@@ -57,13 +64,108 @@ public class DiscoveryServiceProperties {
 		this.enabled = enabled;
 	}
 
+	/**
+	 * How many loans one patron may be told about, and therefore how many live item reads
+	 * a single account page may cost the borrowing library. DCB records no due date, so
+	 * each loan is one read; this is the bound on that fan-out.
+	 */
+	public int getMaxLoans() {
+		return maxLoans;
+	}
+
+	public void setMaxLoans(int maxLoans) {
+		this.maxLoans = maxLoans > 0 ? maxLoans : 25;
+	}
+
+	/**
+	 * How many of those reads may be in flight at once. Low deliberately: every one of
+	 * them goes to the SAME member system, because the borrowing library is the patron's
+	 * own, so this is concurrency against one library rather than across many.
+	 */
+	public int getLoanLookupConcurrency() {
+		return loanLookupConcurrency;
+	}
+
+	public void setLoanLookupConcurrency(int loanLookupConcurrency) {
+		this.loanLookupConcurrency = loanLookupConcurrency > 0 ? loanLookupConcurrency : 2;
+	}
+
+	/**
+	 * How long one of those reads may take before the loan is reported with no due date.
+	 * A slow member system must degrade the page, never hold it open.
+	 */
+	public Duration getLoanLookupTimeout() {
+		return loanLookupTimeout;
+	}
+
+	public void setLoanLookupTimeout(Duration loanLookupTimeout) {
+		this.loanLookupTimeout = (loanLookupTimeout != null && !loanLookupTimeout.isZero())
+			? loanLookupTimeout
+			: Duration.ofSeconds(8);
+	}
+
+	/**
+	 * How many loans and how many charges one call may return from a patron's own library.
+	 * Unlike the loans list this is ONE read rather than one per row, so the bound is
+	 * about what a page should render rather than about a fan-out.
+	 */
+	public int getMaxAccountRows() {
+		return maxAccountRows;
+	}
+
+	public void setMaxAccountRows(int maxAccountRows) {
+		this.maxAccountRows = maxAccountRows > 0 ? maxAccountRows : 25;
+	}
+
+	/**
+	 * How long that read may take before the account is reported as unavailable. A slow
+	 * member system must degrade the answer, never hold the page open.
+	 */
+	public Duration getAccountLookupTimeout() {
+		return accountLookupTimeout;
+	}
+
+	public void setAccountLookupTimeout(Duration accountLookupTimeout) {
+		this.accountLookupTimeout = (accountLookupTimeout != null && !accountLookupTimeout.isZero())
+			? accountLookupTimeout
+			: Duration.ofSeconds(8);
+	}
+
+	/** How long looking an institution sign-in up at its library may take before it is refused. */
+	public Duration getPatronResolveTimeout() {
+		return patronResolveTimeout;
+	}
+
+	public void setPatronResolveTimeout(Duration patronResolveTimeout) {
+		this.patronResolveTimeout = (patronResolveTimeout != null && !patronResolveTimeout.isZero())
+			? patronResolveTimeout
+			: Duration.ofSeconds(8);
+	}
+
+	/**
+	 * How many institution sign-ins one trusted service may resolve in a minute. Each is a live
+	 * read at a member library, and the route can name any library in the consortium.
+	 */
+	public int getPatronResolvesPerMinute() {
+		return patronResolvesPerMinute;
+	}
+
+	public void setPatronResolvesPerMinute(int patronResolvesPerMinute) {
+		this.patronResolvesPerMinute = patronResolvesPerMinute > 0 ? patronResolvesPerMinute : 600;
+	}
+
 	/** The audience a patron assertion must name. This DCB, and not some other one. */
 	public String getAudience() {
 		return audience;
 	}
 
 	public void setAudience(String audience) {
-		this.audience = (audience != null && !audience.isBlank()) ? audience : "dcb";
+		if (audience == null || audience.isBlank()) {
+			throw new IllegalArgumentException("dcb.discovery.audience is set but blank. Remove it to use \"dcb\", "
+				+ "or name this DCB");
+		}
+
+		this.audience = audience;
 	}
 
 	/**
@@ -77,9 +179,12 @@ public class DiscoveryServiceProperties {
 	}
 
 	public void setMaxAssertionLifetime(Duration maxAssertionLifetime) {
-		this.maxAssertionLifetime = (maxAssertionLifetime != null && !maxAssertionLifetime.isZero())
-			? maxAssertionLifetime
-			: DEFAULT_MAX_ASSERTION_LIFETIME;
+		if (maxAssertionLifetime == null || maxAssertionLifetime.isZero() || maxAssertionLifetime.isNegative()) {
+			throw new IllegalArgumentException("dcb.discovery.max-assertion-lifetime must be positive, or unset "
+				+ "for " + DEFAULT_MAX_ASSERTION_LIFETIME + ": " + maxAssertionLifetime);
+		}
+
+		this.maxAssertionLifetime = maxAssertionLifetime;
 	}
 
 	/**
@@ -137,8 +242,13 @@ public class DiscoveryServiceProperties {
 	}
 
 	private static List<TrustedService> parseTrustedServices(String json) {
-		if (json == null || json.isBlank()) {
+		if (json == null) {
 			return new ArrayList<>();
+		}
+
+		if (json.isBlank()) {
+			throw new IllegalArgumentException("dcb.discovery.trusted-services-json is set but blank. Remove it, "
+				+ "or give a JSON array of trusted services");
 		}
 
 		final List<Object> entries;
@@ -176,6 +286,8 @@ public class DiscoveryServiceProperties {
 				}
 			}
 
+			service.setClientId(text(fields, "client-id"));
+
 			if (fields.get("jwks") instanceof Map<?, ?> jwks) {
 				@SuppressWarnings("unchecked")
 				final var inlineJwks = (Map<String, Object>) jwks;
@@ -189,7 +301,18 @@ public class DiscoveryServiceProperties {
 	}
 
 	private static String text(Map<?, ?> fields, String key) {
-		return fields.get(key) instanceof String value && !value.isBlank() ? value : null;
+		final var value = fields.get(key);
+
+		if (value == null) {
+			return null;
+		}
+
+		if (!(value instanceof String text) || text.isBlank()) {
+			throw new IllegalArgumentException(
+				"dcb.discovery.trusted-services-json: \"" + key + "\" must be a non-blank string, or left out");
+		}
+
+		return text;
 	}
 
 	/**
@@ -202,6 +325,8 @@ public class DiscoveryServiceProperties {
 		private String serviceId;
 		private String issuer;
 		private URI jwksUri;
+		/** The OIDC client whose bearer this service calls with, matched against {@code azp}. */
+		private String clientId;
 		/** Inline JWKS, for tests and air-gapped deployments. Takes precedence over jwksUri. */
 		private Map<String, Object> jwks;
 
@@ -227,6 +352,20 @@ public class DiscoveryServiceProperties {
 
 		public void setJwksUri(URI jwksUri) {
 			this.jwksUri = jwksUri;
+		}
+
+		/** Defaults to the service id, which is the client id when the service signs as its client. */
+		public String getClientId() {
+			return clientId != null ? clientId : serviceId;
+		}
+
+		public void setClientId(String clientId) {
+			if (clientId != null && clientId.isBlank()) {
+				throw new IllegalArgumentException("A dcb.discovery trusted service's client-id is set but blank. "
+					+ "Remove it to use the service-id, or set the service's OIDC client id");
+			}
+
+			this.clientId = clientId;
 		}
 
 		public Map<String, Object> getJwks() {

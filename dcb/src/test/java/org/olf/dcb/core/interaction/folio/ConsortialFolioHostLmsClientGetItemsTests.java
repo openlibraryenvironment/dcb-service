@@ -588,6 +588,12 @@ class ConsortialFolioHostLmsClientGetItemsTests {
 				hasProperty("description", is("API key for this FOLIO tenant")),
 				hasProperty("mandatory", is(true)),
 				hasProperty("typeCode", is("String"))
+			),
+			allOf(
+				hasProperty("name", is("patron-account")),
+				hasProperty("description", is("Whether edge-patron is deployed for this FOLIO tenant")),
+				hasProperty("mandatory", is(false)),
+				hasProperty("typeCode", is("Boolean"))
 			)
 		));
 	}

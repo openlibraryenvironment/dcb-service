@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.HashMap;
@@ -71,6 +72,24 @@ class OaiPmhIngestSourceConfigTests {
 		assertThat(OaiPmhIngestSource.requiredClientConfig(
 				hostLms(Map.of("base-url", "https://catalogue.example.org")), "base-url"),
 			is("https://catalogue.example.org"));
+	}
+
+	@Test
+	void shouldTreatABlankSuppressionRulesetNameAsNone() {
+		// Clearing the field in the admin UI stores "", not null. Passing that to
+		// findByName fails validation and aborts the whole harvest, so 100% of ingest
+		// stops on a Host LMS that once named a ruleset and no longer does.
+		assertThat(OaiPmhIngestSource.suppressionRulesetName(""), is(nullValue()));
+		assertThat(OaiPmhIngestSource.suppressionRulesetName("   "), is(nullValue()));
+		assertThat(OaiPmhIngestSource.suppressionRulesetName(null), is(nullValue()));
+	}
+
+	@Test
+	void shouldKeepASuppressionRulesetNameThatNamesSomething() {
+		assertThat(OaiPmhIngestSource.suppressionRulesetName("folio-suppression"),
+			is("folio-suppression"));
+		assertThat(OaiPmhIngestSource.suppressionRulesetName("  folio-suppression  "),
+			is("folio-suppression"));
 	}
 
 	private DataHostLms hostLms(Map<String, Object> clientConfig) {

@@ -12,6 +12,7 @@ import com.k_int.peerauth.service.PeerJwksResolver;
 import com.nimbusds.jwt.SignedJWT;
 
 import io.micronaut.http.HttpRequest;
+import io.micronaut.security.authentication.Authentication;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,6 +43,7 @@ public class PatronAssertionVerifier {
 	private static final String CLAIM_PATRON_ID = "localSystemPatronId";
 
 	private final DiscoveryServiceProperties properties;
+	private final DiscoveryTrustedServiceStore trustedServiceStore;
 	private final NimbusPeerTokenVerifier verifier;
 	private final Clock clock;
 
@@ -56,6 +58,7 @@ public class PatronAssertionVerifier {
 		Clock clock) {
 
 		this.properties = properties;
+		this.trustedServiceStore = trustedServiceStore;
 		this.clock = clock;
 		this.verifier = new NimbusPeerTokenVerifier(trustedServiceStore, jwksResolver, clock);
 	}
@@ -92,6 +95,20 @@ public class PatronAssertionVerifier {
 
 		final var systemCode = claim(principal, CLAIM_SYSTEM_CODE);
 		final var patronId = claim(principal, CLAIM_PATRON_ID);
+
+		final var service = trustedServiceStore.findByServiceId(principal.peerId())
+			.orElseThrow(() -> new InvalidPatronAssertionException("Patron assertion was not accepted"));
+
+		// The bearer and the assertion must come from the same service, or one service's
+		// credential could spend an assertion another service signed.
+		final var caller = request.getUserPrincipal(Authentication.class).orElse(null);
+
+		if (trustedServiceStore.findByCaller(caller).filter(service::equals).isEmpty()) {
+			log.warn("Rejected patron assertion from {}: the bearer is not that service's client",
+				principal.peerId());
+
+			throw new InvalidPatronAssertionException("Patron assertion was not accepted");
+		}
 
 		log.debug("Accepted patron assertion from {} for patron {}@{}",
 			principal.peerId(), patronId, systemCode);

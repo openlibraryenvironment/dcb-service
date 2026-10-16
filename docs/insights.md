@@ -669,8 +669,8 @@ blank names.
 
 ### 6.3 Order
 
-Insights merges ahead of both the Audit Explorer incidence chart (`V9_0_006`) and the cluster
-merge lineage work (`V9_0_007` / `V9_0_008`). The lineage branch depends on
+Insights merges ahead of both the Audit Explorer incidence chart and the cluster merge lineage
+work, whose migrations are numbered when they merge. The lineage branch depends on
 `pr_stats_cluster_idx` from `V9_0_005` and deliberately does not create its own.
 
 ---

@@ -26,6 +26,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
 import io.micronaut.http.HttpRequest;
+import io.micronaut.security.authentication.Authentication;
 
 /**
  * The patron assertion is the mechanism that keeps per-patron ownership enforcement
@@ -38,6 +39,7 @@ class PatronAssertionVerifierTests {
 
 	private static final String ISSUER = "https://discovery.test.invalid";
 	private static final String SERVICE_ID = "a-discovery-service";
+	private static final String CLIENT_ID = "a-discovery-client";
 	private static final String AUDIENCE = "dcb";
 
 	private static RSAKey signingKey;
@@ -66,6 +68,7 @@ class PatronAssertionVerifierTests {
 		final var service = new DiscoveryServiceProperties.TrustedService();
 		service.setServiceId(SERVICE_ID);
 		service.setIssuer(ISSUER);
+		service.setClientId(CLIENT_ID);
 		// Inline JWKS: TrustedPeerJwksResolver prefers it over jwksUri, so no HTTP.
 		service.setJwks(Map.of("keys", List.of(signingKey.toPublicJWK().toJSONObject())));
 
@@ -124,7 +127,16 @@ class PatronAssertionVerifierTests {
 	}
 
 	private static HttpRequest<?> requestWith(String assertion) {
+		return requestWith(assertion, CLIENT_ID);
+	}
+
+	private static HttpRequest<?> requestWith(String assertion, String bearerClientId) {
 		final var request = HttpRequest.GET("/discovery/requests");
+
+		if (bearerClientId != null) {
+			request.setUserPrincipal(Authentication.build(bearerClientId, Map.of("azp", bearerClientId)));
+		}
+
 		return assertion == null
 			? request
 			: request.header(PatronAssertionVerifier.ASSERTION_HEADER, assertion);
@@ -218,6 +230,36 @@ class PatronAssertionVerifierTests {
 	}
 
 	@Test
+	void anAssertionCarriedByAnotherClientsBearerIsRejected() throws Exception {
+		final var token = assertion(spec());
+
+		assertThrows(InvalidPatronAssertionException.class,
+			() -> verifier(clockAt("2026-08-12T10:00:30Z"))
+				.verify(requestWith(token, "some-other-discovery-client")));
+	}
+
+	@Test
+	void anAssertionWithNoBearerIsRejected() throws Exception {
+		final var token = assertion(spec());
+
+		assertThrows(InvalidPatronAssertionException.class,
+			() -> verifier(clockAt("2026-08-12T10:00:30Z")).verify(requestWith(token, null)));
+	}
+
+	@Test
+	void withNoClientIdTheBearerMustBeTheServiceIdsClient() throws Exception {
+		final var props = properties(true, Duration.ofMinutes(5));
+		props.getTrustedServices().getFirst().setClientId(null);
+
+		final var token = assertion(spec());
+		final var verifier = verifier(clockAt("2026-08-12T10:00:30Z"), props);
+
+		assertEquals("patron-1", verifier.verify(requestWith(token, SERVICE_ID)).patronId());
+		assertThrows(InvalidPatronAssertionException.class,
+			() -> verifier.verify(requestWith(token, CLIENT_ID)));
+	}
+
+	@Test
 	void aMissingHeaderIsRejected() {
 		rejects(clockAt("2026-08-12T10:00:30Z"), null);
 	}
@@ -237,17 +279,53 @@ class PatronAssertionVerifierTests {
 				.verify(requestWith(assertion(spec()))));
 	}
 
+	/** An entry missing its issuer is a trust anchor that binds nothing: refuse to start, not skip it. */
+	@Test
+	void anIncompleteServiceRefusesToStart() {
+		final var incomplete = new DiscoveryServiceProperties.TrustedService();
+		incomplete.setServiceId(SERVICE_ID);
+		incomplete.setJwks(Map.of("keys", List.of()));
+
+		final var props = new DiscoveryServiceProperties();
+		props.setTrustedServices(List.of(incomplete));
+
+		assertThrows(IllegalStateException.class, () -> new DiscoveryTrustedServiceStore(props));
+	}
+
 	/** Two services sharing an issuer means either can mint the other's assertions. */
 	@Test
 	void aDuplicateIssuerRefusesToStart() {
 		final var first = new DiscoveryServiceProperties.TrustedService();
 		first.setServiceId(SERVICE_ID);
 		first.setIssuer(ISSUER);
+		first.setClientId("first-client");
 		first.setJwks(Map.of("keys", List.of()));
 
 		final var second = new DiscoveryServiceProperties.TrustedService();
 		second.setServiceId("impostor");
 		second.setIssuer(ISSUER);
+		second.setClientId("second-client");
+		second.setJwks(Map.of("keys", List.of()));
+
+		final var props = new DiscoveryServiceProperties();
+		props.setTrustedServices(List.of(first, second));
+
+		assertThrows(IllegalStateException.class, () -> new DiscoveryTrustedServiceStore(props));
+	}
+
+	/** One client acting as two services could spend assertions either one signed. */
+	@Test
+	void aDuplicateClientIdRefusesToStart() {
+		final var first = new DiscoveryServiceProperties.TrustedService();
+		first.setServiceId(SERVICE_ID);
+		first.setIssuer(ISSUER);
+		first.setClientId(CLIENT_ID);
+		first.setJwks(Map.of("keys", List.of()));
+
+		final var second = new DiscoveryServiceProperties.TrustedService();
+		second.setServiceId("second-service");
+		second.setIssuer("https://second.test.invalid");
+		second.setClientId(CLIENT_ID);
 		second.setJwks(Map.of("keys", List.of()));
 
 		final var props = new DiscoveryServiceProperties();

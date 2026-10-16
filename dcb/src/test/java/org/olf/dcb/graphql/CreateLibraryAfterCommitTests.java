@@ -16,6 +16,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.olf.dcb.core.branding.BrandingValidator;
 import org.olf.dcb.storage.AgencyRepository;
 import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.storage.LibraryContactRepository;
@@ -60,6 +61,8 @@ class CreateLibraryAfterCommitTests {
 	@Inject
 	private R2dbcOperations r2dbcOperations;
 	@Inject
+	private BrandingValidator brandingValidator;
+	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
@@ -88,7 +91,7 @@ class CreateLibraryAfterCommitTests {
 
 		final var dataFetcher = new CreateLibraryDataFetcher(libraryRepository, personRepository,
 			libraryContactRepository, roleRepository, agencyRepository, hostLmsRepository,
-			recordingCompletion(r2dbcOperations, transactionCompleted));
+			recordingCompletion(r2dbcOperations, transactionCompleted), brandingValidator);
 
 		dataFetcher.get(environment(input("after-commit")))
 			.thenAccept(library -> completedWhenHandedBack.set(transactionCompleted.get()))

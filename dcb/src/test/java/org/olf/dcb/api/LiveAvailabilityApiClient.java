@@ -1,5 +1,6 @@
 package org.olf.dcb.api;
 
+import java.util.List;
 import java.util.UUID;
 
 import io.micronaut.http.HttpRequest;
@@ -14,6 +15,17 @@ public class LiveAvailabilityApiClient {
 
 	public LiveAvailabilityApiClient(@Client("/") HttpClient httpClient) {
 		this.httpClient = httpClient;
+	}
+
+	/** The batch route. Repeated clusteredBibId parameters, like the single one takes. */
+	public BatchAvailabilityResponse getBatchAvailabilityReport(List<UUID> clusterRecordIds) {
+		var uri = UriBuilder.of("/items/availability/batch");
+		for (final var id : clusterRecordIds) {
+			uri = uri.queryParam("clusteredBibId", id);
+		}
+
+		return httpClient.toBlocking()
+			.retrieve(HttpRequest.GET(uri.build()), BatchAvailabilityResponse.class);
 	}
 
 	public AvailabilityResponse getAvailabilityReport(UUID clusterRecordId) {

@@ -65,6 +65,7 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 | DCB_DISCOVERY_AUDIENCE | The `aud` a patron assertion must name - identifies this DCB, not another one | dcb |
 | DCB_DISCOVERY_MAX_ASSERTION_LIFETIME | DCB's own cap on patron assertion validity, enforced regardless of the issuer's `exp` | PT2M |
 | DCB_DISCOVERY_TRUSTED_SERVICES_JSON | The whole `dcb.discovery.trusted-services` list as a JSON array in one value, for deployments with no mountable config file (ECS/Fargate, plain docker). Kebab-case keys, matching the YAML. A list of objects cannot be expressed as indexed environment variables, hence this form. | `[{"service-id":"their-service","issuer":"https://discovery.example.org","jwks-uri":"https://discovery.example.org/.well-known/jwks.json"}]` |
+| DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT | How long all of a placement's preflight checks may take together, as an ISO-8601 duration. A placement still checking after it is refused with `PREFLIGHT_CHECKS_TIMED_OUT` and nothing is saved. **55 seconds when not set.** Keep every caller's and the ingress's timeout above it, or they give up before DCB answers | PT90S |
 
 # Configuration
 
@@ -75,6 +76,7 @@ Additional optional configuration values. These may be set in configuration file
 | dcb.demo.ingest.limit                                                   | Maximum number of records to ingest when running in demo environment   | Integer value                                                                        | 1000       |
 | dcb.request-workflow.state-transition-delay                             | Delay between transitions in the request workflow                      | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT0.0S     |
 | dcb.requests.supplying.patron-type                                      | Fixed patron type for supplying agency virtual patrons                 | Integer                                                                              | 210        |
+| dcb.requests.preflight-checks.timeout                                   | How long all preflight checks for one placement may take together before it is refused (`PREFLIGHT_CHECKS_TIMED_OUT`). Environment variable `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT` | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT55S |
 | dcb.requests.preflight-checks.pickup-location.enabled                   | Whether pickup location preflight checks are enabled                   | Boolean                                                                              | true       |
 | dcb.requests.preflight-checks.pickup-location-to-agency-mapping.enabled | Whether pickup location to agency mapping preflight checks are enabled | Boolean                                                                              | true       |
 | dcb.requests.preflight-checks.resolve-patron.enabled                    | Whether patron resolution preflight checks are enabled. The per-library active-request limit (`maxConsortialLoans`) and local hold limit (`maxLocalHolds`) run inside this check, so disabling it disables both | Boolean | true       |
@@ -85,7 +87,7 @@ Additional optional configuration values. These may be set in configuration file
 | dcb.discovery.enabled                                                   | Whether the discovery service surface is served at all                 | Boolean                                                                              | false      |
 | dcb.discovery.audience                                                  | Audience a patron assertion must name                                  | String                                                                               | dcb        |
 | dcb.discovery.max-assertion-lifetime                                    | Upper bound DCB enforces on patron assertion validity                  | [ISO-8601 format](https://docs.oracle.com/javase/8/docs/api/java/time/Duration.html) | PT2M       |
-| dcb.discovery.trusted-services                                          | Discovery services DCB accepts patron assertions from. Each entry: `service-id`, `issuer`, and one of `jwks-uri` / inline `jwks`. See [the discovery service approach](docs/discovery-service-approach.md). | List of objects                                    | empty      |
+| dcb.discovery.trusted-services                                          | Discovery services DCB accepts patron assertions from. Each entry: `service-id`, `issuer`, one of `jwks-uri` / inline `jwks`, and `client-id` when the service's Keycloak client id is not its service id. See [the discovery service approach](docs/discovery-service-approach.md). | List of objects                                    | empty      |
 
 # API Documentation
 

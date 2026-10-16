@@ -300,7 +300,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String username) {
-		log.debug("Fetching patron by username (userid): {}", username);
+		log.debug("Fetching patron by username (userid) at {}", getHostLmsCode());
 		return client.getPatronByUserId(username)
 			.flatMap(list -> {
 				if (list != null && !list.isEmpty()) {
@@ -308,7 +308,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 				}
 				return Mono.empty();
 			})
-			.doOnError(e -> log.error("Failed to fetch patron by username {}: {}", username, e.getMessage()));
+			.doOnError(e -> log.error("Failed to fetch patron by username: {}", e.getClass().getSimpleName()));
 	}
 
 	@Override
@@ -329,7 +329,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 				}
 				return Mono.empty();
 			})
-			.doOnError(e -> log.error("Failed to authenticate Koha patron {}: {}", patronPrinciple, e.getMessage()));
+			.doOnError(e -> log.error("Failed to authenticate Koha patron: {}", e.getClass().getSimpleName()));
 	}
 
 	@Override
@@ -441,6 +441,9 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.bibId(String.valueOf(kohaItem.getBiblioId()))
 			.status(deriveItemStatusForHostLmsItem(kohaItem))
 			.renewalCount(kohaItem.getRenewalsCount())
+			.dueDate(kohaItem.getCheckout() == null
+				? null
+				: DueDates.parse(kohaItem.getCheckout().getDueDate()))
 			.holdCount(kohaItem.getHoldCount()) // Commented out ones need a bit more thought ...
 //			.holdingId(kohaItem.getHoldingLibraryId())
 //			.renewable()

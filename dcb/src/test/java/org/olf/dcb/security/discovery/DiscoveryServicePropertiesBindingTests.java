@@ -80,7 +80,8 @@ class DiscoveryServicePropertiesBindingTests {
 			[
 			  {"service-id": "first-service",
 			   "issuer": "https://first.example.org",
-			   "jwks-uri": "https://first.example.org/jwks.json"},
+			   "jwks-uri": "https://first.example.org/jwks.json",
+			   "client-id": "first-client"},
 			  {"service-id": "second-service",
 			   "issuer": "https://second.example.org",
 			   "jwks-uri": "https://second.example.org/jwks.json"}
@@ -93,7 +94,10 @@ class DiscoveryServicePropertiesBindingTests {
 		assertEquals("first-service", services.get(0).getServiceId());
 		assertEquals("https://first.example.org", services.get(0).getIssuer());
 		assertEquals("https://first.example.org/jwks.json", services.get(0).getJwksUri().toString());
+		assertEquals("first-client", services.get(0).getClientId());
 		assertEquals("second-service", services.get(1).getServiceId());
+		assertEquals("second-service", services.get(1).getClientId(),
+			"an entry with no client-id calls with the client named by its service-id");
 	}
 
 	/** Inline JWKS is how an egress-less deployment onboards, so it must survive the JSON route too. */
@@ -140,14 +144,29 @@ class DiscoveryServicePropertiesBindingTests {
 				.toList());
 	}
 
-	/** Absent or empty is "not configured", not an error. Only malformed is fatal. */
 	@Test
 	void anAbsentJsonListIsNotAnError() {
 		final var properties = new DiscoveryServiceProperties();
 
-		properties.setTrustedServicesJson("   ");
+		properties.setTrustedServicesJson(null);
 
 		assertEquals(List.of(), properties.getTrustedServices());
+	}
+
+	@Test
+	void aBlankJsonListRefusesToStart() {
+		final var failure = assertThrows(IllegalArgumentException.class,
+			() -> new DiscoveryServiceProperties().setTrustedServicesJson("   "));
+
+		assertTrue(failure.getMessage().contains("set but blank"), failure.getMessage());
+	}
+
+	@Test
+	void aBlankFieldInTheJsonRefusesToStart() {
+		assertThrows(IllegalArgumentException.class, () -> new DiscoveryServiceProperties().setTrustedServicesJson("""
+			[{"service-id": "x", "issuer": "https://x.example.org", "jwks-uri": "https://x.example.org/jwks.json",
+			  "client-id": " "}]
+			"""));
 	}
 
 	/**
@@ -172,13 +191,31 @@ class DiscoveryServicePropertiesBindingTests {
 	}
 
 	@Test
-	void aZeroOrMissingLifetimeFallsBackToTheDocumentedTwoMinutes() {
+	void aLifetimeThatIsNotPositiveRefusesToStart() {
 		final var properties = new DiscoveryServiceProperties();
 
-		properties.setMaxAssertionLifetime(Duration.ZERO);
-		assertEquals(Duration.ofMinutes(2), properties.getMaxAssertionLifetime());
+		for (final var notPositive : java.util.Arrays.asList(Duration.ZERO, Duration.ofSeconds(-1), null)) {
+			assertThrows(IllegalArgumentException.class, () -> properties.setMaxAssertionLifetime(notPositive));
+		}
 
-		properties.setMaxAssertionLifetime(null);
 		assertEquals(Duration.ofMinutes(2), properties.getMaxAssertionLifetime());
+	}
+
+	@Test
+	void aBlankAudienceRefusesToStart() {
+		for (final var blank : java.util.Arrays.asList("", "  ", null)) {
+			assertThrows(IllegalArgumentException.class, () -> new DiscoveryServiceProperties().setAudience(blank));
+		}
+
+		assertEquals("dcb", new DiscoveryServiceProperties().getAudience());
+	}
+
+	@Test
+	void aBlankClientIdRefusesToStartButAnAbsentOneIsTheServiceId() {
+		final var service = new DiscoveryServiceProperties.TrustedService();
+		service.setServiceId("the-service");
+
+		assertThrows(IllegalArgumentException.class, () -> service.setClientId(" "));
+		assertEquals("the-service", service.getClientId());
 	}
 }

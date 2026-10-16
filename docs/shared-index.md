@@ -138,6 +138,30 @@ newly indexed records not appearing in search until the interval returns.
 interrupted between those two hooks.** Nothing will appear in search until
 something sets it back, and a restart does.
 
+## Shelf sort keys
+
+`members[].shelfSort.<scheme>` holds a key per classification scheme, so a library's scheme is
+chosen at query time and changing it needs no reindex. `ShelfSortKey` builds each key:
+
+- **Width, not the decimal point, is the problem.** A decimal fraction compared digit by digit
+  is already in order (638.09 before 638.1). Classifications are written at whatever width the
+  cataloguer used: `5` shelves at `005`, before `10`, but "5" sorts after "10" as a string; LCC
+  `PS50` is before `PS4000` on the shelf and after it as a string. So every component is padded
+  to a constant width, with a padding character that sorts before anything that can appear in
+  that position: Elasticsearch compares a `keyword` bytewise. LCC class letters are padded with
+  spaces, which sort below every letter, so `P` precedes `PA` precedes `PS`.
+- **Unreadable input produces no key, never a guess.** A record whose classification cannot be
+  read is absent from the browse sequence, which a reader notices; a plausible wrong key sits in
+  the wrong place, which nobody notices and everybody trusts.
+- **Only Dewey and LCC.** They are the two schemes `ShelfSortKey` can normalise. MARC 084 names
+  its own scheme in `$2` and carries anything from a local shelving code upward, so it gets no
+  key. A library declares its scheme (`library.classification_scheme`, an allow-list because it
+  will choose the sort field); not stated means no shelf browse, never a default that would give
+  an LCC library a confidently wrong Dewey order.
+
+`firstSeen` is the cluster's `dateCreated`, written once on insert, not `lastIndexed`, which a
+reindex rewrites for every document.
+
 ## Startup
 
 `SharedIndexLiveUpdater` listens for `StartupEvent` and blocks on
@@ -210,6 +234,24 @@ rehearses the deployment against a real engine:
 Step 2 is what makes it a real check. Without a document the index has nothing to
 conflict with and any mapping would be accepted.
 
+### The document in step 2 is the baseline's, not this build's
+
+`SharedIndexDocumentFixture` holds two. `document()` is what this build writes and
+is what the serialization tests read. `lastReleasedDocument()` is what the baseline
+release wrote, and is the one the merge check indexes.
+
+They differ because an index built by the baseline release contains documents that
+release wrote. A field this build both emits and declares in the same change cannot
+exist in such an index at all, dynamically typed or otherwise, so indexing a current
+document manufactures a conflict no deployment can hit — and the check would then
+demand the field be declared as whatever dynamic mapping guesses today, which is the
+opposite of what it exists to enforce.
+
+**So `LAST_RELEASED_METADATA` is refreshed with `mappings-2.last-released.json`, and
+forgetting to move a field into it loses coverage silently.** A field the baseline
+release emitted is one this check must see. When you refresh the baseline, move every
+field the new baseline emits into `lastReleasedDocument()` in the same change.
+
 Two classes of change fail it, which are the two ways this has gone wrong.
 Retyping a field the released mapping declared, because the index was built with
 that declaration. And declaring a field the document already emits with a type
@@ -254,8 +296,9 @@ state appears only after the first is resolved.
 
 ## Refreshing the baseline
 
-Replace `mappings-2.last-released.json` with the mapping from the release, and
-update `BASELINE_RELEASE` in the test to match:
+Replace `mappings-2.last-released.json` with the mapping from the release, update
+`BASELINE_RELEASE` in the test to match, and bring
+`SharedIndexDocumentFixture.LAST_RELEASED_METADATA` up to what that release emitted:
 
 ```bash
 git show v<release>:dcb/src/main/resources/sharedIndex/mappings-2.json \
@@ -304,8 +347,9 @@ than maintained alongside them:
 
 The task picks the `-N` of all three filenames from
 `SharedIndexConfiguration.LATEST_INDEX_VERSION`, and nothing else in the build
-depends on it. **Nothing checks that the checked-in copy is current.** Regenerate
-it in the same change as a mapping or settings edit: a stale copy is invisible
+depends on it. Regenerate it in the same change as a mapping or settings edit:
+`SharedIndexFullSettingsTests` fails when its settings or mappings differ from
+`settings-N.json` and `mappings-N.json`. A stale copy is otherwise invisible
 until an environment is rebuilt from it, and an index built from a mapping older
 than the release then refuses that release's startup `PUT _mapping`, which stops
 dcb-service rather than degrading search.

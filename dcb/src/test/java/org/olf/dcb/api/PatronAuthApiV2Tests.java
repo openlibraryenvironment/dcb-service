@@ -149,6 +149,20 @@ public class PatronAuthApiV2Tests {
 	}
 
 	@Test
+	void shouldRefuseACredentialCheckForALibraryWhosePatronsSignInAtTheirInstitution() {
+		final var agencyCode = defineAgency("saml");
+
+		final var errors = errorsLoggedWhile(() -> {
+			final var refused = assertThrows(HttpClientResponseException.class,
+				() -> authenticatePatron(agencyCode + "/" + generateBarcode(), "76trombones"));
+
+			assertThat(refused.getStatus(), is(BAD_REQUEST));
+		});
+
+		assertThat("not a configuration error", errors, hasSize(0));
+	}
+
+	@Test
 	void shouldLogAnUnknownAuthMethodOnceWithoutAStackTrace() {
 		final var agencyCode = defineAgency("UNKNOWN");
 

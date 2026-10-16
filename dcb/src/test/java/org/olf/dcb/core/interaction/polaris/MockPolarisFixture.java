@@ -441,7 +441,11 @@ public class MockPolarisFixture {
 
 	public void mockGetPagedBibs(Integer lastId, Object responseBody) {
 		mockServer.mock(pagedBibsRequest()
-			.withQueryStringParameter("lastid", String.valueOf(lastId)), responseBody);
+			.withQueryStringParameter("lastid", String.valueOf(lastId))
+			// PAPI documents startdatemodified as REQUIRED on Synch_BibsPagedGet, and a real
+			// Polaris answers PAPIErrorCode -1 "An unhandled exception occurred" without it.
+			// Matching on it is what makes this mock a contract rather than a rubber stamp
+			.withQueryStringParameter("startdatemodified", ".+"), responseBody);
 	}
 
 	public void mockGetUpdatedBibs(Integer lastId, Object responseBody) {

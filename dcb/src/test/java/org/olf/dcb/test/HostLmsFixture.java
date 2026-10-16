@@ -139,6 +139,20 @@ public class HostLmsFixture {
 			Optional.of(FolioOaiPmhIngestSource.class), clientConfig);
 	}
 
+	/** A FOLIO Host LMS whose tenant has edge-patron deployed. */
+	public DataHostLms createFolioHostLmsWithPatronAccount(String code, String baseUrl,
+		String apiKey) {
+
+		return createHostLms(randomUUID(), code, ConsortialFolioHostLmsClient.class,
+			Optional.of(FolioOaiPmhIngestSource.class), Map.of(
+				"base-url", baseUrl,
+				"apikey", apiKey,
+				"record-syntax", "",
+				"metadata-prefix", "",
+				"patron-account", "true"
+		));
+	}
+
 	public DataHostLms createSierraHostLms(String code) {
 		// These parameters have to be defined in order for the client to be instantiable
 		return createSierraHostLms(code,"some-username", "some-password", "http://some-sierra-system");

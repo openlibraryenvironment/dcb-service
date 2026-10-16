@@ -127,6 +127,21 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			);
 		}
 
+		// An expedited checkout lends the chosen copy now; one on loan or on hold cannot be lent
+		if (Boolean.TRUE.equals(resolution.isExpeditedCheckout()) && !chosenItem.isAvailable()) {
+			return List.of(failedUm("ITEM_NOT_AVAILABLE",
+				"Item %s is not available to check out".formatted(chosenItem.getLocalId()),
+				intMessageService.getMessage("ITEM_NOT_AVAILABLE")));
+		}
+
+		// ConsortialFolioItemMapper maps "Paged", "Awaiting pickup" and "Awaiting delivery" to AVAILABLE,
+		// so only the hold count shows the copy is promised to someone
+		if (Boolean.TRUE.equals(resolution.isExpeditedCheckout()) && !chosenItem.hasNoHolds()) {
+			return List.of(failedUm("ITEM_NOT_AVAILABLE",
+				"Item %s is held for another patron".formatted(chosenItem.getLocalId()),
+				intMessageService.getMessage("ITEM_NOT_AVAILABLE")));
+		}
+
 		return List.of(passed());
 	}
 

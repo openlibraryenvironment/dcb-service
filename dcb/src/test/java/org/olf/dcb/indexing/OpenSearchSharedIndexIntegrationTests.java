@@ -180,7 +180,7 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 			final var indexed = client.index(b -> b
 					.index(MERGE_CHECK_INDEX)
 					.id(SharedIndexDocumentFixture.CLUSTER_ID.toString())
-					.document(SharedIndexDocumentFixture.document()))
+					.document(SharedIndexDocumentFixture.lastReleasedDocument()))
 				.get(60, TimeUnit.SECONDS);
 
 			assertThat(indexed.result(), is(Result.Created));

@@ -5,6 +5,8 @@ import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.storage.ConsortiumRepository;
 
+import org.olf.dcb.security.OpenToAllPrincipals;
+
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -51,6 +53,8 @@ import reactor.core.publisher.Mono;
  */
 @Controller("/discovery/consortium")
 @Secured(IS_ANONYMOUS)
+@OpenToAllPrincipals(justification =
+	"The consortium's public brand and links, shown before sign-in. One row, no patron data, no authority conferred.")
 @Tag(name = "Discovery API")
 @Slf4j
 public class DiscoveryConsortiumController {
@@ -64,7 +68,8 @@ public class DiscoveryConsortiumController {
 	@Operation(summary = "The consortium brand",
 		description = "The consortium's patron-facing brand for a discovery interface: display name, "
 			+ "logo and its alt text, an optional square header icon, an optional landing "
-			+ "background, patron welcome copy and the theme name. Every field except the "
+			+ "background, patron welcome copy, the theme name, the consortium's own website and "
+			+ "its support desk. Every field except the "
 			+ "name may be null - a consortium that has uploaded no mark is rendered by its name. "
 			+ "themeName must be tolerated on read: an unrecognised value falls back to the consumer's "
 			+ "default rather than failing. Returns 404 on an instance with no consortium, where a "
@@ -104,7 +109,19 @@ public class DiscoveryConsortiumController {
 		 */
 		@Nullable String backgroundImageUrl,
 		@Nullable String welcome,
-		@Nullable String themeName) {
+		@Nullable String themeName,
+		/**
+		 * The consortium's own site. Discovery is not the consortium's website and must
+		 * not pretend to be: a patron who arrived from a search engine needs a route back
+		 * to opening hours, branches and joining, none of which this software holds.
+		 */
+		@Nullable String websiteUrl,
+		/**
+		 * Where a patron reports that discovery itself is wrong — a broken record, a result
+		 * that will not request. A different destination from the website, which answers
+		 * opening hours and joining, and the wrong place to send "your search is broken".
+		 */
+		@Nullable String supportUrl) {
 
 		static ConsortiumBrand from(Consortium consortium) {
 			// displayName is what the consortium calls itself in public; name is the
@@ -123,7 +140,9 @@ public class DiscoveryConsortiumController {
 				consortium.getBrandHeaderIconUrl(),
 				consortium.getBrandBackgroundImageUrl(),
 				consortium.getPatronWelcome(),
-				consortium.getDefaultThemeName());
+				consortium.getDefaultThemeName(),
+				consortium.getWebsiteUrl(),
+				consortium.getSupportUrl());
 		}
 
 		private static String alt(Consortium consortium) {

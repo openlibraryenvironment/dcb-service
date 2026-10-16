@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.olf.dcb.storage.AgencyRepository;
 
+import org.olf.dcb.security.OpenToAllPrincipals;
+
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.QueryValue;
@@ -40,6 +42,8 @@ import reactor.core.publisher.Mono;
  */
 @Controller("/discovery/libraries")
 @Secured(IS_ANONYMOUS)
+@OpenToAllPrincipals(justification =
+	"The public library directory a discovery layer shows before sign-in: names, codes, coordinates, public links and how sign-in works at each library. No patron data, no authority conferred, one bounded query over the membership.")
 @Tag(name = "Discovery API")
 @Slf4j
 public class DiscoveryLibrariesController {
@@ -58,6 +62,17 @@ public class DiscoveryLibrariesController {
 			+ "answer: a consumer must render its name rather than substituting the consortium's logo. "
 			+ "defaultThemeName is a theme registry name and must be tolerated on read - an unrecognised "
 			+ "value falls back to the consumer's default rather than failing. "
+			+ "principalLabel and secretLabel are this library's own words for its credentials and "
+			+ "are null when it has not set them, in which case a consumer uses its own default "
+			+ "wording. patronWebsite is the library's own site, for a patron who needs opening "
+			+ "hours or the enquiry desk rather than the catalogue, and supportUrl is where a "
+			+ "patron reports that discovery itself is wrong — a different destination, and "
+			+ "both may be null. "
+			+ "acceptsLibraryCard says whether the agency has an authProfile DCB checks, and therefore whether a "
+			+ "discovery service may offer sign-in with a library account there: false for saml, whose "
+			+ "patrons sign in at their institution. "
+			+ "secretKind is what that sign-in checks the card against - PIN, PASSWORD or NAME - and is "
+			+ "null when the agency has no authProfile or one outside that vocabulary. "
 			+ "By default only libraries enabled for borrowing are returned, because a patron from a "
 			+ "non-borrowing agency cannot place a request. Pass includeAll=true for the whole directory.")
 	// ONE indexed query per call. Not cached: @Cacheable is used nowhere else in this
@@ -72,9 +87,25 @@ public class DiscoveryLibrariesController {
 
 		return Flux.from(agencyRepository.findLibraryDirectory(includeAll))
 			.map(entry -> new LibraryGeo(entry.code(), entry.hostLmsCode(),
-				entry.name(), entry.latitude(), entry.longitude(),
-				entry.brandLogoUrl(), entry.brandLogoAlt(), entry.defaultThemeName()))
+				entry.name(), entry.latitude(), entry.longitude(), entry.acceptsLibraryCard(),
+				entry.brandLogoUrl(), entry.brandLogoAlt(), entry.defaultThemeName(),
+				entry.principalLabel(), entry.secretLabel(), entry.patronWebsite(),
+				entry.supportUrl(), entry.classificationScheme(), secretKind(entry.authProfile())))
 			.collectList();
+	}
+
+	// The secret is the part of an authProfile after the "+": BASIC/BARCODE+PIN asks for a PIN
+	private static String secretKind(String authProfile) {
+		if (authProfile == null) {
+			return null;
+		}
+
+		return switch (authProfile.substring(authProfile.indexOf('+') + 1)) {
+			case "PIN" -> "PIN";
+			case "PASSWORD" -> "PASSWORD";
+			case "NAME" -> "NAME";
+			default -> null;
+		};
 	}
 
 	/**
@@ -87,6 +118,11 @@ public class DiscoveryLibrariesController {
 	 *
 	 * Every brand field is nullable and no consumer may treat that as an error: most
 	 * libraries in a consortium will never upload a mark.
+	 *
+	 * principalLabel and secretLabel name this library's credentials — "Borrower number"
+	 * and "Password" rather than "Library card number" and "PIN" — on the one screen where
+	 * being wrong stops a patron signing in. Null means the consumer's own default wording,
+	 * never a blank label.
 	 */
 	@Serdeable
 	public record LibraryGeo(
@@ -95,8 +131,20 @@ public class DiscoveryLibrariesController {
 		String name,
 		Double latitude,
 		Double longitude,
+		boolean acceptsLibraryCard,
 		String brandLogoUrl,
 		String brandLogoAlt,
-		String defaultThemeName) {
+		String defaultThemeName,
+		String principalLabel,
+		String secretLabel,
+		String patronWebsite,
+		String supportUrl,
+		/** DEWEY or LCC. Null means this library has not said, and shelf browse cannot order. */
+		String classificationScheme,
+		/**
+		 * PIN, PASSWORD or NAME: what the card is checked against, so a sign-in form can ask for
+		 * the right thing when the library has set no secretLabel of its own.
+		 */
+		String secretKind) {
 	}
 }

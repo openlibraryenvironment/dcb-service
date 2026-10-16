@@ -9,12 +9,14 @@ import static io.micronaut.http.HttpMethod.GET;
 import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.HttpMethod.PUT;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
+import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.util.function.Function.identity;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_AVAILABLE;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_LOANED;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_ON_HOLDSHELF;
 import static org.olf.dcb.core.interaction.HostLmsItem.ITEM_TRANSIT;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
@@ -39,6 +41,7 @@ import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_DCB_TRANSACTION_STATUS;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_INVENTORY_INSTANCES;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_INVENTORY_ITEMS;
+import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_PATRON_ACCOUNT;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_PATRON_PIN_VERIFY;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_RTAC;
 import static org.olf.dcb.core.interaction.folio.ConsortialFolioClientConstants.PATH_USERS;
@@ -72,6 +75,8 @@ import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.time.Instant;
@@ -129,6 +134,9 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 		= urlPropertyDefinition("base-url", "Base URL of the FOLIO system", TRUE);
 	private static final HostLmsPropertyDefinition API_KEY_SETTING
 		= stringPropertyDefinition("apikey", "API key for this FOLIO tenant", TRUE);
+	private static final HostLmsPropertyDefinition PATRON_ACCOUNT_SETTING
+		= booleanPropertyDefinition("patron-account",
+			"Whether edge-patron is deployed for this FOLIO tenant", FALSE);
 
 	private final HostLms hostLms;
 
@@ -141,6 +149,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 	private final String apiKey;
 	private final URI rootUri;
+	private final boolean patronAccountAvailable;
 
 
 
@@ -158,6 +167,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		this.apiKey = API_KEY_SETTING.getRequiredConfigValue(hostLms);
 		this.rootUri = UriBuilder.of(BASE_URL_SETTING.getRequiredConfigValue(hostLms)).build();
+		this.patronAccountAvailable = Boolean.parseBoolean(PATRON_ACCOUNT_SETTING
+			.getOptionalValueFrom(hostLms.getClientConfig(), "false"));
 		this.conversionService = conversionService;
 		this.consortiumService = consortiumService;
 	}
@@ -171,7 +182,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public List<HostLmsPropertyDefinition> getSettings() {
 		return List.of(
 			BASE_URL_SETTING,
-			API_KEY_SETTING
+			API_KEY_SETTING,
+			PATRON_ACCOUNT_SETTING
 		);
 	}
 
@@ -687,7 +699,77 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	public Mono<Patron> getPatronByUsername(String localUsername) {
 		// we use barcode for patron lookup not username
 		return findUserByBarcode(localUsername)
-			.doOnError(error -> log.error("Error occurred while fetching patron by username: {}", localUsername, error));
+			// The class only: MultipleUsersFoundException's message quotes the barcode query
+			.doOnError(error -> log.error("Error occurred while fetching patron by username: {}",
+				error.getClass().getSimpleName()));
+	}
+
+	/**
+	 * The patron's own account at this library, through edge-patron.
+	 *
+	 * <p>Empty at three points, all of which mean "we cannot tell you" rather than "you
+	 * have nothing out": edge-patron is not deployed here, the patron is not in mod-users,
+	 * or they carry no externalSystemId. See docs/discovery-service-approach.md section 6.4.
+	 */
+	@Override
+	public Mono<LocalPatronAccount> getLocalPatronAccount(String localPatronId, int maxRows) {
+		if (!patronAccountAvailable) {
+			log.debug("edge-patron is not configured for Host LMS: {}", getHostLmsCode());
+
+			return Mono.empty();
+		}
+
+		return findExternalSystemId(localPatronId)
+			.flatMap(externalSystemId -> readPatronAccount(externalSystemId, maxRows));
+	}
+
+	private Mono<String> findExternalSystemId(String localPatronId) {
+		final var query = exactEqualityQuery("id", localPatronId);
+
+		return findUsers(query)
+			.flatMap(response -> {
+				final var users = getValueOrNull(response, UserCollection::getUsers);
+
+				if (isEmpty(users)) {
+					return Mono.empty();
+				}
+
+				final var externalSystemId = users.get(0).getExternalSystemId();
+
+				if (isEmpty(externalSystemId)) {
+					// edge-patron matches on externalSystemId and has no fallback to a
+					// FOLIO user id, so an unpopulated field is a library-wide dead end.
+					log.warn("A patron at {} has no externalSystemId, so edge-patron cannot find them",
+						getHostLmsCode());
+
+					return Mono.empty();
+				}
+
+				return Mono.just(externalSystemId);
+			});
+	}
+
+	private Mono<LocalPatronAccount> readPatronAccount(String externalSystemId, int maxRows) {
+		final var request = authorisedRequest(GET,
+			PATH_PATRON_ACCOUNT.formatted(encodePathSegment(externalSystemId)))
+			.uri(uriBuilder -> uriBuilder
+				.queryParam("includeLoans", true)
+				.queryParam("includeCharges", true)
+				.queryParam("limit", maxRows));
+
+		// The status only: the generic problem carries the request URL, whose path is the patron's id
+		return makeRequest(request, Argument.of(PatronAccountResponse.class),
+				response -> response.onErrorMap(HttpClientResponseException.class,
+					error -> new IllegalStateException("edge-patron answered " + error.getStatus().getCode())))
+			.map(PatronAccountMapper::toLocalAccount);
+	}
+
+	/**
+	 * An externalSystemId is whatever a library assigned, and it lands in the path rather
+	 * than a query parameter. URLEncoder is form encoding, so its space has to be repaired.
+	 */
+	private static String encodePathSegment(String value) {
+		return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
 	}
 
 	@Override

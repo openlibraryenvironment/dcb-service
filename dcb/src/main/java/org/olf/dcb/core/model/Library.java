@@ -104,6 +104,26 @@ public class Library implements Auditable {
 	@Size(max = 200)
 	private String secretLabel;
 
+	/**
+	 * Where a patron reports that discovery itself is wrong, as distinct from
+	 * patronWebsite, which is where they go for opening hours and joining.
+	 */
+	@Nullable
+	@Size(max = 200)
+	private String supportUrl;
+
+	/**
+	 * Which classification this library shelves by. Null means not stated, and a
+	 * library that has not stated one is not offered shelf browse.
+	 *
+	 * A String rather than the enum, because the column is a varchar any SQL client can write,
+	 * and a row carrying an unrecognised value must degrade to "no shelf browse" rather than
+	 * fail the whole record on read. Parse it through {@code ClassificationScheme.parse}.
+	 */
+	@Nullable
+	@Size(max = 32)
+	private String classificationScheme;
+
 	@Nullable
 	@UpdatedBy
 	private String lastEditedBy;

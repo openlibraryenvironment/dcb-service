@@ -150,9 +150,14 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 									.map(Object::toString)
 									.orElse("");
 
-								String websiteUrl = Optional.ofNullable(input_map.get("websiteUrl"))
-									.map(Object::toString)
-									.orElse("");
+								// Validated on create as well as on update: a consortium
+								// set up through this mutation and never edited again would
+								// otherwise be the one row the check never sees.
+								String websiteUrl = brandingValidator.linkUrl(
+									InputValues.asString(input_map.get("websiteUrl")));
+
+								String supportUrl = brandingValidator.linkUrl(
+									InputValues.asString(input_map.get("supportUrl")));
 
 								Consortium consortium = Consortium.builder()
 									.id(UUIDUtils.nameUUIDFromNamespaceAndString(NAMESPACE_DCB, "Consortium:" + input_map.get("name").toString()))
@@ -163,6 +168,7 @@ public class CreateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 									.catalogueSearchUrl(catalogueSearchUrl)
 									.description(description)
 									.websiteUrl(websiteUrl)
+									.supportUrl(supportUrl)
 									.dateOfLaunch(launchDate)
 									.libraryGroup(libraryGroup)
 									.lastEditedBy(userString)

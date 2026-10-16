@@ -45,18 +45,18 @@ class DiscoveryConsortiumApiTests {
 	@Test
 	void shouldReturnTheConsortiumBrand() {
 		// Arrange
-		consortiumFixture.createConsortiumWithBrand("MOBIUS",
-			"https://example.com/mobius.svg", "MOBIUS consortium",
-			"Search every MOBIUS library at once.", "kInt");
+		consortiumFixture.createConsortiumWithBrand("NORTHFIELD",
+			"https://example.com/northfield.svg", "NORTHFIELD consortium",
+			"Search every NORTHFIELD library at once.", "kInt");
 
 		// Act
 		final var brand = getBrand();
 
 		// Assert
-		assertThat(brand.name(), is("MOBIUS"));
-		assertThat(brand.logoUrl(), is("https://example.com/mobius.svg"));
-		assertThat(brand.logoAlt(), is("MOBIUS consortium"));
-		assertThat(brand.welcome(), is("Search every MOBIUS library at once."));
+		assertThat(brand.name(), is("NORTHFIELD"));
+		assertThat(brand.logoUrl(), is("https://example.com/northfield.svg"));
+		assertThat(brand.logoAlt(), is("NORTHFIELD consortium"));
+		assertThat(brand.welcome(), is("Search every NORTHFIELD library at once."));
 		assertThat(brand.themeName(), is("kInt"));
 	}
 
@@ -68,13 +68,13 @@ class DiscoveryConsortiumApiTests {
 	@Test
 	void shouldReturnTheNameAloneWhenNothingElseIsConfigured() {
 		// Arrange
-		consortiumFixture.createConsortiumWithBrand("MOBIUS", null, null, null, null);
+		consortiumFixture.createConsortiumWithBrand("NORTHFIELD", null, null, null, null);
 
 		// Act
 		final var brand = getBrand();
 
 		// Assert
-		assertThat(brand.name(), is("MOBIUS"));
+		assertThat(brand.name(), is("NORTHFIELD"));
 		assertThat(brand.logoUrl(), is(nullValue()));
 		assertThat(brand.logoAlt(), is(nullValue()));
 		assertThat(brand.welcome(), is(nullValue()));
@@ -96,17 +96,17 @@ class DiscoveryConsortiumApiTests {
 	@Test
 	void shouldReturnTheHeaderIconAndBackgroundSeparatelyFromTheLogo() {
 		// Arrange
-		consortiumFixture.createConsortiumWithBrandImages("MOBIUS",
-			"https://example.com/mobius-lockup.png",
-			"https://example.com/mobius-icon.png",
+		consortiumFixture.createConsortiumWithBrandImages("NORTHFIELD",
+			"https://example.com/northfield-lockup.png",
+			"https://example.com/northfield-icon.png",
 			"/discovery/brand-assets/" + "c".repeat(64) + ".jpg");
 
 		// Act
 		final var brand = getBrand();
 
 		// Assert
-		assertThat(brand.logoUrl(), is("https://example.com/mobius-lockup.png"));
-		assertThat(brand.headerIconUrl(), is("https://example.com/mobius-icon.png"));
+		assertThat(brand.logoUrl(), is("https://example.com/northfield-lockup.png"));
+		assertThat(brand.headerIconUrl(), is("https://example.com/northfield-icon.png"));
 		assertThat(brand.backgroundImageUrl(),
 			is("/discovery/brand-assets/" + "c".repeat(64) + ".jpg"));
 	}
@@ -119,14 +119,14 @@ class DiscoveryConsortiumApiTests {
 	@Test
 	void shouldNameTheLogoByTheConsortiumWhenNoAltTextIsConfigured() {
 		// Arrange
-		consortiumFixture.createConsortiumWithBrand("MOBIUS",
-			"https://example.com/mobius.svg", null, null, null);
+		consortiumFixture.createConsortiumWithBrand("NORTHFIELD",
+			"https://example.com/northfield.svg", null, null, null);
 
 		// Act
 		final var brand = getBrand();
 
 		// Assert
-		assertThat(brand.logoAlt(), is("MOBIUS"));
+		assertThat(brand.logoAlt(), is("NORTHFIELD"));
 	}
 
 	/**
@@ -135,6 +135,38 @@ class DiscoveryConsortiumApiTests {
 	 * to its own configuration on a 404 and renders a one-level chain, which is complete
 	 * and correct rather than degraded.
 	 */
+	/**
+	 * Discovery is not the consortium's website and must not pretend to be. A patron
+	 * who arrived from a search engine needs a route back to opening hours, branches and
+	 * joining — none of which this software holds.
+	 */
+	@Test
+	void shouldReturnTheConsortiumWebsiteWhenItHasOne() {
+		// Arrange
+		consortiumFixture.createConsortiumWithWebsite("NORTHFIELD", "https://northfield.example.org",
+			"https://support.northfield.example.org");
+
+		// Act
+		final var brand = getBrand();
+
+		// Assert
+		assertThat(brand.websiteUrl(), is("https://northfield.example.org"));
+		assertThat(brand.supportUrl(), is("https://support.northfield.example.org"));
+	}
+
+	@Test
+	void shouldReturnNoWebsiteOrSupportDeskWhenTheConsortiumHasNotSetThem() {
+		// Arrange
+		consortiumFixture.createConsortiumWithBrand("NORTHFIELD", null, null, null, null);
+
+		// Act
+		final var brand = getBrand();
+
+		// Assert
+		assertThat(brand.websiteUrl(), is(nullValue()));
+		assertThat(brand.supportUrl(), is(nullValue()));
+	}
+
 	@Test
 	void shouldReturnNotFoundWhenThereIsNoConsortium() {
 		// Act

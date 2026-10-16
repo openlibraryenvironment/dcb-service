@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.AuthProfiles;
 import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
@@ -105,6 +106,7 @@ public class HostLmsVerificationService {
 
 		// supported is a List.of, whose contains(null) throws: an agency with no profile is unsupported
 		final var unsupported = agencies.stream()
+			.filter(agency -> !AuthProfiles.signsInAtInstitution(agency.getAuthProfile()))
 			.filter(agency -> agency.getAuthProfile() == null || !supported.contains(agency.getAuthProfile()))
 			.map(agency -> agency.getCode() + "=" + Objects.requireNonNullElse(agency.getAuthProfile(), "(none)"))
 			.toList();

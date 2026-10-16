@@ -112,6 +112,15 @@ public class ClusterRecordIndexDoc {
 	public String getLastIndexed() {
 		return Objects.toString( cluster.getLastIndexed(), null );
 	}
+
+	/**
+	 * When this cluster first entered the catalogue, for new arrivals: dateCreated, written once
+	 * on insert. Not lastIndexed, which a reindex rewrites for every document. It is "first seen
+	 * by DCB", not the library's accession date, which DCB does not receive.
+	 */
+	public String getFirstSeen() {
+		return Objects.toString( cluster.getDateCreated(), null );
+	}
 	
 	// Lets just add all the bibs
   public List<NestedBibIndexDoc> getMembers() {

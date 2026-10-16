@@ -4,6 +4,7 @@ import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
@@ -11,6 +12,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import java.util.List;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,6 +66,18 @@ class DiscoveryLibrariesApiTests {
 	@BeforeEach
 	void beforeEach() {
 		// Libraries first: library.agency_id references agency(id).
+		libraryFixture.deleteAll();
+		agencyFixture.deleteAll();
+	}
+
+	/**
+	 * Leave no library row behind.
+	 *
+	 * Rows left here outlive the class, and the next class to call agencyFixture.deleteAll()
+	 * dies on library_agency_id_fkey, depending on which test JUnit ran last.
+	 */
+	@AfterAll
+	void afterAll() {
 		libraryFixture.deleteAll();
 		agencyFixture.deleteAll();
 	}
@@ -135,9 +149,56 @@ class DiscoveryLibrariesApiTests {
 
 		final var library = libraries.get(0);
 		assertThat(library.code(), is("agency-with-no-library"));
+		assertThat(library.name(), is("agency-with-no-library"));
 		assertThat(library.brandLogoUrl(), is(nullValue()));
 		assertThat(library.brandLogoAlt(), is(nullValue()));
 		assertThat(library.defaultThemeName(), is(nullValue()));
+	}
+
+	@Test
+	void shouldNameTheLibraryByItsFullNameRatherThanItsAgencyName() {
+		// Arrange
+		final var agency = defineAgency("WESTBROOK_UNIVERSITY_ALMA", true);
+		libraryFixture.saveLibrary(libraryFor(agency)
+			.fullName("Westbrook University Library")
+			.build());
+
+		// Act
+		final var libraries = listLibraries("/discovery/libraries");
+
+		// Assert
+		assertThat(libraries.get(0).name(), is("Westbrook University Library"));
+	}
+
+	@Test
+	void shouldFallBackToTheAgencyNameWhenTheLibraryFullNameIsBlank() {
+		// Arrange
+		final var agency = defineAgency("agency-with-blank-library-name", true);
+		libraryFixture.saveLibrary(libraryFor(agency).fullName("  ").build());
+
+		// Act
+		final var libraries = listLibraries("/discovery/libraries");
+
+		// Assert
+		assertThat(libraries.get(0).name(), is("agency-with-blank-library-name"));
+	}
+
+	@Test
+	void shouldOrderTheDirectoryByTheNameItReturns() {
+		// Arrange
+		libraryFixture.saveLibrary(libraryFor(defineAgency("a-agency", true))
+			.fullName("Zeta Library")
+			.build());
+		libraryFixture.saveLibrary(libraryFor(defineAgency("b-agency", true))
+			.fullName("Alpha Library")
+			.build());
+
+		// Act
+		final var libraries = listLibraries("/discovery/libraries");
+
+		// Assert
+		assertThat(libraries.stream().map(LibraryGeo::code).toList(),
+			contains("b-agency", "a-agency"));
 	}
 
 	/**
@@ -163,31 +224,186 @@ class DiscoveryLibrariesApiTests {
 			contains("agency-with-two-libraries"));
 	}
 
+	/**
+	 * The credential labels and the library's own site.
+	 *
+	 * A library whose members have a *borrower number* and a *password* must not be shown
+	 * "Library card number" and "PIN" on the one screen where wrong words stop a sign-in.
+	 */
+	@Test
+	void shouldReturnTheLibrarysOwnCredentialWordsAndSite() {
+		// Arrange
+		final var agency = defineAgency("labelled-agency", true);
+		libraryFixture.saveLibrary(libraryFor(agency)
+			.principalLabel("Borrower number")
+			.secretLabel("Password")
+			.patronWebsite("https://library.example.org")
+			.supportUrl("https://library.example.org/help")
+			.build());
+
+		// Act
+		final var libraries = listLibraries("/discovery/libraries");
+
+		// Assert
+		assertThat(libraries, hasSize(1));
+
+		final var library = libraries.get(0);
+		assertThat(library.principalLabel(), is("Borrower number"));
+		assertThat(library.secretLabel(), is("Password"));
+		assertThat(library.patronWebsite(), is("https://library.example.org"));
+
+		// A DIFFERENT destination from the website: "your search is broken" and "when do
+		// you open" are not the same question and rarely the same desk.
+		assertThat(library.supportUrl(), is("https://library.example.org/help"));
+	}
+
+	/**
+	 * Null is the common case and means "use your own default wording", never a blank
+	 * label. A consumer that rendered these unconditionally would show an empty caption
+	 * above the card field on most libraries in a consortium.
+	 */
+	@Test
+	void shouldReturnNullCredentialWordsWhenTheLibraryHasNotSetThem() {
+		// Arrange
+		final var agency = defineAgency("unlabelled-agency", true);
+		libraryFixture.saveLibrary(libraryFor(agency).build());
+
+		// Act
+		final var libraries = listLibraries("/discovery/libraries");
+
+		// Assert
+		final var library = libraries.get(0);
+		assertThat(library.principalLabel(), is(nullValue()));
+		assertThat(library.secretLabel(), is(nullValue()));
+		assertThat(library.patronWebsite(), is(nullValue()));
+		assertThat(library.supportUrl(), is(nullValue()));
+	}
+
+	/**
+	 * The scheme decides WHICH sort key shelf browse walks, and the index carries
+	 * one per scheme — so a discovery service that cannot read it cannot order the sequence
+	 * at all, and guessing would walk the wrong one and look entirely ordinary doing it.
+	 */
+	@Test
+	void shouldReturnTheClassificationSchemeTheLibraryShelvesBy() {
+		// Arrange
+		final var agency = defineAgency("classified-agency", true);
+		libraryFixture.saveLibrary(libraryFor(agency)
+			.classificationScheme("DEWEY")
+			.build());
+
+		// Act
+		final var libraries = listLibraries("/discovery/libraries");
+
+		// Assert
+		assertThat(libraries.get(0).classificationScheme(), is("DEWEY"));
+	}
+
+	@Test
+	void shouldReturnNullWhenTheLibraryHasNotSaidWhichSchemeItShelvesBy() {
+		// The common case, and it must stay distinguishable from a scheme: shelf browse is
+		// withheld rather than guessed.
+		final var agency = defineAgency("unclassified-agency", true);
+		libraryFixture.saveLibrary(libraryFor(agency).build());
+
+		assertThat(listLibraries("/discovery/libraries").get(0).classificationScheme(),
+			is(nullValue()));
+	}
+
 	private DataAgency defineAgency(String code, Boolean isBorrowingAgency) {
+		return defineAgency(code, isBorrowingAgency, null);
+	}
+
+	private DataAgency defineAgency(String code, Boolean isBorrowingAgency, String authProfile) {
 		return agencyFixture.defineAgency(DataAgency.builder()
 			.id(randomUUID())
 			.code(code)
 			.name(code)
 			.isSupplyingAgency(true)
 			.isBorrowingAgency(isBorrowingAgency)
+			.authProfile(authProfile)
 			.hostLms(hostLmsFixture.findByCode(HOST_LMS_CODE))
 			.build());
+	}
+
+	/**
+	 * A discovery service offers sign-in with a library account only where the agency has
+	 * an authProfile. Offering it elsewhere sends the patron to a check the Host LMS
+	 * refuses, which reads to them as a wrong password.
+	 */
+	@Test
+	void shouldSayWhetherALibraryAcceptsALibraryCard() {
+		// Arrange
+		defineAgency("card-agency", true, "BASIC/BARCODE+PASSWORD");
+		defineAgency("sso-only-agency", true, null);
+		defineAgency("saml-agency", true, "saml");
+
+		// Act
+		final var libraries = listLibraries("/discovery/libraries");
+
+		// Assert
+		assertThat(libraries.stream()
+			.filter(library -> library.code().equals("card-agency"))
+			.findFirst().orElseThrow().acceptsLibraryCard(), is(true));
+
+		assertThat(libraries.stream()
+			.filter(library -> library.code().equals("sso-only-agency"))
+			.findFirst().orElseThrow().acceptsLibraryCard(), is(false));
+
+		assertThat("a SAML library signs its patrons in at their institution", libraries.stream()
+			.filter(library -> library.code().equals("saml-agency"))
+			.findFirst().orElseThrow().acceptsLibraryCard(), is(false));
+
+		// Asserted on the wire, not only through the typed record: a boolean component reads
+		// false whether the field was sent or omitted
+		final var body = client.toBlocking().retrieve(HttpRequest.GET("/discovery/libraries"));
+
+		assertThat(body, containsString("\"acceptsLibraryCard\":true"));
+		assertThat(body, containsString("\"acceptsLibraryCard\":false"));
+	}
+
+	@Test
+	void shouldSayWhetherALibraryChecksAPinOrAPassword() {
+		// Arrange
+		defineAgency("pin-agency", true, "BASIC/BARCODE+PIN");
+		defineAgency("password-agency", true, "BASIC/BARCODE+PASSWORD");
+		defineAgency("surname-agency", true, "BASIC/UNIQUE-ID+NAME");
+		defineAgency("no-card-agency", true, null);
+
+		// Act
+		final var libraries = listLibraries("/discovery/libraries");
+
+		// Assert
+		assertThat(secretKindOf(libraries, "pin-agency"), is("PIN"));
+		assertThat(secretKindOf(libraries, "password-agency"), is("PASSWORD"));
+		assertThat(secretKindOf(libraries, "surname-agency"), is("NAME"));
+		assertThat(secretKindOf(libraries, "no-card-agency"), is(nullValue()));
+	}
+
+	private static String secretKindOf(List<LibraryGeo> libraries, String code) {
+		return libraries.stream()
+			.filter(library -> library.code().equals(code))
+			.findFirst().orElseThrow().secretKind();
 	}
 
 	private void defineLibraryFor(DataAgency agency, String logoUrl, String logoAlt,
 		String themeName) {
 
-		libraryFixture.saveLibrary(Library.builder()
+		libraryFixture.saveLibrary(libraryFor(agency)
+			.brandLogoUrl(logoUrl)
+			.brandLogoAlt(logoAlt)
+			.defaultThemeName(themeName)
+			.build());
+	}
+
+	private Library.LibraryBuilder libraryFor(DataAgency agency) {
+		return Library.builder()
 			.id(randomUUID())
 			.agencyCode(agency.getCode())
 			.agency(agency)
 			.fullName(agency.getCode())
 			.shortName(agency.getCode())
-			.abbreviatedName(agency.getCode())
-			.brandLogoUrl(logoUrl)
-			.brandLogoAlt(logoAlt)
-			.defaultThemeName(themeName)
-			.build());
+			.abbreviatedName(agency.getCode());
 	}
 
 	private List<LibraryGeo> listLibraries(String uri) {

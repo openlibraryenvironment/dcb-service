@@ -131,7 +131,7 @@ public class ConsortiumFixture {
 	}
 
 	public Consortium createConsortium() {
-		final var libraryGroup = persistLibraryGroup(createMobiusLibraryGroup());
+		final var libraryGroup = persistLibraryGroup(createNorthfieldLibraryGroup());
 
 		return persistConsortium(createConsortiumFor(libraryGroup));
 	}
@@ -140,7 +140,7 @@ public class ConsortiumFixture {
 	public Consortium createConsortiumWithBrand(String displayName, String logoUrl,
 		String logoAlt, String welcome, String themeName) {
 
-		final var libraryGroup = persistLibraryGroup(createMobiusLibraryGroup());
+		final var libraryGroup = persistLibraryGroup(createNorthfieldLibraryGroup());
 
 		return persistConsortium(createConsortiumFor(libraryGroup)
 			.setDisplayName(displayName)
@@ -151,13 +151,28 @@ public class ConsortiumFixture {
 	}
 
 	/**
+	 * A consortium that publishes its own website, which discovery links back to rather
+	 * than pretending to replace.
+	 */
+	public Consortium createConsortiumWithWebsite(String displayName, String websiteUrl,
+		String supportUrl) {
+
+		final var libraryGroup = persistLibraryGroup(createNorthfieldLibraryGroup());
+
+		return persistConsortium(createConsortiumFor(libraryGroup)
+			.setDisplayName(displayName)
+			.setWebsiteUrl(websiteUrl)
+			.setSupportUrl(supportUrl));
+	}
+
+	/**
 	 * A consortium carrying the two brand images that are not the logo (R-17d): a square
 	 * header icon for the app bar, and the canvas behind the landing hero.
 	 */
 	public Consortium createConsortiumWithBrandImages(String displayName, String logoUrl,
 		String headerIconUrl, String backgroundImageUrl) {
 
-		final var libraryGroup = persistLibraryGroup(createMobiusLibraryGroup());
+		final var libraryGroup = persistLibraryGroup(createNorthfieldLibraryGroup());
 
 		return persistConsortium(createConsortiumFor(libraryGroup)
 			.setDisplayName(displayName)
@@ -189,11 +204,11 @@ public class ConsortiumFixture {
 		log.debug("Persisted consortium functional setting: {}", saved);
 	}
 
-	private static LibraryGroup createMobiusLibraryGroup() {
+	private static LibraryGroup createNorthfieldLibraryGroup() {
 		return LibraryGroup.builder()
 			.id(randomUUID())
-			.code("MOBIUS")
-			.name("MOBIUS_CONSORTIUM")
+			.code("NORTHFIELD")
+			.name("NORTHFIELD_CONSORTIUM")
 			.type("CONSORTIUM")
 			.build();
 	}
@@ -202,7 +217,7 @@ public class ConsortiumFixture {
 		return Consortium.builder()
 			.id(randomUUID())
 			.libraryGroup(libraryGroup)
-			.displayName("MOBIUS_CONSORTIUM")
+			.displayName("NORTHFIELD_CONSORTIUM")
 			.reason("Consortium creation")
 			.changeCategory("Initial setup")
 			.build();

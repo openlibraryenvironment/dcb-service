@@ -66,8 +66,19 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 			input_map.get("displayName").toString() : null;
 		String description = input_map.containsKey("description") ?
 			input_map.get("description").toString() : null;
-		String websiteUrl = input_map.containsKey("websiteUrl") ?
-			input_map.get("websiteUrl").toString() : null;
+		// Both become an href in the patron app's footer, so both go through the
+		// same scheme check the brand images do. Supplied-but-blank CLEARS, like the brand
+		// fields and unlike the plain-string fields above, because a consortium that typed
+		// the wrong address has to be able to remove it rather than blank it to "".
+		boolean websiteUrlSupplied = input_map.containsKey("websiteUrl");
+		String websiteUrl = websiteUrlSupplied
+			? asString(input_map.get("websiteUrl"))
+			: null;
+
+		boolean supportUrlSupplied = input_map.containsKey("supportUrl");
+		String supportUrl = supportUrlSupplied
+			? asString(input_map.get("supportUrl"))
+			: null;
 		String catalogueSearchUrl = input_map.containsKey("catalogueSearchUrl") ?
 			input_map.get("catalogueSearchUrl").toString() : null;
 		Collection<String> roles = env.getGraphQlContext().get("roles");
@@ -134,8 +145,13 @@ public class UpdateConsortiumDataFetcher implements DataFetcher<CompletableFutur
 					if (catalogueSearchUrl != null) {
 						consortium.setCatalogueSearchUrl(catalogueSearchUrl);
 					}
-					if (websiteUrl != null) {
-						consortium.setWebsiteUrl(websiteUrl);
+					if (websiteUrlSupplied) {
+						consortium.setWebsiteUrl(brandingValidator.changedLinkUrl(websiteUrl,
+							consortium.getWebsiteUrl()));
+					}
+					if (supportUrlSupplied) {
+						consortium.setSupportUrl(brandingValidator.changedLinkUrl(supportUrl,
+							consortium.getSupportUrl()));
 					}
 					// Who changed a brand image is NOT recorded on this row. setLastEditedBy
 					// below plus the audit trigger on `consortium` puts the actor and the

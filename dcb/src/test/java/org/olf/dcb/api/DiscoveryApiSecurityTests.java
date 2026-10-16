@@ -57,6 +57,10 @@ class DiscoveryApiSecurityTests {
 	 * If any of these ever answers 2xx, a discovery service — or anything else holding
 	 * a realm credential — can place requests as arbitrary patrons and rewrite request
 	 * state.
+	 *
+	 * expeditedCheckout stays on this list: a discovery service checks out through
+	 * /discovery/requests/place/expedited, where the borrower comes from a verified
+	 * assertion. THIS route takes the borrower from the body, which is the difference.
 	 */
 	private static final List<String> STAFF_ONLY_MUTATIONS = List.of(
 		"/patrons/requests/place",
@@ -198,6 +202,47 @@ class DiscoveryApiSecurityTests {
 	}
 
 	@Test
+	void theLoansListRequiresAPatronAssertion() {
+		// The one endpoint that spends a member library's API budget: each loan it returns is
+		// one live item read. Without a patron there is nobody to read loans for, and a fan-out
+		// with no patron behind it is the amplification this must never allow.
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().retrieve(
+				HttpRequest.GET("/discovery/loans").bearerAuth(DISCOVERY_TOKEN)));
+
+		assertThat(exception.getStatus(), is(HttpStatus.UNAUTHORIZED));
+	}
+
+	@Test
+	void aStaffCredentialCannotReadAPatronsLoans() {
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().retrieve(
+				HttpRequest.GET("/discovery/loans").bearerAuth(ADMIN_TOKEN)));
+
+		assertThat(exception.getStatus(), is(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)));
+	}
+
+	@Test
+	void theLocalAccountRequiresAPatronAssertion() {
+		// This one reaches into the patron's own library for their loans and their debts.
+		// A caller credential says who is asking, never whose account.
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().retrieve(
+				HttpRequest.GET("/discovery/account").bearerAuth(DISCOVERY_TOKEN)));
+
+		assertThat(exception.getStatus(), is(HttpStatus.UNAUTHORIZED));
+	}
+
+	@Test
+	void aStaffCredentialCannotReadAPatronsLocalAccount() {
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().retrieve(
+				HttpRequest.GET("/discovery/account").bearerAuth(ADMIN_TOKEN)));
+
+		assertThat(exception.getStatus(), is(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)));
+	}
+
+	@Test
 	void discoveryCancellationRequiresAPatronAssertion() {
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> client.toBlocking().exchange(HttpRequest.POST(
@@ -205,6 +250,46 @@ class DiscoveryApiSecurityTests {
 					.bearerAuth(DISCOVERY_TOKEN)));
 
 		assertThat(exception.getStatus(), is(HttpStatus.UNAUTHORIZED));
+	}
+
+	@Test
+	void discoveryWalkUpCheckoutRequiresAPatronAssertion() {
+		// The one that creates a LOAN, so this is
+		// the route where "the role proves WHO is calling, never WHICH PATRON" stops being
+		// an abstraction: without a verified assertion there is no borrower, and lending to
+		// a defaulted or absent one is the failure that must not be possible.
+		//
+		// A COMPLETE body, deliberately. An empty one comes back 400 because Micronaut runs
+		// bean validation on @Body before the method body executes, and a test that accepted
+		// that would be asserting the record has required fields rather than that the
+		// assertion is required. This is the case that matters: everything the caller could
+		// legitimately supply is present, and it is still refused.
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().exchange(
+				HttpRequest.POST("/discovery/requests/place/expedited", Map.of(
+						"bibClusterId", randomUUID().toString(),
+						"pickupLocationCode", "SOME_LOCATION",
+						"itemLocalId", "item-1",
+						"itemHostLmsCode", "SOME_LMS"))
+					.bearerAuth(DISCOVERY_TOKEN)));
+
+		assertThat(exception.getStatus(), is(HttpStatus.UNAUTHORIZED));
+	}
+
+	@Test
+	void aStaffCredentialCannotReachTheDiscoveryWalkUpCheckout() {
+		// Separation both ways, on the route that lends. A staff token has no assertion to
+		// present, and this surface must not fall back to trusting the body for a borrower.
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().exchange(
+				HttpRequest.POST("/discovery/requests/place/expedited", Map.of(
+						"bibClusterId", randomUUID().toString(),
+						"pickupLocationCode", "SOME_LOCATION",
+						"itemLocalId", "item-1",
+						"itemHostLmsCode", "SOME_LMS"))
+					.bearerAuth(ADMIN_TOKEN)));
+
+		assertThat(exception.getStatus(), is(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)));
 	}
 
 	@Test
@@ -314,5 +399,26 @@ class DiscoveryApiSecurityTests {
 		final var response = client.toBlocking().exchange(HttpRequest.GET("/discovery/libraries"));
 
 		assertThat(response.getStatus(), is(HttpStatus.OK));
+	}
+
+	@Test
+	void resolvingASignInIsRefusedWhileDiscoveryIsOff() {
+		// Assertions are refused with discovery off, so the step that produces one is too.
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().retrieve(
+				HttpRequest.POST("/discovery/patrons/resolve",
+					Map.of("agencyCode", "ab6", "principal", "someone")).bearerAuth(DISCOVERY_TOKEN)));
+
+		assertThat(exception.getStatus(), is(HttpStatus.FORBIDDEN));
+	}
+
+	@Test
+	void aStaffCredentialCannotResolveASignIn() {
+		final var exception = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().retrieve(
+				HttpRequest.POST("/discovery/patrons/resolve",
+					Map.of("agencyCode", "ab6", "principal", "someone")).bearerAuth(ADMIN_TOKEN)));
+
+		assertThat(exception.getStatus(), is(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)));
 	}
 }

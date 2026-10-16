@@ -33,6 +33,9 @@ type Query {
 		# Whether this deployment has an identity provider configured at all, so the UI can
 		# hide a tab that could only fail rather than render a form nobody can submit.
 		libraryUserProvisioningAvailable: Boolean!
+		# Everything at one scope, live or not - the admin list. A patron reads the LIVE
+		# ones from /discovery/announcements, which is anonymous and has no query language.
+		announcements(scopeType: String!, scopeId: ID!): [Announcement!]!
 }
 
 type Mutation {
@@ -46,6 +49,12 @@ type Mutation {
 		updateConsortium(input: UpdateConsortiumInput): Consortium!
 		updateFunctionalSetting(input: UpdateFunctionalSettingInput): FunctionalSetting!
 		createFunctionalSetting(input: FunctionalSettingInput): FunctionalSetting!
+		# A consortium announcement reaches every patron of every member library, so
+		# consortium scope needs CONSORTIUM_ADMIN; a library administrator may publish for a
+		# library they actually administer, and the scope of an existing one cannot be edited.
+		createAnnouncement(input: CreateAnnouncementInput): Announcement!
+		updateAnnouncement(input: UpdateAnnouncementInput): Announcement!
+		deleteAnnouncement(input: DeleteEntityInput): DeleteEntityPayload!
 		createLibrary(input: LibraryInput): Library!
 		deleteLibrary(input: DeleteEntityInput): DeleteEntityPayload!
 		updateLibrary(input: UpdateLibraryInput): Library!
@@ -131,6 +140,7 @@ input ConsortiumInput {
 	description: String
 	catalogueSearchUrl: String
 	websiteUrl: String
+	supportUrl: String
 	displayName: String!
 	reason: String!
 	changeCategory: String!
@@ -235,7 +245,12 @@ input LibraryInput {
 	contacts: [PersonInput]!
 	longitude: Float
 	latitude: Float
+	# Both are rendered as an href in the patron app's footer, so both must be
+	# an absolute http(s) URL naming a host. An explicit null or an empty string clears
+	# the field. patronWebsite answers opening hours and joining; supportUrl is where a
+	# patron reports that discovery itself is wrong.
 	patronWebsite: String
+	supportUrl: String
 	discoverySystem: String
 	hostLmsConfiguration: String
 	targetLoanToBorrowRatio: String
@@ -279,6 +294,63 @@ input DeleteConsortiumContactInput {
 	changeCategory: String
 }
 
+# Something a library or consortium needs to tell its patrons.
+#
+# headline and body are PLAIN TEXT and there is deliberately no markup field: operator-
+# authored markup rendered into every patron's page is stored XSS with an admin form
+# attached. expiresAt is required and there is no "never" value - the failure mode of every
+# announcement banner is the notice from March still up in November.
+type Announcement {
+	id: ID
+	scopeType: String
+	scopeId: ID
+	headline: String
+	body: String
+	urgent: Boolean
+	dismissible: Boolean
+	startsAt: String
+	expiresAt: String
+	lastEditedBy: String
+	reason: String
+	changeCategory: String
+	changeReferenceUrl: String
+	dateCreated: String
+	dateUpdated: String
+}
+
+input CreateAnnouncementInput {
+	# CONSORTIUM | LIBRARY_GROUP | LIBRARY. A group notice reaches the patrons of its member libraries.
+	scopeType: String!
+	scopeId: ID!
+	headline: String!
+	body: String!
+	urgent: Boolean
+	dismissible: Boolean
+	# ISO-8601 instants. Both required: a start lets an operator write Monday's notice on
+	# Friday, and an end is what stops it outliving what it was about.
+	startsAt: String!
+	expiresAt: String!
+	reason: String
+	changeCategory: String
+	changeReferenceUrl: String
+}
+
+# The scope is absent on purpose. Moving a library's notice to consortium scope by editing
+# it would widen its reach to every patron of every member library through a path that never
+# asks the question the create path asks; a misplaced notice is withdrawn and republished.
+input UpdateAnnouncementInput {
+	id: ID!
+	headline: String
+	body: String
+	urgent: Boolean
+	dismissible: Boolean
+	startsAt: String
+	expiresAt: String
+	reason: String
+	changeCategory: String
+	changeReferenceUrl: String
+}
+
 input DeleteEntityInput {
 	id: ID!
 	reason: String
@@ -319,7 +391,10 @@ input UpdateConsortiumInput {
 	id: ID!
 	description: String
 	catalogueSearchUrl: String
+	# Rendered as an href in the patron app's footer: an absolute http(s) URL
+	# naming a host, and an explicit null or empty string clears the field.
 	websiteUrl: String
+	supportUrl: String
 	displayName: String
 	reason: String!
 	changeCategory: String!
@@ -374,6 +449,11 @@ input UpdateLibraryInput {
 	address: String
 	type: String
 	patronWebsite: String
+	supportUrl: String
+	# DEWEY | LCC. Explicit null or empty clears it, withdrawing the library from
+	# shelf browse; an unrecognised value is REFUSED rather than ignored, or the form would
+	# show a value the server did not store.
+	classificationScheme: String
 	discoverySystem: String
 	# Patron-facing brand (N-1.3). patronWebsite above is the logo's link target, so
 	# there is no second URL here. Explicit null or empty string clears the field.
@@ -700,6 +780,10 @@ type Library {
 	supportHours: String
 	discoverySystem: String
 	patronWebsite: String
+	supportUrl: String
+	# DEWEY | LCC, or null for a library that has not stated one - which is a
+	# library shelf browse is NOT offered for, rather than one defaulted to Dewey.
+	classificationScheme: String
 	hostLmsConfiguration: String
 	longitude: Float
 	latitude: Float
@@ -756,6 +840,7 @@ type Consortium {
 	description: String
 	catalogueSearchUrl: String
 	websiteUrl: String
+	supportUrl: String
 	displayName: String
 	contacts: [Person]
 	reason: String

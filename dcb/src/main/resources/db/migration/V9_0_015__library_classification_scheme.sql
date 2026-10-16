@@ -1,0 +1,13 @@
+-- Which classification scheme a library shelves by — DDC, LCC, a local scheme.
+--
+-- Shelf browse cannot compute a sort key without it: "HQ1075" and "305.3" order
+-- against different rules, and a single normalisation applied to both produces a shelf
+-- order that is wrong in a way nobody notices until they walk to the shelf.
+--
+-- Nullable, and null means "not stated" rather than a default. Guessing DDC for a library
+-- that uses LCC would produce exactly the confidently-wrong ordering above; a library that
+-- has not said is one shelf browse is not offered for, which is honest and reversible.
+--
+-- Collecting these values is other people's homework and is tracked as such, which is why
+-- the column lands before the feature that reads it.
+alter table library add classification_scheme varchar(32);

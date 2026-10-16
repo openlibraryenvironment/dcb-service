@@ -307,6 +307,9 @@ dcb:
         jwks-uri: https://discovery.example.org/.well-known/jwks.json
 ```
 
+DCB refuses a call whose bearer was not issued to the entry's Keycloak client. That is the
+`service-id` unless the entry sets `client-id`, so set it where the two differ.
+
 On Fargate, where there is no file to mount, use the JSON form:
 
 ```
@@ -339,6 +342,24 @@ in environment variables. See `docs/ncip-peer-authentication.md`.
 `AWAITING_RETURN_TO_SUPPLIER: 1h` has been added to `dcb.polling.durations`, supporting
 requests cancelled by the patron while the item is out. No action needed; noted because
 it is a new state you will see in tracking logs and dashboards.
+### Placement preflight timeout
+
+Every placement now runs its preflight checks under one time limit. A placement still checking
+when it runs out is refused with `PREFLIGHT_CHECKS_TIMED_OUT`, and nothing is saved. Earlier releases
+had no limit: a slow member system held the caller open for as long as it took.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT` | `PT55S` | An ISO-8601 duration. 55 seconds when not set. Set but blank, unreadable or not positive, DCB does not start |
+
+**Before you upgrade,** check that the timeout of every caller that places requests, and of your
+ingress, is above this limit. A caller that gives up first shows its own error, and DCB may still
+finish and place the request. The default sits under the 60-second idle or read timeout many load
+balancers and ingress controllers use; one set lower than the limit must be raised above it. If you have not measured how long placements take today, set the
+variable well above it for the first deploy (for example `PT5M`), so nothing is refused that was
+placed before, then lower it once the `dcb.preflight.duration` metric shows what the slowest
+placements take. Each placement also logs one line, `Preflight checks <outcome> in <n> ms`, with
+the borrowing system and each check's time.
 
 ---
 

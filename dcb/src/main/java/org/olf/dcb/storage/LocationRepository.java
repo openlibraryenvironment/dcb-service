@@ -8,6 +8,7 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.DataAgency;
 import org.reactivestreams.Publisher;
 
+import io.micronaut.core.annotation.Introspected;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
@@ -96,6 +97,32 @@ public interface LocationRepository {
 	
 	@Query(value = "SELECT * from location where agency_fk = :agencyId and is_pickup = true order by name", nativeQuery = true)
 	Publisher<Location> getPickupLocations(UUID agencyId);
+
+	/**
+	 * The pickup locations a patron of {@code agencyId} may choose: that agency's own, or,
+	 * when pickup-anywhere applies, every agency's locations enabled for it. The same rule
+	 * as the staff route GET /agencies/{id}/pickupLocations, in one query rather than one
+	 * per agency.
+	 */
+	@Query(value = """
+		SELECT l.id AS id, l.code AS code, l.name AS name,
+		       a.code AS agency_code, a.name AS agency_name
+		FROM location l
+		JOIN agency a ON l.agency_fk = a.id
+		WHERE l.is_pickup = true
+		  AND ((:pickupAnywhere = true AND l.is_enabled_for_pickup_anywhere = true)
+		    OR (:pickupAnywhere = false AND l.agency_fk = :agencyId))
+		ORDER BY a.name, l.name, l.id
+		LIMIT :limit OFFSET :offset
+		""", nativeQuery = true)
+	Publisher<PickupLocationEntry> findPickupLocationsForPatronAgency(UUID agencyId,
+		boolean pickupAnywhere, int limit, long offset);
+
+	/** Exactly the columns findPickupLocationsForPatronAgency selects. */
+	@Introspected
+	record PickupLocationEntry(UUID id, String code, String name, String agencyCode,
+		String agencyName) {
+	}
 	
 	@Query(value = "SELECT * from location where host_system_id in (:hostLmsIds) order by name", nativeQuery = true)
 	Publisher<Location> findByHostLmsIds(@NonNull Collection<UUID> hostLmsIds);
