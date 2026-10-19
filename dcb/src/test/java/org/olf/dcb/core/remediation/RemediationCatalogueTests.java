@@ -26,7 +26,8 @@ class RemediationCatalogueTests {
 	}
 
 	private static Entry entry(String summary, String... nextSteps) {
-		return new Entry(Remediation.Audience.CONSORTIUM, List.of("hostLms"), summary, List.of(nextSteps), "docs");
+		return new Entry(Remediation.Audience.CONSORTIUM, List.of("hostLms"), summary, List.of(nextSteps),
+			List.of("Retry once {hostLms} is fixed"), "docs");
 	}
 
 	@Test
@@ -39,6 +40,8 @@ class RemediationCatalogueTests {
 			assertThat(code + " summary", remediation.summary(), not(containsString("{")));
 			assertThat(code + " next steps", remediation.nextSteps(), everyItem(not(containsString("{"))));
 			assertThat(code + " has next steps", remediation.nextSteps().isEmpty(), is(false));
+			assertThat(code + " retry steps", remediation.retrySteps(), everyItem(not(containsString("{"))));
+			assertThat(code + " has retry steps", remediation.retrySteps().isEmpty(), is(false));
 		}
 	}
 
@@ -52,6 +55,17 @@ class RemediationCatalogueTests {
 			+ "for patron group \"DCB patrons\" on this item"));
 		assertThat(remediation.nextSteps().get(0), is("In COLLEGE's FOLIO circulation rules, allow Hold requests "
 			+ "in the request policy that applies to patron group \"DCB patrons\" and this item."));
+		assertThat(remediation.retrySteps().get(0), is("Retry only once COLLEGE's staff confirm the request policy "
+			+ "now allows Hold for patron group \"DCB patrons\". Until then a retry is refused in the same way."));
+	}
+
+	@Test
+	void anEntryWithNoRetryStepStopsStartup() {
+		final var failure = assertThrows(IllegalStateException.class, () -> new RemediationCatalogue(
+			Map.of(FOLIO_REQUEST_POLICY_REFUSED.name(), new Entry(Remediation.Audience.CONSORTIUM, List.of("hostLms"),
+				"{hostLms} refused", List.of("Fix it"), List.of(), "docs"))));
+
+		assertThat(failure.getMessage(), containsString("needs at least one retry step"));
 	}
 
 	@Test

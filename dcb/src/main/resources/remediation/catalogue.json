@@ -7,6 +7,11 @@
       "In {hostLms}'s FOLIO circulation rules, allow {requestType} requests in the request policy that applies to patron group \"{patronGroup}\" and this item.",
       "Allow both Page and Hold for every patron group DCB uses: FOLIO pages an available copy, and asks for a Hold once a copy is already paged or on loan."
     ],
+    "retrySteps": [
+      "Retry only once {hostLms}'s staff confirm the request policy now allows {requestType} for patron group \"{patronGroup}\". Until then a retry is refused in the same way.",
+      "To retry this request as it is, consortium staff roll it back from ERROR (POST /patrons/requests/<request id>/rollback, or the rollback action in DCB Admin). DCB places it at {hostLms} again, for the same copy, within a few minutes. The refused attempt placed no hold at {hostLms}, so nothing is duplicated.",
+      "To place a new request instead, or to let DCB choose another copy, staff at the borrowing library clean this request up first, then place the new one. Until this request is finished, DCB will not choose the same copy for the same borrowing library again."
+    ],
     "docs": "docs/folio_notes.md, \"Request policies for DCB's patron groups\""
   }
 }

@@ -38,7 +38,7 @@ public class RemediationCatalogue {
 
 	@Serdeable
 	public record Entry(Remediation.Audience audience, List<String> placeholders, String summary,
-		List<String> nextSteps, String docs) { }
+		List<String> nextSteps, List<String> retrySteps, String docs) { }
 
 	private final Map<RemediationCode, Entry> entries;
 
@@ -57,7 +57,11 @@ public class RemediationCatalogue {
 		final var entry = entries.get(code);
 
 		return new Remediation(code, entry.audience(), fill(entry.summary(), values),
-			entry.nextSteps().stream().map(step -> fill(step, values)).toList(), entry.docs());
+			fillAll(entry.nextSteps(), values), fillAll(entry.retrySteps(), values), entry.docs());
+	}
+
+	private static List<String> fillAll(List<String> templates, @Nullable Map<String, String> values) {
+		return templates.stream().map(step -> fill(step, values)).toList();
 	}
 
 	private static String fill(String template, @Nullable Map<String, String> values) {
@@ -117,16 +121,18 @@ public class RemediationCatalogue {
 		if (entry.summary() == null || entry.summary().isBlank()) {
 			problems.add(key + " has no summary");
 		}
-		if (entry.nextSteps() == null || entry.nextSteps().isEmpty()
-			|| entry.nextSteps().stream().anyMatch(step -> step == null || step.isBlank())) {
+		if (!hasSteps(entry.nextSteps())) {
 			problems.add(key + " needs at least one next step, none of them blank");
+		}
+		if (!hasSteps(entry.retrySteps())) {
+			problems.add(key + " needs at least one retry step, none of them blank");
 		}
 
 		final Set<String> declared = entry.placeholders() != null ? Set.copyOf(entry.placeholders()) : Set.of();
 		final var used = new HashSet<String>();
 
-		Stream.concat(Stream.ofNullable(entry.summary()),
-				entry.nextSteps() != null ? entry.nextSteps().stream() : Stream.empty())
+		Stream.of(Stream.ofNullable(entry.summary()), stepsOf(entry.nextSteps()), stepsOf(entry.retrySteps()))
+			.flatMap(texts -> texts)
 			.filter(text -> text != null)
 			.forEach(text -> PLACEHOLDER.matcher(text).results().forEach(match -> used.add(match.group(1))));
 
@@ -136,5 +142,13 @@ public class RemediationCatalogue {
 			.forEach(name -> problems.add(key + " uses {" + name + "}, which it does not declare"));
 
 		return problems;
+	}
+
+	private static boolean hasSteps(@Nullable List<String> steps) {
+		return steps != null && !steps.isEmpty() && steps.stream().noneMatch(step -> step == null || step.isBlank());
+	}
+
+	private static Stream<String> stepsOf(@Nullable List<String> steps) {
+		return steps != null ? steps.stream() : Stream.empty();
 	}
 }

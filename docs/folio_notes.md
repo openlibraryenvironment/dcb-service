@@ -25,5 +25,6 @@ not Hold, FOLIO refuses the second request with `REQUEST_NOT_ALLOWED_FOR_PATRON_
 
 DCB records it with the remediation `FOLIO_REQUEST_POLICY_REFUSED`: the request's error message
 names the Host LMS, the request type and the patron group, and its audit entry lists the next
-steps (`docs/operational/remediation-catalogue.md`). The fix is to allow Hold (as well as Page)
+steps and how to retry the request safely once the policy is fixed
+(`docs/operational/remediation-catalogue.md`). The fix is to allow Hold (as well as Page)
 in the request policy that applies to each patron group DCB uses.

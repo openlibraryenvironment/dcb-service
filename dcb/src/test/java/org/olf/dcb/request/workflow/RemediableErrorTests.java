@@ -83,6 +83,7 @@ class RemediableErrorTests {
 		assertThat(remediation, hasEntry("audience", "SUPPLYING_LIBRARY"));
 		assertThat(remediation, hasEntry("summary", summary));
 		assertThat(remediation, hasKey("nextSteps"));
+		assertThat(remediation, hasKey("retrySteps"));
 	}
 
 	@Test

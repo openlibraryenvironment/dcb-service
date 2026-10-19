@@ -17,7 +17,8 @@ A request that ends in ERROR for a reason in the catalogue:
 | `code` | the entry's code, for example `FOLIO_REQUEST_POLICY_REFUSED`, the same for every request it applies to |
 | `audience` | whose staff can act on it: `SUPPLYING_LIBRARY`, `BORROWING_LIBRARY`, `PICKUP_LIBRARY`, `CONSORTIUM` or `OPERATOR` |
 | `summary` | what went wrong, in a sentence |
-| `nextSteps` | what to do, in order |
+| `nextSteps` | what to do about the cause, in order |
+| `retrySteps` | how to retry the request safely once the cause is fixed, or place a new one |
 | `docs` | where the longer explanation is |
 
 Any other error keeps its message as before, with no `remediation` block. The detail and
@@ -38,15 +39,18 @@ An entry is a code that some part of DCB raises, and the words for it:
    - `audience`: one of the values above;
    - `placeholders`: the names the text may use, as `{name}`;
    - `summary`: one sentence, what went wrong;
-   - `nextSteps`: at least one, each a sentence saying what to do;
+   - `nextSteps`: at least one, each a sentence saying what to do about the cause;
+   - `retrySteps`: at least one, saying how to retry the failed request safely once the cause is
+     fixed: who can do it, what it does again, and anything that must happen first (for example,
+     cleaning the request up before placing a new one, so its copy is free);
    - `docs`: where to read more.
 3. Raise it: a problem that implements `RemediableProblem` returns the code and a value for each
    placeholder. Values are shown to staff and kept in the audit, so they never carry a patron's
    name, barcode or other personal data: use codes, types and group names.
 
 The application does not start if an entry and `RemediationCode` disagree: a code with no entry,
-an entry with no code, an entry with no audience, summary or next step, or text that uses a
-placeholder the entry does not declare. `RemediationCatalogueTests` checks the shipped catalogue
+an entry with no code, an entry with no audience, summary, next step or retry step, or text that
+uses a placeholder the entry does not declare. `RemediationCatalogueTests` checks the shipped catalogue
 the same way, and renders every entry.
 
 A placeholder with no value reads "unknown".

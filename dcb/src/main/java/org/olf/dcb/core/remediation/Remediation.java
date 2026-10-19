@@ -6,7 +6,7 @@ import java.util.Map;
 
 /** A catalogue entry with its placeholders filled in for one failure. */
 public record Remediation(RemediationCode code, Audience audience, String summary,
-	List<String> nextSteps, String docs) {
+	List<String> nextSteps, List<String> retrySteps, String docs) {
 
 	/** Whose staff can act on it. */
 	public enum Audience {
@@ -23,6 +23,7 @@ public record Remediation(RemediationCode code, Audience audience, String summar
 		data.put("audience", audience.name());
 		data.put("summary", summary);
 		data.put("nextSteps", nextSteps);
+		data.put("retrySteps", retrySteps);
 		data.put("docs", docs);
 		return data;
 	}
