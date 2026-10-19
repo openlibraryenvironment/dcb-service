@@ -439,14 +439,34 @@ public class MockPolarisFixture {
 	 Each is matched on its continuation cursor so a test can queue distinct pages for one endpoint.
 	*/
 
+	// As a Polaris 7.7 server answers: a full-harvest page that carries any startdatemodified
+	// comes back empty, and the same page without one carries the rows
 	public void mockGetPagedBibs(Integer lastId, Object responseBody) {
 		mockServer.mock(pagedBibsRequest()
 			.withQueryStringParameter("lastid", String.valueOf(lastId))
-			// PAPI documents startdatemodified as REQUIRED on Synch_BibsPagedGet, and a real
-			// Polaris answers PAPIErrorCode -1 "An unhandled exception occurred" without it.
-			// Matching on it is what makes this mock a contract rather than a rubber stamp
-			.withQueryStringParameter("startdatemodified", ".+"), responseBody);
+			.withQueryStringParameter("startdatemodified", ".+"), (Object) EMPTY_PAGED_BIBS);
+		mockServer.mock(pagedBibsRequest()
+			.withQueryStringParameter("lastid", String.valueOf(lastId)), responseBody);
 	}
+
+	// The intermittent failure: no rows array, PAPIErrorCode -1, then the same request succeeds
+	public void mockGetPagedBibsFailingOnce(Integer lastId, Object responseBody) {
+		mockServer.mock(pagedBibsRequest()
+			.withQueryStringParameter("lastid", String.valueOf(lastId)),
+			(Object) FAILED_PAGED_BIBS, Times.once());
+		mockGetPagedBibs(lastId, responseBody);
+	}
+
+	public void verifyGetPagedBibsCalledTimes(Integer lastId, VerificationTimes times) {
+		mockServer.verify(pagedBibsRequest()
+			.withQueryStringParameter("lastid", String.valueOf(lastId)), times);
+	}
+
+	private static final String EMPTY_PAGED_BIBS = """
+		{ "PAPIErrorCode": 0, "ErrorMessage": null, "LastID": 0, "GetBibsPagedRows": [] }""";
+
+	private static final String FAILED_PAGED_BIBS = """
+		{ "PAPIErrorCode": -1, "ErrorMessage": "An unhandled exception occurred" }""";
 
 	public void mockGetUpdatedBibs(Integer lastId, Object responseBody) {
 		mockServer.mock(updatedBibsRequest()
