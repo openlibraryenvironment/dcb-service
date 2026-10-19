@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.remediation.RemediationCode.FOLIO_REQUEST_POLICY_REFUSED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
@@ -171,7 +172,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	}
 
 	@Test
-	void shouldExplainARequestPolicyRefusalAndHowToFixIt() {
+	void shouldNameARequestPolicyRefusalAndItsFacts() {
 		// Arrange: mod-dcb wraps mod-circulation's refusal as text, as a FOLIO 7 tenant answers
 		mockFolioFixture.mockCreateTransaction(response()
 			.withStatusCode(422)
@@ -203,17 +204,17 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.pickupAgency(pickupAgency)
 					.build())));
 
-		// Assert
+		// Assert: the adapter names the failure and its facts; the catalogue holds the words
 		assertThat(problem, allOf(
-			hasTitle(("%s's request policy does not allow a Hold request for patron group \"DCB patrons\" "
-				+ "on this item").formatted(SUPPLYING_HOST_LMS_CODE)),
+			hasTitle("Host LMS \"%s\" refused the request: FOLIO_REQUEST_POLICY_REFUSED"
+				.formatted(SUPPLYING_HOST_LMS_CODE)),
 			hasProperty("detail", containsString("REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION")),
 			hasResponseStatusCode(422)
 		));
 
-		assertThat(problem.getHowToFix(), is(("In %s's FOLIO circulation rules, allow Hold requests "
-			+ "(FOLIO asks for a Hold once a copy is paged or on loan) in the request policy for patron group "
-			+ "\"DCB patrons\" and this item").formatted(SUPPLYING_HOST_LMS_CODE)));
+		assertThat(problem.remediationCode(), is(FOLIO_REQUEST_POLICY_REFUSED));
+		assertThat(problem.remediationValues(), is(Map.of("hostLms", SUPPLYING_HOST_LMS_CODE,
+			"requestType", "Hold", "patronGroup", "DCB patrons")));
 	}
 
 	@Test

@@ -29,6 +29,7 @@ import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.AlarmsService;
+import org.olf.dcb.core.remediation.RemediationCatalogue;
 import org.olf.dcb.request.fulfilment.BorrowingAgencyService;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.PickupAgencyService;
@@ -152,7 +153,8 @@ class NcipSupplierReturnFinalisationComponentTests {
 			contextHelper,
 			mock(TrackingHelpers.class),
 			trackingPolicy,
-			mock(AlarmsService.class));
+			mock(AlarmsService.class),
+			mock(RemediationCatalogue.class));
 		final var projector = new DefaultLifecycleEvidenceProjector(
 			patronRequestRepository,
 			supplierRequestRepository,

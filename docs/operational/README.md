@@ -19,3 +19,5 @@ For libraries, consortium administrators and hosting providers running OpenRS DC
   for a title they already have coming, and how staff are exempted.
 - [The supplier preflight](supplier-preflight.md): skipping a library whose setup means it cannot
   supply, what staff see when it does, and a copy the patron already holds.
+- [The remediation catalogue](remediation-catalogue.md): what a request in ERROR says to do when
+  DCB can name why it failed, and how to add an entry.

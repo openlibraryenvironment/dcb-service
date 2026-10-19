@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.folio;
 
+import static org.olf.dcb.core.remediation.RemediationCode.FOLIO_REQUEST_POLICY_REFUSED;
 import static graphql.com.google.common.base.Strings.isNullOrEmpty;
 import static io.micronaut.core.type.Argument.VOID;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
@@ -390,27 +391,17 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 		final var requestType = Optional.of(REFUSED_REQUEST_TYPE.matcher(firstError))
 			.filter(Matcher::find)
-			.map(matcher -> matcher.group(1));
+			.map(matcher -> matcher.group(1))
+			.orElse("Page or Hold");
 
 		final var patronGroup = request.getBody()
 			.map(CreateTransactionRequest::getPatron)
 			.map(CreateTransactionRequest.Patron::getGroup)
 			.orElse("unknown");
 
-		final var refused = requestType.map("a %s request"::formatted).orElse("this request");
-		final var reason = "%s's request policy does not allow %s for patron group \"%s\" on this item"
-			.formatted(getHostLmsCode(), refused, patronGroup);
-
-		// FOLIO pages an available copy, and asks for a Hold once a copy is paged or on loan
-		final var allow = requestType
-			.map(type -> "Hold".equalsIgnoreCase(type)
-				? "Hold requests (FOLIO asks for a Hold once a copy is paged or on loan)"
-				: type + " requests")
-			.orElse("Page and Hold requests");
-		final var howToFix = "In %s's FOLIO circulation rules, allow %s in the request policy for patron group \"%s\" and this item"
-			.formatted(getHostLmsCode(), allow, patronGroup);
-
-		return new SupplierRefusedRequestProblem(reason, howToFix, firstError, responseException, request);
+		return new SupplierRefusedRequestProblem(getHostLmsCode(), FOLIO_REQUEST_POLICY_REFUSED,
+			Map.of("hostLms", getHostLmsCode(), "requestType", requestType, "patronGroup", patronGroup),
+			firstError, responseException, request);
 	}
 
 	@Override

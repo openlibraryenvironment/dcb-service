@@ -23,6 +23,7 @@ copy is already paged or on loan, for example when a second consortium patron re
 single copy. If the circulation rules' request policy for that patron group allows Page but
 not Hold, FOLIO refuses the second request with `REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION`.
 
-DCB records that refusal on the request as the supplier's request policy not allowing that
-request type for the patron group, with the fix in the audit entry's `howToFix`: allow Hold
-(as well as Page) in the request policy that applies to each patron group DCB uses.
+DCB records it with the remediation `FOLIO_REQUEST_POLICY_REFUSED`: the request's error message
+names the Host LMS, the request type and the patron group, and its audit entry lists the next
+steps (`docs/operational/remediation-catalogue.md`). The fix is to allow Hold (as well as Page)
+in the request policy that applies to each patron group DCB uses.

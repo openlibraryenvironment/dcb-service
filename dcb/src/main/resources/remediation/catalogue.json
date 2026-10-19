@@ -1,0 +1,12 @@
+{
+  "FOLIO_REQUEST_POLICY_REFUSED": {
+    "audience": "SUPPLYING_LIBRARY",
+    "placeholders": ["hostLms", "requestType", "patronGroup"],
+    "summary": "{hostLms}'s request policy does not allow a {requestType} request for patron group \"{patronGroup}\" on this item",
+    "nextSteps": [
+      "In {hostLms}'s FOLIO circulation rules, allow {requestType} requests in the request policy that applies to patron group \"{patronGroup}\" and this item.",
+      "Allow both Page and Hold for every patron group DCB uses: FOLIO pages an available copy, and asks for a Hold once a copy is already paged or on loan."
+    ],
+    "docs": "docs/folio_notes.md, \"Request policies for DCB's patron groups\""
+  }
+}

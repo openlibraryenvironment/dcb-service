@@ -17,6 +17,7 @@ import java.util.function.Function;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.*;
+import org.olf.dcb.core.remediation.RemediableProblem;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -300,9 +301,18 @@ public class SupplyingAgencyService {
 			.onErrorResume(error -> {
 				log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
 
-				return Mono.error(unableToPlaceRequestAtSupplyingAgencyProblem(error,
+				return Mono.error(placementFailure(error,
 					patronRequest, patronIdentityAtSupplier, supplierRequest));
 			});
+	}
+
+	// A failure that names its remediation stays itself, so the workflow can say what to do about it
+	static Throwable placementFailure(Throwable error, PatronRequest patronRequest,
+		PatronIdentity patronIdentityAtSupplier, SupplierRequest supplierRequest) {
+
+		return error instanceof RemediableProblem
+			? error
+			: unableToPlaceRequestAtSupplyingAgencyProblem(error, patronRequest, patronIdentityAtSupplier, supplierRequest);
 	}
 
 	private Mono<LocalRequest> placeHoldRequest(HostLmsClient client,
@@ -361,18 +371,15 @@ public class SupplyingAgencyService {
 					.build()));
 	}
 
-	static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
+	private static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
 		Throwable error, PatronRequest patronRequest, PatronIdentity patronIdentityAtSupplier,
 		SupplierRequest supplierRequest) {
 
-		final var title = error instanceof SupplierRefusedRequestProblem refusal
-			? refusal.getReason()
-			: "Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
-				" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode();
-
 		var builder = Problem.builder()
 			.withType(ERR0010)
-			.withTitle(title)
+			.withTitle(
+				"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
+					" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
 			.withDetail(error.getMessage())
 			.with("supplier-dcbPatronId", patronIdentityAtSupplier.getLocalId())
 			.with("supplier-dcbLocalItemId", supplierRequest.getLocalItemId())
@@ -387,10 +394,6 @@ public class SupplyingAgencyService {
 			if (isNotEmpty(underlyingProblem.getParameters())) {
 				underlyingProblem.getParameters().forEach(builder::with);
 			}
-		}
-
-		if (error instanceof SupplierRefusedRequestProblem refusal) {
-			builder.with("howToFix", refusal.getHowToFix());
 		}
 
 		return builder.build();
