@@ -31,13 +31,18 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.olf.dcb.request.fulfilment.SupplyingAgencyService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.resolution.SupplierRequestService;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
+import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 
 import javax.annotation.Nullable;
@@ -52,6 +57,12 @@ import javax.annotation.Nullable;
 @Tag(name = "Supplier Request API")
 @Slf4j
 public class SupplierRequestController {
+
+	// Before shipment only: once the item has left the supplier, cancelling its hold strands the item
+	// (DCB-2193), and HandleSupplierRequestCancelled no longer applies, so nothing re-resolves
+	private static final Set<PatronRequest.Status> SKIPPABLE = EnumSet.of(
+		PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY, PatronRequest.Status.CONFIRMED,
+		PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY, PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY);
 
 	private final SupplierRequestService supplierRequestService;
 	private final SupplyingAgencyService supplyingAgencyService;
@@ -245,7 +256,8 @@ public class SupplierRequestController {
 		summary = "Skip current supplier (trigger re-resolution)",
 		description = """
             Cancels the hold at the current supplier and forces a tracking update so the system \
-            detects the cancellation and moves to the next supplier in the resolution chain.
+            detects the cancellation and moves to the next supplier in the resolution chain. \
+            Only for the active supplier request, before the item has shipped; otherwise 409 SR_NOT_SKIPPABLE.
             """
 	)
 	@Post(uri="/{supplierRequestId}/skip", produces = APPLICATION_JSON)
@@ -255,16 +267,19 @@ public class SupplierRequestController {
 	) {
 		return Mono.from(supplierRequestRepository.findById(supplierRequestId))
 			.flatMap(sr -> ctxHelper.fetchWorkflowContext(sr.getPatronRequest().getId())
-				.flatMap(supplyingAgencyService::cancelHold)
-				// Now we force the tracking service to register the cancellation immediately
-				// Thus triggering re-resolution
-				// NOTE: this treats the RE_RESOLUTION functional setting as referring to automatic re-resolution only
-				.flatMap(ctx -> trackingService.forceUpdate(sr.getPatronRequest().getId()))
-				.thenReturn(ok(Map.of(
-					"supplierRequestId", sr.getId(),
-					"patronRequestId", sr.getPatronRequest().getId(),
-					"message", "The supplier hold cancelled and re-resolution triggered. Re-resolution will now try and find a new supplier."
-				)))
+				.flatMap(ctx -> refusalToSkip(sr, ctx)
+					.map(refusal -> Mono.just(error(HttpStatus.CONFLICT, request, "SR_NOT_SKIPPABLE", refusal, null)))
+					.orElseGet(() -> supplyingAgencyService.cancelHold(ctx)
+						// Now we force the tracking service to register the cancellation immediately
+						// Thus triggering re-resolution
+						// NOTE: this treats the RE_RESOLUTION functional setting as referring to automatic re-resolution only
+						.flatMap(cancelled -> trackingService.forceUpdate(sr.getPatronRequest().getId()))
+						.thenReturn(ok(Map.of(
+							"supplierRequestId", sr.getId(),
+							"patronRequestId", sr.getPatronRequest().getId(),
+							"message", "The supplier hold cancelled and re-resolution triggered. Re-resolution will now try and find a new supplier."
+						))))
+				)
 			)
 			.switchIfEmpty(Mono.defer(() -> Mono.just(
 				error(HttpStatus.NOT_FOUND, request, "SR_NOT_FOUND",
@@ -280,6 +295,25 @@ public class SupplierRequestController {
 	}
 
 	// ==== helpers ====
+
+	private static Optional<String> refusalToSkip(SupplierRequest supplierRequest, RequestWorkflowContext ctx) {
+		final var status = getValueOrNull(ctx, RequestWorkflowContext::getPatronRequest, PatronRequest::getStatus);
+
+		if (status == null || !SKIPPABLE.contains(status)) {
+			return Optional.of("The patron request is " + status
+				+ ": a supplier can be skipped only before the item has shipped");
+		}
+
+		// The cancel acts on the active supplier request, whichever one was named
+		final var activeId = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest, SupplierRequest::getId);
+
+		if (!supplierRequest.getId().equals(activeId)) {
+			return Optional.of("Supplier request " + supplierRequest.getId()
+				+ " is not the patron request's active supplier request");
+		}
+
+		return Optional.empty();
+	}
 
 	@Value
 	private static class StatusCheck {
