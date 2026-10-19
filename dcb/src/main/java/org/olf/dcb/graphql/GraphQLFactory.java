@@ -68,6 +68,7 @@ public class GraphQLFactory {
 			CreateHostLmsDataFetcher createHostLmsDataFetcher,
 			UpdateHostLmsDataFetcher updateHostLmsDataFetcher,
 			LibraryUserDataFetchers libraryUserDataFetchers,
+			PatronRequestNoteDataFetchers patronRequestNoteDataFetchers,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -114,6 +115,7 @@ public class GraphQLFactory {
 						.dataFetcher("patronRequestStatistics", dataFetchers.getPatronRequestStatsDataFetcher())
 						.dataFetcher("libraryUsers", libraryUserDataFetchers.getLibraryUsersDataFetcher())
 						.dataFetcher("libraryUserProvisioningAvailable", libraryUserDataFetchers.getProvisioningAvailableDataFetcher())
+						.dataFetcher("requestTags", patronRequestNoteDataFetchers.requestTags())
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring
@@ -155,6 +157,13 @@ public class GraphQLFactory {
 						.dataFetcher("provisionLibraryUser", libraryUserDataFetchers.provisionLibraryUserDataFetcher())
 						.dataFetcher("setLibraryUserEnabled", libraryUserDataFetchers.setLibraryUserEnabledDataFetcher())
 						.dataFetcher("resendLibraryUserInvite", libraryUserDataFetchers.resendLibraryUserInviteDataFetcher())
+						.dataFetcher("addPatronRequestNote", patronRequestNoteDataFetchers.addPatronRequestNote())
+						.dataFetcher("retractPatronRequestNote", patronRequestNoteDataFetchers.retractPatronRequestNote())
+						.dataFetcher("tagPatronRequest", patronRequestNoteDataFetchers.tagPatronRequest())
+						.dataFetcher("untagPatronRequest", patronRequestNoteDataFetchers.untagPatronRequest())
+						.dataFetcher("createRequestTag", patronRequestNoteDataFetchers.createRequestTag())
+						.dataFetcher("updateRequestTag", patronRequestNoteDataFetchers.updateRequestTag())
+						.dataFetcher("deleteRequestTag", patronRequestNoteDataFetchers.deleteRequestTag())
 				)
 			.type("Agency",
 					typeWiring -> typeWiring
@@ -198,7 +207,10 @@ public class GraphQLFactory {
 					.dataFetcher("suppliers", dataFetchers.getSupplierRequestsForPR())
 					.dataFetcher("audit", dataFetchers.getAuditMessagesForPR())
 					.dataFetcher("clusterRecord", dataFetchers.getClusterRecordForPR())
-					.dataFetcher("requestingIdentity", dataFetchers.getPatronIdentityForPatronRequestRequest()))
+					.dataFetcher("requestingIdentity", dataFetchers.getPatronIdentityForPatronRequestRequest())
+					.dataFetcher("notes", patronRequestNoteDataFetchers.notesOfPatronRequest())
+					.dataFetcher("tags", patronRequestNoteDataFetchers.tagsOfPatronRequest())
+					.dataFetcher("involvedAgencyCodes", patronRequestNoteDataFetchers.involvedAgencyCodesOfPatronRequest()))
 			.type("Location",
 				typeWiring -> typeWiring
 					.dataFetcher("agency", dataFetchers.getAgencyForLocation())

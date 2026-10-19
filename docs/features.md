@@ -10,6 +10,8 @@
   non-consuming preflight, and atomic redemption.
 - 15-minute server-filtered self-directory synchronization with sensitive-change review.
 - Membership revocation that disables participation while preserving history.
+- Notes and tags on patron requests, attributed to a library or the consortium rather than a
+  person, readable by every library involved in the request.
 
 The registration REST contract is generated from
 `/api/v1/dcb-profile-ncip2`; see the deployed OpenAPI document.
