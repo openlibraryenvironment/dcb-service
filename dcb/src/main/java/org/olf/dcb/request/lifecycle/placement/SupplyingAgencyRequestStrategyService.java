@@ -1,6 +1,10 @@
 package org.olf.dcb.request.lifecycle.placement;
 
 import io.micronaut.context.annotation.Prototype;
+import org.olf.dcb.core.interaction.SupplierPreflight;
+import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
+import org.olf.dcb.core.remediation.Remediation;
+import org.olf.dcb.core.remediation.RemediationCatalogue;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplierPlacementGate;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
@@ -15,17 +19,20 @@ public class SupplyingAgencyRequestStrategyService {
 	private final SupplyingAgencyRequestProjector projector;
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final SupplierPlacementGate supplierPlacementGate;
+	private final RemediationCatalogue remediationCatalogue;
 
 	public SupplyingAgencyRequestStrategyService(
 		SupplyingAgencyRequestStrategyResolver strategyResolver,
 		SupplyingAgencyRequestProjector projector,
 		SupplierRequestRepository supplierRequestRepository,
-		SupplierPlacementGate supplierPlacementGate) {
+		SupplierPlacementGate supplierPlacementGate,
+		RemediationCatalogue remediationCatalogue) {
 
 		this.strategyResolver = strategyResolver;
 		this.projector = projector;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplierPlacementGate = supplierPlacementGate;
+		this.remediationCatalogue = remediationCatalogue;
 	}
 
 	// The gate runs ahead of every strategy, and a refusal never reaches the projector, which records a placement
@@ -33,7 +40,14 @@ public class SupplyingAgencyRequestStrategyService {
 		return supplierPlacementGate.check(context)
 			.flatMap(preflight -> preflight.cannotSupply()
 				? supplierPlacementGate.refuse(context, preflight)
-				: supplierPlacementGate.warnIfUnreachable(context, preflight).flatMap(this::placeWithStrategy));
+				: supplierPlacementGate.warnIfUnreachable(context, preflight).flatMap(this::placeWithStrategy))
+			// A refusal that happened, not a preflight guess, so DCB_REQUESTS_SUPPLIER_PREFLIGHT_ENABLED does not apply
+			.onErrorResume(SupplierRefusedRequestProblem.class, refusal -> supplierPlacementGate.refuse(context,
+				cannotSupply(remediationCatalogue.render(refusal.remediationCode(), refusal.remediationValues()))));
+	}
+
+	private static SupplierPreflight cannotSupply(Remediation remediation) {
+		return SupplierPreflight.cannotSupply(remediation.summary(), String.join(" ", remediation.nextSteps()));
 	}
 
 	private Mono<RequestWorkflowContext> placeWithStrategy(RequestWorkflowContext context) {

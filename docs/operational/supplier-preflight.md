@@ -97,11 +97,30 @@ dcb:
 
 or `DCB_REQUESTS_PREFLIGHT_CHECKS_CHOSEN_COPY_SUPPLIER_ENABLED=false`.
 
+## A supplier that refuses the request
+
+Some refusals show only when DCB places the hold. When a supplier's system refuses the request
+for a reason its own staff can fix, DCB treats that supplier as unable to supply, exactly as
+above: the supplier request is cancelled, the audit records "Supplier cannot supply: request not
+placed" with the reason and `howToFix`, the alarm is raised, and the request moves to
+NOT_SUPPLIED_CURRENT_SUPPLIER. The reason and `howToFix` are the remediation catalogue's summary
+and next steps for that refusal (`remediation-catalogue.md`). A copy someone chose ends in ERROR
+with them instead.
+
+The refusals DCB recognises:
+
+- **FOLIO:** the request policy for the virtual patron's group does not allow the request type
+  FOLIO needs (`REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION`). See `docs/folio_notes.md`.
+
+The switch below does not apply: the supplier has already refused, so placing there again would
+only be refused again. Any other placement failure still ends in ERROR.
+
 ## Turning it on
 
-It is **off by default**. While it is off, no supplier is ruled out: no copy is skipped when DCB
-chooses one, every hold is placed, and a chosen copy is never refused, as before this check
-existed. DCB says which at startup: "Supplier preflight is off" or "Supplier preflight is on".
+It is **off by default**. While it is off, no supplier is ruled out before placement: no copy is
+skipped when DCB chooses one, every hold is placed, and a chosen copy is never refused, as before
+this check existed. A supplier that refuses the request when the hold is placed is still treated
+as unable to supply (above). DCB says which at startup: "Supplier preflight is off" or "Supplier preflight is on".
 
 Turn it on once the pings have been read (see "After upgrading"):
 

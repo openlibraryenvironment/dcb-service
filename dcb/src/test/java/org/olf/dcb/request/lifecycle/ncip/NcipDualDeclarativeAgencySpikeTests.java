@@ -21,6 +21,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.remediation.RemediationCatalogue;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -187,7 +188,8 @@ class NcipDualDeclarativeAgencySpikeTests {
 			resolver,
 			new SupplyingAgencyRequestProjector(),
 			supplierRequestRepository,
-			admitAll);
+			admitAll,
+			mock(RemediationCatalogue.class));
 	}
 
 	private static BorrowingAgencyRequestStrategyService borrowingPlacementService(
