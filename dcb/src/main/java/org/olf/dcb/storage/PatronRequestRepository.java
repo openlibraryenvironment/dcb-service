@@ -516,6 +516,7 @@ public interface PatronRequestRepository {
 			AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
 			AND cr.is_deleted IS NULL
 			GROUP BY cr.id, cr.title
+			ORDER BY request_count DESC, cr.id
 		""",
 		countQuery = """
 			SELECT count(*) FROM (
