@@ -30,6 +30,7 @@ type Query {
 		# a library's staff list is tens of rows, and a roster across 500 libraries is a
 		# different query with different scale properties that nothing has asked for.
 		libraryUsers(libraryId: ID!): [LibraryUser!]!
+		requestTags: [RequestTag]
 		# Whether this deployment has an identity provider configured at all, so the UI can
 		# hide a tab that could only fail rather than render a form nobody can submit.
 		libraryUserProvisioningAvailable: Boolean!
@@ -80,6 +81,14 @@ type Mutation {
 		provisionLibraryUser(input: ProvisionLibraryUserInput): LibraryUser!
 		setLibraryUserEnabled(input: SetLibraryUserEnabledInput): LibraryUser!
 		resendLibraryUserInvite(input: ResendLibraryUserInviteInput): LibraryUser!
+		# agencyCode is needed only when the caller holds several agencies involved in the request
+		addPatronRequestNote(patronRequestId: ID!, body: String!, agencyCode: String): PatronRequestNote!
+		retractPatronRequestNote(id: ID!): PatronRequestNote!
+		tagPatronRequest(patronRequestId: ID!, tagCode: String!, agencyCode: String): [PatronRequestTag]!
+		untagPatronRequest(patronRequestId: ID!, tagCode: String!, agencyCode: String): [PatronRequestTag]!
+		createRequestTag(input: RequestTagInput!): RequestTag!
+		updateRequestTag(input: RequestTagInput!): RequestTag!
+		deleteRequestTag(code: String!): DeleteEntityPayload!
 
 }
 
@@ -669,6 +678,50 @@ type PatronRequest {
 	isTooLong: Boolean
 	protocol: String
 	renewalStatus: RenewalStatus
+	# Newest first, at most 50 per page
+	notes(pageno: Int, pagesize: Int): PatronRequestNotePage
+	tags: [PatronRequestTag]
+	involvedAgencyCodes: [String]
+}
+
+type PatronRequestNote {
+	id: ID
+	patronRequestId: ID
+	# LIBRARY or CONSORTIUM; agencyCode and libraryName are null for the consortium
+	authorKind: String
+	agencyCode: String
+	libraryName: String
+	body: String
+	dateCreated: String
+	retracted: Boolean
+	retractedBy: String
+}
+
+type PatronRequestNotePage {
+	content: [PatronRequestNote]
+	totalSize: Int
+	pageable: Pageable
+}
+
+type PatronRequestTag {
+	code: String
+	label: String
+	agencyCodes: [String]
+	consortium: Boolean
+}
+
+type RequestTag {
+	code: String
+	label: String
+	description: String
+	active: Boolean
+}
+
+input RequestTagInput {
+	code: String!
+	label: String!
+	description: String
+	active: Boolean
 }
 
 type PatronRequestAudit {

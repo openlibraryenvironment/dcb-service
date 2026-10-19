@@ -50,6 +50,9 @@ public interface AgencyRepository {
 	@NonNull
 	Publisher<DataAgency> findOneByCode(String code);
 
+	@NonNull
+	Publisher<DataAgency> findByCodeIn(@NonNull Collection<String> codes);
+
 	Publisher<DataAgency> queryAll();
 
 	/**

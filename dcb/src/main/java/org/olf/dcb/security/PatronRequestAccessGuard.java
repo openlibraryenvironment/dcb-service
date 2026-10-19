@@ -26,8 +26,9 @@ import services.k_int.data.querying.QueryPath;
 @Singleton
 public class PatronRequestAccessGuard {
 	/**
-	 * A patron request belongs to the library that borrowed it and the library that supplied it.
-	 * GraphQL scopes the patron request grids by this same list (AgencyAccessScope).
+	 * Acting on a request's workflow belongs to the library that borrowed it and the library now
+	 * supplying it. Narrower than reading it ({@link RequestInvolvement}) on purpose: an earlier
+	 * supplier or the pickup library can see a request without being able to force its cleanup.
 	 */
 	public static final List<QueryPath> PATRON_REQUEST_OWNERSHIP = List.of(
 		QUERY_PATHS.get("patronAgencyCode"),

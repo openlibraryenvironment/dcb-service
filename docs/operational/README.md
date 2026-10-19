@@ -13,6 +13,8 @@ For libraries, consortium administrators and hosting providers running OpenRS DC
 
 ## Requesting
 
+- [Notes and tags on patron requests](patron-request-notes.md): who can see a request, who can
+  write notes and tags on it, and what is stored and for how long.
 - [The duplicate-request check](duplicate-request-check.md): refusing a patron's second request
   for a title they already have coming, and how staff are exempted.
 - [The supplier preflight](supplier-preflight.md): skipping a library whose setup means it cannot

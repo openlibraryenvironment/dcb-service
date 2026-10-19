@@ -20,6 +20,9 @@ in focused docs or module notes.
 - `core.api` and `graphql`: external HTTP/GraphQL APIs.
 - `ingest`, `indexing`, `availability`: bibliographic and availability data
   pipelines.
+- `request.notes`: notes and tags staff add to a patron request. Depends on
+  `storage` and `security` only, never on workflow; GraphQL exposes it through
+  `PatronRequestNoteDataFetchers`.
 
 Add `MODULE.md` files under significant modules when local ownership rules,
 extension points, or constraints need more detail than this overview.
@@ -33,6 +36,9 @@ extension points, or constraints need more detail than this overview.
 - Host LMS clients own external system calls and system-specific status mapping.
 - Repositories own database access. Application services should not bypass them.
 - Admin and GraphQL layers expose state; they should not own workflow decisions.
+- `security.RequestInvolvement` owns which libraries may read a patron request
+  (borrower, current supplier, pickup); `PatronRequestAccessGuard` owns the narrower
+  rule for acting on its workflow.
 
 ## Dependency Rules
 

@@ -1,7 +1,6 @@
 package org.olf.dcb.graphql;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 
@@ -15,43 +14,12 @@ import services.k_int.data.querying.QueryPath;
 /**
  * The ownership paths, asserted as data.
  *
- * These are the whole of the access control for three fetchers, and they are declarative -
+ * These are the whole of the access control for the fetchers that use them, and they are declarative -
  * there is no branch to step through and no exception to observe. A path that silently
  * points at the wrong association does not throw; it returns somebody else's rows, or
  * nobody's, and both look like working code.
  */
 class AgencyAccessScopeTests {
-
-	@Test
-	@DisplayName("A patron request belongs to both ends of the transaction")
-	void patronRequestIsOwnedByBorrowerAndSupplier() {
-		assertThat(AgencyAccessScope.PATRON_REQUEST_OWNERSHIP, hasSize(2));
-
-		assertThat(AgencyAccessScope.PATRON_REQUEST_OWNERSHIP, containsInAnyOrder(
-			// The supplier is recorded on the supplier request, not on the request itself
-			new QueryPath(List.of("supplierRequests"), "localAgency", QueryPath.MatchMode.EQUALS),
-			// The patron's agency is resolved onto the requesting identity
-			new QueryPath(List.of("requestingIdentity", "resolvedAgency"), "code",
-				QueryPath.MatchMode.EQUALS)));
-	}
-
-	@Test
-	@DisplayName("An audit inherits its request's ownership exactly, one association out")
-	void auditOwnershipIsDerivedFromTheRequestItAudits() {
-		final var audit = AgencyAccessScope.PATRON_REQUEST_AUDIT_OWNERSHIP;
-		final var request = AgencyAccessScope.PATRON_REQUEST_OWNERSHIP;
-
-		// Derived, not restated. If a third owner is ever added to the request - pickup,
-		// say, which AgencyAccessScope names as a candidate - this must gain it for free.
-		assertThat("the audit must inherit every one of the request's owners",
-			audit, hasSize(request.size()));
-
-		for (int i = 0; i < request.size(); i++) {
-			final var expected = request.get(i).under("patronRequest");
-
-			assertThat(audit.get(i), is(expected));
-		}
-	}
 
 	@Test
 	@DisplayName("A supplier request is owned by its own supplier, not by every supplier of the request")

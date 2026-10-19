@@ -107,6 +107,29 @@ public interface PatronRequestRepository {
 		""", nativeQuery = true)
 	Publisher<PatronRequest> findOwnedRequest(UUID patronRequestId, String patronSystem, String patronId);
 
+	/**
+	 * RequestInvolvement for one request, as SQL. The pickup code is only cast when it is shaped
+	 * like a UUID, because a failed cast would fail the whole query; the cast lets the location's
+	 * primary key serve the join.
+	 */
+	@Query(value = """
+		SELECT a.code FROM patron_request pr
+		  JOIN patron_identity pi ON pi.id = pr.requesting_identity_id
+		  JOIN agency a ON a.id = pi.resolved_agency_id
+		  WHERE pr.id = :patronRequestId
+		UNION
+		SELECT sr.local_agency FROM supplier_request sr
+		  WHERE sr.patron_request_id = :patronRequestId AND sr.local_agency IS NOT NULL
+		UNION
+		SELECT a.code FROM patron_request pr
+		  JOIN location l ON l.id = CASE
+		    WHEN pr.pickup_location_code ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+		    THEN CAST(pr.pickup_location_code AS uuid) END
+		  JOIN agency a ON a.id = l.agency_fk
+		  WHERE pr.id = :patronRequestId
+		""", nativeQuery = true)
+	Publisher<String> findInvolvedAgencyCodes(UUID patronRequestId);
+
 
 	@Introspected
 	public record ScheduledTrackingRecord(UUID id, @Nullable String status_code, @Nullable Instant next_scheduled_poll) {	};

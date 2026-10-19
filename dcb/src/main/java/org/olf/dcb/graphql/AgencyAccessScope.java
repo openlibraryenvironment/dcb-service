@@ -7,7 +7,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import org.olf.dcb.security.PatronRequestAccessGuard;
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.core.model.PatronRequestAudit;
+import org.olf.dcb.security.RequestInvolvement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,18 +47,16 @@ public final class AgencyAccessScope {
 	}
 
 	/**
-	 * How a patron request is attributed to a library: the one that borrowed it, and
-	 * the one that supplied it.
-	 * <p>
-	 * Both sides, because the two are different screens over the same query - the
-	 * borrowing grid filters on the patron's agency and the supplying grid on the
-	 * supplier's, and a scope covering only one would empty the other.
-	 * <p>
-	 * Pickup is not included. Under pickup-anywhere a third library handles the item
-	 * and has a fair claim to see the request, so this is a candidate for extension.
+	 * How a resource is attributed to libraries, for ownership that is more than a list of
+	 * paths: the rows any of these agencies may see.
 	 */
-	public static final List<QueryPath> PATRON_REQUEST_OWNERSHIP =
-		PatronRequestAccessGuard.PATRON_REQUEST_OWNERSHIP;
+	@FunctionalInterface
+	public interface Ownership<T> {
+		QuerySpecification<T> visibleTo(Collection<String> agencyCodes);
+	}
+
+	/** Every library party to the request - see {@link RequestInvolvement}. */
+	public static final Ownership<PatronRequest> PATRON_REQUEST_OWNERSHIP = RequestInvolvement::involving;
 
 	/**
 	 * A patron identity belongs to the library the patron was resolved to.
@@ -88,18 +88,11 @@ public final class AgencyAccessScope {
 		QUERY_PATHS.get("patronAgencyCode").under("patronRequest"));
 
 	/**
-	 * An audit entry inherits the ownership of the request it audits, exactly - derived
-	 * from {@link #PATRON_REQUEST_OWNERSHIP} rather than restated, so a third owner
-	 * added there cannot be forgotten here.
-	 * <p>
-	 * {@link #restrict} and not {@link #restrictAllowingUnattributed}: unlike a virtual
-	 * patron identity, an audit row with no reachable agency is a record about
-	 * somebody's request whose owner was not resolved, not a record about nobody.
+	 * An audit entry is visible to exactly the libraries that can see the request it audits:
+	 * the same rule through the association, not a restatement of it.
 	 */
-	public static final List<QueryPath> PATRON_REQUEST_AUDIT_OWNERSHIP =
-		PATRON_REQUEST_OWNERSHIP.stream()
-			.map(path -> path.under("patronRequest"))
-			.toList();
+	public static final Ownership<PatronRequestAudit> PATRON_REQUEST_AUDIT_OWNERSHIP =
+		agencyCodes -> RequestInvolvement.involvingRequestVia("patronRequest", agencyCodes);
 
 	// Locations are deliberately not scoped. They are directory data and are shared them across
 	// libraries on purpose, including in discovery apps and DCB Admin for Libraries staff requesting.
@@ -122,7 +115,14 @@ public final class AgencyAccessScope {
 	public static <T> QuerySpecification<T> restrict(DataFetchingEnvironment env,
 		QuerySpecification<T> specification, List<QueryPath> ownership) {
 
-		return scope(env, specification, ownership, false);
+		return scope(env, specification, anyOf(ownership, false));
+	}
+
+	/** As {@link #restrict(DataFetchingEnvironment, QuerySpecification, List)}, for ownership that is not a path list. */
+	public static <T> QuerySpecification<T> restrict(DataFetchingEnvironment env,
+		QuerySpecification<T> specification, Ownership<T> ownership) {
+
+		return scope(env, specification, ownership);
 	}
 
 	/**
@@ -137,12 +137,24 @@ public final class AgencyAccessScope {
 		DataFetchingEnvironment env, QuerySpecification<T> specification,
 		List<QueryPath> ownership) {
 
-		return scope(env, specification, ownership, true);
+		return scope(env, specification, anyOf(ownership, true));
+	}
+
+	private static <T> Ownership<T> anyOf(List<QueryPath> ownership, boolean allowUnattributed) {
+		if (ownership.isEmpty()) {
+			throw new IllegalArgumentException("A resource with no ownership paths cannot be scoped");
+		}
+
+		return visible -> ownership.stream()
+			.<QuerySpecification<T>>map(path -> allowUnattributed
+				? path.isAnyOfOrAbsent(visible)
+				: path.isAnyOf(visible))
+			.reduce(QuerySpecification::or)
+			.orElseThrow();
 	}
 
 	private static <T> QuerySpecification<T> scope(DataFetchingEnvironment env,
-		QuerySpecification<T> specification, List<QueryPath> ownership,
-		boolean allowUnattributed) {
+		QuerySpecification<T> specification, Ownership<T> ownership) {
 
 		if (isUnrestricted(env)) {
 			return specification;
@@ -158,13 +170,7 @@ public final class AgencyAccessScope {
 				+ "claim; returning nothing");
 		}
 
-		final var permitted = ownership.stream()
-			.<QuerySpecification<T>>map(path -> allowUnattributed
-				? path.isAnyOfOrAbsent(visible)
-				: path.isAnyOf(visible))
-			.reduce(QuerySpecification::or)
-			.orElseThrow(() -> new IllegalArgumentException(
-				"A resource with no ownership paths cannot be scoped"));
+		final var permitted = ownership.visibleTo(visible);
 
 		return specification == null ? permitted : specification.and(permitted);
 	}

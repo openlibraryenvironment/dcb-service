@@ -15,11 +15,13 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.olf.dcb.core.model.InactiveSupplierRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.DcbTest;
 import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.InactiveSupplierRequestsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
@@ -45,6 +47,8 @@ class PatronRequestAccessGuardTests {
 	private PatronRequestsFixture patronRequestsFixture;
 	@Inject
 	private SupplierRequestsFixture supplierRequestsFixture;
+	@Inject
+	private InactiveSupplierRequestsFixture inactiveSupplierRequestsFixture;
 
 	private UUID borrowedFromAgB;
 
@@ -56,6 +60,7 @@ class PatronRequestAccessGuardTests {
 		final var borrowingAgency = agencyFixture.defineAgency("AG_A", "AG_A", borrowingHostLms);
 		agencyFixture.defineAgency("AG_B", "AG_B", hostLmsFixture.createDummyHostLms("LIB_B"));
 		agencyFixture.defineAgency("AG_C", "AG_C", hostLmsFixture.createDummyHostLms("LIB_C"));
+		agencyFixture.defineAgency("AG_D", "AG_D", hostLmsFixture.createDummyHostLms("LIB_D"));
 
 		final var patron = patronFixture.savePatron("home");
 		final var identity = patronFixture.saveIdentityAndReturn(patron, borrowingHostLms, "patron-1",
@@ -76,6 +81,14 @@ class PatronRequestAccessGuardTests {
 			.hostLmsCode("LIB_B")
 			.localAgency("AG_B")
 			.isActive(true)
+			.build());
+
+		inactiveSupplierRequestsFixture.save(InactiveSupplierRequest.builder()
+			.id(randomUUID())
+			.patronRequest(patronRequest)
+			.localItemId("item-0")
+			.hostLmsCode("LIB_D")
+			.localAgency("AG_D")
 			.build());
 
 		borrowedFromAgB = patronRequest.getId();
@@ -130,6 +143,11 @@ class PatronRequestAccessGuardTests {
 	@Test
 	void libraryAdminAtAnotherLibraryIsRefused() {
 		expectForbidden(borrowedFromAgB, librarian("AG_C"));
+	}
+
+	@Test
+	void libraryAdminAtAnEarlierSupplierCannotActOnTheRequest() {
+		expectForbidden(borrowedFromAgB, librarian("AG_D"));
 	}
 
 	@Test
