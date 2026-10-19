@@ -180,6 +180,22 @@ class WalkUpRequestTests {
 	}
 
 	@Test
+	void aWalkUpIsAlwaysPlacedByStaff() {
+		when(itemSystem.getItemByBarcode("item-barcode")).thenReturn(Mono.just(item(HostLmsItem.ITEM_AVAILABLE, "bib-1")));
+		when(bibRepository.findBySourceSystemIdAndSourceRecordId(itemSystemId, "bib-1"))
+			.thenReturn(Mono.just(BibRecord.builder().id(UUID.randomUUID())
+				.contributesTo(ClusterRecord.builder().id(UUID.randomUUID()).build())
+				.build()));
+		when(preflightChecksService.check(any())).thenReturn(Mono.empty());
+
+		service.placeWalkUpRequest(command("borrower", PICKUP_LOCATION)).block();
+
+		final var placed = ArgumentCaptor.forClass(PlacePatronRequestCommand.class);
+		verify(preflightChecksService).check(placed.capture());
+		assertThat(placed.getValue().getIsPlacedByStaff(), is(true));
+	}
+
+	@Test
 	void anOrdinaryRequestIsNeverExpeditedWhateverTheCallerSays() {
 		when(preflightChecksService.check(any())).thenReturn(Mono.empty());
 
