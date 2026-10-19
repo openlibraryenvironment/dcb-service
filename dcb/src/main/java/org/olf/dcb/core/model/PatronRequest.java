@@ -483,6 +483,10 @@ public Status getNextExpectedStatus(String activeWorkflow) {
 	@Nullable
 	private Boolean isExpeditedCheckout;
 
+	// Null where DCB cannot tell: before the column existed, or with no staff clients configured
+	@Nullable
+	private Boolean placedByStaff;
+
 	// Used in tracking item requests
 	@ToString.Include
 	@Nullable

@@ -353,6 +353,7 @@ public class PatronRequestService {
 			.description(trimmedDescription)
 			.patronHostlmsCode(command.getRequestorLocalSystemCode())
 			.requesterNote(command.getRequesterNote())
+			.placedByStaff(command.getIsPlacedByStaff())
 			.build();
 	}
 

@@ -662,6 +662,8 @@ type PatronRequest {
   pickupBibId: String
   pickupItemBarcode: String
 	isExpeditedCheckout: Boolean
+	"True when staff placed the request, false when a patron did, null when DCB cannot tell"
+	placedByStaff: Boolean
 	localHoldingId: String
 	pickupHoldingId: String
 	isTooLong: Boolean
