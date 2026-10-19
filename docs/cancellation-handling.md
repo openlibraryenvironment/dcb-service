@@ -329,7 +329,7 @@ routing those through the park state would fill it with requests that need no at
                                                            │
                                                            └─ supplier that cannot report a return at
                                                                 all: stays parked, flagged + alarmed,
-                                                                released by hand (cleanup?force=true).
+                                                                released by hand (confirm-returned, §8.1).
                                                                 No ILS is in this state today.
 
  item still AT supplier (REQUEST_PLACED_*) ─► CANCELLED ─► FINALISED   (§4.1: nothing to orphan)
@@ -447,6 +447,33 @@ work around it — which is not true of the `ERROR` case.
 > Implementation note: `status` is a **reserved** Problem property — passing it to `.with()` throws at
 > runtime. The offending status is reported as `patronRequestStatus`.
 
+### 8.1 Confirming an item is back
+
+`POST /patrons/requests/{id}/transition/confirm-returned` is for a request that is waiting only for its
+supplier to report the item home: `AWAITING_RETURN_TO_SUPPLIER` (cancelled after shipping) or
+`RETURN_TRANSIT` (returned after a loan). It records the item as back at the supplier (supplier item
+`AVAILABLE`, raw status `CONFIRMED_RETURNED_BY_STAFF`) and runs the automatic transitions, which act as
+if the supplier had said so:
+
+| From | Through | Ends |
+|---|---|---|
+| `AWAITING_RETURN_TO_SUPPLIER` | `HandleCancelledRequestItemReturned` | `CANCELLED` (outcome `CANCELLED`) → `FINALISED` |
+| `RETURN_TRANSIT` | `HandleSupplierItemAvailable` | `COMPLETED` (outcome `SUPPLIED`) → `FINALISED` |
+
+Unlike a forced cleanup, it bypasses no guard: it supplies the one missing fact and leaves the outcome to
+the workflow. That is why it is allowed to the **supplying** library's `LIBRARY_ADMIN`, who is the person
+who sees the item back on the shelf, as well as to consortium staff. A library caller whose agency claim
+does not include the active supplier request's agency gets 403, as does one asking about a request that
+does not exist. Another status is 409; a confirmation the workflow does not act on is 500 and leaves the
+audit trail to explain why. The audit entry names the library, or "consortium", never the person.
+
+It is not for:
+- **`PICKUP_TRANSIT`, `RECEIVED_AT_PICKUP`, `READY_FOR_PICKUP`:** the item has not started home. Ending
+  the patron's hold (cancelling it, or "return unwanted" when that is built) parks the request; this then
+  ends the park.
+- **`LOANED`:** the borrowing library still shows a loan. Check the item in; that is the normal return
+  leg.
+
 ---
 
 ## 9. Working with mod-dcb
@@ -498,7 +525,8 @@ Common questions:
 
 - **Stuck in `AWAITING_RETURN_TO_SUPPLIER`?** The supplier has not reported the item back. Check the
   hold-termination verification audit — a surviving supplier hold re-captures the item and prevents it
-  ever going `AVAILABLE`. Release with `cleanup?force=true` once the item is confirmed home.
+  ever going `AVAILABLE`. Once the item is back on the supplying library's shelf, confirm it
+  (`transition/confirm-returned`, §8.1); that releases the request without overriding any guard.
 - **A collection was treated as a cancellation?** The item status was not `LOANED` when the workflow ran.
   Check whether the borrower reports loans on the item DCB is tracking.
 - **A cancellation was missed entirely?** Check which hold went missing. For PUA the borrower hold is the

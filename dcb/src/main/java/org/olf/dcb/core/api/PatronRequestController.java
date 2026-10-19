@@ -32,6 +32,7 @@ import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.fulfilment.WalkUpRequestCommand;
+import org.olf.dcb.request.workflow.ConfirmItemReturnedService;
 import org.olf.dcb.request.workflow.ManualCleanupService;
 import org.olf.dcb.security.PatronRequestAccessGuard;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -82,6 +83,7 @@ import org.olf.dcb.security.StaffClients;
 public class PatronRequestController {
 
 	private final PatronRequestService patronRequestService;
+	private final ConfirmItemReturnedService confirmItemReturnedService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestAccessGuard patronRequestAccessGuard;
 	private final ManualCleanupService manualCleanupService;
@@ -90,12 +92,14 @@ public class PatronRequestController {
 	private final StaffClients staffClients;
 
 	public PatronRequestController(PatronRequestService patronRequestService,
+			ConfirmItemReturnedService confirmItemReturnedService,
 			PatronRequestRepository patronRequestRepository,
 			PatronRequestAccessGuard patronRequestAccessGuard,
 			ManualCleanupService manualCleanupService,
 			TrackingService trackingService, StaffClients staffClients) {
 
 		this.patronRequestService = patronRequestService;
+		this.confirmItemReturnedService = confirmItemReturnedService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.patronRequestAccessGuard = patronRequestAccessGuard;
 		this.manualCleanupService = manualCleanupService;
@@ -129,6 +133,25 @@ public class PatronRequestController {
 			.flatMap(id -> manualCleanupService.cleanup(id, force))
 			.doOnSuccess(id -> log.info("Successful cleanup for patron request {}", patronRequestId))
 			.doOnError(error -> log.warn("Cleanup of patron request {} refused or failed: {}",
+				patronRequestId, error.getMessage()));
+	}
+
+	@Operation(
+		summary = "Confirm the item is back at the supplying library",
+		description = "For a request waiting for its item to return (AWAITING_RETURN_TO_SUPPLIER or "
+			+ "RETURN_TRANSIT) whose supplier has not reported it. Releases the request as if the supplier had: "
+			+ "a cancelled request finalises as cancelled, a returned loan completes as supplied. A library "
+			+ "caller must be the supplying library."
+	)
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN})
+	@SingleResult
+	@Post(value = "/{patronRequestId}/transition/confirm-returned", consumes = APPLICATION_JSON)
+	public Mono<UUID> confirmItemReturned(@NotNull final UUID patronRequestId, Authentication authentication) {
+		log.info("Confirm item returned for patron request {}", patronRequestId);
+
+		return confirmItemReturnedService.confirm(patronRequestId,
+				CallerScope.from(authentication.getRoles(), authentication.getAttributes()))
+			.doOnError(error -> log.warn("Confirming the return of patron request {} refused or failed: {}",
 				patronRequestId, error.getMessage()));
 	}
 
