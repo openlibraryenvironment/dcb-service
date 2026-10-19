@@ -150,7 +150,7 @@ class NcipDeclarativeRequestTransportTests {
 				"<NCIPMessage><RequestItem/></NCIPMessage>"))));
 
 		assertThat(error.getMessage(),
-			is("Missing required configuration property: \"ncip-endpoint-url\""));
+			is("Missing required configuration property: \"ncip-endpoint-url\" on Host LMS \"supplier-host\""));
 	}
 
 	@Test

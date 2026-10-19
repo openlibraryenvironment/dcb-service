@@ -521,7 +521,7 @@ public class DcbProfileRegistrationService {
 			});
 	}
 
-	private Location location(
+	Location location(
 		DcbProfileMembership membership,
 		ValidatedRegistration validated,
 		DataHostLms hostLms,
@@ -534,7 +534,8 @@ public class DcbProfileRegistrationService {
 			.code(dcbCode)
 			.localId(text(source, "sourceCode"))
 			.name(defaultText(text(source, "name"), dcbCode))
-			.type("LIBRARY")
+			// Discovery and the admin apps list pickup points by type=PICKUP, as the location upload writes them.
+			.type(bool(source, "pickup") ? "PICKUP" : "LIBRARY")
 			.agency(agency)
 			.hostSystem(hostLms)
 			.isPickup(bool(source, "pickup"))

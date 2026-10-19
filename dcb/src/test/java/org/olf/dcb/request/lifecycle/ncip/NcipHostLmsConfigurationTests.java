@@ -54,7 +54,7 @@ class NcipHostLmsConfigurationTests {
 			() -> configuration.ncipSystemIdFor(hostLms(Map.of())));
 
 		assertThat(error.getMessage(),
-			is("Missing required configuration property: \"ncip-system-id\""));
+			is("Missing required configuration property: \"ncip-system-id\" on Host LMS \"ORS-HOGWARTS\""));
 	}
 
 	private static DataHostLms hostLms(Map<String, Object> clientConfig) {
