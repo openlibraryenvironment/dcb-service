@@ -79,6 +79,16 @@ class CollectionAnalysisQueriesTests {
 				.build());
 	}
 
+	// Ingest leaves is_deleted null on every live cluster; the fixture's cluster() sets false.
+	private ClusterRecord ingestedCluster() {
+		return clusterRecordFixture.createClusterRecord(
+			ClusterRecord.builder()
+				.id(UUID.randomUUID())
+				.title("Ingested")
+				.selectedBib(UUID.randomUUID())
+				.build());
+	}
+
 	private void bib(DataHostLms source, ClusterRecord cluster) {
 		bibRecordFixture.createBibRecord(UUID.randomUUID(), source.getId(),
 			"src-" + UUID.randomUUID(), cluster);
@@ -162,6 +172,25 @@ class CollectionAnalysisQueriesTests {
 		final var profiles = snapshot().profile();
 
 		assertThat(profileFor(profiles, libA).clusterCount(), equalTo(1L));
+	}
+
+	@Test
+	void clustersWhoseDeletedFlagWasNeverSetAreLive() {
+		final var ingested = ingestedCluster();
+		bib(libA, ingested);
+		bib(libB, ingested);
+
+		bib(libA, deletedCluster());
+
+		final var snapshot = snapshot();
+		assertThat(snapshot.totals().distinctTitles(), equalTo(1L));
+		assertThat(profileFor(snapshot.profile(), libA).clusterCount(), equalTo(1L));
+		assertThat(formatFor(snapshot.formats(), libA).titleCount(), equalTo(1L));
+
+		final var overlaps = manyValuesFrom(
+			bibRepository.getCollectionOverlapForLibrary("LIB_A"));
+		assertThat(overlaps, hasSize(1));
+		assertThat(overlaps.get(0).sharedTitleCount(), equalTo(1L));
 	}
 
 	@Test
