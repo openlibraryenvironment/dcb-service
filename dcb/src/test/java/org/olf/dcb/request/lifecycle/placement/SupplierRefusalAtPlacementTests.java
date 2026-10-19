@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.SupplierPreflight;
 import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.remediation.RemediationCatalogue;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplierPlacementGate;
@@ -64,6 +65,19 @@ class SupplierRefusalAtPlacementTests {
 			"In COLLEGE's FOLIO circulation rules, allow Hold requests in the request policy that applies to patron group "
 				+ "\"DCB patrons\" and this item. Allow both Page and Hold for every patron group DCB uses: FOLIO pages an "
 				+ "available copy, and asks for a Hold once a copy is already paged or on loan."));
+	}
+
+	@Test
+	void aChosenCopyThatIsRefusedEndsTheRequestWithTheRefusalItself() {
+		context.setPatronRequest(PatronRequest.builder().isManuallySelectedItem(true).build());
+		final var refusal = new SupplierRefusedRequestProblem("COLLEGE", FOLIO_REQUEST_POLICY_REFUSED,
+			Map.of("hostLms", "COLLEGE"), "raw response", null, null);
+		when(strategy.place(context)).thenReturn(Mono.error(refusal));
+
+		final var failure = assertThrows(SupplierRefusedRequestProblem.class, () -> singleValueFrom(service.place(context)));
+
+		assertThat(failure, sameInstance(refusal));
+		verify(gate, never()).refuse(any(), any());
 	}
 
 	@Test

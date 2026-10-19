@@ -27,7 +27,8 @@ parameters of the failure stay in the audit entry either way.
 A supplier that refuses the request (`SupplierRefusedRequestProblem`) does not end the request
 in ERROR: DCB treats that supplier as unable to supply, and the entry's summary and next steps
 are the reason and `howToFix` in its "Supplier cannot supply" audit entry
-(`supplier-preflight.md`). Only a copy someone chose still ends in ERROR, with the same words.
+(`supplier-preflight.md`). Only a copy someone chose still ends in ERROR, with the whole entry,
+retry steps included.
 
 ## The entries
 

@@ -1,7 +1,10 @@
 package org.olf.dcb.request.lifecycle.placement;
 
+import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
+
 import io.micronaut.context.annotation.Prototype;
 import org.olf.dcb.core.interaction.SupplierPreflight;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
 import org.olf.dcb.core.remediation.Remediation;
 import org.olf.dcb.core.remediation.RemediationCatalogue;
@@ -42,8 +45,16 @@ public class SupplyingAgencyRequestStrategyService {
 				? supplierPlacementGate.refuse(context, preflight)
 				: supplierPlacementGate.warnIfUnreachable(context, preflight).flatMap(this::placeWithStrategy))
 			// A refusal that happened, not a preflight guess, so DCB_REQUESTS_SUPPLIER_PREFLIGHT_ENABLED does not apply
-			.onErrorResume(SupplierRefusedRequestProblem.class, refusal -> supplierPlacementGate.refuse(context,
-				cannotSupply(remediationCatalogue.render(refusal.remediationCode(), refusal.remediationValues()))));
+			.onErrorResume(SupplierRefusedRequestProblem.class, refusal -> isChosenCopy(context)
+				// A copy staff chose is not swapped for another: the refusal ends the request, with its remediation
+				? Mono.error(refusal)
+				: supplierPlacementGate.refuse(context,
+					cannotSupply(remediationCatalogue.render(refusal.remediationCode(), refusal.remediationValues()))));
+	}
+
+	private static boolean isChosenCopy(RequestWorkflowContext context) {
+		return Boolean.TRUE.equals(getValueOrNull(context, RequestWorkflowContext::getPatronRequest,
+			PatronRequest::getIsManuallySelectedItem));
 	}
 
 	private static SupplierPreflight cannotSupply(Remediation remediation) {

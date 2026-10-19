@@ -104,8 +104,9 @@ for a reason its own staff can fix, DCB treats that supplier as unable to supply
 above: the supplier request is cancelled, the audit records "Supplier cannot supply: request not
 placed" with the reason and `howToFix`, the alarm is raised, and the request moves to
 NOT_SUPPLIED_CURRENT_SUPPLIER. The reason and `howToFix` are the remediation catalogue's summary
-and next steps for that refusal (`remediation-catalogue.md`). A copy someone chose ends in ERROR
-with them instead.
+and next steps for that refusal (`remediation-catalogue.md`). A copy someone chose is not swapped
+for another: the request ends in ERROR with the whole catalogue entry, including how to retry it
+safely once the supplier has fixed the cause.
 
 The refusals DCB recognises:
 
