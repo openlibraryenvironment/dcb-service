@@ -293,24 +293,9 @@ public interface HostLmsClient
 	}
 
 	/**
-	 * Once DCB has terminated the supplier hold for an item that is physically out, can this system still
-	 * tell us that the item came home?
-	 * <p>
-	 * Sierra / Polaris / Alma answer true (the default): the real inventory item is tracked independently
-	 * of the hold, so it keeps reporting until it is checked back in and becomes AVAILABLE. That is a
-	 * trustworthy "physically back" signal, so a cancelled-while-out request waits in
-	 * AWAITING_RETURN_TO_SUPPLIER for it.
-	 * <p>
-	 * FOLIO answers false: getItem derives the item status from the mod-dcb transaction, and terminating
-	 * the hold makes that transaction terminal, so it reports CANCELLED forever and can never report
-	 * AVAILABLE. Such a request still parks - it is simply flagged as needing a human to release it.
-	 * <p>
-	 * <b>This must never gate cleanup or finalisation.</b> It describes what the SUPPLIER can observe and
-	 * says nothing about whether it is safe to delete the BORROWER's virtual records. An earlier revision
-	 * used it to cancel a FOLIO-supplied request immediately; that deleted a Polaris borrower's virtual
-	 * item while the real item was still out and got the library billed for a lost item - precisely the
-	 * bug DCB-2193 exists to fix. Its only legitimate use is deciding whether a parked request needs
-	 * flagging for manual release.
+	 * Once DCB has terminated the supplier hold for an item that is out, can this system still report the
+	 * item coming home? False parks the request flagged for a person to confirm the item is back. It must
+	 * never gate cleanup or finalisation: docs/cancellation-handling.md §7.4.
 	 */
 	default boolean canReportItemReturnedAfterHoldTerminated() {
 		return true;
