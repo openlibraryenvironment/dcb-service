@@ -23,12 +23,26 @@ class AdminUiAccessPolicyTests {
 	private static final String ADMIN_UI = "dcb-admin";
 	private static final String DAFL = "dcb-admin-for-libraries";
 
+	private static AdminUiAccessPolicy policy(String clientId, AdminUiAccessPolicy.Mode mode) {
+		return new AdminUiAccessPolicy(new AdminUiAccessConfig() {
+			@Override
+			public String getClientId() {
+				return clientId;
+			}
+
+			@Override
+			public AdminUiAccessPolicy.Mode getMode() {
+				return mode;
+			}
+		});
+	}
+
 	private static AdminUiAccessPolicy enforcing() {
-		return new AdminUiAccessPolicy(ADMIN_UI, "ENFORCE");
+		return policy(ADMIN_UI, AdminUiAccessPolicy.Mode.ENFORCE);
 	}
 
 	private static AdminUiAccessPolicy warning() {
-		return new AdminUiAccessPolicy(ADMIN_UI, "WARN");
+		return policy(ADMIN_UI, AdminUiAccessPolicy.Mode.WARN);
 	}
 
 	private static Map<String, Object> from(String client) {
@@ -148,30 +162,15 @@ class AdminUiAccessPolicyTests {
 	class Unconfigured {
 
 		@Test
-		@DisplayName("An empty client id disables the check entirely")
-		void emptyClientIdPermitsEverything() {
-			final var off = new AdminUiAccessPolicy("", "ENFORCE");
-
-			assertThat(off.isConfigured(), is(false));
-			assertThat(off.enforce("someone", List.of("LIBRARY_ADMIN"), from(ADMIN_UI))
-				.isEmpty(), is(true));
-		}
-
-		@Test
-		@DisplayName("So does a null one")
+		@DisplayName("An absent client id disables the check entirely")
 		void nullClientIdPermitsEverything() {
-			final var off = new AdminUiAccessPolicy(null, "ENFORCE");
+			final var off = new AdminUiAccessPolicy(null);
 
 			assertThat(off.isConfigured(), is(false));
 			assertThat(off.enforce("someone", List.of("LIBRARY_ADMIN"), from(ADMIN_UI))
 				.isEmpty(), is(true));
 		}
 
-		@Test
-		@DisplayName("A blank-but-present id is unconfigured, not a client named \"  \"")
-		void blankClientIdIsUnconfigured() {
-			assertThat(new AdminUiAccessPolicy("   ", "ENFORCE").isConfigured(), is(false));
-		}
 	}
 
 	@Nested
@@ -212,11 +211,4 @@ class AdminUiAccessPolicyTests {
 		}
 	}
 
-	@Test
-	@DisplayName("The mode defaults to WARN and is read case-insensitively")
-	void modeParsing() {
-		assertThat(new AdminUiAccessPolicy(ADMIN_UI, "warn").isEnforcing(), is(false));
-		assertThat(new AdminUiAccessPolicy(ADMIN_UI, "enforce").isEnforcing(), is(true));
-		assertThat(new AdminUiAccessPolicy(ADMIN_UI, " ENFORCE ").isEnforcing(), is(true));
-	}
 }

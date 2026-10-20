@@ -56,29 +56,23 @@ class PatronAssertionVerifierTests {
 	// ---- subject under test, wired the way the bean container wires it ----
 
 	private static PatronAssertionVerifier verifier(Clock clock) {
-		return verifier(clock, properties(true, Duration.ofMinutes(5)));
+		return verifier(clock, config(Duration.ofMinutes(5), CLIENT_ID));
 	}
 
-	private static PatronAssertionVerifier verifier(Clock clock, DiscoveryServiceProperties props) {
-		return new PatronAssertionVerifier(props, new DiscoveryTrustedServiceStore(props),
+	private static PatronAssertionVerifier verifier(Clock clock, DiscoveryConfig config) {
+		return new PatronAssertionVerifier(config, new DiscoveryTrustedServiceStore(config, false),
 			new TrustedPeerJwksResolver(), clock);
 	}
 
-	private static DiscoveryServiceProperties properties(boolean enabled, Duration maxLifetime) {
-		final var service = new DiscoveryServiceProperties.TrustedService();
-		service.setServiceId(SERVICE_ID);
-		service.setIssuer(ISSUER);
-		service.setClientId(CLIENT_ID);
+	private static DiscoveryConfig config(Duration maxLifetime, String clientId) {
 		// Inline JWKS: TrustedPeerJwksResolver prefers it over jwksUri, so no HTTP.
-		service.setJwks(Map.of("keys", List.of(signingKey.toPublicJWK().toJSONObject())));
+		return new TestDiscoveryConfig(AUDIENCE, maxLifetime, TestDiscoveryConfig.json(List.of(
+			TestDiscoveryConfig.service(SERVICE_ID, ISSUER, clientId,
+				Map.of("keys", List.of(signingKey.toPublicJWK().toJSONObject()))))));
+	}
 
-		final var props = new DiscoveryServiceProperties();
-		props.setEnabled(enabled);
-		props.setAudience(AUDIENCE);
-		props.setMaxAssertionLifetime(maxLifetime);
-		props.setTrustedServices(List.of(service));
-
-		return props;
+	private static DiscoveryTrustedServiceStore storeTrusting(List<Map<String, Object>> services) {
+		return new DiscoveryTrustedServiceStore(TestDiscoveryConfig.trusting(Duration.ofMinutes(5), services), false);
 	}
 
 	// ---- assertion minting, i.e. what a discovery service does ----
@@ -248,11 +242,8 @@ class PatronAssertionVerifierTests {
 
 	@Test
 	void withNoClientIdTheBearerMustBeTheServiceIdsClient() throws Exception {
-		final var props = properties(true, Duration.ofMinutes(5));
-		props.getTrustedServices().getFirst().setClientId(null);
-
 		final var token = assertion(spec());
-		final var verifier = verifier(clockAt("2026-08-12T10:00:30Z"), props);
+		final var verifier = verifier(clockAt("2026-08-12T10:00:30Z"), config(Duration.ofMinutes(5), null));
 
 		assertEquals("patron-1", verifier.verify(requestWith(token, SERVICE_ID)).patronId());
 		assertThrows(InvalidPatronAssertionException.class,
@@ -269,68 +260,30 @@ class PatronAssertionVerifierTests {
 		rejects(clockAt("2026-08-12T10:00:30Z"), "not-a-jwt");
 	}
 
-	/** A deployment not configured for discovery must fail closed, not open. */
-	@Test
-	void everyAssertionIsRejectedWhenDiscoveryIsDisabled() throws Exception {
-		final var disabled = properties(false, Duration.ofMinutes(5));
-
-		assertThrows(InvalidPatronAssertionException.class,
-			() -> verifier(clockAt("2026-08-12T10:00:30Z"), disabled)
-				.verify(requestWith(assertion(spec()))));
-	}
-
 	/** An entry missing its issuer is a trust anchor that binds nothing: refuse to start, not skip it. */
 	@Test
 	void anIncompleteServiceRefusesToStart() {
-		final var incomplete = new DiscoveryServiceProperties.TrustedService();
-		incomplete.setServiceId(SERVICE_ID);
-		incomplete.setJwks(Map.of("keys", List.of()));
+		final var incomplete = TestDiscoveryConfig.service(SERVICE_ID, null, null, Map.of("keys", List.of()));
 
-		final var props = new DiscoveryServiceProperties();
-		props.setTrustedServices(List.of(incomplete));
-
-		assertThrows(IllegalStateException.class, () -> new DiscoveryTrustedServiceStore(props));
+		assertThrows(IllegalStateException.class, () -> storeTrusting(List.of(incomplete)));
 	}
 
 	/** Two services sharing an issuer means either can mint the other's assertions. */
 	@Test
 	void aDuplicateIssuerRefusesToStart() {
-		final var first = new DiscoveryServiceProperties.TrustedService();
-		first.setServiceId(SERVICE_ID);
-		first.setIssuer(ISSUER);
-		first.setClientId("first-client");
-		first.setJwks(Map.of("keys", List.of()));
+		final var first = TestDiscoveryConfig.service(SERVICE_ID, ISSUER, "first-client", Map.of("keys", List.of()));
+		final var second = TestDiscoveryConfig.service("impostor", ISSUER, "second-client", Map.of("keys", List.of()));
 
-		final var second = new DiscoveryServiceProperties.TrustedService();
-		second.setServiceId("impostor");
-		second.setIssuer(ISSUER);
-		second.setClientId("second-client");
-		second.setJwks(Map.of("keys", List.of()));
-
-		final var props = new DiscoveryServiceProperties();
-		props.setTrustedServices(List.of(first, second));
-
-		assertThrows(IllegalStateException.class, () -> new DiscoveryTrustedServiceStore(props));
+		assertThrows(IllegalStateException.class, () -> storeTrusting(List.of(first, second)));
 	}
 
 	/** One client acting as two services could spend assertions either one signed. */
 	@Test
 	void aDuplicateClientIdRefusesToStart() {
-		final var first = new DiscoveryServiceProperties.TrustedService();
-		first.setServiceId(SERVICE_ID);
-		first.setIssuer(ISSUER);
-		first.setClientId(CLIENT_ID);
-		first.setJwks(Map.of("keys", List.of()));
+		final var first = TestDiscoveryConfig.service(SERVICE_ID, ISSUER, CLIENT_ID, Map.of("keys", List.of()));
+		final var second = TestDiscoveryConfig.service("second-service", "https://second.test.invalid", CLIENT_ID,
+			Map.of("keys", List.of()));
 
-		final var second = new DiscoveryServiceProperties.TrustedService();
-		second.setServiceId("second-service");
-		second.setIssuer("https://second.test.invalid");
-		second.setClientId(CLIENT_ID);
-		second.setJwks(Map.of("keys", List.of()));
-
-		final var props = new DiscoveryServiceProperties();
-		props.setTrustedServices(List.of(first, second));
-
-		assertThrows(IllegalStateException.class, () -> new DiscoveryTrustedServiceStore(props));
+		assertThrows(IllegalStateException.class, () -> storeTrusting(List.of(first, second)));
 	}
 }

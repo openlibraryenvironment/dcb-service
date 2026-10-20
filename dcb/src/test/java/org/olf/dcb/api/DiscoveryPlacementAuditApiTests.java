@@ -29,6 +29,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 
+import io.micronaut.context.annotation.Property;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.HttpClient;
@@ -46,6 +47,8 @@ import reactor.core.publisher.Mono;
  */
 @DcbTest
 @TestInstance(PER_CLASS)
+// The discovery routes exist only with discovery on
+@Property(name = "dcb.discovery.enabled", value = "true")
 class DiscoveryPlacementAuditApiTests {
 
 	private static final String ACCESS_TOKEN = "discovery-placement-audit-token";

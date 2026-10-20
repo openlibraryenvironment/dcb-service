@@ -154,7 +154,8 @@ aws opensearch describe-domain --domain-name <name> \
 
 ## Rollback
 
-This release does not migrate data or change configuration, so rolling back to the
-previous tag is safe. The one exception is Elasticsearch: if you upgraded ES to 9.x
-in order to take this release, rolling DCB back to an 8.x-era client will not work
-against that upgraded cluster.
+The Micronaut 5 move itself did not migrate data, but the releases that carry it do: from
+v8.71.0, rolling back means restoring the database. See `docs/v9-migration-guide.md`, §9.
+
+Elasticsearch adds one more constraint: if you upgraded ES to 9.x in order to take this
+release, rolling DCB back to an 8.x-era client will not work against that upgraded cluster.

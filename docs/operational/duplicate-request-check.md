@@ -77,8 +77,8 @@ application whose client is not in the list is treated as a patron, so its reque
 refused. DCB logs the client ids in use at startup: "Duplicate request check is ON; requests
 placed through clients [...] are staff's".
 
-Setting `staff-client-ids` empty turns the check off even when it is enabled, because staff
-could then not place a request it refused. DCB logs a warning at startup when it does.
+`staff-client-ids` must name at least one client: an empty or blank list stops DCB starting,
+with a message naming this setting. It is not an off switch; `enabled: false` is.
 
 ## How strict
 

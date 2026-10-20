@@ -403,13 +403,13 @@ class DiscoveryApiSecurityTests {
 
 	@Test
 	void resolvingASignInIsRefusedWhileDiscoveryIsOff() {
-		// Assertions are refused with discovery off, so the step that produces one is too.
+		// With discovery off the route does not exist, and security refuses a route it has no rule for
 		final var exception = assertThrows(HttpClientResponseException.class,
 			() -> client.toBlocking().retrieve(
 				HttpRequest.POST("/discovery/patrons/resolve",
 					Map.of("agencyCode", "ab6", "principal", "someone")).bearerAuth(DISCOVERY_TOKEN)));
 
-		assertThat(exception.getStatus(), is(HttpStatus.FORBIDDEN));
+		assertThat(exception.getStatus(), is(HttpStatus.UNAUTHORIZED));
 	}
 
 	@Test

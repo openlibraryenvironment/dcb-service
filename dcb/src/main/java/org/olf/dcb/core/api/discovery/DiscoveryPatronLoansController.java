@@ -12,10 +12,11 @@ import org.olf.dcb.core.api.serde.PatronLoan;
 import org.olf.dcb.core.api.serde.PatronLoanProjection;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
-import org.olf.dcb.security.discovery.DiscoveryServiceProperties;
+import org.olf.dcb.security.discovery.DiscoveryConfig;
 import org.olf.dcb.security.discovery.PatronAssertionVerifier;
 import org.olf.dcb.storage.PatronRequestRepository;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -49,16 +50,17 @@ import reactor.util.function.Tuples;
 @Slf4j
 // Assertion verification is synchronous and may refresh trusted JWKS over bounded HTTP.
 @ExecuteOn(TaskExecutors.BLOCKING)
+@Requires(property = DiscoveryConfig.ENABLED, value = "true")
 public class DiscoveryPatronLoansController {
 
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronAssertionVerifier assertionVerifier;
 	private final HostLmsService hostLmsService;
-	private final DiscoveryServiceProperties properties;
+	private final DiscoveryConfig properties;
 
 	public DiscoveryPatronLoansController(PatronRequestRepository patronRequestRepository,
 		PatronAssertionVerifier assertionVerifier, HostLmsService hostLmsService,
-		DiscoveryServiceProperties properties) {
+		DiscoveryConfig properties) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.assertionVerifier = assertionVerifier;

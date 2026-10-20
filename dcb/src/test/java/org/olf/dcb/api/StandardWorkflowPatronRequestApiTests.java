@@ -454,13 +454,18 @@ class StandardWorkflowPatronRequestApiTests {
 		assertThat(fetchedPatronRequest.getRequestor().getIdentities(), is(notNullValue()));
 		assertThat(fetchedPatronRequest.getRequestor().getIdentities(), hasSize(2));
 
-		final var homeIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(1);
+		// The identities come back unordered: pick each by its role
+		final var homeIdentity = fetchedPatronRequest.getRequestor().getIdentities().stream()
+			.filter(identity -> Boolean.TRUE.equals(identity.getHomeIdentity()))
+			.findFirst().orElseThrow();
 
 		assertThat(homeIdentity.getLocalId(), is(KNOWN_PATRON_LOCAL_ID));
 		assertThat(homeIdentity.getHomeIdentity(), is(true));
 		assertThat(homeIdentity.getHostLmsCode(), is(BORROWING_HOST_LMS_CODE));
 
-		final var supplierIdentity = fetchedPatronRequest.getRequestor().getIdentities().get(0);
+		final var supplierIdentity = fetchedPatronRequest.getRequestor().getIdentities().stream()
+			.filter(identity -> !Boolean.TRUE.equals(identity.getHomeIdentity()))
+			.findFirst().orElseThrow();
 
 		assertThat(supplierIdentity.getLocalId(), is(localSupplyingItemId));
 		assertThat(supplierIdentity.getHomeIdentity(), is(false));

@@ -45,7 +45,7 @@ class WalkUpCallerScopeTests {
 		controller = new PatronRequestController(patronRequestService,
 			mock(ConfirmItemReturnedService.class),
 			mock(PatronRequestRepository.class), mock(PatronRequestAccessGuard.class),
-			mock(ManualCleanupService.class), mock(TrackingService.class), new StaffClients(List.of()));
+			mock(ManualCleanupService.class), mock(TrackingService.class), new StaffClients(List.of("dcb-admin")));
 	}
 
 	@Test

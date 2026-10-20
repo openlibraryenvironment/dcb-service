@@ -255,7 +255,8 @@ dcb:
 
   requests:
     # The OIDC clients DCB Admin and DCB Admin for Libraries sign in through: a request placed
-    # with a token issued to one of them is staff's. Empty turns the duplicate-request check off.
+    # with a token issued to one of them is staff's. At least one is required: the duplicate-request
+    # check is turned off by preflight-checks.duplicate-requests.enabled, not by an empty list.
     staff-client-ids: dcb-admin,dcb-admin-for-libraries
 
   insights:
@@ -265,17 +266,7 @@ dcb:
       # Postgres cancels a whole-catalogue pass that runs longer than this.
       statement-timeout: 10m
 
-  # Fails closed: off until a trusted service is configured.
-  # The model and onboarding: docs/discovery-service-approach.md.
-  discovery:
-    enabled: false
-    # The audience a patron assertion must name. This DCB, not another one.
-    audience: dcb
-    # DCB's own cap on assertion validity, enforced regardless of the issuer's `exp`.
-    max-assertion-lifetime: PT2M
-    # YAML, or DCB_DISCOVERY_TRUSTED_SERVICES_JSON where no file can be mounted: a list
-    # cannot come from indexed variables. docs/discovery-service-approach.md section 7.2.
-    trusted-services: []
+  # discovery: off unless dcb.discovery.enabled is true. Settings and defaults: DiscoveryConfig.
   # How an image gets in, for each store: docs/branding.md.
   branding:
     assets:
@@ -298,12 +289,7 @@ dcb:
         - "127.0.0.1" # Allow IP4 127.0.0.1
         - "0:0:0:0:0:0:0:1" # Allow localhost IP6
 
-    # This must stay the ONLY dcb.security key: YAML keeps the last of a duplicate pair.
-    # An empty client-id disables the check. Not a data control: AgencyAccessScope decides
-    # what any caller may read. Rollout: operational:identity-provider-setup.adoc section 1.4.
-    admin-ui:
-      client-id: ""
-      mode: WARN
+    # admin-ui: the DCB Admin access bar is off unless client-id is set; mode defaults to WARN. AdminUiAccessConfig.
   shutdown:
     # Wait up to 60s on shutdown for ingest processes to end
     maxwait: 0
