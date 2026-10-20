@@ -30,6 +30,7 @@ import org.olf.dcb.security.discovery.PatronAssertion;
 import org.olf.dcb.security.discovery.PatronAssertionVerifier;
 import org.olf.dcb.test.HostLmsFixture;
 
+import io.micronaut.context.annotation.Property;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
@@ -46,6 +47,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
  */
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
+// The discovery routes exist only with discovery on
+@Property(name = "dcb.discovery.enabled", value = "true")
 class DiscoveryPatronAccountApiTests {
 
 	private static final String API_KEY = "eyJzIjoic2FsdCIsInQiOiJ0ZW5hbnQiLCJ1IjoidXNlciJ9";

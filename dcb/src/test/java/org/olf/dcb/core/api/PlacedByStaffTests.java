@@ -2,7 +2,6 @@ package org.olf.dcb.core.api;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -61,21 +60,6 @@ class PlacedByStaffTests {
 		final var noClient = Authentication.build("service", List.of(ADMINISTRATOR), Map.of());
 
 		assertThat(placedByStaff(command(false), noClient), is(false));
-	}
-
-	@Test
-	void shouldLeaveWhoPlacedItUnknownWhenNoStaffClientIsConfigured() {
-		final var unconfigured = new PatronRequestController(patronRequestService,
-			mock(ConfirmItemReturnedService.class),
-			mock(PatronRequestRepository.class), mock(PatronRequestAccessGuard.class),
-			mock(ManualCleanupService.class), mock(TrackingService.class), new StaffClients(List.of()));
-
-		unconfigured.placePatronRequest(command(true), tokenFor("dcb-admin")).block();
-
-		final var placed = ArgumentCaptor.forClass(PlacePatronRequestCommand.class);
-		verify(patronRequestService).placePatronRequest(placed.capture());
-
-		assertThat(placed.getValue().getIsPlacedByStaff(), is(nullValue()));
 	}
 
 	@Test

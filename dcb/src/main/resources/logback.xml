@@ -92,15 +92,12 @@
 	<logger name="org.olf.dcb.tracking" level="INFO"/>
 	<logger name="org.olf.dcb.request" level="INFO"/>
 	<logger name="org.olf.dcb.ingest" level="INFO"/>
-	<logger name="org.olf.dcb.request.workflow" level="DEBUG"/>
 
 
 	<logger name="org.olf.dcb.indexing" level="INFO"/>
 	<logger name="org.olf.dcb.core.svc.BibRecordService" level="INFO" />
 	<logger name="org.olf.dcb.ingest.job" level="INFO" />
 	<logger name="services.k_int" level="INFO"/>
-	<logger name="org.olf.dcb.ingest.marc.MarcIngestSource" level="DEBUG"/>
-	<logger name="org.olf.dcb.dataimport.job.SourceRecordImportJob" level="DEBUG"/>
 
 	<logger name="io.micronaut.security.authentication" level="WARN" />
 	<logger name="io.r2dbc" level="WARN" />
@@ -118,10 +115,8 @@
 	<logger name="com.hazelcast" level="error" />
 	<logger name="com.hazelcast.internal.cluster.ClusterService" level="INFO" />
   <logger name="org.olf.dcb.core.interaction.RelativeUriResolver" level="WARN" />
-	<logger name="org.olf.dcb.core.interaction.OaiPmhIngestSource" level="DEBUG" />
 	<logger name="org.olf.dcb.rules.ObjectRuleset" level="WARN" />
 	<logger name="org.olf.dcb.core.clustering.ClusterHousekeepingService" level="DEBUG" />
-	<logger name="org.olf.dcb.core.interaction.folio.ConsortialFolioHostLmsClient" level="DEBUG" />
 	<logger name="org.olf.dcb.core.clustering.matching.MatchpointService" level="INFO" />
 
 

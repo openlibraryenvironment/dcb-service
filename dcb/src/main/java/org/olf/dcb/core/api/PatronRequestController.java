@@ -223,7 +223,7 @@ public class PatronRequestController {
 		Authentication authentication) {
 
 		return command.toBuilder()
-			.isPlacedByStaff(staffClients.isConfigured() ? staffClients.issuedTo(authentication) : null)
+			.isPlacedByStaff(staffClients.issuedTo(authentication))
 			.build();
 	}
 

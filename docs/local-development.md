@@ -112,7 +112,7 @@ calling the script to put that feature back to its shipped default.
 | `DCB_INSIGHTS_ENABLED` | `true` | `true` | The `/insights` reporting surface |
 | `DCB_DISCOVERY_ENABLED` | `true` | `false` | With no trusted services configured, every patron assertion is refused |
 | `DCB_BRANDING_ASSETS_STORE` | `database` | `database` | Brand image uploads |
-| `DCB_SECURITY_ADMIN_UI_CLIENT_ID` | `dcb-admin` | unset, which turns the access bar off | Which OIDC client may drive DCB Admin |
+| `DCB_SECURITY_ADMIN_UI_CLIENT_ID` | `dcb-admin` | unset, which turns the access bar off; set but blank stops startup | Which OIDC client may drive DCB Admin |
 | `DCB_SECURITY_ADMIN_UI_MODE` | `WARN` | `WARN` | `WARN` logs who would be refused and refuses nothing. Use `ENFORCE` only once the admin clients are split: against a shared client it locks out every consortium administrator |
 | `DCB_IDENTITY_PROVIDER_CLIENT_SECRET` | none | none | **Never defaulted.** Setting it switches provisioning on, with type `keycloak`, client `dcb-provisioning`, and base URL and realm taken from `KEYCLOAK_CERT_URL` unless set. See [identity-provider-setup.md](identity-provider-setup.md) |
 

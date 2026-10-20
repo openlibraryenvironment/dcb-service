@@ -234,8 +234,9 @@ one commitment.
 ## 4. Secure by Design compliance
 
 **Secure defaults.** `dcb.discovery.enabled` is `false`. A deployment that has not been
-configured for discovery accepts no patron assertions at all: every patron-scoped route answers
-`401 INVALID_PATRON_ASSERTION`, and `/discovery/patrons/resolve` answers `403 DISCOVERY_DISABLED`.
+configured for discovery accepts no patron assertions at all: it has no discovery configuration,
+and the patron-scoped routes, `/discovery/patrons/resolve` included, do not exist. DCB's security
+refuses a call to a route it has no rule for: `401` with a token, `400` without.
 It does not quietly behave as though it has been configured. The trusted-services list is empty
 by default. Duplicate issuers refuse to start rather than picking a winner, because two services
 claiming one issuer means either can mint the other's assertions.
@@ -356,8 +357,8 @@ cluster ids and live availability, comes from the anonymous routes in §6.9.
 
 ### 6.2 What the operator will need from you
 
-An entry in `dcb.discovery.trusted-services`. The operator may hold this as YAML or as the
-equivalent JSON in a single environment variable (§7.2) — the fields are the same either way:
+An entry in `dcb.discovery.trusted-services-json`, a JSON array the operator holds in a config
+file or in one environment variable (§7.2):
 
 ```yaml
 dcb:
@@ -365,12 +366,13 @@ dcb:
     enabled: true
     audience: dcb
     max-assertion-lifetime: PT2M
-    trusted-services:
-      - service-id: your-service-id
-        issuer: https://discovery.example.org
-        jwks-uri: https://discovery.example.org/.well-known/jwks.json
-        # client-id: your-keycloak-client   # only if it differs from service-id
+    trusted-services-json: >-
+      [{"service-id": "your-service-id",
+        "issuer": "https://discovery.example.org",
+        "jwks-uri": "https://discovery.example.org/.well-known/jwks.json"}]
 ```
+
+Add `"client-id": "your-keycloak-client"` to the entry only if it differs from `service-id`.
 
 So, concretely: a stable service id, the `iss` value you will put in your assertions, and a
 JWKS endpoint publishing your public signing keys. `client-id` is the Keycloak client your
@@ -556,7 +558,8 @@ credential and **no** patron assertion, because this is the step that lets you m
 It answers `systemCode`, `patronId`, `agencyCode` and `homeLocationCode`, which are what a
 patron assertion carries, and no name or barcode. `404` means the library has no such patron:
 refuse borrowing, not the sign-in. `502` with `LIBRARY_UNAVAILABLE` means the library could
-not be asked; `403` with `DISCOVERY_DISABLED` means this DCB accepts no discovery patrons.
+not be asked. While discovery is off on this DCB the route does not exist, and a call with a
+token is refused with `401`.
 Each call is a live read at a member library, so a service may make at most
 `dcb.discovery.patron-resolves-per-minute` (default 600) a minute, counted from its first call
 in the window. Beyond that it gets `429` with `TOO_MANY_RESOLVES` and `Retry-After: 60`.
@@ -616,8 +619,8 @@ accordingly if you are doing nearest-library resolution.
 | `202` | `{"id": …}` | Cancellation accepted. `CANCELLED` lands asynchronously — poll `GET /discovery/requests`, do not assume it is immediate. |
 | `400` | `{"failedChecks": [...]}` | Preflight rejection on placement. Each entry carries `code`, `description`, `notes` and `userMessage`. Show the patron `userMessage`; the codes are listed below. |
 | `400` | Micronaut's standard error body | A malformed body, or a chosen copy with only one or two of its three `item*` fields. Not every `400` carries `failedChecks`, so check for it. |
-| `401` | `{"code": "INVALID_PATRON_ASSERTION"}` | Your assertion was not accepted. Deliberately does not say why. Check issuer, audience, `kid`, `alg`, clock skew, lifetime, and that you sent it with your own client's token. It is also what every patron-scoped route answers while discovery is disabled. |
-| `403` | `{"code": "DISCOVERY_DISABLED"}` | From `/discovery/patrons/resolve` only: this deployment accepts no discovery patrons. |
+| `401` | `{"code": "INVALID_PATRON_ASSERTION"}` | Your assertion was not accepted. Deliberately does not say why. Check issuer, audience, `kid`, `alg`, clock skew, lifetime, and that you sent it with your own client's token. |
+| `401` | no `code` | Every patron-scoped route while discovery is off on this DCB: the routes do not exist. |
 | `403` | `{"code": "NOT_A_TRUSTED_SERVICE"}` | From `/discovery/patrons/resolve` only: your bearer's client is not the `client-id` of any trusted service. |
 | `404` | — | No such request *for this patron*. Not-yours and not-found are the same answer by design. From `/discovery/patrons/resolve`, the library has no such patron, or DCB does not know the agency you named. |
 | `409` | `{"code": "NOT_CANCELLABLE", "discoveryStatus": …}` | Not cancellable now: too early (not yet placed at the patron's library), too late, or already cancelled. `discoveryStatus` says which; `CANCELLED` means an earlier cancellation worked. |
@@ -655,7 +658,7 @@ machine gains states, and your integration should not break when it does. The
 
 ### 6.8 Testing your integration
 
-`dcb.discovery.trusted-services[].jwks` accepts an inline JWKS, which is how DCB's own tests
+A `jwks` field in a `trusted-services-json` entry accepts an inline JWKS, which is how DCB's own tests
 onboard a service without an HTTP endpoint. The same mechanism works for an air-gapped or
 local-development deployment, so you can exercise the full assertion path without publishing a
 JWKS URL first.
@@ -734,17 +737,17 @@ work differently, though, and the difference is not arbitrary:
 | `DCB_DISCOVERY_ENABLED` | `dcb.discovery.enabled` | boolean | `false` | yes, to serve discovery at all |
 | `DCB_DISCOVERY_AUDIENCE` | `dcb.discovery.audience` | string | `dcb` | recommended: set a value unique to this deployment, such as its base URL |
 | `DCB_DISCOVERY_MAX_ASSERTION_LIFETIME` | `dcb.discovery.max-assertion-lifetime` | ISO-8601 duration | `PT2M` | no |
-| `DCB_DISCOVERY_TRUSTED_SERVICES_JSON` | `dcb.discovery.trusted-services-json` (merged into `trusted-services`) | JSON array (string) | unset; set but blank stops startup | yes, unless supplied as YAML |
+| `DCB_DISCOVERY_TRUSTED_SERVICES_JSON` | `dcb.discovery.trusted-services-json` | JSON array (string) | unset; with discovery on, set but blank stops startup | yes |
 
 Two further variables are not discovery-specific but decide whether the above arrives at all:
 
 | Environment variable | Why discovery cares |
 |---|---|
-| `MICRONAUT_CONFIG_FILES` | Comma-separated paths to external config files. The only way a YAML `trusted-services` list reaches the process. Ignore it if you use the JSON variable. |
+| `MICRONAUT_CONFIG_FILES` | Comma-separated paths to external config files: the way to supply the `dcb.discovery` keys, `trusted-services-json` included, from a file rather than variables. Ignore it if you use the variables. |
 | `KEYCLOAK_CERT_URL` | Validates the discovery service's bearer token. Without it every `/discovery/requests` call is a `401` before assertions are even considered. |
 
-The three discovery scalars are literal defaults in `application.yml`, and these variables
-override them because the environment outranks that file.
+The defaults are in `DiscoveryConfig`, which exists only when `dcb.discovery.enabled` is `true`;
+these variables set the values.
 
 The list needs the JSON form because **a list of objects cannot be expressed as indexed
 environment variables at all**. Micronaut maps an environment variable onto every dot/hyphen
@@ -752,7 +755,9 @@ permutation of its name, but an index stays a *dot* segment:
 `DCB_DISCOVERY_TRUSTED_SERVICES_0_SERVICE_ID` resolves to
 `dcb.discovery.trusted-services.0.service-id`, never the `trusted-services[0].service-id` form
 that list binding reads. So `DCB_DISCOVERY_TRUSTED_SERVICES_JSON` takes the entire list as a
-JSON array in one value, using **the same kebab-case keys as the YAML**:
+JSON array in one value, with kebab-case keys. It is the only form DCB reads: a YAML
+`dcb.discovery.trusted-services` list stops startup with a message naming `trusted-services-json`,
+rather than binding nothing as it once did.
 
 ```
 DCB_DISCOVERY_TRUSTED_SERVICES_JSON=[{"service-id":"their-service-id","issuer":"https://discovery.example.org","jwks-uri":"https://discovery.example.org/.well-known/jwks.json"}]
@@ -765,21 +770,23 @@ Every deployment ships with the audience `dcb`. A discovery service that serves 
 would then mint assertions either deployment accepts. Set `DCB_DISCOVERY_AUDIENCE` to a value
 unique to this deployment, and tell the vendor (§6.1).
 
-**If the variable is absent, empty, or blank, that is "not configured", not an error.** The setter
-is simply never called, the JSON contribution is an empty list, and the effective trust anchor is
-whatever the YAML supplied — nothing, in a default deployment. DCB starts normally, logs
-`accepted from 0 trusted service(s): []`, keeps serving `GET /discovery/libraries` (which needs no
-assertion), and rejects every patron-scoped discovery call with `401 INVALID_PATRON_ASSERTION` —
-the same answer it gives when `dcb.discovery.enabled` is `false`. Fails closed, stays up, and tells
-you so in one log line. Only *malformed* JSON is fatal.
+**With discovery on and the variable absent, that is "not configured", not an error.** DCB starts
+with no trusted service, logs `accepted from 0 trusted service(s): []`, keeps serving
+`GET /discovery/libraries` (which needs no assertion), and rejects every patron-scoped discovery
+call with `401 INVALID_PATRON_ASSERTION`. Fails closed, stays up, and tells you so in one log line.
+With discovery on, a value that is set but blank, or malformed, stops the application starting.
 
-Both forms feed one effective list, so you can use either or both, and the duplicate-issuer
-check in §7.8 covers a collision *between* them. Malformed JSON fails the application at
-startup rather than binding an empty list — a trust anchor that silently binds nothing is
+**With discovery off there is no discovery configuration at all.** DCB reads no `dcb.discovery`
+setting, so a blank or malformed one does not stop it starting, and the patron-scoped discovery
+routes (`/discovery/requests`, `/discovery/loans`, `/discovery/account`, `/discovery/patrons/resolve`)
+do not exist, and a call to one with a token is refused with `401`. Routes that need no patron, such as `GET /discovery/libraries`, are
+unaffected.
+
+Malformed JSON fails the application at startup rather than binding an empty list — a trust anchor that silently binds nothing is
 indistinguishable from a deployment nobody configured, which is the one outcome worth crashing
-to avoid. (`DiscoveryServicePropertiesBindingTests` pins the JSON parsing and the indexed-env-var
-limitation, so nobody removes the JSON route on the assumption that indices would do. It calls the
-property setters directly. No test yet binds the variable through a running application.)
+to avoid. (`DiscoveryConfigBindingTests` pins the JSON parsing and the indexed-env-var limitation, so
+nobody removes the JSON route on the assumption that indices would do, and
+`DiscoveryTrustAnchorStartupTests` starts the application with each unusable setting.)
 
 Note also that the trust anchor contains **no secrets**. A service id, an issuer URL and a JWKS
 URL are all public information; the vendor's *private* key never comes near DCB. Treat this as
@@ -807,10 +814,10 @@ data:
         enabled: true
         audience: dcb
         max-assertion-lifetime: PT2M
-        trusted-services:
-          - service-id: their-service-id
-            issuer: https://discovery.example.org
-            jwks-uri: https://discovery.example.org/.well-known/jwks.json
+        trusted-services-json: >-
+          [{"service-id": "their-service-id",
+            "issuer": "https://discovery.example.org",
+            "jwks-uri": "https://discovery.example.org/.well-known/jwks.json"}]
 ```
 
 ```yaml
@@ -1135,12 +1142,10 @@ the assertion step, with everything else healthy, is very often this.
 ```yaml
 dcb:
   discovery:
-    trusted-services:
-      - service-id: their-service-id
-        issuer: https://discovery.example.org
-        jwks:
-          keys:
-            - { kty: RSA, kid: "…", n: "…", e: AQAB }
+    trusted-services-json: >-
+      [{"service-id": "their-service-id",
+        "issuer": "https://discovery.example.org",
+        "jwks": {"keys": [{"kty": "RSA", "kid": "…", "n": "…", "e": "AQAB"}]}}]
 ```
 
 `jwks` takes precedence over `jwks-uri`. The cost is that you now own key rotation manually: when
@@ -1171,10 +1176,11 @@ or the CloudWatch log group named in the task definition):
   new service is not in the list, the configuration did not reach the process — check
   `MICRONAUT_CONFIG_FILES` or `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`, and the precedence rules in
   §7.4 B3, before suspecting anything else.
-- **Incomplete or blank entry.** An entry missing `service-id`, `issuer`, or both of
-  `jwks-uri`/`jwks`, or with any of its fields set but blank, stops the application starting and
-  names the entry. So does `DCB_DISCOVERY_TRUSTED_SERVICES_JSON` set but blank, and a blank
+- **Incomplete or blank entry.** With discovery on, an entry missing `service-id`, `issuer`, or
+  both of `jwks-uri`/`jwks`, or with any of its fields set but blank, stops the application starting
+  and names the entry. So does `DCB_DISCOVERY_TRUSTED_SERVICES_JSON` set but blank, and a blank
   `audience` or a non-positive `max-assertion-lifetime`. Leave a setting out to take its default.
+  With discovery off, none of this is checked.
 - **Duplicate issuer.** Two entries sharing an issuer throw at bean construction and the
   application does not start. Deliberate: two services on one issuer means either can mint the
   other's assertions, and picking a winner silently would be worse than failing loudly. A
@@ -1328,9 +1334,10 @@ At that point both legacy routes get deleted and the `ADMIN` service account is 
 - `docs/ncip-peer-authentication.md` — the same verification library, applied to inbound NCIP.
   Separate trust store, deliberately.
 - `ApiSecurityArchitectureTests` — the build-time rules described in §4.
-- `DiscoveryServicePropertiesBindingTests` — pins the JSON parsing in §7.2, including the
+- `DiscoveryConfigBindingTests` — pins the JSON parsing in §7.2, including the
   indexed-environment-variable limitation that makes `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`
-  necessary.
+  necessary. `DiscoveryTrustAnchorStartupTests` starts the application with discovery off and with
+  each unusable setting on.
 - `DiscoveryApiSecurityTests`, `PatronAssertionVerifierTests`,
   `PatronRequestCancellationServiceTests`, `PatronStatusMapperTests`, `DiscoveryLibrariesApiTests`
   — behavioural coverage of the surface.

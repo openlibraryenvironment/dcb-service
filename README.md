@@ -14,9 +14,7 @@ This module is distributed in source and pre-compiled docker container form:
 # Deployment
 
 > **Upgrading from 8.x to v9.0.0?** Read
-> [docs/v9-migration-guide.md](docs/v9-migration-guide.md) before you deploy. v9.0.0
-> carries migrations that are not free, an automatic re-clustering sweep, the removal of
-> the `PATRON` role, and it is not cleanly reversible.
+> [docs/v9-migration-guide.md](docs/v9-migration-guide.md) before you deploy.
 
 ## Secret Manager Integration
 
@@ -65,7 +63,7 @@ DB connection effectively, 2 different connections - with JDBC only being used f
 | DCB_DISCOVERY_AUDIENCE | The `aud` a patron assertion must name - identifies this DCB, not another one | dcb |
 | DCB_DISCOVERY_MAX_ASSERTION_LIFETIME | DCB's own cap on patron assertion validity, enforced regardless of the issuer's `exp` | PT2M |
 | DCB_DISCOVERY_TRUSTED_SERVICES_JSON | The whole `dcb.discovery.trusted-services` list as a JSON array in one value, for deployments with no mountable config file (ECS/Fargate, plain docker). Kebab-case keys, matching the YAML. A list of objects cannot be expressed as indexed environment variables, hence this form. | `[{"service-id":"their-service","issuer":"https://discovery.example.org","jwks-uri":"https://discovery.example.org/.well-known/jwks.json"}]` |
-| DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT | How long all of a placement's preflight checks may take together, as an ISO-8601 duration. A placement still checking after it is refused with `PREFLIGHT_CHECKS_TIMED_OUT` and nothing is saved. **55 seconds when not set.** Keep every caller's and the ingress's timeout above it, or they give up before DCB answers | PT90S |
+| DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT | How long all of a placement's preflight checks may take together, as an ISO-8601 duration. A placement still checking after it is refused with `PREFLIGHT_CHECKS_TIMED_OUT` and nothing is saved. **55 seconds when not set**, and DCB logs `Using default preflight check timeout value of PT55S` at startup. Set but blank, unreadable or not positive, DCB does not start. Keep every caller's and the ingress's timeout above it, or they give up before DCB answers | PT90S |
 
 # Configuration
 

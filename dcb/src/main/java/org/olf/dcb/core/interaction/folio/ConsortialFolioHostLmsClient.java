@@ -790,8 +790,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 
 			final var firstBarcodeInList = parseList(barcodeListString).get(0);
 
-			log.debug("Finding virtual patron using barcode: {} from barcode list: {}.",
-				firstBarcodeInList, barcodeListString);
+			log.debug("Finding virtual patron at Host LMS {}", getHostLmsCode());
 
 			return findUsersWithReturnValues(firstBarcodeInList);
 		} catch (NoHomeIdentityException | NoHomeBarcodeException e) {

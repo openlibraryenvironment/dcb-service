@@ -11,8 +11,10 @@ import com.k_int.peerauth.service.NimbusPeerTokenVerifier;
 import com.k_int.peerauth.service.PeerJwksResolver;
 import com.nimbusds.jwt.SignedJWT;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.security.authentication.Authentication;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Singleton
+@Requires(property = DiscoveryConfig.ENABLED, value = "true")
 public class PatronAssertionVerifier {
 
 	public static final String ASSERTION_HEADER = "X-OpenRS-Patron-Assertion";
@@ -42,22 +45,23 @@ public class PatronAssertionVerifier {
 	private static final String CLAIM_SYSTEM_CODE = "localSystemCode";
 	private static final String CLAIM_PATRON_ID = "localSystemPatronId";
 
-	private final DiscoveryServiceProperties properties;
+	private final DiscoveryConfig config;
 	private final DiscoveryTrustedServiceStore trustedServiceStore;
 	private final NimbusPeerTokenVerifier verifier;
 	private final Clock clock;
 
-	public PatronAssertionVerifier(DiscoveryServiceProperties properties,
+	@Inject
+	public PatronAssertionVerifier(DiscoveryConfig config,
 		DiscoveryTrustedServiceStore trustedServiceStore, PeerJwksResolver jwksResolver) {
 
-		this(properties, trustedServiceStore, jwksResolver, Clock.systemUTC());
+		this(config, trustedServiceStore, jwksResolver, Clock.systemUTC());
 	}
 
-	PatronAssertionVerifier(DiscoveryServiceProperties properties,
+	PatronAssertionVerifier(DiscoveryConfig config,
 		DiscoveryTrustedServiceStore trustedServiceStore, PeerJwksResolver jwksResolver,
 		Clock clock) {
 
-		this.properties = properties;
+		this.config = config;
 		this.trustedServiceStore = trustedServiceStore;
 		this.clock = clock;
 		this.verifier = new NimbusPeerTokenVerifier(trustedServiceStore, jwksResolver, clock);
@@ -70,11 +74,6 @@ public class PatronAssertionVerifier {
 	 *         was not accepted, not which check it tripped.
 	 */
 	public PatronAssertion verify(HttpRequest<?> request) {
-		if (!properties.isEnabled()) {
-			throw new InvalidPatronAssertionException(
-				"Discovery patron assertions are not enabled on this DCB");
-		}
-
 		final var header = request.getHeaders().get(ASSERTION_HEADER);
 
 		if (header == null || header.isBlank()) {
@@ -85,7 +84,7 @@ public class PatronAssertionVerifier {
 
 		try {
 			principal = verifier.verify(
-				PeerAuthContext.singleTenant(properties.getAudience()), header.trim());
+				PeerAuthContext.singleTenant(config.getAudience()), header.trim());
 		} catch (PeerAuthException e) {
 			log.warn("Rejected patron assertion: {}", e.getMessage());
 			throw new InvalidPatronAssertionException("Patron assertion was not accepted", e);
@@ -136,9 +135,9 @@ public class PatronAssertionVerifier {
 			// an assertion without one before we got here.
 			final var lifetime = Duration.between(issuedAt.toInstant(), expiresAt.toInstant());
 
-			if (lifetime.compareTo(properties.getMaxAssertionLifetime()) > 0) {
+			if (lifetime.compareTo(config.getMaxAssertionLifetime()) > 0) {
 				log.warn("Rejected patron assertion from {}: lifetime {} exceeds the {} maximum",
-					principal.peerId(), lifetime, properties.getMaxAssertionLifetime());
+					principal.peerId(), lifetime, config.getMaxAssertionLifetime());
 
 				throw new InvalidPatronAssertionException("Patron assertion lifetime is too long");
 			}
