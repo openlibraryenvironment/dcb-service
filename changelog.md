@@ -1,5 +1,141 @@
 # Changelog
 
+## Version 9.2.0
+
+### Additions
+* [Placement]
+	* a supplier that cannot supply is skipped, and the request tries another
+* [Polaris]
+	* harvest bibs over OAI-PMH when ingest_source_class selects it
+* [Requesting]
+	* Refuse a patron's repeat request for a title while their first is active; never staff's [DCB-1430]
+* [Requests]
+	* record whether staff placed a request
+* [General]
+	* Add notes section to patron requests to help with troubleshooting
+	* Discovery service support: a trusted discovery front end can sign patrons in, request, check out and show their account, within bounds
+	* Koha Live Availability and Mapping
+	* configuration report and mapping-value check for every adapter
+	* start of mapping-value check
+
+### Changes
+* [Chore]
+	* Tidy for Eclipse and remove unecessary gradle integration
+	* db - number the supplier request item index in merge order
+	* Antora file only
+	* docs - Set antora file to always checkout worktree
+	* Provide full settings for index rebuilds
+* [Docs]
+	* koha - api-url may end in /api, and a prefix identifies the server
+	* the workflow guide describes volume matching by parts
+	* the duplicate-request guide quotes the message patrons now see
+	* alma - a PIN is checked against the PIN number, not the password
+	* alma - what an existing Alma Host LMS needs on upgrade
+	* polaris - what suppression and per-host choice mean for an OAI host
+	* no adapter reports pickup locations in a request options report
+	* alma - the request cancellation reason, and how to choose one
+	* record test pool root cause
+	* defer availability transaction-scope review
+	* close availability completeness review item
+	* track nonterminating resolution test
+	* track availability check fixes together
+	* alma - say that an Alma tenant serves one agency
+* [Refactor]
+	* alma - raise Alma API errors as a typed AlmaApiException
+	* alma - remove dead code and stale comments from the Alma client
+* [Rework]
+	* Refactor IDP provisioning to use typed config
+* [Test]
+	* describe the measured extents without naming the consortium
+	* say why the fixture refuses a duplicate host LMS code
+	* hostlms - one service test class for import ingest details, fewer code cases
+	* polaris - require both deletions, not just that every deletion is right
+	* diagnose pickup request HTTP failures
+	* isolate Sierra mock requests
+	* report CI suite progress
+	* restore availability test reliability and CI
+	* bound patron resolution test execution
+	* alma - check the requests Alma receives for each client operation
+
+### Fixes
+* [Alma]
+	* accept the PIN profile, delete pre-note virtual bibs, show an unread hold count as 0
+	* leave the virtual bib's control number and timestamp to Alma
+	* find no patron for an identifier Alma does not know
+	* declare and validate the settings the Alma client reads
+	* stop writing renewal notes onto the library's own item
+	* read item due dates from the loan, not the holding
+	* require the virtual item location rather than creating it
+	* encode identifiers as single path segments in Alma API paths
+	* find a patron's loan beyond the first page when renewing
+	* report Alma barcode identifiers as patron barcodes
+	* delete the new holding when a virtual item cannot be created
+	* state which item states the Alma client can act on
+	* keep the rest of the Alma user when changing a patron's group
+	* refuse auth profiles the Alma client cannot verify
+	* send a configurable cancellation reason without notifying the patron
+	* escape virtual bib title and author and drop placeholder catalogue fields
+	* bound Alma calls per bib and report items that cannot be mapped
+	* page through every item on a bib when checking availability
+	* map Alma user request statuses when tracking holds
+	* mark patrons with an active Alma block as blocked
+	* stop logging Alma user records and patron identifiers
+	* keep request headers and bodies out of Alma error details
+	* authenticate patrons with Alma's documented authentication operation
+* [Auth]
+	* stop logging patron barcodes from the patron auth controllers
+* [Availability]
+	* bound ORS location lookup concurrency
+* [Config]
+	* a blank access-bar, staff-client or duplicate-window setting stops startup
+* [Dcb]
+	* guard invalid host ingest configuration
+* [Fulfilment]
+	* audit a failed supplier hold cancel as a cancel
+* [Graphql]
+	* validate a Host LMS's configuration only when it changes
+	* stop logging Host LMS and agency input values
+* [Hostlms]
+	* a missing configuration error names its Host LMS
+* [Indexing]
+	* handle refresh setting errors in search backends
+* [Ingest]
+	* skip a host whose ingest source cannot be built, not every host
+* [Interop]
+	* say what the mapping audit did not check, in a fixed order
+* [Polaris]
+	* refuse borrower-lending-flow until the ILL flow is finished
+	* do not cache a staff auth that Polaris refused
+	* keep request headers, bodies and barcodes out of the logs
+	* bound item availability request bursts
+	* tolerate invalid shelf location policies
+* [Preflight]
+	* apply a library's consortial loan limit to the agency DCB resolves [DCB-2269]
+	* request limits fail closed
+* [Profile]
+	* a membership pickup location is typed PICKUP
+* [R 2 Dbc]
+	* default to maintained transaction operations
+* [Resolution]
+	* keep excluded items and availability errors when an item is chosen
+* [Security]
+	* decide who may call every top-level GraphQL fetcher
+* [Sierra]
+	* alarm exhausted read timeouts
+* [Tracking]
+	* Don't park a collected item as a cancellation because one item read failed
+* [Workflow]
+	* say when a supplier's item has gone, rather than reporting an error
+* [General]
+	* Manual escape route for if an item gets stuck after patron cancellation [DCB-2165]
+	* pings that prove the credentials, report a version, and alarm only on failure [DCB-2271]
+	* barcode lookups that misreport an item
+	* correct legacy availability grace selection
+	* remove location recording from availability backfill
+	* cap availability check concurrency
+	* reconcile stale availability counts
+	* ensure availability backfill makes progress
+
 ## Version 9.1.0
 
 ### Additions
@@ -15,6 +151,7 @@
 
 ### Changes
 * [Chore]
+	* Changelog - Generate the changelog
 	* Rename migration
 	* Documentation - Create antora initial entry point and process
 * [Docs]
