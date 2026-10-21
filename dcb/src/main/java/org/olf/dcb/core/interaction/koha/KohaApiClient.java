@@ -107,6 +107,24 @@ public interface KohaApiClient {
 		return put("/api/v1/patrons/" + patronId, patron, KohaPatron.class);
 	}
 
+	/**
+	 * A patron's current loans with the item and its biblio embedded.
+	 * API: GET /api/v1/patrons/{patron_id}/checkouts
+	 */
+	default Mono<KohaCheckout[]> getPatronCheckouts(String patronId, int maxRows) {
+		return get("/api/v1/patrons/" + patronId + "/checkouts", KohaCheckout[].class,
+			Map.of("_per_page", maxRows), Map.of("x-koha-embed", "item.biblio"));
+	}
+
+	/**
+	 * A patron's balance with its outstanding lines. Needs updatecharges, which the API
+	 * patron may not hold.
+	 * API: GET /api/v1/patrons/{patron_id}/account
+	 */
+	default Mono<KohaPatronBalance> getPatronBalance(String patronId) {
+		return get("/api/v1/patrons/" + patronId + "/account", KohaPatronBalance.class);
+	}
+
 	/** Authenticate a patron
 	 * API docs: <a href="https://api.koha-community.org/#tag/patrons/operation/validateUserAndPassword">Validating a patron in Koha</a>
 	 * @param patronPrinciple - patron identifier

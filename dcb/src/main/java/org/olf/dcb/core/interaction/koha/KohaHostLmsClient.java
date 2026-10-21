@@ -407,6 +407,74 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.onErrorResume(error -> Mono.empty());
 	}
 
+	/**
+	 * Loans and charges for the discovery account page. The balance needs updatecharges,
+	 * which a library may not grant the API patron: the loans are still answered and the
+	 * charges are then unknown rather than zero.
+	 */
+	@Override
+	public Mono<LocalPatronAccount> getLocalPatronAccount(String localPatronId, int maxRows) {
+		final var loans = client.getPatronCheckouts(localPatronId, maxRows)
+			.map(checkouts -> Arrays.stream(checkouts).map(KohaHostLmsClient::toLocalLoan).toList())
+			.defaultIfEmpty(List.of());
+
+		final var balance = client.getPatronBalance(localPatronId)
+			.map(Optional::of)
+			.onErrorResume(KohaHostLmsClient::isRefusal, forbidden -> {
+				log.warn("The API patron for {} may not read patron balances; charges are not reported",
+					getHostLmsCode());
+				return Mono.just(Optional.<KohaPatronBalance>empty());
+			})
+			.defaultIfEmpty(Optional.empty());
+
+		return Mono.zip(loans, balance)
+			.map(found -> toLocalPatronAccount(found.getT1(), found.getT2().orElse(null)));
+	}
+
+	private static LocalPatronAccount toLocalPatronAccount(List<LocalPatronAccount.LocalLoan> loans,
+		KohaPatronBalance balance) {
+
+		final var charges = balance == null ? null : Optional.ofNullable(balance.getOutstandingDebits())
+			.map(KohaPatronBalance.Outstanding::getLines)
+			.orElse(List.of())
+			.stream()
+			.map(KohaHostLmsClient::toLocalCharge)
+			.toList();
+
+		return LocalPatronAccount.builder()
+			.loans(loans)
+			.totalLoans(loans.size())
+			.charges(charges)
+			.totalCharges(charges == null ? null : charges.size())
+			.amountOwed(balance == null ? null : balance.getBalance())
+			.build();
+	}
+
+	private static LocalPatronAccount.LocalLoan toLocalLoan(KohaCheckout checkout) {
+		final var biblio = getValueOrNull(checkout, KohaCheckout::getItem, KohaItem::getBiblio);
+		final var dueDate = DueDates.parse(checkout.getDueDate());
+
+		return LocalPatronAccount.LocalLoan.builder()
+			.title(getValueOrNull(biblio, KohaBiblio::getTitle))
+			.author(getValueOrNull(biblio, KohaBiblio::getAuthor))
+			.localBibId(biblio != null && biblio.getBiblioId() != null ? String.valueOf(biblio.getBiblioId()) : null)
+			.localItemId(checkout.getItemId() != null ? String.valueOf(checkout.getItemId()) : null)
+			.loanDate(DueDates.parse(checkout.getCheckoutDate()))
+			.dueDate(dueDate)
+			.overdue(dueDate != null && dueDate.isBefore(Instant.now()))
+			.build();
+	}
+
+	private static LocalPatronAccount.LocalCharge toLocalCharge(KohaAccountLine line) {
+		return LocalPatronAccount.LocalCharge.builder()
+			.description(line.getDescription())
+			.reason(line.getDebitType())
+			.state(line.getStatus())
+			.amount(line.getAmountOutstanding())
+			.accrualDate(DueDates.parse(line.getDate()))
+			.build();
+	}
+
 	private Patron mapKohaPatronToDcbPatron(KohaPatron kohaPatron) {
 		return Patron.builder()
 			.localId(List.of(String.valueOf(kohaPatron.getPatronId())))
@@ -470,7 +538,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		log.debug("Fetching Koha item by local ID: {}", itemId);
 
-		return biblioIdFor(hostLmsItem, itemId)
+		return biblioIdFor(getValueOrNull(hostLmsItem, HostLmsItem::getBibId), itemId)
 			.flatMap(biblioId -> client.getItemCirculation(biblioId, itemId))
 			.filter(items -> items.length > 0)
 			.map(items -> mapKohaItemToHostLmsItem(items[0]))
@@ -486,9 +554,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 * single-item read offers no such embeds (25.11 spec), so the item is read through its
 	 * biblio. The caller usually knows the biblio; when it does not, the plain read supplies it.
 	 */
-	private Mono<String> biblioIdFor(HostLmsItem hostLmsItem, String itemId) {
-		final var knownBiblioId = getValueOrNull(hostLmsItem, HostLmsItem::getBibId);
-
+	private Mono<String> biblioIdFor(String knownBiblioId, String itemId) {
 		if (!isBlank(knownBiblioId)) {
 			return Mono.just(knownBiblioId);
 		}
@@ -1325,9 +1391,33 @@ public class KohaHostLmsClient implements HostLmsClient {
 		};
 	}
 
+	/**
+	 * Re-resolution: the virtual item now stands for a different supplier's copy, so it
+	 * takes that copy's barcode (and item type, where one is given). Only the changed
+	 * fields are sent, as denyRenewalOfItem does. The hold is on the item, not on the
+	 * barcode, so it needs no change.
+	 */
 	@Override
 	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
-		return Mono.error(new NotImplementedException("This functionality has not yet been implemented for Koha"));
+		final var itemId = getValueOrNull(localRequest, LocalRequest::getRequestedItemId);
+		final var barcode = getValueOrNull(localRequest, LocalRequest::getRequestedItemBarcode);
+
+		if (isBlank(itemId) || isBlank(barcode)) {
+			return Mono.error(new IllegalArgumentException(
+				"Item ID and barcode are required to update a Koha virtual item"));
+		}
+
+		final var canonicalItemType = getValueOrNull(localRequest, LocalRequest::getCanonicalItemType);
+		final var itemType = canonicalItemType == null
+			? Mono.<Optional<String>>just(Optional.empty())
+			: getMappedItemType(canonicalItemType).map(Optional::of);
+
+		return Mono.zip(biblioIdFor(localRequest.getBibId(), itemId), itemType)
+			.flatMap(found -> client.updateItem(found.getT1(), itemId, KohaItem.builder()
+				.externalId(barcode)
+				.itemTypeId(found.getT2().orElse(null))
+				.build()))
+			.thenReturn(localRequest);
 	}
 
 	/*** Renewal operations ***/

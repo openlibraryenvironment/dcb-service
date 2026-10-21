@@ -46,6 +46,9 @@ public class KohaCheckout {
 	@JsonProperty("renewals_count")
 	private Integer renewalsCount;
 
+	@JsonProperty("item")
+	private KohaItem item;
+
 	@Override
 	public String toString() {
 		return "KohaCheckout{" +

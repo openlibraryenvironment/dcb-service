@@ -15,7 +15,9 @@ import org.mockserver.model.HttpRequest;
 import org.mockserver.model.NottableString;
 import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
+import org.olf.dcb.core.interaction.koha.dto.KohaCheckout;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
+import org.olf.dcb.core.interaction.koha.dto.KohaPatronBalance;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatronAuthResponse;
 import org.olf.dcb.test.MockServer;
 import org.olf.dcb.test.MockServerCommonRequests;
@@ -102,6 +104,21 @@ public class MockKohaFixture {
 			.withBody(json(Map.of("identifier", cardnumber, "password", password)));
 	}
 
+	public void mockPatronCheckouts(String patronId, KohaCheckout... checkouts) {
+		mockServer.mock(commonRequests.get(patronPath(patronId) + "/checkouts")
+			.withHeader("x-koha-embed", "item.biblio"), okJson(checkouts));
+	}
+
+	public void mockPatronBalance(String patronId, KohaPatronBalance balance) {
+		mockServer.mock(commonRequests.get(patronPath(patronId) + "/account"), okJson(balance));
+	}
+
+	/** Koha's answer when the API patron lacks updatecharges. */
+	public void mockPatronBalanceForbidden(String patronId) {
+		mockServer.mock(commonRequests.get(patronPath(patronId) + "/account"),
+			response().withStatusCode(403).withBody(json(Map.of("error", "Authorization failure"))));
+	}
+
 	private static String patronPath(String patronId) {
 		return "/api/v1/patrons/%s".formatted(patronId);
 	}
@@ -117,6 +134,22 @@ public class MockKohaFixture {
 	 */
 	public void mockItemCirculation(String biblioId, String itemId, KohaItem... items) {
 		mockServer.mock(itemCirculationRequest(biblioId, itemId), okJson(items));
+	}
+
+	public void mockUpdateItem(String biblioId, String itemId, KohaItem updated) {
+		mockServer.mock(commonRequests.put(itemPath(biblioId, itemId)), okJson(updated));
+	}
+
+	/**
+	 * @param onlyTheseFields JSON the body has to contain; other fields are ignored
+	 */
+	public void verifyItemUpdated(String biblioId, String itemId, String onlyTheseFields) {
+		client.verify(commonRequests.put(itemPath(biblioId, itemId))
+			.withBody(json(onlyTheseFields, MatchType.ONLY_MATCHING_FIELDS)));
+	}
+
+	private static String itemPath(String biblioId, String itemId) {
+		return "/api/v1/biblios/%s/items/%s".formatted(biblioId, itemId);
 	}
 
 	public void verifyItemCirculationRead(String biblioId, String itemId) {
