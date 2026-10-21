@@ -1085,27 +1085,52 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return Mono.zip(
 				emptyWhenUnreadable(MappingVocabulary.ITEM_TYPE),
 				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE),
-				emptyWhenUnreadable(MappingVocabulary.LOCATION))
+				librariesOrEmpty())
 			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3()))
 			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
 				"Could not read configuration from Koha: " + error.getMessage())));
 	}
 
+	// Read once: the branch list and which of them may be collected from come from the same call
+	private Mono<List<KohaLibrary>> librariesOrEmpty() {
+		return client.getLibraries()
+			.map(Arrays::asList)
+			.defaultIfEmpty(List.of())
+			.onErrorResume(error -> {
+				log.warn("Could not read libraries from Koha at {}", getHostLmsCode(), error);
+
+				return Mono.just(List.of());
+			});
+	}
+
 	private ConfigurationReport buildConfigurationReport(List<ConfigurationReport.Entry> itemTypes,
-		List<ConfigurationReport.Entry> patronTypes, List<ConfigurationReport.Entry> libraries) {
+		List<ConfigurationReport.Entry> patronTypes, List<KohaLibrary> kohaLibraries) {
+
+		final var libraries = kohaLibraries.stream().map(KohaHostLmsClient::libraryEntry).toList();
+
+		// A pickup location's localId must be one of these: Koha refuses a hold at any other
+		final var pickupLibraries = kohaLibraries.stream()
+			.filter(library -> TRUE.equals(library.getPickupLocation()))
+			.map(KohaHostLmsClient::libraryEntry)
+			.toList();
 
 		final var checks = List.of(
-			checkSetting("sharing-library-code", rawConfigValue("sharing-library-code"), libraries),
+			checkSetting("sharing-library-code", rawConfigValue("sharing-library-code"), pickupLibraries),
 			checkSetting("virtual-item-library-code", rawConfigValue("virtual-item-library-code"), libraries),
 			checkSetting("virtual-patron-category", config.getVirtualPatronCategory(), patronTypes));
 
 		final var vocabularies = List.of(
 			vocabulary("Item types", itemTypes),
 			vocabulary("Patron categories", patronTypes),
-			vocabulary("Libraries", libraries));
+			vocabulary("Libraries", libraries),
+			vocabulary("Pickup libraries", pickupLibraries));
 
 		return new ConfigurationReport(getHostLmsCode(), ConfigurationReport.Status.CHECKED,
 			null, checks, vocabularies);
+	}
+
+	private static ConfigurationReport.Entry libraryEntry(KohaLibrary library) {
+		return new ConfigurationReport.Entry(library.getLibraryId(), library.getName());
 	}
 
 	private static ConfigurationReport.Check checkSetting(String setting, String configuredValue,
