@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.koha;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.MockServerCommonResponses.created;
+import static org.olf.dcb.test.MockServerCommonResponses.noContent;
 import static org.olf.dcb.test.MockServerCommonResponses.notFound;
 import static org.olf.dcb.test.MockServerCommonResponses.okJson;
 import static org.olf.dcb.test.MockServerCommonResponses.serverError;
@@ -15,6 +16,7 @@ import org.mockserver.model.HttpRequest;
 import org.mockserver.model.NottableString;
 import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
+import org.olf.dcb.core.interaction.koha.dto.KohaBiblio;
 import org.olf.dcb.core.interaction.koha.dto.KohaCheckout;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatronBalance;
@@ -121,6 +123,44 @@ public class MockKohaFixture {
 
 	private static String patronPath(String patronId) {
 		return "/api/v1/patrons/%s".formatted(patronId);
+	}
+
+	public void mockCreateBib(KohaBiblio created) {
+		mockServer.mock(commonRequests.post("/api/v1/biblios"), okJson(created));
+	}
+
+	/** The virtual item's state as the request progresses: the latest answer replaces the last. */
+	public void replaceItemCirculation(String biblioId, String itemId, KohaItem... items) {
+		mockServer.replaceMock(itemCirculationRequest(biblioId, itemId), okJson(items));
+	}
+
+	public void mockDeleteHold(String holdId) {
+		mockServer.mock(commonRequests.delete(holdPath(holdId)), noContent());
+	}
+
+	public void mockDeleteItem(String itemId) {
+		mockServer.mock(commonRequests.delete("/api/v1/items/" + itemId), noContent());
+	}
+
+	public void mockDeleteBib(String biblioId) {
+		mockServer.mock(commonRequests.delete("/api/v1/biblios/" + biblioId), noContent());
+	}
+
+	public void verifyHoldDeleted(String holdId) {
+		client.verify(commonRequests.delete(holdPath(holdId)));
+	}
+
+	public void verifyItemDeleted(String itemId) {
+		client.verify(commonRequests.delete("/api/v1/items/" + itemId));
+	}
+
+	public void verifyBibDeleted(String biblioId) {
+		client.verify(commonRequests.delete("/api/v1/biblios/" + biblioId));
+	}
+
+	/** Koha's answer when no item carries the barcode: an empty list, not a 404. */
+	public void mockNoItemWithBarcode(String barcode) {
+		mockServer.mock(commonRequests.get("/api/v1/items", "external_id", barcode), okJson(new KohaItem[0]));
 	}
 
 	/** The plain single-item read, which carries no circulation embeds. */

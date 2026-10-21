@@ -72,6 +72,23 @@ public class LocationFixture {
         .build()));
   }
 
+	/** A pickup location that names the branch the Host LMS knows it by. */
+	public Location createPickupLocation(UUID uuid, String name, String code, DataAgency agency,
+		String localId) {
+
+		return singleValueFrom(locationRepository.save(Location.builder()
+			.id(uuid)
+			.name(name)
+			.code(code)
+			.type("PICKUP")
+			.isPickup(Boolean.TRUE)
+			.isShelving(Boolean.TRUE)
+			.isSupplyingLocation(Boolean.TRUE)
+			.agency(agency)
+			.localId(localId)
+			.build()));
+	}
+
 	public Location createPickupLocation(DataAgency agency) {
 		final var pickupLocationId = randomUUID();
 
