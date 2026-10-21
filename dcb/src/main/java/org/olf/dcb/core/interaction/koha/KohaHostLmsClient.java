@@ -96,6 +96,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 */
 	private static final int ITEM_ENRICHMENT_CONCURRENCY = 4;
 
+	// Koha's list answers RESTdefaultPageSize rows (20 by default) unless asked for a page
+	// size; a title on a shared Koha has more copies than that. The cap bounds one check.
+	private static final int ITEMS_PAGE_SIZE = 100;
+	private static final int MAX_ITEMS_PER_BIBLIO = 500;
+
 	/**
 	 * Item suppression ruleset used when the Host LMS names none of its own.
 	 * <p>
@@ -648,8 +653,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// would also be cheap, but the ruleset cannot change midway through one bib's
 		// items and reading it once says so.
 		return getLmsItemSuppressionRuleset()
-			.flatMap(itemSuppressionRules -> client.getItemsForBiblio(bibId)
-				.flatMapMany(Flux::fromArray)
+			.flatMap(itemSuppressionRules -> allItemsForBiblio(bibId)
 				.flatMap(kohaItem -> mapKohaItemToDcbItem(kohaItem, itemSuppressionRules),
 					ITEM_ENRICHMENT_CONCURRENCY)
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()),
@@ -658,6 +662,19 @@ public class KohaHostLmsClient implements HostLmsClient {
 					ITEM_ENRICHMENT_CONCURRENCY)
 				.onErrorContinue((throwable, item) -> log.warn("Mapping error for Koha item {}: {}", item, throwable.getMessage()))
 				.collectList());
+	}
+
+	// Pages until a short page or the cap; a title past the cap is reported, not read on
+	private Flux<KohaItem> allItemsForBiblio(String bibId) {
+		return Flux.range(1, MAX_ITEMS_PER_BIBLIO / ITEMS_PAGE_SIZE)
+			.concatMap(page -> client.getItemsForBiblio(bibId, page, ITEMS_PAGE_SIZE)
+				.defaultIfEmpty(new KohaItem[0]))
+			.takeUntil(page -> page.length < ITEMS_PAGE_SIZE)
+			.flatMapIterable(Arrays::asList)
+			.take(MAX_ITEMS_PER_BIBLIO)
+			.doOnDiscard(KohaItem.class, discarded -> log.warn(
+				"Koha biblio {} in {} has more than {} items; the rest are not read",
+				bibId, getHostLmsCode(), MAX_ITEMS_PER_BIBLIO));
 	}
 
 	/**
@@ -1194,7 +1211,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return Mono.just(parameters)
 			.map(p -> WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW.equals(p.getActiveWorkflow())
 				? getDcbSharingLibraryCode() : resolveLibraryCode(p))
-			.flatMap(lib -> submitKohaHold(parameters, lib));
+			.flatMap(lib -> submitKohaHold(parameters, lib, false));
 	}
 
 	@Override
@@ -1205,7 +1222,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return Mono.just(parameters)
 			.map(p -> WorkflowConstants.EXPEDITED_WORKFLOW.equals(p.getActiveWorkflow())
 				? resolveLibraryCode(p) : getDcbSharingLibraryCode())
-			.flatMap(lib -> submitKohaHold(parameters, lib));
+			.flatMap(lib -> submitKohaHold(parameters, lib, true));
 	}
 
 	@Override
@@ -1213,7 +1230,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		log.info("placeHoldRequestAtPickupAgency patron={} item={}", parameters.getLocalPatronId(), parameters.getLocalItemId());
 		return Mono.just(parameters)
 			.map(this::resolveLibraryCode)
-			.flatMap(lib -> submitKohaHold(parameters, lib));
+			.flatMap(lib -> submitKohaHold(parameters, lib, true));
 	}
 
 	@Override
@@ -1221,11 +1238,17 @@ public class KohaHostLmsClient implements HostLmsClient {
 		log.info("placeHoldRequestAtLocalAgency patron={} item={}", parameters.getLocalPatronId(), parameters.getLocalItemId());
 		return Mono.just(parameters)
 			.map(this::resolveLibraryCode)
-			.flatMap(lib -> submitKohaHold(parameters, lib));
+			.flatMap(lib -> submitKohaHold(parameters, lib, false));
 	}
 
-	private Mono<LocalRequest> submitKohaHold(PlaceHoldRequestParameters parameters, String pickupLibraryId) {
-		// pickup library ID needs to reference either Koha location or external ones
+	/**
+	 * The supplier and pickup holds are for DCB's own virtual patron, whose expiry or debt
+	 * must not stop a consortium loan, so they override patron blocks. The borrower and
+	 * local holds are for a real patron, and the library's blocks stand.
+	 */
+	private Mono<LocalRequest> submitKohaHold(PlaceHoldRequestParameters parameters,
+		String pickupLibraryId, boolean overridePatronBlocks) {
+
 		return Mono.defer(() -> {
 			KohaHoldRequest holdRequest = KohaHoldRequest.builder()
 				.itemId(Integer.valueOf(parameters.getLocalItemId()))
@@ -1239,7 +1262,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 //				.holdDate()
 				.build();
 
-			return client.placeHoldRequest(holdRequest)
+			final var placement = overridePatronBlocks
+				? client.placeHoldRequestOverridingPatronBlocks(holdRequest)
+				: client.placeHoldRequest(holdRequest);
+
+			return placement
 				.map(response -> mapKohaHoldToLocalRequest(response, parameters))
 				.doOnSubscribe(s -> log.info("Submitting Koha HOLD patron={} item={} pickupLibrary={}",
 					parameters.getLocalPatronId(), parameters.getLocalItemId(), pickupLibraryId));

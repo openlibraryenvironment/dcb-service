@@ -12,6 +12,7 @@ import java.util.Map;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.MatchType;
 import org.mockserver.model.HttpRequest;
+import org.mockserver.model.NottableString;
 import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
@@ -133,6 +134,26 @@ public class MockKohaFixture {
 
 	public void mockPlaceHold(KohaHoldResponse response) {
 		mockServer.mock(commonRequests.post(HOLDS_PATH), created(response));
+	}
+
+	/** Koha's refusal of a hold its rules do not allow: 403 with the reason. */
+	public void mockHoldRefused(int status, String reason) {
+		mockServer.mock(commonRequests.post(HOLDS_PATH),
+			response().withStatusCode(status).withBody(json(Map.of("error", reason))));
+	}
+
+	public void verifyHoldPlacedOverridingPatronBlocks() {
+		client.verify(commonRequests.post(HOLDS_PATH).withHeader("x-koha-override", "any"));
+	}
+
+	public void verifyHoldPlacedWithoutOverride() {
+		client.verify(commonRequests.post(HOLDS_PATH).withHeader(NottableString.not("x-koha-override")));
+	}
+
+	/** One page of a biblio's items, as the paged read asks for it. */
+	public void mockItemsPage(String biblioId, int page, KohaItem... items) {
+		mockServer.mock(commonRequests.get(itemsForBiblioPath(biblioId), "_page", String.valueOf(page))
+			.withHeader("x-koha-embed", "checkout"), okJson(items));
 	}
 
 	public void mockHold(KohaHoldResponse hold) {

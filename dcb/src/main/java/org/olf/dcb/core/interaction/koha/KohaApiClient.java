@@ -18,6 +18,8 @@ public interface KohaApiClient {
 	<T> Mono<T> get(String path, Class<T> responseType, Map<String, Object> queryParams, Map<String, String> headers); // Sometimes we need to pass Koha headers
 	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
 	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType);
+	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams,
+		Map<String, String> headers);
 	<T> Mono<T> put(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
 	<T> Mono<T> patch(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
 	Mono<Void> delete(String path, Map<String, Object> queryParams);
@@ -240,9 +242,9 @@ public interface KohaApiClient {
 	 * API docs: <a href="https://api.koha-community.org/#tag/biblios/operation/getBiblioItems">Getting items for a biblio</a>
 	 * </p>
 	 */
-	default Mono<KohaItem[]> getItemsForBiblio(String biblioId) {
+	default Mono<KohaItem[]> getItemsForBiblio(String biblioId, int page, int perPage) {
 		return get("/api/v1/biblios/" + biblioId + "/items", KohaItem[].class,
-			Collections.emptyMap(), Map.of("x-koha-embed", "checkout"));
+			Map.of("_page", page, "_per_page", perPage), Map.of("x-koha-embed", "checkout"));
 	}
 
 	/**
@@ -298,6 +300,16 @@ public interface KohaApiClient {
 	 */
 	default Mono<KohaHoldResponse> placeHoldRequest(KohaHoldRequest request) {
 		return post("/api/v1/holds", request, KohaHoldResponse.class);
+	}
+
+	/**
+	 * A hold placed past the patron's own blocks (expiry, debt, restriction, hold limit,
+	 * lost card, bad address). Circulation rules still apply.
+	 * API: POST /api/v1/holds with x-koha-override: any
+	 */
+	default Mono<KohaHoldResponse> placeHoldRequestOverridingPatronBlocks(KohaHoldRequest request) {
+		return post("/api/v1/holds", request, KohaHoldResponse.class, Collections.emptyMap(),
+			Map.of("x-koha-override", "any"));
 	}
 
 	/**

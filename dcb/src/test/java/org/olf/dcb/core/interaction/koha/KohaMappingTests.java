@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -275,7 +276,7 @@ class KohaMappingTests {
 				.build())
 			.toArray(KohaItem[]::new);
 
-		when(apiClient.getItemsForBiblio("42")).thenReturn(Mono.just(kohaItems));
+		when(apiClient.getItemsForBiblio(eq("42"), anyInt(), anyInt())).thenReturn(Mono.just(kohaItems));
 
 		when(apiClient.getActiveHoldsForItem(any())).thenAnswer(invocation ->
 			Mono.fromCallable(() -> {
@@ -325,7 +326,7 @@ class KohaMappingTests {
 	}
 
 	private void givenItem(KohaItem kohaItem) {
-		when(apiClient.getItemsForBiblio("42"))
+		when(apiClient.getItemsForBiblio(eq("42"), anyInt(), anyInt()))
 			.thenReturn(Mono.just(new KohaItem[] { kohaItem }));
 
 		when(apiClient.getActiveHoldsForItem(String.valueOf(kohaItem.getItemId())))

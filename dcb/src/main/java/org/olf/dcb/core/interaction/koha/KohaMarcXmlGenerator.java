@@ -43,8 +43,12 @@ public class KohaMarcXmlGenerator {
 		xml.append("  <datafield tag=\"245\" ind1=\"1\" ind2=\"0\">\n")
 			.append("    <subfield code=\"a\">").append(escapeXml(title)).append("</subfield>\n")
 			.append("  </datafield>\n")
+			// 942$n is Koha's OpacSuppression flag and the first condition of the koha-default
+			// ruleset: without it the virtual bib shows in the OPAC and DCB's own OAI harvest
+			// reads it back as a holding of the borrowing library
 			.append("  <datafield tag=\"942\" ind1=\" \" ind2=\" \">\n")
-			.append("    <subfield code=\"c\">DCB_VIRTUAL</subfield>\n") // Optional: highly recommended to assign a specific Koha bib-level item type
+			.append("    <subfield code=\"c\">DCB_VIRTUAL</subfield>\n")
+			.append("    <subfield code=\"n\">1</subfield>\n")
 			.append("  </datafield>\n")
 			.append("</record>");
 
