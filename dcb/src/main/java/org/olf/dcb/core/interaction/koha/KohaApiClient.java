@@ -49,12 +49,13 @@ public interface KohaApiClient {
 	}
 
 	/**
-	 * Search patrons by userid. Note that other options are available (see docs).
+	 * Search patrons by userid. _match defaults to contains, so without exact a userid is
+	 * matched by any other that contains it.
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/patrons/operation/listPatrons">Searching patrons in Koha</a>
 	 * </p>	 */
-	default Mono<KohaPatronsList> getPatronByUserId(String userid) {
-		return get("/api/v1/patrons", KohaPatronsList.class, Map.of("userid", userid));
+	default Mono<KohaPatron[]> getPatronByUserId(String userid) {
+		return get("/api/v1/patrons", KohaPatron[].class, Map.of("userid", userid, "_match", "exact"));
 	}
 
 	/**
@@ -64,8 +65,8 @@ public interface KohaApiClient {
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/patrons/operation/listPatrons">Searching patrons in Koha</a>
 	 * </p>	 */
-	default Mono<KohaPatronsList> getPatronByCardnumber(String cardnumber) {
-		return get("/api/v1/patrons", KohaPatronsList.class, Map.of("cardnumber", cardnumber));
+	default Mono<KohaPatron[]> getPatronByCardnumber(String cardnumber) {
+		return get("/api/v1/patrons", KohaPatron[].class, Map.of("cardnumber", cardnumber, "_match", "exact"));
 	}
 
 	/**
@@ -206,25 +207,14 @@ public interface KohaApiClient {
 		return get("/api/v1/libraries", KohaLibrary[].class, Map.of("_per_page", -1));
 	}
 
-	/**
-	 * Find a list of items in Koha by the given criteria
-	 * API: <a href="https://api.koha-community.org/#tag/items/operation/listItems">...</a>
-	 * @param query The query to get the items
-	 * @return A list of Koha items filtered by the query
-	 */
-	default Mono<KohaItemsList> getItems(String query) {
-		// This will need to take a variety of parameters
-		// Get items for bibs, libraries etc
-		return get("/api/v1/items?q=" + query, KohaItemsList.class);
-	}
 
 
 	/**
 	 * Search for items by barcode (external_id).
 	 * API: GET /api/v1/items?external_id={barcode}
 	 */
-	default Mono<KohaItemsList> getItemByBarcode(String barcode) {
-		return get("/api/v1/items", KohaItemsList.class, Map.of("external_id", barcode));
+	default Mono<KohaItem[]> getItemByBarcode(String barcode) {
+		return get("/api/v1/items", KohaItem[].class, Map.of("external_id", barcode, "_match", "exact"));
 	}
 
 	/**

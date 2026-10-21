@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.koha;
 
+import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.MockServerCommonResponses.created;
 import static org.olf.dcb.test.MockServerCommonResponses.notFound;
@@ -13,6 +14,8 @@ import org.mockserver.matchers.MatchType;
 import org.mockserver.model.HttpRequest;
 import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
+import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
+import org.olf.dcb.core.interaction.koha.dto.KohaPatronAuthResponse;
 import org.olf.dcb.test.MockServer;
 import org.olf.dcb.test.MockServerCommonRequests;
 
@@ -27,6 +30,8 @@ import org.olf.dcb.test.MockServerCommonRequests;
 public class MockKohaFixture {
 	private static final String TOKEN_PATH = "/api/v1/oauth/token";
 	private static final String HOLDS_PATH = "/api/v1/holds";
+	private static final String PATRONS_PATH = "/api/v1/patrons";
+	private static final String PASSWORD_VALIDATION_PATH = "/api/v1/auth/password/validation";
 
 	private final MockServerClient client;
 	private final MockServerCommonRequests commonRequests;
@@ -63,6 +68,41 @@ public class MockKohaFixture {
 	 */
 	public void mockNoActiveHolds() {
 		mockServer.mock(commonRequests.get(HOLDS_PATH), okJson(new Object[0]));
+	}
+
+	public void mockPatron(KohaPatron patron) {
+		mockServer.mock(commonRequests.get(patronPath(String.valueOf(patron.getPatronId()))), okJson(patron));
+	}
+
+	public void mockPatronNotFound(String patronId) {
+		mockServer.mock(commonRequests.get(patronPath(patronId)),
+			notFound(Map.of("error", "Patron not found")));
+	}
+
+	/** The search findVirtualPatron and the name profile use; matched on the exact card number. */
+	public void mockPatronsByCardnumber(String cardnumber, KohaPatron... patrons) {
+		mockServer.mock(commonRequests.get(PATRONS_PATH, "cardnumber", cardnumber)
+			.withQueryStringParameter("_match", "exact"), okJson(patrons));
+	}
+
+	/** Koha's answer to a right password: the patron it belongs to. */
+	public void mockPasswordAccepted(String cardnumber, String password, KohaPatronAuthResponse response) {
+		mockServer.mock(passwordValidation(cardnumber, password), created(response));
+	}
+
+	/** 401 for a wrong password, 400 for an identifier Koha does not know. */
+	public void mockPasswordRefused(String cardnumber, String password, int status) {
+		mockServer.mock(passwordValidation(cardnumber, password),
+			response().withStatusCode(status).withBody(json(Map.of("error", "Validation failed"))));
+	}
+
+	private HttpRequest passwordValidation(String cardnumber, String password) {
+		return commonRequests.post(PASSWORD_VALIDATION_PATH)
+			.withBody(json(Map.of("identifier", cardnumber, "password", password)));
+	}
+
+	private static String patronPath(String patronId) {
+		return "/api/v1/patrons/%s".formatted(patronId);
 	}
 
 	/** The plain single-item read, which carries no circulation embeds. */
