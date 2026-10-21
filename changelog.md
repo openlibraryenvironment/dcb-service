@@ -3,6 +3,12 @@
 ## Version 9.2.0
 
 ### Additions
+* [Koha]
+	* a Koha library's patrons sign in by profile, are refused by Koha's own blocks and expiry, and borrow from another system start to finish [DCB-2143]
+	* hold and item states Koha no longer lists (filled, cancelled, in transit, on the hold shelf) reach the tracker [DCB-2144]
+	* virtual bibs are OPAC-suppressed, item lists page past twenty, and virtual-patron holds override patron blocks [DCB-2145, DCB-2153]
+	* re-resolution and the discovery account page [DCB-2150]
+	* operational and developer guides replace koha_notes.md
 * [Placement]
 	* a supplier that cannot supply is skipped, and the request tries another
 * [Polaris]
