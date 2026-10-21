@@ -18,14 +18,14 @@ setup you may not have.
 
 ## What does not change
 
-| | Status |
-|---|---|
-| Environment variables | **Unchanged.** No renames, no new required settings |
-| Host LMS / DCB configuration in the database | **Unchanged.** No migration needed |
-| Image tags | **Unchanged.** JVM image as before; native image still `native-<tag>` |
-| Ports | **Unchanged** (8080) |
-| Hazelcast version | **Unchanged** — 5.4.0, same as the previous release |
-| OpenSearch requirements | **Unchanged** — see below |
+|                                              | Status                                                                |
+|----------------------------------------------|-----------------------------------------------------------------------|
+| Environment variables                        | **Unchanged.** No renames, no new required settings                   |
+| Host LMS / DCB configuration in the database | **Unchanged.** No migration needed                                    |
+| Image tags                                   | **Unchanged.** JVM image as before; native image still `native-<tag>` |
+| Ports                                        | **Unchanged** (8080)                                                  |
+| Hazelcast version                            | **Unchanged** — 5.4.0, same as the previous release                   |
+| OpenSearch requirements                      | **Unchanged** — see below                                             |
 
 ## OpenSearch — verified, no action needed
 
@@ -110,12 +110,12 @@ ships in the image — but note:
 The two failure modes most likely to be release-related, and how to tell them
 apart quickly:
 
-| Symptom | Likely cause |
-|---|---|
-| `status: 400 ... Accept version must be ... found 9` | Elasticsearch 8.x behind a 9.x client — upgrade ES to 9.x |
-| `status: 401 ... [es/indices.exists]` | Index credentials not reaching the client — check `DCB_INDEX_USERNAME` / `DCB_INDEX_PASSWORD` |
-| `CP subsystem is a licensed feature` | Hazelcast newer than 5.4.0 on the classpath — should not happen from our image; report it |
-| `Unrecognized field "..." (class ...Config)` | A Host LMS config key DCB does not model. Should no longer fail; report it if it does |
+| Symptom                                              | Likely cause                                                                                  |
+|------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| `status: 400 ... Accept version must be ... found 9` | Elasticsearch 8.x behind a 9.x client — upgrade ES to 9.x                                     |
+| `status: 401 ... [es/indices.exists]`                | Index credentials not reaching the client — check `DCB_INDEX_USERNAME` / `DCB_INDEX_PASSWORD` |
+| `CP subsystem is a licensed feature`                 | Hazelcast newer than 5.4.0 on the classpath — should not happen from our image; report it     |
+| `Unrecognized field "..." (class ...Config)`         | A Host LMS config key DCB does not model. Should no longer fail; report it if it does         |
 
 ### Finding your search backend version
 
@@ -155,7 +155,7 @@ aws opensearch describe-domain --domain-name <name> \
 ## Rollback
 
 The Micronaut 5 move itself did not migrate data, but the releases that carry it do: from
-v8.71.0, rolling back means restoring the database. See `docs/v9-migration-guide.md`, §9.
+v8.71.0, rolling back means restoring the database. See `docs/v9-migration-guide.md`, Appendix A.
 
 Elasticsearch adds one more constraint: if you upgraded ES to 9.x in order to take this
 release, rolling DCB back to an 8.x-era client will not work against that upgraded cluster.
