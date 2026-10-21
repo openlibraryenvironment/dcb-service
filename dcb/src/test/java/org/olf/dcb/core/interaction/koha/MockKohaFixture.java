@@ -2,12 +2,15 @@ package org.olf.dcb.core.interaction.koha;
 
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.test.MockServerCommonResponses.created;
+import static org.olf.dcb.test.MockServerCommonResponses.notFound;
 import static org.olf.dcb.test.MockServerCommonResponses.okJson;
+import static org.olf.dcb.test.MockServerCommonResponses.serverError;
 
 import java.util.Map;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.MatchType;
+import org.mockserver.model.HttpRequest;
 import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.test.MockServer;
@@ -62,12 +65,66 @@ public class MockKohaFixture {
 		mockServer.mock(commonRequests.get(HOLDS_PATH), okJson(new Object[0]));
 	}
 
+	/** The plain single-item read, which carries no circulation embeds. */
+	public void mockItem(KohaItem item) {
+		mockServer.mock(commonRequests.get("/api/v1/items/" + item.getItemId()), okJson(item));
+	}
+
+	/**
+	 * The per-biblio list filtered to one item, with checkout, transfer and first_hold
+	 * embedded: the only read that answers what the item is doing.
+	 */
+	public void mockItemCirculation(String biblioId, String itemId, KohaItem... items) {
+		mockServer.mock(itemCirculationRequest(biblioId, itemId), okJson(items));
+	}
+
+	public void verifyItemCirculationRead(String biblioId, String itemId) {
+		client.verify(itemCirculationRequest(biblioId, itemId));
+	}
+
+	private HttpRequest itemCirculationRequest(String biblioId, String itemId) {
+		return commonRequests.get(itemsForBiblioPath(biblioId), "q", KohaApiClient.itemFilter(itemId))
+			.withHeader("x-koha-embed", KohaApiClient.CIRCULATION_EMBEDS);
+	}
+
 	public void mockCreateItem(String biblioId, KohaItem createdItem) {
 		mockServer.mock(commonRequests.post(itemsForBiblioPath(biblioId)), created(createdItem));
 	}
 
 	public void mockPlaceHold(KohaHoldResponse response) {
 		mockServer.mock(commonRequests.post(HOLDS_PATH), created(response));
+	}
+
+	public void mockHold(KohaHoldResponse hold) {
+		mockServer.mock(commonRequests.get(holdPath(String.valueOf(hold.getHoldId()))), okJson(hold));
+	}
+
+	/** Koha's answer for a hold it has moved to old_reserves, or never had. */
+	public void mockHoldNotFound(String holdId) {
+		mockServer.mock(commonRequests.get(holdPath(holdId)),
+			notFound(Map.of("error", "Hold not found")));
+	}
+
+	public void mockHoldServerError(String holdId) {
+		mockServer.mock(commonRequests.get(holdPath(holdId)), serverError());
+	}
+
+	/** The old-holds list, which is the only place a filled or cancelled hold still appears. */
+	public void mockOldHold(String holdId, KohaHoldResponse... oldHolds) {
+		mockServer.mock(oldHoldRequest(holdId), okJson(oldHolds));
+	}
+
+	public void verifyOldHoldNeverRead(String holdId) {
+		mockServer.verifyNever(oldHoldRequest(holdId));
+	}
+
+	private HttpRequest oldHoldRequest(String holdId) {
+		return commonRequests.get(HOLDS_PATH, "hold_id", holdId)
+			.withQueryStringParameter("old", "true");
+	}
+
+	private static String holdPath(String holdId) {
+		return "/api/v1/holds/%s".formatted(holdId);
 	}
 
 	/**

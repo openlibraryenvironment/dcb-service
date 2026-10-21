@@ -161,6 +161,22 @@ public interface KohaApiClient {
 	}
 
 	/**
+	 * One item with its checkout, transfer and first hold. Only the per-biblio list offers
+	 * those embeds, so the item is selected from it with Koha's q filter.
+	 * API: GET /api/v1/biblios/{biblio_id}/items?q={"item_id":N}
+	 */
+	default Mono<KohaItem[]> getItemCirculation(String biblioId, String itemId) {
+		return get("/api/v1/biblios/" + biblioId + "/items", KohaItem[].class,
+			Map.of("q", itemFilter(itemId)), Map.of("x-koha-embed", CIRCULATION_EMBEDS));
+	}
+
+	String CIRCULATION_EMBEDS = "checkout,transfer,first_hold";
+
+	static String itemFilter(String itemId) {
+		return "{\"item_id\":" + itemId + "}";
+	}
+
+	/**
 	 * The vocabularies a mapping is built from. Each returns a bare array rather than a
 	 * wrapped list, which is what the Koha REST spec declares for all three. '_per_page=-1'
 	 * because Koha otherwise returns its default page of 20, and every value past it would
@@ -217,6 +233,14 @@ public interface KohaApiClient {
 	 */
 	default Mono<KohaHoldResponse> getHold(String holdId) {
 		return get("/api/v1/holds/" + holdId, KohaHoldResponse.class);
+	}
+
+	/**
+	 * A hold Koha has finished with, filled or cancelled, which only the list reports.
+	 * API: GET /api/v1/holds?hold_id={hold_id}&old=true
+	 */
+	default Mono<KohaHoldResponse[]> getOldHold(String holdId) {
+		return get("/api/v1/holds", KohaHoldResponse[].class, Map.of("hold_id", holdId, "old", true));
 	}
 
 	/**

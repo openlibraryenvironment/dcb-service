@@ -144,6 +144,7 @@ class KohaMappingTests {
 
 		when(apiClient.getItemByBarcode("ITEM-BARCODE")).thenReturn(Mono.just(byBarcode));
 		when(apiClient.getItem("99")).thenReturn(Mono.just(onLoan));
+		when(apiClient.getItemCirculation("42", "99")).thenReturn(Mono.just(new KohaItem[] {onLoan}));
 
 		// Koha leaves every status field at "available" while an item is on loan
 		assertThat(client.getItemByBarcode("ITEM-BARCODE").block().getStatus(), is(HostLmsItem.ITEM_LOANED));

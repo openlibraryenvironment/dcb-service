@@ -21,6 +21,7 @@ import org.olf.dcb.rules.AnnotatedObject;
 import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.rules.ObjectRulesService;
 import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -395,9 +396,32 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		log.debug("Fetching Koha item by local ID: {}", itemId);
 
-		return client.getItem(itemId)
-			.map(this::mapKohaItemToHostLmsItem) // This might not give us all the context, so see how this does
+		return biblioIdFor(hostLmsItem, itemId)
+			.flatMap(biblioId -> client.getItemCirculation(biblioId, itemId))
+			.filter(items -> items.length > 0)
+			.map(items -> mapKohaItemToHostLmsItem(items[0]))
+			.defaultIfEmpty(HostLmsItem.builder()
+				.localId(itemId)
+				.status(HostLmsItem.ITEM_MISSING)
+				.build())
 			.doOnError(e -> log.error("Failed to retrieve Koha item {}: {}", itemId, e.getMessage()));
+	}
+
+	/**
+	 * Only the per-biblio item list embeds an item's checkout, transfer and first hold; the
+	 * single-item read offers no such embeds (25.11 spec), so the item is read through its
+	 * biblio. The caller usually knows the biblio; when it does not, the plain read supplies it.
+	 */
+	private Mono<String> biblioIdFor(HostLmsItem hostLmsItem, String itemId) {
+		final var knownBiblioId = getValueOrNull(hostLmsItem, HostLmsItem::getBibId);
+
+		if (!isBlank(knownBiblioId)) {
+			return Mono.just(knownBiblioId);
+		}
+
+		return client.getItem(itemId)
+			.mapNotNull(KohaItem::getBiblioId)
+			.map(String::valueOf);
 	}
 
 	/**
@@ -426,54 +450,89 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.doOnError(e -> log.error("Failed to fetch item by barcode {} from Koha: {}", barcode, e.getMessage()));
 	}
 
-	/**
-	 * Maps the KohaItem DTO to DCB's HostLmsItem
-	 */
 	private HostLmsItem mapKohaItemToHostLmsItem(KohaItem kohaItem) {
+		final var checkout = kohaItem.getCheckout();
+		final var circulation = KohaItemCirculation.of(kohaItem);
+
 		return HostLmsItem.builder()
 			.localId(String.valueOf(kohaItem.getItemId()))
-			.barcode(kohaItem.getExternalId()) // are barcodes the ONLY thing here?
+			.barcode(kohaItem.getExternalId())
 			.bibId(String.valueOf(kohaItem.getBiblioId()))
-			.status(deriveItemStatusForHostLmsItem(kohaItem))
-			.renewalCount(kohaItem.getRenewalsCount())
-			.dueDate(kohaItem.getCheckout() == null
-				? null
-				: DueDates.parse(kohaItem.getCheckout().getDueDate()))
-			.holdCount(kohaItem.getHoldCount()) // Commented out ones need a bit more thought ...
-//			.holdingId(kohaItem.getHoldingLibraryId())
-//			.renewable()
-//			.rawStatus(kohaItem.get)
+			.status(circulation.hostLmsStatus())
+			.rawStatus(circulation.name())
+			// The loan's own count: items.renewals was dropped in Koha 23.11, so the item field
+			// is empty on every target version
+			.renewalCount(checkout != null && checkout.getRenewalsCount() != null
+				? checkout.getRenewalsCount()
+				: kohaItem.getRenewalsCount())
+			.dueDate(checkout == null ? null : DueDates.parse(checkout.getDueDate()))
+			.holdCount(kohaItem.getHoldCount())
+			.holdingId(kohaItem.getHoldingLibraryId())
 			.build();
 	}
 
 	/**
-	 * Helper to map Koha's numeric statuses to DCB's canonical statuses.
-	 * Could be different between implementations so watch out
-	 * Also need one for LA. Expand this
-	 *
+	 * Koha has no item status column. An item is lost or withdrawn by its own flags, on
+	 * loan because a checkout exists, in transit because a transfer has been sent and not
+	 * received, and on the hold shelf because its first hold is waiting - which is why the
+	 * read embeds checkout, transfer and first_hold, and why the order below is the order
+	 * the flags override one another in Koha's own displays.
 	 */
-	private String deriveItemStatusForHostLmsItem(KohaItem item) {
-		// This is for the Host LMS item. We'll need another one to make sense of everything else
-		// or possibly a combo
+	enum KohaItemCirculation {
+		WITHDRAWN(HostLmsItem.ITEM_MISSING),
+		LOST(HostLmsItem.ITEM_MISSING),
+		CHECKED_OUT(HostLmsItem.ITEM_LOANED),
+		IN_TRANSIT(HostLmsItem.ITEM_TRANSIT),
+		WAITING(HostLmsItem.ITEM_ON_HOLDSHELF),
+		NOT_FOR_LOAN(HostLmsItem.LIBRARY_USE_ONLY),
+		AVAILABLE(HostLmsItem.ITEM_AVAILABLE);
 
-		if (item.getWithdrawn() != null && item.getWithdrawn() > 0) {
-			return HostLmsItem.ITEM_MISSING;
+		private final String hostLmsStatus;
+
+		KohaItemCirculation(String hostLmsStatus) {
+			this.hostLmsStatus = hostLmsStatus;
 		}
-		if (item.getLostStatus() != null && item.getLostStatus() > 0) {
-			return HostLmsItem.ITEM_MISSING;
+
+		String hostLmsStatus() {
+			return hostLmsStatus;
 		}
-		if (item.getNotForLoanStatus() != null && item.getNotForLoanStatus() > 0) {
-			return HostLmsItem.ITEM_MISSING; // Really should be ITEM_UNAVAILABLE or ITEM_RESTRICTED
+
+		static KohaItemCirculation of(KohaItem item) {
+			if (isSet(item.getWithdrawn())) {
+				return WITHDRAWN;
+			}
+			if (isSet(item.getLostStatus())) {
+				return LOST;
+			}
+			if (item.getCheckout() != null || item.getCheckedOutDate() != null) {
+				return CHECKED_OUT;
+			}
+			if (isOpenTransfer(item.getTransfer())) {
+				return IN_TRANSIT;
+			}
+			if (isWaiting(item.getFirstHold())) {
+				return WAITING;
+			}
+			if (isSet(item.getEffectiveNotForLoanStatus()) || isSet(item.getNotForLoanStatus())) {
+				return NOT_FOR_LOAN;
+			}
+			return AVAILABLE;
 		}
-		// Koha keeps an item on loan "available" in every status field; only the checkout says so
-		if (item.getCheckout() != null || item.getCheckedOutDate() != null) {
-			return HostLmsItem.ITEM_LOANED;
+
+		// A transfer that has been requested but not sent leaves the item where it is
+		private static boolean isOpenTransfer(KohaTransfer transfer) {
+			return transfer != null
+				&& transfer.getDateSent() != null
+				&& transfer.getDateArrived() == null;
 		}
-//		if (item.getDamagedStatus() != null && item.getDamagedStatus() > 0) {
-//		}
-		// Need to look at Koha item statuses for this one
-		// Should really default to UNKNOWN
-		return HostLmsItem.ITEM_AVAILABLE;
+
+		private static boolean isWaiting(KohaHoldResponse firstHold) {
+			return firstHold != null && "W".equalsIgnoreCase(firstHold.getStatus());
+		}
+
+		private static boolean isSet(Integer flag) {
+			return flag != null && flag != 0;
+		}
 	}
 
 	private ItemStatusCode deriveItemStatus(KohaItem item) {
@@ -732,10 +791,9 @@ public class KohaHostLmsClient implements HostLmsClient {
 				Boolean isRequestable = ItemStatusCode.AVAILABLE.equals(dcbStatusCode); // CHECK THAT THIS IS THE SAME THING IN KOHA
 
 
-				Instant dueDate = null;
-				if (kohaItem.getCheckout() != null && kohaItem.getCheckout().getDueDate() != null) { // This needs careful parsing
-					dueDate = Instant.parse(kohaItem.getCheckout().getDueDate());
-				}
+				final Instant dueDate = kohaItem.getCheckout() == null
+					? null
+					: DueDates.parse(kohaItem.getCheckout().getDueDate());
 
 				// Koha's "location" is a shelving classifier - REF, STACKS, JUV - and every
 				// branch on a shared server uses the same set of them, so it can never
@@ -826,9 +884,16 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.onErrorResume(KohaHostLmsClient::isNotFound, notFound -> Mono.just(List.of()));
 	}
 
+	// KohaApiClientImpl raises a Problem carrying the status when the body fits Koha's error
+	// schema, and the raw exception otherwise, so a 404 arrives in either shape
 	private static boolean isNotFound(Throwable error) {
-		return error instanceof HttpClientResponseException response
-			&& response.getStatus() == HttpStatus.NOT_FOUND;
+		if (error instanceof HttpClientResponseException response) {
+			return response.getStatus() == HttpStatus.NOT_FOUND;
+		}
+
+		return error instanceof ThrowableProblem problem
+			&& problem.getStatus() != null
+			&& problem.getStatus().getStatusCode() == HttpStatus.NOT_FOUND.getCode();
 	}
 
 	// An unreadable list is an empty one, not a failure: the report says so per vocabulary
@@ -925,11 +990,18 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.doOnError(e -> log.error("Failed to delete Koha bib {}: {}", id, e.getMessage()));
 	}
 
-	// Possible trap here with Koha item statuses being a little strange
-
+	/**
+	 * Acknowledged without a call. Koha has no item status to write: an item is in transit,
+	 * waiting or on loan because a transfer, a hold or a checkout exists, and the circulation
+	 * operations create those themselves. FOLIO and Polaris answer OK the same way for the
+	 * states they cannot express.
+	 */
 	@Override
 	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
-		return Mono.error(new NotImplementedException("This functionality has not yet been implemented for Koha"));
+		log.info("Koha has no item status write; {} on item {} in {} is acknowledged",
+			crs, getValueOrNull(hostLmsItem, HostLmsItem::getLocalId), getHostLmsCode());
+
+		return Mono.just("OK");
 	}
 
 	/*** Hold request and checkout operations ***/
@@ -991,9 +1063,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 	}
 	@Override
 	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
-		// Note: we may need to take into account the need to find holds for a patron, either here or elsewhere
 		final String localRequestId = getValueOrNull(request, HostLmsRequest::getLocalId);
-//		final var patronId = getValueOrNull(request, HostLmsRequest::getLocalPatronId);
 
 		if (localRequestId == null || localRequestId.isBlank()) {
 			return Mono.error(new IllegalArgumentException("Local request ID is required to fetch a Koha hold"));
@@ -1002,13 +1072,49 @@ public class KohaHostLmsClient implements HostLmsClient {
 		log.debug("Fetching Koha hold request by ID: {}", localRequestId);
 
 		return client.getHold(localRequestId)
-			.map(kohaHold -> HostLmsRequest.builder()
-				.localId(String.valueOf(kohaHold.getHoldId()))
-				.status(checkHoldStatus(kohaHold.getStatus()))
-				.rawStatus(kohaHold.getStatus())
-				.requestedItemId(kohaHold.getItemId() != null ? String.valueOf(kohaHold.getItemId()) : null)
-				.build())
+			.map(this::toHostLmsRequest)
+			.onErrorResume(KohaHostLmsClient::isNotFound, notFound -> oldHold(localRequestId))
 			.doOnError(e -> log.error("Failed to retrieve Koha hold request {}: {}", localRequestId, e.getMessage()));
+	}
+
+	/**
+	 * Koha moves a hold to old_reserves the moment it is filled or cancelled; GET /holds/{id}
+	 * then answers 404 and only the list with old=true still knows it. Its cancellation date
+	 * says which of the two happened. A hold found in neither place is gone, which the
+	 * workflow treats as it treats filled.
+	 */
+	private Mono<HostLmsRequest> oldHold(String localRequestId) {
+		return client.getOldHold(localRequestId)
+			.filter(oldHolds -> oldHolds.length > 0)
+			.map(oldHolds -> oldHoldToHostLmsRequest(oldHolds[0]))
+			.defaultIfEmpty(HostLmsRequest.builder()
+				.localId(localRequestId)
+				.status(HostLmsRequest.HOLD_MISSING)
+				.build());
+	}
+
+	private HostLmsRequest toHostLmsRequest(KohaHoldResponse hold) {
+		return HostLmsRequest.builder()
+			.localId(String.valueOf(hold.getHoldId()))
+			.status(checkHoldStatus(hold.getStatus(), hold.getItemId()))
+			.rawStatus(hold.getStatus())
+			.requestedItemId(itemIdOrNull(hold))
+			.build();
+	}
+
+	private HostLmsRequest oldHoldToHostLmsRequest(KohaHoldResponse oldHold) {
+		final var cancelled = oldHold.getCancellationDate() != null;
+
+		return HostLmsRequest.builder()
+			.localId(String.valueOf(oldHold.getHoldId()))
+			.status(cancelled ? HostLmsRequest.HOLD_CANCELLED : HostLmsRequest.HOLD_MISSING)
+			.rawStatus(oldHold.getStatus())
+			.requestedItemId(itemIdOrNull(oldHold))
+			.build();
+	}
+
+	private static String itemIdOrNull(KohaHoldResponse hold) {
+		return hold.getItemId() != null ? String.valueOf(hold.getItemId()) : null;
 	}
 
 	@Override
@@ -1076,13 +1182,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private LocalRequest mapKohaHoldToLocalRequest(KohaHoldResponse response,
 		PlaceHoldRequestParameters parameters) {
 
-		String mappedStatus = checkHoldStatus(response.getStatus());
-
 		return LocalRequest.builder()
 			.localId(String.valueOf(response.getHoldId()))
-			.localStatus(mappedStatus)
+			.localStatus(checkHoldStatus(response.getStatus(), response.getItemId()))
 			.rawLocalStatus(response.getStatus())
-			.requestedItemId(response.getItemId() != null ? String.valueOf(response.getItemId()) : null)
+			.requestedItemId(itemIdOrNull(response))
 			.requestedItemBarcode(requestedItemBarcode(response, parameters))
 			.build();
 	}
@@ -1109,15 +1213,20 @@ public class KohaHostLmsClient implements HostLmsClient {
 			: getValueOrNull(parameters, PlaceHoldRequestParameters::getLocalItemBarcode);
 	}
 
-	private String checkHoldStatus(String kohaStatus) {
-
-		// review this
-		if (kohaStatus == null) return HostLmsRequest.HOLD_PLACED;
+	/**
+	 * Koha's status is the reserves.found column: null until the hold is filled, T in
+	 * transit to the pickup branch, P in processing there, W waiting on the shelf. An
+	 * item-level hold is confirmed from the moment it exists, as Sierra reports "0" with
+	 * an item, which is what HandleSupplierRequestConfirmed waits for.
+	 */
+	private static String checkHoldStatus(String kohaStatus, Long itemId) {
+		if (kohaStatus == null) {
+			return itemId != null ? HostLmsRequest.HOLD_CONFIRMED : HostLmsRequest.HOLD_PLACED;
+		}
 
 		return switch (kohaStatus.toUpperCase()) {
-			case "REJECTED" -> HostLmsRequest.HOLD_CANCELLED;
-			case "AVAILABLE", "W" -> HostLmsRequest.HOLD_READY;
-			case "T" -> HostLmsRequest.HOLD_TRANSIT;
+			case "W" -> HostLmsRequest.HOLD_READY;
+			case "T", "P" -> HostLmsRequest.HOLD_TRANSIT;
 			default -> HostLmsRequest.HOLD_PLACED;
 		};
 	}
