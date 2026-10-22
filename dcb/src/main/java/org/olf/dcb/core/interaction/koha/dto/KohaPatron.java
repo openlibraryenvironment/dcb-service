@@ -65,10 +65,12 @@ public class KohaPatron {
 	@JsonProperty("privacy")
 	private Integer privacy;
 
-	@JsonProperty("expired")
+	// Read-only in Koha's patron schema, which refuses unknown and read-only properties on a PUT.
+	// WRITE_ONLY is Jackson's name for "set from Koha, never sent back"
+	@JsonProperty(value = "expired", access = JsonProperty.Access.WRITE_ONLY)
 	private Boolean expired;
 
-	@JsonProperty("restricted")
+	@JsonProperty(value = "restricted", access = JsonProperty.Access.WRITE_ONLY)
 	private Boolean restricted;
 
 	@JsonProperty("patron_card_lost")

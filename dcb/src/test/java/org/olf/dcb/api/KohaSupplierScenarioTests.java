@@ -161,7 +161,8 @@ class KohaSupplierScenarioTests {
 		final var requestId = placed.body().getId();
 		assertRequestIsInExpectedStatus(requestId, REQUEST_PLACED_AT_BORROWING_AGENCY);
 		assertThat(patronRequestsFixture.findById(requestId), hasActiveWorkflow(STANDARD_WORKFLOW));
-		koha.verifyPatronCreated("{\"library_id\": \"DCB-SHARING\", \"category_id\": \"DCB\"}");
+		koha.verifyPatronCreated("{\"library_id\": \"DCB-SHARING\", \"category_id\": \"DCB\", \"userid\": \"%s\"}"
+			.formatted(BORROWING_PATRON_LOCAL_ID + "@" + BORROWING_AGENCY_CODE));
 		koha.verifyHoldPlaced("{\"patron_id\": 90, \"item_id\": 71, \"pickup_library_id\": \"DCB-SHARING\"}");
 		koha.verifyHoldPlacedOverridingPatronBlocks();
 		koha.verifyNoVirtualRecordsCreated();
@@ -296,7 +297,7 @@ class KohaSupplierScenarioTests {
 		koha.mockItemsPage(BIBLIO_ID, 1, kohaItem().build());
 		koha.mockItemCirculation(BIBLIO_ID, ITEM_ID, kohaItem().build());
 		koha.mockNoActiveHolds();
-		koha.mockNoPatronWithAnyCardnumber();
+		koha.mockNoPatronWithAnyIdentifier();
 		koha.mockCreatePatron(virtualPatron());
 		koha.mockPatron(virtualPatron());
 		koha.mockPlaceHold(hold().build());
@@ -354,7 +355,7 @@ class KohaSupplierScenarioTests {
 	private static KohaPatron virtualPatron() {
 		return KohaPatron.builder()
 			.patronId(Long.valueOf(VIRTUAL_PATRON_ID))
-			.cardnumber(BORROWING_PATRON_LOCAL_ID + "@" + BORROWING_AGENCY_CODE)
+			.userid(BORROWING_PATRON_LOCAL_ID + "@" + BORROWING_AGENCY_CODE)
 			.surname("Patron")
 			.firstname("Borrowing")
 			.libraryId("DCB-SHARING")

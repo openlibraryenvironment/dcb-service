@@ -41,6 +41,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static io.micrometer.common.util.StringUtils.isBlank;
 import static java.lang.Boolean.FALSE;
@@ -224,8 +225,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		String categoryId = patron.getLocalPatronType() != null
 			? patron.getLocalPatronType() : config.getVirtualPatronCategory();
 
+		// The unique id is the borrower's id and agency code, which overruns Koha's 32-character
+		// cardnumber; userid takes 75. The virtual patron has no card
 		final var kohaPatron = KohaPatron.builder()
-			.cardnumber(patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()
+			.userid(patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()
 				? patron.getUniqueIds().get(0) : null)
 			.surname(lastName)
 			.firstname(firstName)
@@ -284,7 +287,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 			return Mono.error(new IllegalArgumentException("Unable to find uniqueId for virtual patron"));
 		}
 
-		return client.getPatronByCardnumber(uniqueId)
+		return client.getPatronByUserId(uniqueId)
 			.filter(patrons -> patrons.length > 0)
 			.map(patrons -> mapKohaPatronToDcbPatron(patrons[0]))
 			.switchIfEmpty(Mono.error(VirtualPatronNotFound.builder()
@@ -481,7 +484,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private Patron mapKohaPatronToDcbPatron(KohaPatron kohaPatron) {
 		return Patron.builder()
 			.localId(List.of(String.valueOf(kohaPatron.getPatronId())))
-			.localNames(List.of(kohaPatron.getFirstname(), kohaPatron.getSurname()))
+			// Both names are nullable in Koha's schema
+			.localNames(Stream.of(kohaPatron.getFirstname(), kohaPatron.getSurname()).filter(Objects::nonNull).toList())
 			.localBarcodes(kohaPatron.getCardnumber() != null ? List.of(kohaPatron.getCardnumber()) : List.of())
 			.localPatronType(kohaPatron.getCategoryId())
 			// The Koha branch is the only thing distinguishing co-tenant libraries on a

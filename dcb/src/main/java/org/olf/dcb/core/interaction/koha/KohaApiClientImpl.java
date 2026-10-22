@@ -16,12 +16,12 @@ import org.olf.dcb.core.interaction.koha.dto.KohaAuthResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaError;
 import org.zalando.problem.Problem;
 import org.zalando.problem.Status;
+import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
-
+import reactor.util.retry.Retry;
 
 import java.net.URI;
 import java.util.Objects;
-import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 
@@ -38,9 +38,8 @@ public class KohaApiClientImpl implements KohaApiClient {
 	private final HttpClient httpClient;
 	private final KohaClientConfig config; // Assuming you create a Koha version of AlmaClientConfig
 	private final ObjectMapper objectMapper;
-
-	// Reactive cache for the OAuth2 token
-	private Mono<String> currentTokenMono;
+	private final KohaTokenCache tokenCache;
+	private final String hostLmsCode;
 
 	public KohaApiClientImpl() {
 		throw new IllegalStateException();
@@ -48,10 +47,13 @@ public class KohaApiClientImpl implements KohaApiClient {
 
 	@Creator
 	public KohaApiClientImpl(@Parameter("hostLms") HostLms hostLms,
-													 @Parameter("client") HttpClient httpClient,
-													 ObjectMapper objectMapper) {
+		@Parameter("client") HttpClient httpClient,
+		ObjectMapper objectMapper,
+		KohaTokenCache tokenCache) {
 		this.httpClient = httpClient;
 		this.objectMapper = objectMapper;
+		this.tokenCache = tokenCache;
+		this.hostLmsCode = hostLms.getCode();
 		this.config = new KohaClientConfig(hostLms);
 	}
 
@@ -97,29 +99,10 @@ public class KohaApiClientImpl implements KohaApiClient {
 	}
 
 	/**
-	 * Token Manager: Creates the caching stream for the OAuth2 token. Experimental so let's see how it works
-	 */
-	private synchronized Mono<String> getValidToken() {
-		if (currentTokenMono == null) {
-			currentTokenMono = fetchNewToken()
-				.cache(
-					// Cache the token until 60 seconds before it actually expires
-					response -> Duration.ofSeconds(response.getExpiresIn() - 60),
-					error -> Duration.ZERO,
-					() -> Duration.ZERO
-				)
-				.map(KohaAuthResponse::getAccessToken);
-		}
-		return currentTokenMono;
-	}
-
-	/**
 	 *  POST request to /api/v1/oauth/token to get the new token
 	 */
 	private Mono<KohaAuthResponse> fetchNewToken() {
-//		log.debug("Fetching new Koha OAuth token for HostLMS: {}", config.getHostLmsCode());
-		// it would be good to have an identifier in here
-		log.debug("Fetching new Koha OAuth token for HostLMS");
+		log.debug("Fetching new Koha OAuth token for {}", hostLmsCode);
 
 		Map<String, String> formData = Map.of(
 			"grant_type", "client_credentials",
@@ -147,11 +130,13 @@ public class KohaApiClientImpl implements KohaApiClient {
 		// Check if endpoint is public
 		boolean isPublic = path.contains("/api/v1/public/");
 
+		// Deferred so that a retry after a refused token reads the cache again
 		Mono<MutableHttpRequest<?>> requestBuilderMono = isPublic
 			? Mono.just(HttpRequest.create(method, finalUri.toString()))
-			: getValidToken().map(token -> HttpRequest.create(method, finalUri.toString()).bearerAuth(token));
+			: Mono.defer(() -> tokenCache.get(hostLmsCode, this::fetchNewToken))
+				.map(token -> HttpRequest.create(method, finalUri.toString()).bearerAuth(token));
 
-		return requestBuilderMono.flatMap(request -> {
+		final Mono<T> exchange = requestBuilderMono.flatMap(request -> {
 			request.contentType(contentType).accept(APPLICATION_JSON);
 			// Inject Custom Headers (e.g. x-koha-embed)
 			if (headers != null) {
@@ -169,6 +154,32 @@ public class KohaApiClientImpl implements KohaApiClient {
 					}
 				});
 		});
+
+		return isPublic || carriesCredentials(path)
+			? exchange
+			: exchange.retryWhen(fetchTokenOnceMoreWhenRefused());
+	}
+
+	// A token Koha has dropped early (a restart, a key rotation) is otherwise reused until its
+	// stated expiry. Safe for every method: a 401 means Koha did not act on the request. The
+	// password validation is excluded because its 401 is the patron's wrong password
+	private Retry fetchTokenOnceMoreWhenRefused() {
+		return Retry.max(1)
+			.filter(KohaApiClientImpl::isUnauthorised)
+			.doBeforeRetry(signal -> {
+				log.info("Koha refused the token for {}, fetching a new one and retrying once", hostLmsCode);
+				tokenCache.invalidate(hostLmsCode);
+			})
+			.onRetryExhaustedThrow((spec, signal) -> signal.failure());
+	}
+
+	// doExchange raises a Problem when Koha's body fits its error schema, the raw exception otherwise
+	private static boolean isUnauthorised(Throwable error) {
+		if (error instanceof HttpClientResponseException response) {
+			return response.getStatus() == HttpStatus.UNAUTHORIZED;
+		}
+
+		return error instanceof ThrowableProblem problem && problem.getStatus() == Status.UNAUTHORIZED;
 	}
 
 	// The token request carries the client secret and the validation request a patron's password

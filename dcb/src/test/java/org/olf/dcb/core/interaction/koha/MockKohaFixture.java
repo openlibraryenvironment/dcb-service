@@ -12,13 +12,17 @@ import static org.olf.dcb.test.MockServerCommonResponses.serverError;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.MatchType;
+import org.mockserver.matchers.Times;
 import org.mockserver.mock.action.ExpectationResponseCallback;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.NottableString;
+import org.mockserver.verify.VerificationTimes;
 import org.olf.dcb.core.interaction.koha.dto.KohaBiblio;
 import org.olf.dcb.core.interaction.koha.dto.KohaCheckout;
 import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
@@ -102,7 +106,8 @@ public class MockKohaFixture {
 	}
 
 	public void mockPatron(KohaPatron patron) {
-		mockServer.mock(commonRequests.get(patronPath(String.valueOf(patron.getPatronId()))), okJson(patron));
+		mockServer.mock(commonRequests.get(patronPath(String.valueOf(patron.getPatronId()))),
+			okJson(asKohaAnswers(patron)));
 	}
 
 	public void mockPatronNotFound(String patronId) {
@@ -113,7 +118,50 @@ public class MockKohaFixture {
 	/** The search findVirtualPatron and the name profile use; matched on the exact card number. */
 	public void mockPatronsByCardnumber(String cardnumber, KohaPatron... patrons) {
 		mockServer.mock(commonRequests.get(PATRONS_PATH, "cardnumber", cardnumber)
-			.withQueryStringParameter("_match", "exact"), okJson(patrons));
+			.withQueryStringParameter("_match", "exact"), okJson(asKohaAnswers(patrons)));
+	}
+
+	/** The search findVirtualPatron uses; matched on the exact userid. */
+	public void mockPatronsByUserid(String userid, KohaPatron... patrons) {
+		mockServer.mock(commonRequests.get(PATRONS_PATH, "userid", userid)
+			.withQueryStringParameter("_match", "exact"), okJson(asKohaAnswers(patrons)));
+	}
+
+	public void mockUpdatePatron(KohaPatron updated) {
+		mockServer.mock(commonRequests.put(patronPath(String.valueOf(updated.getPatronId()))),
+			okJson(asKohaAnswers(updated)));
+	}
+
+	/** The body of the one patron update Koha received, as the JSON object it was. */
+	public Map<String, Object> patronUpdateSent(String patronId) {
+		return onlyBodySent(commonRequests.put(patronPath(patronId)));
+	}
+
+	/** The body of the one patron creation Koha received, as the JSON object it was. */
+	public Map<String, Object> patronCreationSent() {
+		return onlyBodySent(commonRequests.post(PATRONS_PATH));
+	}
+
+	/**
+	 * Koha's patron read carries flags its schema marks read-only, which KohaPatron never
+	 * writes; a response built from it would lose them.
+	 */
+	private static Map<String, Object> asKohaAnswers(KohaPatron patron) {
+		final Map<String, Object> body = JSON.convertValue(patron, new TypeReference<>() {});
+
+		if (patron.getExpired() != null) {
+			body.put("expired", patron.getExpired());
+		}
+
+		if (patron.getRestricted() != null) {
+			body.put("restricted", patron.getRestricted());
+		}
+
+		return body;
+	}
+
+	private static List<Map<String, Object>> asKohaAnswers(KohaPatron... patrons) {
+		return Arrays.stream(patrons).map(MockKohaFixture::asKohaAnswers).toList();
 	}
 
 	public void mockCreatePatron(KohaPatron created) {
@@ -231,6 +279,22 @@ public class MockKohaFixture {
 		mockServer.mock(commonRequests.get(LIBRARIES_PATH, "_per_page", "1"), okJson(new KohaLibrary[] {library}));
 	}
 
+	/** Koha has dropped the token it issued: the first library read is refused, later ones answered. */
+	public void mockOneLibraryRefusingTheTokenOnce(KohaLibrary library) {
+		mockServer.mock(commonRequests.get(LIBRARIES_PATH, "_per_page", "1"),
+			response().withStatusCode(401).withBody(json(Map.of("error", "Authentication failure."))),
+			Times.once());
+		mockOneLibrary(library);
+	}
+
+	public void verifyTokenRequested(int times) {
+		mockServer.verify(commonRequests.post(TOKEN_PATH), VerificationTimes.exactly(times));
+	}
+
+	public void verifyPasswordValidated(String cardnumber, String password, int times) {
+		mockServer.verify(passwordValidation(cardnumber, password), VerificationTimes.exactly(times));
+	}
+
 	/** Koha's answer when the client credentials do not carry the catalogue permission. */
 	public void mockLibrariesForbidden() {
 		mockServer.mock(commonRequests.get(LIBRARIES_PATH),
@@ -324,10 +388,15 @@ public class MockKohaFixture {
 	 * field's absence from the wire looks like, which no matcher on the body can say.
 	 */
 	public Map<String, Object> itemUpdateSent(String biblioId, String itemId) {
-		final var recorded = client.retrieveRecordedRequests(commonRequests.put(itemPath(biblioId, itemId)));
+		return onlyBodySent(commonRequests.put(itemPath(biblioId, itemId)));
+	}
+
+	private Map<String, Object> onlyBodySent(HttpRequest request) {
+		final var recorded = client.retrieveRecordedRequests(request);
 
 		if (recorded.length != 1) {
-			throw new AssertionError("Expected exactly one item update, found " + recorded.length);
+			throw new AssertionError("Expected exactly one %s %s, found %d"
+				.formatted(request.getMethod(), request.getPath(), recorded.length));
 		}
 
 		try {
@@ -439,8 +508,8 @@ public class MockKohaFixture {
 		return "/api/v1/biblios/%s/items".formatted(biblioId);
 	}
 
-	/** No patron on this Koha carries the card number asked for, whatever it is. */
-	public void mockNoPatronWithAnyCardnumber() {
+	/** No patron on this Koha carries the card number or userid asked for, whatever it is. */
+	public void mockNoPatronWithAnyIdentifier() {
 		mockServer.mock(commonRequests.get(PATRONS_PATH).withQueryStringParameter("_match", "exact"),
 			okJson(new KohaPatron[0]));
 	}

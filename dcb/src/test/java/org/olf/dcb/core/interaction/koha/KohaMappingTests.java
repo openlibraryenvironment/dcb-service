@@ -1,10 +1,15 @@
 package org.olf.dcb.core.interaction.koha;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.olf.dcb.test.MockServerCommonResponses.okJson;
 
@@ -25,7 +30,9 @@ import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
 import org.olf.dcb.core.model.BibRecord;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -79,6 +86,15 @@ class KohaMappingTests {
 		final var patron = client.getPatronByLocalId("1234").block();
 
 		assertThat(patron.getLocalHomeLibraryCode(), is("BRANCH-NORTH"));
+	}
+
+	@Test
+	void shouldReadAPatronWithNoFirstName() {
+		koha.mockPatron(patron().firstname(null).surname("Lovelace").build());
+
+		final var patron = client.getPatronByLocalId("1234").block();
+
+		assertThat(patron.getLocalNames(), contains("Lovelace"));
 	}
 
 	@Test
@@ -197,6 +213,47 @@ class KohaMappingTests {
 			.build()).block();
 
 		koha.verifyPatronCreated("{\"library_id\": \"DCB-SHARING\"}");
+	}
+
+	@Test
+	void shouldGiveTheVirtualPatronTheUniqueIdAsUseridAndNoCard() {
+		// Koha caps cardnumber at 32 characters and userid at 75
+		final var uniqueId = "1234567890@" + "a".repeat(29);
+		koha.mockCreatePatron(KohaPatron.builder().patronId(77L).build());
+
+		client.createPatron(Patron.builder()
+			.uniqueIds(List.of(uniqueId))
+			.localNames(List.of("Ada", "Lovelace"))
+			.localPatronType("DCB")
+			.build()).block();
+
+		final var sent = koha.patronCreationSent();
+		assertThat(sent, hasEntry("userid", uniqueId));
+		assertThat(sent, not(hasKey("cardnumber")));
+	}
+
+	@Test
+	void shouldFindTheVirtualPatronByUserid() {
+		final var uniqueId = "1234567890@" + "a".repeat(29);
+		koha.mockPatronsByUserid(uniqueId, KohaPatron.builder()
+			.patronId(77L)
+			.userid(uniqueId)
+			.firstname("Borrowing")
+			.surname("Patron")
+			.libraryId("DCB-SHARING")
+			.categoryId("DCB")
+			.build());
+
+		final var found = client.findVirtualPatron(org.olf.dcb.core.model.Patron.builder()
+			.id(randomUUID())
+			.patronIdentities(List.of(PatronIdentity.builder()
+				.localId("1234567890")
+				.resolvedAgency(DataAgency.builder().code("a".repeat(29)).build())
+				.homeIdentity(true)
+				.build()))
+			.build()).block();
+
+		assertThat(found.getLocalId(), contains("77"));
 	}
 
 	@Test
