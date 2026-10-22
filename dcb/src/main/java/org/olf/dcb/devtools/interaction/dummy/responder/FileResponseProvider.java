@@ -65,6 +65,10 @@ class FileResponseProvider {
 		return DummyResponse.builder().data(data).build();
 	}
 
+	static boolean hasResponse(String state, String role) {
+		return cachedResponses.containsKey(buildKey(state, role));
+	}
+
 	private static String buildKey(String state, String role) {
 		return state.toLowerCase() + "-" + role.toLowerCase();
 	}

@@ -6,6 +6,7 @@ import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.olf.dcb.core.model.PatronRequest.Status.CANCELLED;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
@@ -15,17 +16,19 @@ import static org.olf.dcb.core.model.PatronRequest.Status.RETURN_TRANSIT;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.BORROWER_ROLE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.COMPLETED_STATE;
+import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.CUSTOM_RESPONSE_TYPE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.LOANED_STATE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.READY_FOR_PICKUP_STATE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RECEIVED_AT_PICKUP_STATE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RETURN_TRANSIT_STATE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RET_STD_RESPONSE_TYPE;
+import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.SUPPLIER_ROLE;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -82,6 +85,11 @@ class KohaSupplierScenarioTests {
 	private static final String BORROWING_PATRON_LOCAL_ID = "872321";
 	private static final String COMMON_PATRON_TYPE = "15";
 	private static final String PICKUP_TRANSIT_STATE = "PICKUP_TRANSIT";
+	private static final String DUMMY_LENDER_HOST_LMS_CODE = "koha-scenario-dummy-lender";
+	private static final String DUMMY_LENDER_LOCATION_CODE = "ab7";
+	private static final String DUMMY_LENDER_AGENCY_CODE = "koha-dummy-lending-agency";
+	private static final String DUMMY_LENDER_ITEM_LOCAL_ID = "798474";
+	private static final int DUMMY_LENDER_ITEM_TYPE = 999;
 
 	@Inject private PatronFixture patronFixture;
 	@Inject private PatronRequestsFixture patronRequestsFixture;
@@ -98,15 +106,9 @@ class KohaSupplierScenarioTests {
 
 	private DataHostLms kohaHostLms;
 	private DataHostLms borrowingHostLms;
+	private DataHostLms dummyLenderHostLms;
 	private MockKohaFixture koha;
 	private String pickupLocationId;
-
-	@BeforeAll
-	void beforeAll() {
-		hostLmsFixture.deleteAll();
-		kohaHostLms = hostLmsFixture.createKohaHostLms(KOHA_HOST_LMS_CODE, "https://" + KOHA_HOST);
-		borrowingHostLms = hostLmsFixture.createDummyHostLms(BORROWING_HOST_LMS_CODE);
-	}
 
 	@BeforeEach
 	void beforeEach(MockServerClient mockServerClient) {
@@ -121,7 +123,14 @@ class KohaSupplierScenarioTests {
 		consortiumFixture.deleteAll();
 		consortiumFixture.enableAllSettings();
 
+		// A dummy's state lives in its Host LMS record, so each test starts from fresh records
+		hostLmsFixture.deleteAll();
+		kohaHostLms = hostLmsFixture.createKohaHostLms(KOHA_HOST_LMS_CODE, "https://" + KOHA_HOST);
+		borrowingHostLms = hostLmsFixture.createDummyHostLms(BORROWING_HOST_LMS_CODE);
+		dummyLenderHostLms = hostLmsFixture.createDummyHostLms(DUMMY_LENDER_HOST_LMS_CODE, DUMMY_LENDER_LOCATION_CODE);
+
 		agencyFixture.defineAgency(LENDING_AGENCY_CODE, "Koha South", kohaHostLms);
+		agencyFixture.defineAgency(DUMMY_LENDER_AGENCY_CODE, "Other Lender", dummyLenderHostLms);
 		final var borrowingAgency = agencyFixture.defineAgency(BORROWING_AGENCY_CODE, "Borrowing Agency", borrowingHostLms);
 
 		pickupLocationId = randomUUID().toString();
@@ -139,6 +148,7 @@ class KohaSupplierScenarioTests {
 
 	@Test
 	void kohaLendsToAnotherSystemStartToFinish() {
+		koha.mockDeleteHoldGone(HOLD_ID);
 		final var clusterRecordId = createClusterRecordWithKohaItem();
 
 		// The patron requests the title; the Koha copy is chosen, a virtual patron is created
@@ -186,15 +196,30 @@ class KohaSupplierScenarioTests {
 
 		// Koha has filled the hold and the item is on loan to the virtual patron
 		koha.replaceHoldWithOldHold(hold().status("F").build());
-		koha.replaceItemCirculation(BIBLIO_ID, ITEM_ID, kohaItem()
-			.checkedOutDate("2026-10-29")
-			.checkout(KohaCheckout.builder()
-				.checkoutId(Long.valueOf(CHECKOUT_ID))
-				.patronId(Long.valueOf(VIRTUAL_PATRON_ID))
-				.dueDate("2026-11-19T23:59:00Z")
-				.renewalsCount(0)
-				.build())
+		koha.replaceItemCirculation(BIBLIO_ID, ITEM_ID, loanedItem().build());
+
+		log.info("The borrowing patron renews; DCB renews the virtual patron's loan in Koha");
+		koha.mockCheckoutsForItem(ITEM_ID, KohaCheckout.builder()
+			.checkoutId(Long.valueOf(CHECKOUT_ID)).itemId(Long.valueOf(ITEM_ID)).build());
+		koha.mockRenewal(CHECKOUT_ID, KohaCheckout.builder()
+			.checkoutId(Long.valueOf(CHECKOUT_ID)).dueDate("2026-12-10T23:59:00Z").renewalsCount(1).build());
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "LOANED_RENEWED", BORROWER_ROLE, CUSTOM_RESPONSE_TYPE);
+		patronRequestApiClient.updatePatronRequest(requestId);
+		awaitRequest(requestId, "renewed once in Koha",
+			request -> Integer.valueOf(1).equals(request.getRenewalCount()));
+		koha.verifyRenewed(CHECKOUT_ID);
+		// A renewal is only reflected while renewals are allowed, so this also proves the
+		// lifetime hold tally on the item was not read as a hold
+		assertThat(patronRequestsFixture.findById(requestId).getRenewalStatus(),
+			is(PatronRequest.RenewalStatus.ALLOWED));
+
+		log.info("A patron of the lending library places a hold on the copy; DCB stops the borrower renewing");
+		koha.replaceItemCirculation(BIBLIO_ID, ITEM_ID, loanedItem()
+			.firstHold(KohaHoldResponse.builder().holdId(602L).patronId(13L).itemId(Long.valueOf(ITEM_ID)).build())
 			.build());
+		patronRequestApiClient.updatePatronRequest(requestId);
+		awaitRequest(requestId, "renewals disallowed",
+			request -> request.getRenewalStatus() == PatronRequest.RenewalStatus.DISALLOWED);
 
 		log.info("The patron returns the item and the borrowing library sends it back");
 		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, RETURN_TRANSIT_STATE, BORROWER_ROLE, RET_STD_RESPONSE_TYPE);
@@ -214,6 +239,59 @@ class KohaSupplierScenarioTests {
 		koha.verifyNoVirtualRecordsCreated();
 	}
 
+	@Test
+	void theBorrowingPatronCancelsAndKohaIsToldToDropTheHold() {
+		koha.mockDeleteHold(HOLD_ID);
+		final var clusterRecordId = createClusterRecordWithKohaItem();
+
+		final var requestId = patronRequestApiClient.placePatronRequest(clusterRecordId,
+			BORROWING_PATRON_LOCAL_ID, pickupLocationId, BORROWING_HOST_LMS_CODE, "HOME_LIBRARY_CODE").body().getId();
+		assertRequestIsInExpectedStatus(requestId, REQUEST_PLACED_AT_BORROWING_AGENCY);
+
+		log.info("The patron cancels at the borrowing library before Koha staff have acted");
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, "CANCELLED", BORROWER_ROLE, CUSTOM_RESPONSE_TYPE);
+		patronRequestApiClient.updatePatronRequest(requestId);
+		assertRequestIsInExpectedStatus(requestId, FINALISED);
+
+		assertThat("The request was cancelled, then cleaned up",
+			patronRequestsFixture.findAuditEntries(patronRequestsFixture.findById(requestId)).stream()
+				.anyMatch(audit -> CANCELLED.equals(audit.getToStatus())), is(true));
+		koha.verifyHoldDeleted(HOLD_ID);
+		koha.verifyPatronNeverDeleted(VIRTUAL_PATRON_ID);
+	}
+
+	@Test
+	void whenTheChosenSupplierCannotSupplyTheRequestMovesToTheOther() {
+		koha.mockDeleteHold(HOLD_ID);
+		final var clusterRecordId = createClusterRecordWithKohaAndDummyItems();
+
+		final var requestId = patronRequestApiClient.placePatronRequest(clusterRecordId,
+			BORROWING_PATRON_LOCAL_ID, pickupLocationId, BORROWING_HOST_LMS_CODE, "HOME_LIBRARY_CODE").body().getId();
+		assertRequestIsInExpectedStatus(requestId, REQUEST_PLACED_AT_BORROWING_AGENCY);
+
+		// Either lender may be chosen first, and each direction is a Koha re-resolution case
+		if (KOHA_HOST_LMS_CODE.equals(activeSupplierOf(requestId))) {
+			log.info("Koha staff cancel the hold; the other lender is asked");
+			koha.replaceHoldWithOldHold(hold().cancellationDate("2026-10-22").build());
+			patronRequestApiClient.updatePatronRequest(requestId);
+			awaitRequest(requestId, "re-resolved to the other lender",
+				request -> REQUEST_PLACED_AT_BORROWING_AGENCY.equals(request.getStatus())
+					&& DUMMY_LENDER_HOST_LMS_CODE.equals(activeSupplierOf(requestId)));
+		} else {
+			log.info("The other lender cannot supply; Koha is asked");
+			hostLmsFixture.setDummyState(DUMMY_LENDER_HOST_LMS_CODE, "MISSING", SUPPLIER_ROLE, CUSTOM_RESPONSE_TYPE);
+			patronRequestApiClient.updatePatronRequest(requestId);
+			awaitRequest(requestId, "re-resolved to Koha",
+				request -> REQUEST_PLACED_AT_BORROWING_AGENCY.equals(request.getStatus())
+					&& KOHA_HOST_LMS_CODE.equals(activeSupplierOf(requestId)));
+			koha.verifyHoldPlaced("{\"patron_id\": 90, \"item_id\": 71, \"pickup_library_id\": \"DCB-SHARING\"}");
+		}
+	}
+
+	private String activeSupplierOf(UUID requestId) {
+		return supplierRequestsFixture.findFor(patronRequestsFixture.findById(requestId)).getHostLmsCode();
+	}
+
 	private void mockKohaAsLender() {
 		koha.mockItemsPage(BIBLIO_ID, 1, kohaItem().build());
 		koha.mockItemCirculation(BIBLIO_ID, ITEM_ID, kohaItem().build());
@@ -223,7 +301,6 @@ class KohaSupplierScenarioTests {
 		koha.mockPatron(virtualPatron());
 		koha.mockPlaceHold(hold().build());
 		koha.mockHold(hold().build());
-		koha.mockDeleteHoldGone(HOLD_ID);
 		koha.mockCheckoutConfirmed(CONFIRMATION_TOKEN, KohaCheckout.builder()
 			.checkoutId(Long.valueOf(CHECKOUT_ID))
 			.patronId(Long.valueOf(VIRTUAL_PATRON_ID))
@@ -246,10 +323,23 @@ class KohaSupplierScenarioTests {
 			.itemTypeId("BK")
 			.location("STACKS")
 			.callnumber("823.912 JOY")
+			// Koha's lifetime tally, which the virtual patron's own hold is part of
+			.holdCount(1)
 			.notForLoanStatus(0)
 			.effectiveNotForLoanStatus(0)
 			.lostStatus(0)
 			.withdrawn(0);
+	}
+
+	private static KohaItem.KohaItemBuilder loanedItem() {
+		return kohaItem()
+			.checkedOutDate("2026-10-29")
+			.checkout(KohaCheckout.builder()
+				.checkoutId(Long.valueOf(CHECKOUT_ID))
+				.patronId(Long.valueOf(VIRTUAL_PATRON_ID))
+				.dueDate("2026-11-19T23:59:00Z")
+				.renewalsCount(0)
+				.build());
 	}
 
 	private static KohaHoldResponse.KohaHoldResponseBuilder hold() {
@@ -280,6 +370,15 @@ class KohaSupplierScenarioTests {
 		return clusterRecordId;
 	}
 
+	private UUID createClusterRecordWithKohaAndDummyItems() {
+		final var clusterRecordId = randomUUID();
+		final var clusterRecord = clusterRecordFixture.createClusterRecord(clusterRecordId, clusterRecordId);
+		bibRecordFixture.createBibRecord(clusterRecordId, kohaHostLms.getId(), BIBLIO_ID, clusterRecord);
+		bibRecordFixture.createBibRecord(randomUUID(), dummyLenderHostLms.getId(),
+			DUMMY_LENDER_ITEM_LOCAL_ID, clusterRecord);
+		return clusterRecordId;
+	}
+
 	private void defineMappings() {
 		referenceValueMappingFixture.defineLocationToAgencyMapping(KOHA_HOST_LMS_CODE,
 			LENDING_BRANCH, LENDING_AGENCY_CODE);
@@ -287,6 +386,12 @@ class KohaSupplierScenarioTests {
 			"TR", BORROWING_AGENCY_CODE);
 
 		referenceValueMappingFixture.defineLocalToCanonicalItemTypeMapping(KOHA_HOST_LMS_CODE, "BK", "loanable-item");
+
+		referenceValueMappingFixture.defineLocationToAgencyMapping(DUMMY_LENDER_HOST_LMS_CODE,
+			DUMMY_LENDER_LOCATION_CODE, DUMMY_LENDER_AGENCY_CODE);
+		referenceValueMappingFixture.defineLocalToCanonicalItemTypeRangeMapping(
+			DUMMY_LENDER_HOST_LMS_CODE, DUMMY_LENDER_ITEM_TYPE, DUMMY_LENDER_ITEM_TYPE, "loanable-item");
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", COMMON_PATRON_TYPE, DUMMY_LENDER_HOST_LMS_CODE, COMMON_PATRON_TYPE);
 
 		// The borrowing patron's type reaches Koha as the category the virtual patron is created in
 		referenceValueMappingFixture.definePatronTypeMapping("DCB", COMMON_PATRON_TYPE, KOHA_HOST_LMS_CODE, "DCB");
@@ -296,10 +401,15 @@ class KohaSupplierScenarioTests {
 	}
 
 	private void assertRequestIsInExpectedStatus(UUID requestId, PatronRequest.Status expectedStatus) {
-		await().atMost(30, SECONDS).until(() -> {
-			final var status = patronRequestsFixture.findById(requestId).getStatus();
-			log.debug("Request {} is {}", requestId, status);
-			return expectedStatus.equals(status);
+		awaitRequest(requestId, "in status " + expectedStatus, request -> expectedStatus.equals(request.getStatus()));
+	}
+
+	private void awaitRequest(UUID requestId, String expectation, Predicate<PatronRequest> condition) {
+		await().alias(expectation).atMost(30, SECONDS).until(() -> {
+			final var request = patronRequestsFixture.findById(requestId);
+			log.debug("Request {} is {} (renewals {}, {})", requestId, request.getStatus(),
+				request.getRenewalCount(), request.getRenewalStatus());
+			return condition.test(request);
 		});
 	}
 }

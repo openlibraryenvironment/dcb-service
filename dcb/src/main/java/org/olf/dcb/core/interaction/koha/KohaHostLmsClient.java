@@ -601,7 +601,9 @@ public class KohaHostLmsClient implements HostLmsClient {
 				? checkout.getRenewalsCount()
 				: kohaItem.getRenewalsCount())
 			.dueDate(checkout == null ? null : DueDates.parse(checkout.getDueDate()))
-			.holdCount(kohaItem.getHoldCount())
+			// holds_count is the lifetime tally, which the virtual patron's own hold is part of;
+			// a first hold on a lent item is someone waiting for it now
+			.holdCount(kohaItem.getFirstHold() != null ? 1 : 0)
 			.holdingId(kohaItem.getHoldingLibraryId())
 			.build();
 	}

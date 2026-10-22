@@ -356,6 +356,13 @@ items in and out as they always do, and DCB acts on what Koha then says.
 | 6 | your patron, then your staff | returns the item; staff check it in. Koha closes the loan. The virtual item is not stock: send it back to the lender | sees the return and tells the lender it is on its way |
 | 7 | the other library's staff | check the item in at home | sees it available at the lender, completes the request, and deletes the hold, the virtual item and the virtual record from your Koha |
 
+If the patron cancels the hold in Koha, at the desk or in the OPAC, before the item has
+shipped, DCB cancels the lender's hold and deletes the virtual item and record; nothing
+is left for your staff to do. Once the item has shipped, the request waits for it: check
+it in when it arrives and send it back, as you would a returned loan. If the lender turns
+out not to have the copy, DCB asks the next library that does and rewrites the virtual
+item's barcode to that copy's; the hold and the pickup branch stay as they were.
+
 ### When a patron requests your own library's item
 
 With the consortium's own-library borrowing setting on, a patron may request a title
@@ -378,6 +385,15 @@ allow on-shelf holds, or Koha refuses it with "Hold not allowed" and the patron 
 | 5 | the borrowing patron | renews | renews the virtual patron's loan, within your rules. To call the item back, place a hold on it: DCB sees your hold and stops the borrower renewing |
 | 6 | the other library's staff | check the returned item in and send it back to you | shows the request in return transit |
 | 7 | your staff | check the returned item in. Koha closes the virtual patron's loan; checked in away from its home branch, the item goes into a transfer home as any item would | sees your copy available, completes the request. The virtual patron stays for the next loan; nothing else was created in your Koha |
+
+If the borrowing patron cancels before your staff have acted, DCB cancels the hold and it
+leaves your queue; nothing else changes. If the hold was cancelled by your staff, because
+the copy cannot be found or lent, DCB asks the next library that holds the title. If the
+request is cancelled after your staff have checked the item in, DCB cancels the hold but
+Koha still has the item in transit to the sharing branch: check it in again at your
+branch, and Koha ends the transfer and shelves it. (That last step is what Koha does for
+any cancelled in-transit hold; it is to be confirmed on each supported version on a
+test server.)
 
 The virtual patron's notices (hold filled, in transit) go to `virtual-patron-email`. The
 circulation rule for the `DCB` category decides the loan period and should charge no
