@@ -455,7 +455,7 @@ public class MockKohaFixture {
 	/** One page of a biblio's items, as the paged read asks for it. */
 	public void mockItemsPage(String biblioId, int page, KohaItem... items) {
 		mockServer.mock(commonRequests.get(itemsForBiblioPath(biblioId), "_page", String.valueOf(page))
-			.withHeader("x-koha-embed", "checkout"), okJson(items));
+			.withHeader("x-koha-embed", KohaApiClient.CIRCULATION_EMBEDS), okJson(items));
 	}
 
 	public void mockHold(KohaHoldResponse hold) {

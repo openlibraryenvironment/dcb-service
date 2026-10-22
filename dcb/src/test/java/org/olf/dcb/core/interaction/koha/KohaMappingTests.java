@@ -27,11 +27,14 @@ import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
+import org.olf.dcb.core.interaction.koha.dto.KohaTransfer;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
@@ -124,6 +127,47 @@ class KohaMappingTests {
 		assertThat(client.getItemByBarcode("ITEM-BARCODE").block().getStatus(), is(HostLmsItem.ITEM_LOANED));
 		assertThat(client.getItem(HostLmsItem.builder().localId("99").build()).block().getStatus(),
 			is(HostLmsItem.ITEM_LOANED));
+	}
+
+	@Test
+	void shouldOfferAnItemNothingIsHappeningTo() {
+		givenItem(item().build());
+
+		final var item = firstItem();
+
+		assertThat(item.getStatus().getCode(), is(ItemStatusCode.AVAILABLE));
+		assertThat(item.getIsRequestable(), is(true));
+	}
+
+	@Test
+	void shouldNotOfferAnItemInTransit() {
+		givenItem(item()
+			.transfer(KohaTransfer.builder().toLibraryId("BRANCH-SOUTH").dateSent("2026-10-21T09:00:00Z").build())
+			.build());
+
+		assertNotRequestable(firstItem());
+	}
+
+	@Test
+	void shouldNotOfferAnItemWaitingOnTheHoldShelfForAnotherPatron() {
+		givenItem(item()
+			.firstHold(KohaHoldResponse.builder().holdId(5L).status("W").build())
+			.build());
+
+		assertNotRequestable(firstItem());
+	}
+
+	@Test
+	void shouldNotOfferAnItemWhoseItemTypeIsNotForLoan() {
+		// The item's own flag is clear; the item type's is what Koha enforces
+		givenItem(item().notForLoanStatus(0).effectiveNotForLoanStatus(1).build());
+
+		assertNotRequestable(firstItem());
+	}
+
+	private static void assertNotRequestable(Item item) {
+		assertThat(item.getStatus().getCode(), is(ItemStatusCode.UNAVAILABLE));
+		assertThat(item.getIsRequestable(), is(false));
 	}
 
 	@Test

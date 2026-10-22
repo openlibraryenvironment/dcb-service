@@ -676,35 +676,17 @@ public class KohaHostLmsClient implements HostLmsClient {
 		}
 	}
 
+	// The tracking read's view of the item, so that availability and tracking agree. An item in
+	// transit or waiting for another patron is not offered: a hold on it queues behind theirs
 	private ItemStatusCode deriveItemStatus(KohaItem item) {
-		// Think about these
-		// Do Koha libraries have a restricted status they would use for suppression? Or do they use not for loan
-		// We could standardise on a restricted status of X. Note a non zero value blocks checkouts/holds
-		// Maybe a not for loan would work https://bywatersolutions.com/education/an-overview-of-item-statuses
-		// i.e. not for loan of 42 = suppressed from DCB?
-		// Or we use a collection code of NOT_FOR_DCB or something similar. Talk to libraries
-		// Other options: notes, restricted statuses
-
-		if (item.getCheckout() != null) {
-			return ItemStatusCode.CHECKED_OUT;
-		}
-		if (item.getWithdrawn() != null && item.getWithdrawn() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-		if (item.getLostStatus() != null && item.getLostStatus() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-		if (item.getDamagedStatus() != null && item.getDamagedStatus() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-		if (item.getNotForLoanStatus() != null && item.getNotForLoanStatus() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-		if (item.getRestrictedStatus() != null && item.getRestrictedStatus() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-
-		return ItemStatusCode.AVAILABLE;
+		return switch (KohaItemCirculation.of(item)) {
+			case CHECKED_OUT -> ItemStatusCode.CHECKED_OUT;
+			case AVAILABLE -> KohaItemCirculation.isSet(item.getDamagedStatus())
+				|| KohaItemCirculation.isSet(item.getRestrictedStatus())
+				? ItemStatusCode.UNAVAILABLE
+				: ItemStatusCode.AVAILABLE;
+			default -> ItemStatusCode.UNAVAILABLE;
+		};
 	}
 
 	/**
@@ -1256,8 +1238,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		}
 
 		log.info("Koha: Cancelling hold request: {}", localRequestId);
-		return client.deleteHold(localRequestId)
-			.thenReturn("OK")
+		return deleteHoldUnlessGone(localRequestId)
 			.doOnError(e -> log.error("Failed to cancel Koha hold {}: {}", localRequestId, e.getMessage()));
 	}
 
@@ -1368,15 +1349,19 @@ public class KohaHostLmsClient implements HostLmsClient {
 		}
 
 		log.info("Koha: Deleting hold: {}", holdId);
+		return deleteHoldUnlessGone(holdId)
+			.doOnError(e -> log.error("Failed to delete Koha hold {}: {}", holdId, e.getMessage()));
+	}
+
+	// A filled or cancelled hold is already in old_reserves: there is nothing left to delete,
+	// which is the outcome both a cancellation and a cleanup wanted
+	private Mono<String> deleteHoldUnlessGone(String holdId) {
 		return client.deleteHold(holdId)
 			.thenReturn("OK")
-			// A filled or cancelled hold is already in old_reserves: there is nothing left to
-			// delete, which is the outcome the cleanup wanted
 			.onErrorResume(KohaHostLmsClient::isNotFound, gone -> {
 				log.info("Koha hold {} is already filled or cancelled; nothing to delete", holdId);
 				return Mono.just("OK");
-			})
-			.doOnError(e -> log.error("Failed to delete Koha hold {}: {}", holdId, e.getMessage()));
+			});
 	}
 	@Override
 	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {

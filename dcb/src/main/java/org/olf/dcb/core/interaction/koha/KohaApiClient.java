@@ -263,15 +263,15 @@ public interface KohaApiClient {
 	}
 
 	/**
-	 * Get items for a biblio.
-	 * Passes the x-koha-embed header to retrieve current checkouts, which is what we need for due dates. Good example of using x-koha-embed.
+	 * Get items for a biblio, with the checkout, transfer and first hold that say whether each
+	 * can be lent.
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/biblios/operation/getBiblioItems">Getting items for a biblio</a>
 	 * </p>
 	 */
 	default Mono<KohaItem[]> getItemsForBiblio(String biblioId, int page, int perPage) {
 		return get("/api/v1/biblios/" + biblioId + "/items", KohaItem[].class,
-			Map.of("_page", page, "_per_page", perPage), Map.of("x-koha-embed", "checkout"));
+			Map.of("_page", page, "_per_page", perPage), Map.of("x-koha-embed", CIRCULATION_EMBEDS));
 	}
 
 	/**
