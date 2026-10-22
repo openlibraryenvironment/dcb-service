@@ -11,8 +11,7 @@ import java.util.stream.Stream;
 
 import org.reactivestreams.Publisher;
 
-import io.micronaut.configuration.metrics.annotation.RequiresMetrics;
-import io.micronaut.configuration.metrics.binder.web.config.HttpMetricsConfig;
+import io.micronaut.configuration.metrics.binder.web.SystemClientMetricsEnabled;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.NonNull;
@@ -40,17 +39,9 @@ import reactor.core.publisher.Flux;
  * 
  * @author Steve Osguthorpe
  */
-// NB: this was previously gated on @Requires(bean = ClientRequestMetricRegistryFilter.class).
-// Micronaut Micrometer 5.9 deprecated that class for removal and stripped its bean
-// annotations, replacing it with the package-private ClientMetricsFilter. The class still
-// exists, so the @Requires still compiled -- it simply never matched again, and this filter
-// silently stopped being registered. Gate on the same public conditions the replacement
-// uses instead. The "Extended metrics enabled" line logged from the constructor is the
-// canary that it is actually active.
 @Slf4j
 @Filter("${micronaut.metrics.http.client.path:/**}")
-@RequiresMetrics
-@Requires(property = HttpMetricsConfig.ENABLED, notEquals = FALSE)
+@Requires(condition = SystemClientMetricsEnabled.class)
 @Requires(property = ExtendedClientRequestMetricRegistryFilter.METRIC_CONFIG_ROOT + ".use-extended-client-metrics", notEquals = FALSE)
 public class ExtendedClientRequestMetricRegistryFilter implements HttpClientFilter {
 	protected static final String METRIC_CONFIG_ROOT = "k-int.metrics";
@@ -63,9 +54,6 @@ public class ExtendedClientRequestMetricRegistryFilter implements HttpClientFilt
 	
 	private final Map<String, UriMatchTemplate> defaultTemplateReplacements;
 	
-	/**
-	 * @param meterRegistry The metrics registry
-	 */
 	public ExtendedClientRequestMetricRegistryFilter( @Nullable @Value("${" + METRIC_CONFIG_ROOT + ".static-templates}") List<String> defaultTemplateReplacements) {
 		this.defaultTemplateReplacements = Stream.ofNullable(defaultTemplateReplacements)
 			.flatMap( List::stream )

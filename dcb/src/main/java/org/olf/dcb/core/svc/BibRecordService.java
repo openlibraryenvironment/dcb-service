@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.olf.dcb.core.clustering.RecordClusteringService;
@@ -22,8 +23,10 @@ import org.olf.dcb.ingest.IngestService;
 import org.olf.dcb.ingest.job.IngestJob;
 import org.olf.dcb.ingest.model.Identifier;
 import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.metrics.MetricService;
+import org.olf.dcb.metrics.MetricStatus;
+import org.olf.dcb.metrics.MetricTags;
 import org.olf.dcb.processing.ProcessingStep;
-import org.olf.dcb.stats.StatsService;
 import org.olf.dcb.storage.BibIdentifierRepository;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.MatchPointRepository;
@@ -31,6 +34,8 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
 import io.micronaut.context.BeanProvider;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.util.StringUtils;
@@ -56,7 +61,7 @@ public class BibRecordService {
 
 	private final BeanProvider<SourceRecordService> sourceRecords;
 	
-	private final StatsService statsService;
+	private final MetricService metricsService;
 
 	private final MatchPointRepository matchPointRepository;
 	private final BeanProvider<IngestJob> ingest;
@@ -65,12 +70,12 @@ public class BibRecordService {
 	public BibRecordService(
 	  BibRepository bibRepo,
 	  BibIdentifierRepository bibIdentifierRepository,
-		StatsService statsService, BeanProvider<RecordClusteringService> recordClusteringServiceProvider, MatchPointRepository matchPointRepository, BeanProvider<SourceRecordService> sourceRecordService, BeanProvider<IngestJob> ingest) {
+	  MetricService metricsService, BeanProvider<RecordClusteringService> recordClusteringServiceProvider, MatchPointRepository matchPointRepository, BeanProvider<SourceRecordService> sourceRecordService, BeanProvider<IngestJob> ingest) {
 		this.bibRepo = bibRepo;
 		this.bibIdentifierRepo = bibIdentifierRepository;
 		this.recordClusteringServiceProvider = recordClusteringServiceProvider;
 		this.sourceRecords = sourceRecordService;
-		this.statsService = statsService;
+		this.metricsService = metricsService;
 		this.matchPointRepository = matchPointRepository;
 		this.ingest = ingest;
 	}
@@ -170,6 +175,7 @@ public class BibRecordService {
         .flatMap( savedIdList -> purgeDeletedIdentifiers(savedBib,savedIdList));
 	}
 
+	@SuppressWarnings("unused")
 	@Transactional
 	protected Mono<BibRecord> purgeDeletedIdentifiers(BibRecord savedBib, List<UUID> validIdentifierIdList) {
     return Mono.from(bibIdentifierRepo.deleteAllByOwnerIdAndIdNotIn(savedBib.getId(), validIdentifierIdList))
@@ -182,22 +188,7 @@ public class BibRecordService {
 			.then(Mono.just(savedBib));
   }
 
-	protected Mono<BibRecord> updateStatistics(BibRecord savedBib, IngestRecord source) {
-
-//		long elapsed = System.currentTimeMillis() - start_time;
-
-		// log.debug("update statistics {} {} {} {}",elapsed, savedBib.getId(), savedBib.getDateCreated(), savedBib.getDateUpdated());
-		if ( savedBib.getDateCreated().equals(savedBib.getDateUpdated())) {
-			statsService.notifyEvent("BibInsert",source.getSourceSystem().getCode());
-			// insert
-		}
-		else {
-			statsService.notifyEvent("BibUpdate",source.getSourceSystem().getCode());
-			// update
-		}
-		return Mono.just(savedBib);
-	}
-
+	@SuppressWarnings("unused")
 	@Transactional
 	protected Mono<BibIdentifier> saveOrUpdateIdentifier(BibIdentifier bibIdentifier) {
 	  // log.debug("saveOrupdateIdentifier {} {} {} hc={}",bibIdentifier.getNamespace()+":"+bibIdentifier.getValue(),bibIdentifier.getId(),bibIdentifier.hashCode());
@@ -276,6 +267,7 @@ public class BibRecordService {
 			.map( reachable -> (initialSize - reachable));
 	}
 	
+	@SuppressWarnings("unused")
 	public Mono<Long> tidyUnreachableBibs() {
 		return Mono.defer( this::getPageOfUnreachableBibs )
 			.expand( _records -> getPageOfUnreachableBibs() )
@@ -418,6 +410,12 @@ public class BibRecordService {
 	}
 	
 	
+	@SuppressWarnings("unused")
+	private Function<BibRecord, Tags> getValueTransformer( final IngestRecord source, final MetricStatus status) {
+		return bib -> MetricTags.forHostLmsAndStatus(source.getSourceSystem(), status);
+	}
+	
+	@SuppressWarnings("unused")
 	@Transactional(propagation = Propagation.MANDATORY)
 	public Mono<BibRecord> process(final IngestRecord source) {
 		
@@ -437,12 +435,16 @@ public class BibRecordService {
 
       log.info("Processing a delete/suppress");
 			
-			// Suppress...			
+			// Suppress...
 			return deleteAssociatedBib(source)
-        .doOnNext( deletedBib -> log.info("Deleted bib") )
-        .doOnError(err -> log.error("Problem deleting bib2",err))
+//        .doOnNext( deletedBib -> log.info("Deleted bib") )
+        .doOnError(err -> log.error("Problem deleting bib",err))
+        
+        .transform( metricsService.timedPublisher(
+        		"ingest", getValueTransformer(source, suppressed ? MetricStatus.BIB_DELETED_SUPPRESSED : MetricStatus.BIB_DELETED_SOURCE) ))
+        
 				.flatMap( deletedBib -> {
-					statsService.notifyEvent("DroppedTitle",source.getSourceSystem().getCode());
+//					statsService.notifyEvent(StatisticType.TITLE_DROPPED, source.getSourceSystem().getCode());
 					
 					final String removalReason = deleted ? "deleted" : "suppressed";
 					log.info("removal -- Record {} flagged as {}, redact accordingly", source, removalReason);
@@ -458,10 +460,12 @@ public class BibRecordService {
 
 			// return Mono.just(source)
 			return deleteAssociatedBib(source)
-        .doOnNext( deletedBib -> log.info("Deleted bib (No Title)") )
-        .doOnError(err -> log.error("Problem deleting bib2",err))
+        .doOnError(err -> log.error("Problem deleting bib",err))
+        
+        .transform( metricsService.timedPublisher( "ingest", getValueTransformer(source, MetricStatus.BIB_DELETED_NULL_TITLE) ))
 				.flatMap( s -> {
-					statsService.notifyEvent("DroppedNullTitle",source.getSourceSystem().getCode());
+					log.info("Deleted bib (No Title)");
+//					statsService.notifyEvent(StatisticType.TITLE_NULL, source.getSourceSystem().getCode());
 					if (log.isTraceEnabled()) {
 						log.warn("None deleted record {} from {} with empty title - bailing", source, source.getSourceSystem() != null ? source.getSourceSystem().getCode() : "" );
 					} else {
@@ -474,10 +478,10 @@ public class BibRecordService {
 		// None deleted or suppressed items...
 		
 		return getOrSeed(source)
-			.map( bib -> {
-				statsService.notifyEvent("IngestRecord",source.getSourceSystem().getCode());
-				return bib;
-			})
+//			.map( bib -> {
+//				statsService.notifyEvent(StatisticType.INGEST_RECORD, source.getSourceSystem().getCode());
+//				return bib;
+//			})
 			.flatMap(bib -> {
 				
 				final List<ProcessingStep> pipeline = new ArrayList<>();
@@ -486,8 +490,23 @@ public class BibRecordService {
 			})
 		 .flatMap(this::saveOrUpdate)
 		 .flatMap(savedBib -> this.saveIdentifiers(savedBib, source))
-		 .flatMap(finalBib -> this.updateStatistics(finalBib, source) )
+
+     .transform( metricsService.timedPublisher( "ingest", updateStatisticsTransformer(source) ))
+//		 .flatMap(finalBib -> this.updateStatistics(finalBib, source) )
      ;
+	}
+	
+	protected Function<BibRecord, Tags> updateStatisticsTransformer(IngestRecord source) {
+
+		return savedBib -> {
+		
+			if ( savedBib.getDateCreated().equals(savedBib.getDateUpdated())) {
+				
+				return MetricTags.forHostLmsAndStatus(source.getSourceSystem(), MetricStatus.BIB_INSERT);
+			}
+			
+			return MetricTags.forHostLmsAndStatus(source.getSourceSystem(), MetricStatus.BIB_UPDATE);
+		};
 	}
 	
 	@Transactional(propagation = Propagation.MANDATORY)

@@ -17,6 +17,7 @@ import org.olf.dcb.core.error.DcbException;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
+import org.olf.dcb.metrics.MetricService;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,8 +70,8 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	private final int indexVersion; 
 	private final int numberOfReplicas;
 
-	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
-		super(recordClusteringService, pubs, conf);
+	public ElasticsearchSharedIndexService(MetricService metricService, SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
+		super(recordClusteringService, pubs, conf, metricService);
 		this.client = client;
 		this.conversionService = conversionService;
 		this.indexName = conf.name();

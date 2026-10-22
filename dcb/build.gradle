@@ -148,7 +148,7 @@ dependencies {
 	implementation("io.micronaut.flyway:micronaut-flyway")
 	runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
-        // II: These were commented out but unsure why - needed for observability on prod systems
+  // II: These were commented out but unsure why - needed for observability on prod systems
 	// Metrics (Prometheus)
 	implementation "io.micronaut.micrometer:micronaut-micrometer-registry-prometheus"
 

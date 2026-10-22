@@ -12,26 +12,20 @@ import io.micronaut.management.endpoint.health.HealthEndpoint;
 import io.micronaut.management.health.indicator.HealthIndicator;
 import io.micronaut.management.health.indicator.HealthResult;
 import jakarta.inject.Singleton;
+import reactor.core.publisher.Mono;
 
-@Requires(beans = HealthEndpoint.class)
 @Singleton
+@Requires(beans = HealthEndpoint.class)
 public class JvmHealthIndicator implements HealthIndicator {
 
 	private static final String NAME = "jvm";
-
-	/**
-	 * Constructor.
-	 *
-	 * @param client The OpenSearch high level REST client.
-	 */
 	public JvmHealthIndicator() {
 	}
-
-	@Override
-	public Publisher<HealthResult> getResult() {
+	
+	private HealthResult getJvmHealth() {
 		RuntimeMXBean runTimeBean = ManagementFactory.getRuntimeMXBean();
 		long uptime = runTimeBean.getUptime();
-		long millis = uptime % 1000;
+//		long millis = uptime % 1000;
 		long second = (uptime / 1000) % 60;
 		long minute = (uptime / (1000 * 60)) % 60;
 		long hour = (uptime / (1000 * 60 * 60)) % 24;
@@ -55,11 +49,15 @@ public class JvmHealthIndicator implements HealthIndicator {
 			.append(runTimeBean.getStartTime())
 			.append("}")
 			.toString();
-				
-		return(subscriber -> {
-			final HealthResult.Builder resultBuilder = HealthResult.builder(NAME);
-			subscriber.onNext(resultBuilder.status(UP).details(details).build());
-			subscriber.onComplete();
-		});
+		
+		return HealthResult.builder(NAME)
+				.status(UP)
+				.details(details)
+				.build();
+	}
+
+	@Override
+	public Publisher<HealthResult> getResult() {
+		return Mono.defer(() -> Mono.fromSupplier(this::getJvmHealth));
 	}
 }

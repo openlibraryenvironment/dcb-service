@@ -17,6 +17,7 @@ import org.olf.dcb.core.error.DcbException;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
+import org.olf.dcb.metrics.MetricService;
 import org.opensearch.client.json.JsonData;
 import org.opensearch.client.json.JsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchAsyncClient;
@@ -73,8 +74,8 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private final int indexVersion; 
 	private final int numberOfReplicas;
 
-	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
-		super(recordClusteringService, pubs, conf);
+	public OpenSearchSharedIndexService(MetricService metricService, SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
+		super(recordClusteringService, pubs, conf, metricService);
 		this.client = client;
 		this.conversionService = conversionService;
 		this.indexName = conf.name();

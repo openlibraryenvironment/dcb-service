@@ -102,6 +102,7 @@ public class ProcessAuditService {
 			.single();
 	}
 	
+	@SuppressWarnings("unused")
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected <T> Mono<T> doAuditMessage(T item, Function<T, String> messageCreator) {
 		return Mono.deferContextual(con -> {
@@ -129,10 +130,12 @@ public class ProcessAuditService {
 		return item -> doAuditMessage(item, messageCreator);
 	}
 	
+	@SuppressWarnings("unused")
 	public <T> Function<T, Mono<T>> withAuditMessage( Supplier<String> messageCreator ) {
 		return withAuditMessage( _item -> messageCreator.get() );
 	}
 	
+	@SuppressWarnings("unused")
 	public <T> Function<T, Mono<T>> withAuditMessage( String message ) {
 		return withAuditMessage( _item -> message );
 	}

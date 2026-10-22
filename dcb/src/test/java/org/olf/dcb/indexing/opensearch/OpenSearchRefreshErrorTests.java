@@ -20,6 +20,8 @@ import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
+import org.olf.dcb.metrics.MetricService;
+import org.olf.dcb.test.DcbTest;
 import org.slf4j.LoggerFactory;
 
 import org.opensearch.client.opensearch.OpenSearchAsyncClient;
@@ -31,12 +33,17 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.core.read.ListAppender;
+import jakarta.inject.Inject;
 import reactor.core.publisher.Hooks;
 
+@DcbTest
 @Isolated("Temporarily captures Reactor's global dropped-error hook")
 class OpenSearchRefreshErrorTests {
 
 	private static final String INDEX = "shared-index";
+	
+	@Inject
+	MetricService metricService;
 
 	enum FailurePoint { READ_BEFORE_DISABLE, WRITE_TO_DISABLE, WRITE_TO_RESTORE }
 
@@ -96,9 +103,9 @@ class OpenSearchRefreshErrorTests {
 		}
 	}
 
-	private static final class TestService extends OpenSearchSharedIndexService {
+	private final class TestService extends OpenSearchSharedIndexService {
 		TestService(OpenSearchAsyncClient client) {
-			super(new SharedIndexConfiguration(INDEX, Optional.empty(), Optional.empty(),
+			super(metricService, new SharedIndexConfiguration(INDEX, Optional.empty(), Optional.empty(),
 				Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()),
 				client, null, null, null);
 		}
