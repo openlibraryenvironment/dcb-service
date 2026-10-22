@@ -53,9 +53,10 @@ both workflows with your library as the lender, are unaffected.
 5. **An item type for incoming loans.** `DCB_VIRTUAL`: the type DCB's virtual items carry,
    so you have one circulation rule for consortium borrowing and can hide the items from
    the OPAC with `OpacHiddenItems` (`itype: [DCB_VIRTUAL]`).
-6. **Authorised values.** `NOT_LOAN` 42 for copies not shared with the consortium;
-   `CCODE` `DCB_NO_RENEW`; `942$x` added to every bibliographic framework in use for
-   local-only titles; `942$n` pointed at `YES_NO` for OPAC suppression.
+6. **Authorised values.** `CCODE` `DCB_NO_RENEW`; `942$x` added to every bibliographic
+   framework in use for local-only titles; `942$n` pointed at `YES_NO` for OPAC
+   suppression; and, for copies you keep from the consortium, the value described in
+   [Keeping titles and copies out of OpenRS](#keeping-titles-and-copies-out-of-openrs).
 7. **System preferences.** `OAI-PMH` on, `OAI-PMH:archiveID` set before the first harvest,
    `OAI-PMH:DeletedRecord` persistent, `OpacSuppression` on once a record carries
    `942$n`, `ItemsDeniedRenewal` containing `ccode: [DCB_NO_RENEW]`, `ReservesNeedReturns`
@@ -341,6 +342,42 @@ What DCB checks about a patron before it asks any supplier: that Koha knows them
 their category is mapped and not mapped as ineligible, that they are not restricted and
 their card is not lost, and that their account has not expired. Debt is not checked by
 DCB: Koha refuses the hold itself and the patron is told why.
+
+## Keeping titles and copies out of OpenRS
+
+There are two different decisions, and each can be made for a whole title or for one
+copy:
+
+- **Nobody should see it**, in your catalogue or in OpenRS.
+- **Your patrons can see and borrow it, but other libraries cannot.**
+
+| You want | For | What to do in Koha | What OpenRS does |
+|---|---|---|---|
+| nobody to see it | a title | set *Suppress in OPAC* (`942$n`) to `1` and have `OpacSuppression` on | removes the title from the shared catalogue at the next harvest |
+| your patrons only | a title | set `942$x` to `1` | removes the title from the shared catalogue at the next harvest; your catalogue is unaffected |
+| nobody to see it | a copy | hide it with `OpacHiddenItems` | **does not read `OpacHiddenItems` yet.** Ask your OpenRS team to add the same rule to your library's item rule in DCB; until then the copy can be requested |
+| a copy kept from the consortium that is not lent at all (reference, in-library use) | a copy | set *Not for loan* to `42` | hides the copy from OpenRS at the next availability check |
+| a copy your patrons borrow but other libraries cannot | a copy | **not *Not for loan*:** any *Not for loan* value above zero also stops your own patrons borrowing or holding it. Ask your OpenRS team for the *Use restrictions* (`952$5`) value they read for this, add it to the `RESTRICTED` authorised values, and set it on the copy. Koha shows the value's OPAC description beside the copy, so word it for your patrons ("Not lent to other libraries") | hides the copy from OpenRS at the next availability check |
+| none of a branch's copies | a branch | tell your OpenRS team | the branch is left out of the location mappings, or not marked as lending |
+
+Withdrawn copies are never offered, whatever the rules say. Lost copies are shown as
+unavailable.
+
+**On a shared Koha the title flags apply to every library on it.** A bibliographic record
+is shared by every library whose copies are attached to it, so `942$n` or `942$x` on a
+shared record removes the title from OpenRS for all of them. To keep only your own copies
+back, use the copy-level rows.
+
+**The subfields must be visible in the OPAC in the framework.** Koha builds the record it
+sends OpenRS as the OPAC sees it, and drops any subfield the framework hides from the OPAC.
+Leave `942$n` and `942$x` at a visibility that shows them in the OPAC (the default for
+`942$n`); a `942$x` hidden from the OPAC never reaches OpenRS and the title stays shared.
+
+**Changing a preference does not touch your records.** OpenRS harvests records that have
+changed since the last harvest. Turning on `OpacSuppression`, editing `OpacHiddenItems`, or
+turning on `OpacHiddenItemsHidesRecord` changes what Koha hides without changing any
+record, so titles already in OpenRS stay there until each record is next edited. Tell your
+OpenRS team when you change one of these.
 
 ## Workflows
 

@@ -78,7 +78,8 @@ are refused. Confirm this on a test server before onboarding a shared Koha.
 | `OAI-PMH` | Enable | the harvest |
 | `OAI-PMH:archiveID` | site-specific, set before the first harvest | DCB mints record ids from it; changing it later duplicates the catalogue in DCB |
 | `OAI-PMH:DeletedRecord` | persistent | deletions reach the shared index |
-| `OpacSuppression` | Hide, once at least one record carries `942$n` | hidden records stay hidden; DCB's virtual bibs carry the flag |
+| `OpacSuppression` | Hide, once at least one record carries `942$n` | hidden records stay hidden; DCB's virtual bibs carry the flag. Turning it on after the first harvest reaches DCB only for records edited afterwards |
+| `OpacHiddenItems` | any | DCB does not read it: the OpenRS team mirrors its rules in the library's item rule, so tell them when it changes. A record it hides entirely (with `OpacHiddenItemsHidesRecord`) is withheld from the harvest, but only once the record is next edited |
 | `ItemsDeniedRenewal` | contains `ccode: [DCB_NO_RENEW]` | renewal prevention; DCB verifies it on each use and fails loudly when it is missing |
 | `AllowHoldPolicyOverride` | Allow | DCB sends `x-koha-override: any` on holds for its own virtual patron; Koha honours the header only with this on, and then skips its hold policies for that hold. Holds for real patrons never send it |
 | `IndependentBranches` | off, or the API patron acts across branches | on, the API patron may only edit items and patrons of its own branch |
