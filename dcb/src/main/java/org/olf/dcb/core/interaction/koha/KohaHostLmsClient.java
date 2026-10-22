@@ -41,6 +41,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.micrometer.common.util.StringUtils.isBlank;
@@ -710,9 +711,9 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// Resolved once per call rather than per item. The accessor caches, so per item
 		// would also be cheap, but the ruleset cannot change midway through one bib's
 		// items and reading it once says so.
-		return getLmsItemSuppressionRuleset()
-			.flatMap(itemSuppressionRules -> allItemsForBiblio(bibId)
-				.flatMap(kohaItem -> mapKohaItemToDcbItem(kohaItem, itemSuppressionRules),
+		return Mono.zip(getLmsItemSuppressionRuleset(), opacVisibleItemIds(bibId))
+			.flatMap(rulesAndVisible -> allItemsForBiblio(bibId)
+				.flatMap(kohaItem -> mapKohaItemToDcbItem(kohaItem, rulesAndVisible.getT1(), rulesAndVisible.getT2()),
 					ITEM_ENRICHMENT_CONCURRENCY)
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()),
 					ITEM_ENRICHMENT_CONCURRENCY)
@@ -722,10 +723,53 @@ public class KohaHostLmsClient implements HostLmsClient {
 				.collectList());
 	}
 
-	// Pages until a short page or the cap; a title past the cap is reported, not read on
 	private Flux<KohaItem> allItemsForBiblio(String bibId) {
+		return pagedItems(bibId, client::getItemsForBiblio);
+	}
+
+	/**
+	 * The ids of the biblio's items Koha's OPAC shows, empty when this Host LMS does not honour
+	 * OpacHiddenItems. Same pages and cap as the staff read, so an item past the cap is treated as
+	 * hidden. A refused read fails the availability check rather than offer what the library hides.
+	 */
+	private Mono<Optional<Set<Long>>> opacVisibleItemIds(String bibId) {
+		if (!config.honoursOpacHiddenItems()) {
+			return Mono.just(Optional.empty());
+		}
+
+		return pagedItems(bibId, client::getOpacVisibleItemsForBiblio)
+			.map(KohaItem::getItemId)
+			.filter(Objects::nonNull)
+			.collect(Collectors.toUnmodifiableSet())
+			.map(Optional::of)
+			// The biblio is gone: the staff read finds nothing either
+			.onErrorResume(KohaHostLmsClient::isNotFound, gone -> Mono.just(Optional.of(Set.of())))
+			.onErrorMap(error -> !isNotFound(error), this::opacVisibilityUnreadable);
+	}
+
+	private ThrowableProblem opacVisibilityUnreadable(Throwable error) {
+		log.error("Koha at {} would not say which copies its OPAC hides", getHostLmsCode(), error);
+
+		return Problem.builder()
+			.withTitle("Koha would not say which copies its OPAC hides")
+			.withStatus(Status.BAD_GATEWAY)
+			.withDetail("The anonymous read of %s's public items failed: %s"
+				.formatted(getHostLmsCode(), kohaErrorMessage(error)))
+			.with("remedy", "Turn on RESTPublicAPI and RESTPublicAnonymousRequests, or set "
+				+ "honour-opac-hidden-items to false and mirror OpacHiddenItems in the item ruleset")
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	@FunctionalInterface
+	private interface ItemPageReader {
+		Mono<KohaItem[]> read(String biblioId, int page, int perPage);
+	}
+
+	// Pages until a short page or the cap; a title past the cap is reported, not read on
+	private Flux<KohaItem> pagedItems(String bibId, ItemPageReader readPage) {
 		return Flux.range(1, MAX_ITEMS_PER_BIBLIO / ITEMS_PAGE_SIZE)
-			.concatMap(page -> client.getItemsForBiblio(bibId, page, ITEMS_PAGE_SIZE)
+			.concatMap(page -> readPage.read(bibId, page, ITEMS_PAGE_SIZE)
 				.defaultIfEmpty(new KohaItem[0]))
 			.takeUntil(page -> page.length < ITEMS_PAGE_SIZE)
 			.flatMapIterable(Arrays::asList)
@@ -790,9 +834,14 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 * unreadable or missing ruleset must not silently empty a library's availability.
 	 */
 	private boolean deriveItemSuppressedFlag(KohaItem kohaItem,
-		Optional<ObjectRuleset> itemSuppressionRules) {
+		Optional<ObjectRuleset> itemSuppressionRules, Optional<Set<Long>> opacVisible) {
 
 		if (kohaItem.getWithdrawn() != null && kohaItem.getWithdrawn() > 0) {
+			return true;
+		}
+
+		if (opacVisible.isPresent() && !opacVisible.get().contains(kohaItem.getItemId())) {
+			log.debug("Koha item {} is hidden from the OPAC, so not offered", kohaItem.getItemId());
 			return true;
 		}
 
@@ -911,7 +960,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<Item> mapKohaItemToDcbItem(KohaItem kohaItem,
-		Optional<ObjectRuleset> itemSuppressionRules) {
+		Optional<ObjectRuleset> itemSuppressionRules, Optional<Set<Long>> opacVisible) {
 		final String itemId = String.valueOf(kohaItem.getItemId());
 		final String bibId = String.valueOf(kohaItem.getBiblioId());
 
@@ -951,7 +1000,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 				// ruleset. The not_for_loan_status 42 convention that used to be hardcoded
 				// here now lives in the koha-item-default ruleset, so a library that uses a
 				// different value can say so in config instead of asking for a release.
-				Boolean isSuppressed = deriveItemSuppressedFlag(kohaItem, itemSuppressionRules);
+				Boolean isSuppressed = deriveItemSuppressedFlag(kohaItem, itemSuppressionRules, opacVisible);
 
 				return Item.builder()
 					.localId(itemId)
@@ -1078,11 +1127,33 @@ public class KohaHostLmsClient implements HostLmsClient {
 				emptyWhenUnreadable(MappingVocabulary.ITEM_TYPE),
 				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE),
 				librariesOrEmpty(),
-				systemPreferences())
+				systemPreferences(),
+				opacVisibilityCheck())
 			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3())
-				.withChecks(preferenceChecks(answers.getT4())))
+				.withChecks(preferenceChecks(answers.getT4()))
+				.withChecks(List.of(answers.getT5())))
 			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
 				"Could not read configuration from Koha: " + error.getMessage())));
+	}
+
+	private Mono<ConfigurationReport.Check> opacVisibilityCheck() {
+		final var setting = "honour-opac-hidden-items";
+
+		if (!config.honoursOpacHiddenItems()) {
+			return Mono.just(new ConfigurationReport.Check(setting, "false",
+				ConfigurationReport.CheckResult.NOT_CONFIGURED,
+				"Off: copies OpacHiddenItems hides are offered unless the item ruleset mirrors it"));
+		}
+
+		final var reachable = new ConfigurationReport.Check(setting, "true",
+			ConfigurationReport.CheckResult.PRESENT, null);
+
+		return client.getOnePublicLibrary()
+			.map(answered -> reachable)
+			.defaultIfEmpty(reachable)
+			.onErrorResume(error -> Mono.just(new ConfigurationReport.Check(setting, "true",
+				ConfigurationReport.CheckResult.MISSING,
+				"The anonymous public API is refused (RESTPublicAPI or RESTPublicAnonymousRequests off), so every availability check for this Koha fails")));
 	}
 
 	// Read on Koha 26.05 and later; an older Koha answers 404 and the API patron may lack

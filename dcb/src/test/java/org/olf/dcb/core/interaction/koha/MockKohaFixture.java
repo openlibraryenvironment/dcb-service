@@ -84,8 +84,42 @@ public class MockKohaFixture {
 			"expires_in", 3600)));
 	}
 
+	/** The staff read, and the OPAC's view of the same items with none of them hidden. */
 	public void mockItemsForBiblio(String biblioId, KohaItem... items) {
 		mockServer.mock(commonRequests.get(itemsForBiblioPath(biblioId)), okJson(items));
+		mockServer.mock(opacVisibleItemsRequest(biblioId), okJson(items));
+	}
+
+	/** The items the OPAC shows, replacing the "none hidden" answer the item mocks give. */
+	public void replaceOpacVisibleItems(String biblioId, KohaItem... visible) {
+		mockServer.replaceMock(opacVisibleItemsRequest(biblioId), okJson(visible));
+	}
+
+	/** Koha's answer to an anonymous request with RESTPublicAnonymousRequests off. */
+	public void replaceOpacVisibleItemsRefused(String biblioId) {
+		mockServer.replaceMock(opacVisibleItemsRequest(biblioId),
+			response().withStatusCode(401).withBody(json(Map.of("error", "Authentication failure."))));
+	}
+
+	public void verifyOpacVisibleItemsReadWithoutAToken(String biblioId) {
+		client.verify(opacVisibleItemsRequest(biblioId).withHeader(NottableString.not("Authorization")));
+	}
+
+	public void verifyOpacVisibleItemsNeverRead(String biblioId) {
+		mockServer.verifyNever(opacVisibleItemsRequest(biblioId));
+	}
+
+	private HttpRequest opacVisibleItemsRequest(String biblioId) {
+		return commonRequests.get("/api/v1/public/biblios/%s/items".formatted(biblioId));
+	}
+
+	public void mockPublicLibraries(KohaLibrary... libraries) {
+		mockServer.mock(commonRequests.get("/api/v1/public/libraries"), okJson(libraries));
+	}
+
+	public void mockPublicLibrariesRefused() {
+		mockServer.mock(commonRequests.get("/api/v1/public/libraries"),
+			response().withStatusCode(401).withBody(json(Map.of("error", "Authentication failure."))));
 	}
 
 	/**
@@ -238,12 +272,16 @@ public class MockKohaFixture {
 		mockServer.mock(commonRequests.delete("/api/v1/biblios/" + biblioId), noContent());
 	}
 
-	/** The three lists the configuration check reads, and a Koha older than 26.05 for preferences. */
+	/**
+	 * The three lists the configuration check reads, a Koha older than 26.05 for preferences, and
+	 * the public API open.
+	 */
 	public void mockConfigurationLists(KohaLibrary... libraries) {
 		mockItemTypes();
 		mockPatronCategories();
 		mockLibraries(libraries);
 		mockNoSystemPreferencesRoute();
+		mockPublicLibraries(libraries);
 	}
 
 	/**
@@ -462,6 +500,8 @@ public class MockKohaFixture {
 	public void mockItemsPage(String biblioId, int page, KohaItem... items) {
 		mockServer.mock(commonRequests.get(itemsForBiblioPath(biblioId), "_page", String.valueOf(page))
 			.withHeader("x-koha-embed", KohaApiClient.CIRCULATION_EMBEDS), okJson(items));
+		mockServer.mock(opacVisibleItemsRequest(biblioId).withQueryStringParameter("_page", String.valueOf(page)),
+			okJson(items));
 	}
 
 	public void mockHold(KohaHoldResponse hold) {

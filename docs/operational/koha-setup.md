@@ -57,7 +57,8 @@ both workflows with your library as the lender, are unaffected.
    framework in use for local-only titles; `942$n` pointed at `YES_NO` for OPAC
    suppression; and `RESTRICTED` 42 for copies you lend but keep from the consortium
    (see [Keeping titles and copies out of OpenRS](#keeping-titles-and-copies-out-of-openrs)).
-7. **System preferences.** `OAI-PMH` on, `OAI-PMH:archiveID` set before the first harvest,
+7. **System preferences.** `RESTPublicAPI` and `RESTPublicAnonymousRequests` on (the
+   defaults), `OAI-PMH` on, `OAI-PMH:archiveID` set before the first harvest,
    `OAI-PMH:DeletedRecord` persistent, `OpacSuppression` on once a record carries
    `942$n`, `ItemsDeniedRenewal` containing `ccode: [DCB_NO_RENEW]`, `ReservesNeedReturns`
    at its default, `AllowHoldPolicyOverride` allowed (so DCB's holds for its own virtual
@@ -355,7 +356,7 @@ copy:
 |---|---|---|---|
 | nobody to see it | a title | set *Suppress in OPAC* (`942$n`) to `1` and have `OpacSuppression` on | removes the title from the shared catalogue at the next harvest |
 | your patrons only | a title | set `942$x` to `1` | removes the title from the shared catalogue at the next harvest; your catalogue is unaffected |
-| nobody to see it | a copy | hide it with `OpacHiddenItems` | **does not read `OpacHiddenItems` yet.** Ask your OpenRS team to add the same rule to your library's item rule in DCB; until then the copy can be requested |
+| nobody to see it | a copy | hide it with `OpacHiddenItems` | leaves the copy out at the next availability check, by asking your OPAC which copies it shows; needs `RESTPublicAPI` and `RESTPublicAnonymousRequests` on, as they are by default |
 | a copy kept from the consortium that is not lent at all (reference, in-library use) | a copy | set *Not for loan* to `42` | hides the copy from OpenRS at the next availability check |
 | a copy your patrons borrow but other libraries cannot | a copy | **not *Not for loan*:** any *Not for loan* value above zero also stops your own patrons borrowing or holding it. Add `42` to the `RESTRICTED` authorised values and set *Use restrictions* (`952$5`) to it on the copy. Koha shows the value's OPAC description beside the copy, so word it for your patrons ("Not lent to other libraries") | hides the copy from OpenRS at the next availability check |
 | none of a branch's copies | a branch | tell your OpenRS team | the branch is left out of the location mappings, or not marked as lending |
@@ -363,10 +364,11 @@ copy:
 Withdrawn copies are never offered, whatever the rules say. Lost copies are shown as
 unavailable.
 
-**On a shared Koha the title flags apply to every library on it.** A bibliographic record
-is shared by every library whose copies are attached to it, so `942$n` or `942$x` on a
-shared record removes the title from OpenRS for all of them. To keep only your own copies
-back, use the copy-level rows.
+**A shared Koha is one system, and the title flags act for the whole system.** A
+bibliographic record carries the copies of every library on the Koha, so `942$x` on it keeps
+the title, and every library's copies of it, out of OpenRS. That is the right tool when
+the decision is the system's. A library that wants to keep back only its own copies of a
+title the others still share uses the copy-level rows.
 
 **The subfields must be visible in the OPAC in the framework.** Koha builds the record it
 sends OpenRS as the OPAC sees it, and drops any subfield the framework hides from the OPAC.

@@ -275,6 +275,22 @@ public interface KohaApiClient {
 	}
 
 	/**
+	 * A page of the biblio's items as an anonymous OPAC user sees them: Koha leaves out what
+	 * OpacHiddenItems and hidelostitems hide. Sent without a token, because Koha skips the rules
+	 * for a caller whose category is in OpacHiddenItemsExceptions.
+	 * API: GET /api/v1/public/biblios/{biblio_id}/items
+	 */
+	default Mono<KohaItem[]> getOpacVisibleItemsForBiblio(String biblioId, int page, int perPage) {
+		return get("/api/v1/public/biblios/" + biblioId + "/items", KohaItem[].class,
+			Map.of("_page", page, "_per_page", perPage));
+	}
+
+	/** Answers only when RESTPublicAPI and RESTPublicAnonymousRequests are both on. */
+	default Mono<KohaLibrary[]> getOnePublicLibrary() {
+		return get("/api/v1/public/libraries", KohaLibrary[].class, Map.of("_per_page", 1));
+	}
+
+	/**
 	 * Delete an item.
 	 * API: DELETE /api/v1/items/{item_id}
 	 */

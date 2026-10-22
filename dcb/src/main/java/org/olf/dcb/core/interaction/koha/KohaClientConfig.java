@@ -10,6 +10,7 @@ import java.util.List;
 
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 
@@ -61,6 +62,11 @@ public class KohaClientConfig {
 	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_EMAIL = stringPropertyDefinition(
 		VirtualPatronEmail.SETTING, "Consortium mailbox for virtual patrons' notices", FALSE);
 
+	private static final HostLmsPropertyDefinition HONOUR_OPAC_HIDDEN_ITEMS = booleanPropertyDefinition(
+		"honour-opac-hidden-items",
+		"Leave out the copies OpacHiddenItems hides from the OPAC; needs RESTPublicAPI and RESTPublicAnonymousRequests",
+		FALSE);
+
 
 
 	private final HostLms hostLms;
@@ -88,7 +94,8 @@ public class KohaClientConfig {
 			NO_RENEW_COLLECTION_CODE,
 			VIRTUAL_PATRON_CATEGORY,
 			VIRTUAL_PATRON_EMAIL,
-			DO_NOT_RENEW_NOTE
+			DO_NOT_RENEW_NOTE,
+			HONOUR_OPAC_HIDDEN_ITEMS
 		);
 	}
 
@@ -112,6 +119,12 @@ public class KohaClientConfig {
 	public String getVirtualPatronCategory() {
 		return VIRTUAL_PATRON_CATEGORY.getOptionalValueFrom(
 			hostLms.getClientConfig(), DEFAULT_VIRTUAL_PATRON_CATEGORY);
+	}
+
+	// Only "false" turns it off: a mistyped value must not offer the copies a library hides
+	public boolean honoursOpacHiddenItems() {
+		return !"false".equalsIgnoreCase(HONOUR_OPAC_HIDDEN_ITEMS
+			.getOptionalValueFrom(hostLms.getClientConfig(), "true").trim());
 	}
 
 	public String getNoRenewCollectionCode() {
