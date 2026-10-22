@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -79,6 +80,10 @@ class KohaVocabularyTests {
 
 		final var objectRulesService = mock(ObjectRulesService.class);
 		when(objectRulesService.findByName(any())).thenReturn(Mono.empty());
+
+		// A Koha older than 26.05: no system preference route
+		doReturn(Mono.error(new HttpClientResponseException("HTTP 404", HttpResponse.notFound())))
+			.when(apiClient).getSystemPreference(any());
 
 		return new KohaHostLmsClient(hostLms, mock(ReferenceValueMappingService.class),
 			clientFactory, mock(MaterialTypeToItemTypeMappingService.class),

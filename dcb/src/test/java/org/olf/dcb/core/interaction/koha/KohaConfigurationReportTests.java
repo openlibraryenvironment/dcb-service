@@ -4,9 +4,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -17,11 +20,14 @@ import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.interaction.koha.dto.KohaItemType;
 import org.olf.dcb.core.interaction.koha.dto.KohaLibrary;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatronCategory;
+import org.olf.dcb.core.interaction.koha.dto.KohaSystemPreference;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.rules.ObjectRulesService;
 
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import reactor.core.publisher.Mono;
 
 /**
@@ -37,6 +43,7 @@ class KohaConfigurationReportTests {
 	void shouldListTheBranchesKohaAllowsCollectionFrom() {
 		givenKohaLists();
 
+		givenPreferences(Map.of());
 		final var report = client("DCB-SHARING").checkConfiguration().block();
 
 		assertThat(report.status(), is(ConfigurationReport.Status.CHECKED));
@@ -50,6 +57,7 @@ class KohaConfigurationReportTests {
 	@Test
 	void shouldAcceptASharingBranchKohaAllowsCollectionFrom() {
 		givenKohaLists();
+		givenPreferences(Map.of());
 
 		final var report = client("DCB-SHARING").checkConfiguration().block();
 
@@ -62,11 +70,68 @@ class KohaConfigurationReportTests {
 		// Every supplier hold names the sharing branch as its pickup branch; Koha refuses
 		// a hold at a branch that is not a pickup location, so the setting is wrong
 		givenKohaLists();
+		givenPreferences(Map.of());
 
 		final var report = client("BRANCH-S").checkConfiguration().block();
 
 		assertThat(check(report, "sharing-library-code").result(),
 			is(ConfigurationReport.CheckResult.MISSING));
+	}
+
+	@Test
+	void shouldAcceptThePreferencesWhenTheySayWhatDcbNeeds() {
+		givenKohaLists();
+		givenPreferences(Map.of(
+			"AllowHoldPolicyOverride", "1", "IndependentBranches", "0", "canreservefromotherbranches", "0",
+			"ItemsDeniedRenewal", "ccode: [DCB_NO_RENEW]", "OpacSuppression", "1", "ReservesNeedReturns", "1"));
+
+		final var report = client("DCB-SHARING").checkConfiguration().block();
+
+		for (String name : List.of("AllowHoldPolicyOverride", "IndependentBranches", "canreservefromotherbranches",
+			"ItemsDeniedRenewal", "OpacSuppression", "ReservesNeedReturns")) {
+			assertThat(name, check(report, name).result(), is(ConfigurationReport.CheckResult.PRESENT));
+		}
+	}
+
+	@Test
+	void shouldReportIndependentBranchesWithoutHoldsFromOtherBranches() {
+		// Together these refuse every supplier hold and every co-tenant local request
+		givenKohaLists();
+		givenPreferences(Map.of("IndependentBranches", "1", "canreservefromotherbranches", "0",
+			"AllowHoldPolicyOverride", "0", "ItemsDeniedRenewal", "", "OpacSuppression", "0", "ReservesNeedReturns", "0"));
+
+		final var report = client("DCB-SHARING").checkConfiguration().block();
+
+		assertThat(check(report, "IndependentBranches").result(), is(ConfigurationReport.CheckResult.MISSING));
+		assertThat(check(report, "canreservefromotherbranches").result(), is(ConfigurationReport.CheckResult.MISSING));
+		assertThat(check(report, "AllowHoldPolicyOverride").result(), is(ConfigurationReport.CheckResult.MISSING));
+		assertThat(check(report, "ItemsDeniedRenewal").result(), is(ConfigurationReport.CheckResult.MISSING));
+		assertThat(check(report, "ReservesNeedReturns").result(), is(ConfigurationReport.CheckResult.MISSING));
+	}
+
+	@Test
+	void shouldSayWhenAKohaCannotBeAskedForItsPreferences() {
+		// Before 26.05 there is no route; on 26.05 the API patron may lack manage_sysprefs
+		givenKohaLists();
+		// doReturn, not when: the mock is shared across this class's tests (per-class lifecycle),
+		// and when() would invoke the answer a previous test left behind
+		doReturn(Mono.error(new HttpClientResponseException("HTTP 404", HttpResponse.notFound())))
+			.when(apiClient).getSystemPreference(any());
+
+		final var report = client("DCB-SHARING").checkConfiguration().block();
+
+		assertThat(check(report, "IndependentBranches").result(), is(ConfigurationReport.CheckResult.UNKNOWN));
+		assertThat(report.status(), is(ConfigurationReport.Status.CHECKED));
+	}
+
+	private void givenPreferences(Map<String, String> preferences) {
+		doAnswer(invocation -> {
+			final String name = invocation.getArgument(0);
+			final var value = name == null ? null : preferences.get(name);
+			return value == null
+				? Mono.just(new KohaSystemPreference[0])
+				: Mono.just(new KohaSystemPreference[] {KohaSystemPreference.builder().variable(name).value(value).build()});
+		}).when(apiClient).getSystemPreference(any());
 	}
 
 	private void givenKohaLists() {

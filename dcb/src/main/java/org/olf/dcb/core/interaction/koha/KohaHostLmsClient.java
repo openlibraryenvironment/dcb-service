@@ -21,6 +21,7 @@ import org.olf.dcb.rules.AnnotatedObject;
 import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.rules.ObjectRulesService;
 import org.zalando.problem.Problem;
+import org.zalando.problem.Status;
 import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,6 +35,7 @@ import java.util.Date;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.ArrayList;
@@ -1085,10 +1087,66 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return Mono.zip(
 				emptyWhenUnreadable(MappingVocabulary.ITEM_TYPE),
 				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE),
-				librariesOrEmpty())
-			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3()))
+				librariesOrEmpty(),
+				systemPreferences())
+			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3())
+				.withChecks(preferenceChecks(answers.getT4())))
 			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
 				"Could not read configuration from Koha: " + error.getMessage())));
+	}
+
+	// Read on Koha 26.05 and later; an older Koha answers 404 and the API patron may lack
+	// manage_sysprefs, so an unreadable preference is simply absent from the map
+	private static final List<String> PREFERENCES_DCB_DEPENDS_ON = List.of(
+		"AllowHoldPolicyOverride", "IndependentBranches", "canreservefromotherbranches",
+		"ItemsDeniedRenewal", "OpacSuppression", "ReservesNeedReturns");
+
+	private Mono<Map<String, String>> systemPreferences() {
+		return Flux.fromIterable(PREFERENCES_DCB_DEPENDS_ON)
+			.concatMap(name -> Mono.defer(() -> client.getSystemPreference(name))
+				.filter(found -> found.length > 0 && found[0].getValue() != null)
+				.map(found -> Map.entry(name, found[0].getValue()))
+				.onErrorResume(error -> Mono.empty()))
+			.collectMap(Map.Entry::getKey, Map.Entry::getValue);
+	}
+
+	/**
+	 * What DCB needs each preference to say, and what it costs when it does not. PRESENT means
+	 * "as DCB needs it", MISSING "not as DCB needs it", UNKNOWN "this Koha did not say".
+	 */
+	private List<ConfigurationReport.Check> preferenceChecks(Map<String, String> preferences) {
+		final var independentBranches = "1".equals(preferences.get("IndependentBranches"));
+
+		return List.of(
+			preferenceCheck(preferences, "AllowHoldPolicyOverride", value -> "1".equals(value),
+				"Off: DCB's override of its own virtual patron's blocks on supplier and pickup holds has no effect"),
+			preferenceCheck(preferences, "IndependentBranches", value -> !"1".equals(value),
+				"On: the API patron must act across branches (superlibrarian), or holds and item edits for other branches are refused"),
+			preferenceCheck(preferences, "canreservefromotherbranches",
+				value -> !independentBranches || "1".equals(value),
+				"Off with IndependentBranches on: a patron may hold only their own branch's items, so supplier holds and co-tenant local requests are refused"),
+			preferenceCheck(preferences, "ItemsDeniedRenewal",
+				value -> value.contains("ccode") && value.contains(config.getNoRenewCollectionCode()),
+				"Does not list ccode: [" + config.getNoRenewCollectionCode() + "], so renewal prevention fails on first use"),
+			preferenceCheck(preferences, "OpacSuppression", value -> "1".equals(value),
+				"Off: hidden records and DCB's virtual bibs show in the OPAC"),
+			preferenceCheck(preferences, "ReservesNeedReturns", value -> "1".equals(value),
+				"Automatic: a hold on a shelved item is waiting at placement and never transits to the sharing branch"));
+	}
+
+	private static ConfigurationReport.Check preferenceCheck(Map<String, String> preferences,
+		String name, java.util.function.Predicate<String> asDcbNeedsIt, String whenNot) {
+
+		final var value = preferences.get(name);
+
+		if (value == null) {
+			return new ConfigurationReport.Check(name, null, ConfigurationReport.CheckResult.UNKNOWN,
+				"Not readable: Koha before 26.05 has no system preference route, or the API patron lacks manage_sysprefs");
+		}
+
+		return asDcbNeedsIt.test(value)
+			? new ConfigurationReport.Check(name, value, ConfigurationReport.CheckResult.PRESENT, null)
+			: new ConfigurationReport.Check(name, value, ConfigurationReport.CheckResult.MISSING, whenNot);
 	}
 
 	// Read once: the branch list and which of them may be collected from come from the same call
@@ -1123,7 +1181,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 			vocabulary("Item types", itemTypes),
 			vocabulary("Patron categories", patronTypes),
 			vocabulary("Libraries", libraries),
-			vocabulary("Pickup libraries", pickupLibraries));
+			vocabulary(ConfigurationReport.PICKUP_VOCABULARY, pickupLibraries));
 
 		return new ConfigurationReport(getHostLmsCode(), ConfigurationReport.Status.CHECKED,
 			null, checks, vocabularies);
@@ -1358,10 +1416,88 @@ public class KohaHostLmsClient implements HostLmsClient {
 				: client.placeHoldRequest(holdRequest);
 
 			return placement
+				.onErrorMap(KohaHostLmsClient::isHoldRefusal,
+					refused -> holdRefused(refused, parameters, pickupLibraryId))
 				.map(response -> mapKohaHoldToLocalRequest(response, parameters))
 				.doOnSubscribe(s -> log.info("Submitting Koha HOLD patron={} item={} pickupLibrary={}",
 					parameters.getLocalPatronId(), parameters.getLocalItemId(), pickupLibraryId));
 		});
+	}
+
+	/**
+	 * Koha's 403 carries "Hold cannot be placed. Reason: <status>" from CanItemBeReserved and its
+	 * 409 the patron block from can_place_holds. The reason is the administrator's action, so the
+	 * problem names it and what to do; the request audit is where they read it.
+	 */
+	private static final Map<String, String> HOLD_REFUSAL_REMEDIES = Map.ofEntries(
+		Map.entry("cannotReserveFromOtherBranches",
+			"IndependentBranches is on and canreservefromotherbranches is off, so this patron may hold only their own branch's items. Allow holds from other branches, or turn IndependentBranches off; for DCB's own virtual patron, AllowHoldPolicyOverride lets DCB's override apply."),
+		Map.entry("libraryNotPickupLocation",
+			"The branch is not flagged as a pickup location in Koha. Flag it, or point the DCB pickup location at a branch that is."),
+		Map.entry("tooManyReserves",
+			"The patron is at the hold limit the circulation rule sets for this branch, category and item type."),
+		Map.entry("noReservesAllowed",
+			"The circulation rule for this branch, patron category and item type allows no holds."),
+		Map.entry("notReservable",
+			"The circulation rule for this branch, patron category and item type allows no holds, or no on-shelf holds."),
+		Map.entry("itemAlreadyOnHold", "The patron already holds this item."),
+		Map.entry("alreadypossession", "The patron already has this item on loan."),
+		Map.entry("ageRestricted", "The item is age-restricted for this patron."),
+		Map.entry("pickupNotInHoldGroup", "The pickup branch is outside the item's hold group."),
+		Map.entry("branchNotInHoldGroup", "The patron's branch is outside the item's hold group."));
+
+	private static final Map<String, String> PATRON_BLOCK_REMEDIES = Map.of(
+		"debt_limit", "The patron owes more than Koha allows for holds.",
+		"expired", "The patron's account has expired.",
+		"restricted", "The patron is restricted.",
+		"hold_limit", "The patron is at their hold limit.",
+		"card_lost", "The patron's card is marked lost.",
+		"bad_address", "The patron's address is flagged as incorrect.");
+
+	// 403 is a policy refusal, 409 a block on the patron; both carry Koha's reason
+	private static boolean isHoldRefusal(Throwable error) {
+		final var status = statusOf(error);
+
+		return status == HttpStatus.FORBIDDEN.getCode() || status == HttpStatus.CONFLICT.getCode();
+	}
+
+	private static final java.util.regex.Pattern REFUSAL_REASON =
+		java.util.regex.Pattern.compile("Reason:\\s*(\\w+)");
+
+	private Throwable holdRefused(Throwable refused, PlaceHoldRequestParameters parameters,
+		String pickupLibraryId) {
+
+		final var message = kohaErrorMessage(refused);
+		final var matcher = REFUSAL_REASON.matcher(message);
+		final var reason = matcher.find() ? matcher.group(1) : message;
+		final var remedy = HOLD_REFUSAL_REMEDIES.containsKey(reason)
+			? HOLD_REFUSAL_REMEDIES.get(reason)
+			: PATRON_BLOCK_REMEDIES.getOrDefault(reason,
+				"See Koha's circulation rules and hold policies for this branch, patron category and item type.");
+
+		return Problem.builder()
+			.withTitle("Koha refused the hold")
+			.withStatus(Status.valueOf(statusOf(refused)))
+			.withDetail("Koha did not allow a hold for patron %s on item %s at branch %s in %s: %s"
+				.formatted(parameters.getLocalPatronId(), parameters.getLocalItemId(), pickupLibraryId,
+					getHostLmsCode(), reason))
+			.with("reason", reason)
+			.with("remedy", remedy)
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	// The message KohaApiClientImpl kept from Koha's error body, where there was one
+	private static String kohaErrorMessage(Throwable error) {
+		if (error instanceof ThrowableProblem problem) {
+			final var kept = problem.getParameters().get("Koha Error Message");
+
+			if (kept != null) {
+				return String.valueOf(kept);
+			}
+		}
+
+		return String.valueOf(error.getMessage());
 	}
 
 	private LocalRequest mapKohaHoldToLocalRequest(KohaHoldResponse response,

@@ -27,6 +27,8 @@ import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.rules.ObjectRulesService;
 
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import reactor.core.publisher.Mono;
 
 class KohaVirtualPatronCategoryTests {
@@ -60,6 +62,8 @@ class KohaVirtualPatronCategoryTests {
 			new KohaPatronCategory("PT", "Patron"), new KohaPatronCategory("ST", "Staff")}));
 		when(apiClient.getItemTypes()).thenReturn(Mono.just(new KohaItemType[0]));
 		when(apiClient.getLibraries()).thenReturn(Mono.just(new KohaLibrary[0]));
+		when(apiClient.getSystemPreference(any())).thenReturn(Mono.error(
+			new HttpClientResponseException("HTTP 404", HttpResponse.notFound())));
 
 		final var report = clientWith(Map.of()).checkConfiguration().block();
 

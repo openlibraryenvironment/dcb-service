@@ -54,6 +54,7 @@ Permissions are the `x-koha-authorization` values from the REST specification.
 | `editcatalogue: edit_items` | create and update item | the virtual item; renewal prevention; re-resolution | borrower, pickup |
 | `parameters: manage_patron_categories` | patron categories | the configuration check's category list | setup |
 | `updatecharges: remaining_permissions` | patron account | charges on the discovery account page; optional, loans are still shown without it | borrower |
+| `parameters: manage_sysprefs` | system preferences (Koha 26.05 and later) | the configuration check reads the preferences above and says which are not as DCB needs; optional, and absent on older Kohas | setup |
 
 OAI-PMH needs no credentials; the OPAC must be reachable from DCB.
 
@@ -79,6 +80,9 @@ are refused. Confirm this on a test server before onboarding a shared Koha.
 | `OAI-PMH:DeletedRecord` | persistent | deletions reach the shared index |
 | `OpacSuppression` | Hide, once at least one record carries `942$n` | hidden records stay hidden; DCB's virtual bibs carry the flag |
 | `ItemsDeniedRenewal` | contains `ccode: [DCB_NO_RENEW]` | renewal prevention; DCB verifies it on each use and fails loudly when it is missing |
+| `AllowHoldPolicyOverride` | Allow | DCB sends `x-koha-override: any` on holds for its own virtual patron; Koha honours the header only with this on, and then skips its hold policies for that hold. Holds for real patrons never send it |
+| `IndependentBranches` | off, or the API patron acts across branches | on, the API patron may only edit items and patrons of its own branch |
+| `canreservefromotherbranches` | on, if `IndependentBranches` is on | off, a patron may hold only their own branch's items: supplier holds and co-tenant local requests are refused with `cannotReserveFromOtherBranches` |
 | `ReservesNeedReturns` | the default ("don't automatically") | a filled hold must go through transit to the sharing branch |
 | `UseBranchTransferLimits` | if on, allow transfers to and from the sharing branch | otherwise supplier holds cannot be filled |
 | `RESTdefaultPageSize` | any | DCB pages explicitly |
@@ -107,7 +111,10 @@ finalised; they land in `deletedbiblio` and `deleteditems` like any staff deleti
 
 | Symptom | Cause | Remedy |
 |---|---|---|
-| `Hold not allowed` (403) on placement | the circulation rule for the branch, category and item type allows no holds | the setup guide's circulation rules |
+| `Koha refused the hold`, reason `cannotReserveFromOtherBranches` | `IndependentBranches` on without `canreservefromotherbranches` | allow holds from other branches, or `AllowHoldPolicyOverride` for DCB's virtual patron |
+| `Koha refused the hold`, reason `libraryNotPickupLocation` | the pickup location's `localId` is a branch Koha does not flag for pickup | the configuration check lists the pickup branches and judges each DCB pickup location against them |
+| `Koha refused the hold`, reason `noReservesAllowed`, `notReservable` or `tooManyReserves` | the circulation rule for the branch, category and item type | the setup guide's circulation rules |
+| `Koha refused the hold`, reason `debt_limit`, `expired`, `restricted`, `hold_limit`, `card_lost` | the patron's own block | for a real patron the block stands; for DCB's virtual patron, `AllowHoldPolicyOverride` |
 | 409 `debt_limit`, `expired`, `restricted` on a supplier hold | the virtual patron is blocked, and the override header was not honoured | the DCB category's enrolment period and fines rules |
 | 412 on checkout | Koha wants a confirmation (item in transit or waiting) | DCB confirms the known cases itself; an unknown confirmation is reported by name |
 | a hold answers 404 while the request is open | the hold was filled or cancelled and moved to Koha's old holds | nothing: DCB reads the old hold and acts on it |

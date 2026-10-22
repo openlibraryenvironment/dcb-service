@@ -16,6 +16,7 @@ import org.mockserver.model.HttpRequest;
 import org.mockserver.model.NottableString;
 import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
+import org.olf.dcb.core.interaction.koha.dto.KohaLibrary;
 import org.olf.dcb.core.interaction.koha.dto.KohaBiblio;
 import org.olf.dcb.core.interaction.koha.dto.KohaCheckout;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
@@ -144,6 +145,14 @@ public class MockKohaFixture {
 
 	public void mockDeleteBib(String biblioId) {
 		mockServer.mock(commonRequests.delete("/api/v1/biblios/" + biblioId), noContent());
+	}
+
+	/** The three lists the configuration check reads, and a Koha older than 26.05 for preferences. */
+	public void mockConfigurationLists(KohaLibrary... libraries) {
+		mockServer.mock(commonRequests.get("/api/v1/item_types"), okJson(new Object[0]));
+		mockServer.mock(commonRequests.get("/api/v1/patron_categories"), okJson(new Object[0]));
+		mockServer.mock(commonRequests.get("/api/v1/libraries"), okJson(libraries));
+		mockServer.mock(commonRequests.get("/api/v1/sysprefs"), notFound(Map.of("error", "Not found")));
 	}
 
 	/** A local request places a hold on the real item and nothing else. */

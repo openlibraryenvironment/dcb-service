@@ -101,6 +101,36 @@ class KohaPlaceHoldTests {
 			.verify();
 	}
 
+	@Test
+	void shouldNameTheBranchRuleThatRefusedAHold() {
+		// IndependentBranches without canreservefromotherbranches: the administrator's action,
+		// not the patron's, so the problem says which preference and what to do
+		mockKohaFixture.mockHoldRefused(403, "Hold cannot be placed. Reason: cannotReserveFromOtherBranches");
+
+		StepVerifier.create(client.placeHoldRequestAtSupplyingAgency(parameters()))
+			.expectErrorSatisfies(error -> {
+				final var problem = (ThrowableProblem) error;
+				assertThat(problem.getTitle(), is("Koha refused the hold"));
+				assertThat(problem.getParameters().get("reason"), is("cannotReserveFromOtherBranches"));
+				assertThat(String.valueOf(problem.getParameters().get("remedy")), containsString("IndependentBranches"));
+				assertThat(String.valueOf(problem.getParameters().get("remedy")), containsString("AllowHoldPolicyOverride"));
+			})
+			.verify();
+	}
+
+	@Test
+	void shouldNameThePatronBlockThatRefusedAHold() {
+		mockKohaFixture.mockHoldRefused(409, "Hold cannot be placed. Reason: debt_limit");
+
+		StepVerifier.create(client.placeHoldRequestAtBorrowingAgency(parameters()))
+			.expectErrorSatisfies(error -> {
+				final var problem = (ThrowableProblem) error;
+				assertThat(problem.getParameters().get("reason"), is("debt_limit"));
+				assertThat(String.valueOf(problem.getParameters().get("remedy")), containsString("owes"));
+			})
+			.verify();
+	}
+
 	private static KohaHoldResponse placedHold() {
 		return KohaHoldResponse.builder()
 			.holdId(501L)

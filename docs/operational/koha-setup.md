@@ -54,8 +54,12 @@ borrower.
 7. **System preferences.** `OAI-PMH` on, `OAI-PMH:archiveID` set before the first harvest,
    `OAI-PMH:DeletedRecord` persistent, `OpacSuppression` on once a record carries
    `942$n`, `ItemsDeniedRenewal` containing `ccode: [DCB_NO_RENEW]`, `ReservesNeedReturns`
-   at its default, and transfer limits (if used) allowing transfers to and from the
-   sharing branch. The hosting guide says why for each.
+   at its default, `AllowHoldPolicyOverride` allowed (so DCB's holds for its own virtual
+   patron can pass that patron's blocks; holds for your patrons never use it), and
+   transfer limits (if used) allowing transfers to and from the sharing branch. On a
+   shared Koha with `IndependentBranches` on, `canreservefromotherbranches` must be on
+   too, or every hold on another branch's item is refused. The hosting guide says why
+   for each, and on Koha 26.05 the configuration check reads them.
 8. **Circulation rules.** Sharing branch, `DCB` category, all item types: holds and
    on-shelf holds allowed, the consortium's loan period and renewals, no fines. All
    branches, all categories, `DCB_VIRTUAL`: one hold per record, the consortium's loan
@@ -234,6 +238,10 @@ An unmapped branch leaves the item with no agency rather than guessing, and
 raises one accumulating `ILS.<code>.LOCATION_TO_AGENCY_FAILURE.Location` alarm
 listing the codes that failed — which is the fastest way to find what a new
 Koha still needs mapped.
+
+DCB Admin's import screen takes one category per file, so the example bundle's single
+mappings file (`scripts/config/example/koha/60-mappings-upload/`) is split into three to
+upload it there: item types, patron types, locations.
 
 ### Pickup locations
 

@@ -125,6 +125,15 @@ public interface KohaApiClient {
 		return get("/api/v1/patrons/" + patronId + "/account", KohaPatronBalance.class);
 	}
 
+	/**
+	 * One system preference by name. Koha 26.05 and later, permission parameters:
+	 * manage_sysprefs; an older Koha answers 404.
+	 * API: GET /api/v1/sysprefs?variable={name}
+	 */
+	default Mono<KohaSystemPreference[]> getSystemPreference(String name) {
+		return get("/api/v1/sysprefs", KohaSystemPreference[].class, Map.of("variable", name));
+	}
+
 	/** Authenticate a patron
 	 * API docs: <a href="https://api.koha-community.org/#tag/patrons/operation/validateUserAndPassword">Validating a patron in Koha</a>
 	 * @param patronPrinciple - patron identifier

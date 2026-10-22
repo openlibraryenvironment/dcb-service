@@ -9,6 +9,7 @@
 	* virtual bibs are OPAC-suppressed, item lists page past twenty, and virtual-patron holds override patron blocks [DCB-2145, DCB-2153]
 	* re-resolution and the discovery account page [DCB-2150]
 	* a Koha patron's request for an item on their own system is one hold on the real item, confirmed and handed off as local [DCB-2157]
+	* every Koha pickup location is judged against the branches Koha allows collection from; a refused hold names Koha's reason and the remedy; the configuration check reads the preferences DCB depends on where Koha 26.05 exposes them [DCB-2148, DCB-2155]
 	* operational and developer guides replace koha_notes.md
 * [Placement]
 	* a supplier that cannot supply is skipped, and the request tries another

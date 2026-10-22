@@ -85,6 +85,7 @@ public class LocationFixture {
 			.isShelving(Boolean.TRUE)
 			.isSupplyingLocation(Boolean.TRUE)
 			.agency(agency)
+			.hostSystem(agency.getHostLms())
 			.localId(localId)
 			.build()));
 	}
