@@ -55,8 +55,8 @@ both workflows with your library as the lender, are unaffected.
    the OPAC with `OpacHiddenItems` (`itype: [DCB_VIRTUAL]`).
 6. **Authorised values.** `CCODE` `DCB_NO_RENEW`; `942$x` added to every bibliographic
    framework in use for local-only titles; `942$n` pointed at `YES_NO` for OPAC
-   suppression; and, for copies you keep from the consortium, the value described in
-   [Keeping titles and copies out of OpenRS](#keeping-titles-and-copies-out-of-openrs).
+   suppression; and `RESTRICTED` 42 for copies you lend but keep from the consortium
+   (see [Keeping titles and copies out of OpenRS](#keeping-titles-and-copies-out-of-openrs)).
 7. **System preferences.** `OAI-PMH` on, `OAI-PMH:archiveID` set before the first harvest,
    `OAI-PMH:DeletedRecord` persistent, `OpacSuppression` on once a record carries
    `942$n`, `ItemsDeniedRenewal` containing `ccode: [DCB_NO_RENEW]`, `ReservesNeedReturns`
@@ -357,7 +357,7 @@ copy:
 | your patrons only | a title | set `942$x` to `1` | removes the title from the shared catalogue at the next harvest; your catalogue is unaffected |
 | nobody to see it | a copy | hide it with `OpacHiddenItems` | **does not read `OpacHiddenItems` yet.** Ask your OpenRS team to add the same rule to your library's item rule in DCB; until then the copy can be requested |
 | a copy kept from the consortium that is not lent at all (reference, in-library use) | a copy | set *Not for loan* to `42` | hides the copy from OpenRS at the next availability check |
-| a copy your patrons borrow but other libraries cannot | a copy | **not *Not for loan*:** any *Not for loan* value above zero also stops your own patrons borrowing or holding it. Ask your OpenRS team for the *Use restrictions* (`952$5`) value they read for this, add it to the `RESTRICTED` authorised values, and set it on the copy. Koha shows the value's OPAC description beside the copy, so word it for your patrons ("Not lent to other libraries") | hides the copy from OpenRS at the next availability check |
+| a copy your patrons borrow but other libraries cannot | a copy | **not *Not for loan*:** any *Not for loan* value above zero also stops your own patrons borrowing or holding it. Add `42` to the `RESTRICTED` authorised values and set *Use restrictions* (`952$5`) to it on the copy. Koha shows the value's OPAC description beside the copy, so word it for your patrons ("Not lent to other libraries") | hides the copy from OpenRS at the next availability check |
 | none of a branch's copies | a branch | tell your OpenRS team | the branch is left out of the location mappings, or not marked as lending |
 
 Withdrawn copies are never offered, whatever the rules say. Lost copies are shown as

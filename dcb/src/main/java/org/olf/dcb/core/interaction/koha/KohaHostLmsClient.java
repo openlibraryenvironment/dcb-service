@@ -681,8 +681,9 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private ItemStatusCode deriveItemStatus(KohaItem item) {
 		return switch (KohaItemCirculation.of(item)) {
 			case CHECKED_OUT -> ItemStatusCode.CHECKED_OUT;
+			// Koha refuses a checkout for restricted 1 only; other values are the site's own
 			case AVAILABLE -> KohaItemCirculation.isSet(item.getDamagedStatus())
-				|| KohaItemCirculation.isSet(item.getRestrictedStatus())
+				|| Integer.valueOf(1).equals(item.getRestrictedStatus())
 				? ItemStatusCode.UNAVAILABLE
 				: ItemStatusCode.AVAILABLE;
 			default -> ItemStatusCode.UNAVAILABLE;

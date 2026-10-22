@@ -165,6 +165,21 @@ class KohaMappingTests {
 		assertNotRequestable(firstItem());
 	}
 
+	@Test
+	void shouldOfferAnItemWithARestrictionKohaStillLends() {
+		// Koha refuses a checkout for restricted 1 only
+		givenItem(item().restrictedStatus(2).build());
+
+		assertThat(firstItem().getStatus().getCode(), is(ItemStatusCode.AVAILABLE));
+	}
+
+	@Test
+	void shouldNotOfferAnItemKohaWillNotLendForItsRestriction() {
+		givenItem(item().restrictedStatus(1).build());
+
+		assertNotRequestable(firstItem());
+	}
+
 	private static void assertNotRequestable(Item item) {
 		assertThat(item.getStatus().getCode(), is(ItemStatusCode.UNAVAILABLE));
 		assertThat(item.getIsRequestable(), is(false));
