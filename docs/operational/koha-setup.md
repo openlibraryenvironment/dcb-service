@@ -377,7 +377,8 @@ Leave `942$n` and `942$x` at a visibility that shows them in the OPAC (the defau
 changed since the last harvest. Turning on `OpacSuppression`, editing `OpacHiddenItems`, or
 turning on `OpacHiddenItemsHidesRecord` changes what Koha hides without changing any
 record, so titles already in OpenRS stay there until each record is next edited. Tell your
-OpenRS team when you change one of these.
+OpenRS team when you change one of these: they run a check that asks your Koha what it now
+hides and shows, and brings OpenRS into line.
 
 ## Workflows
 

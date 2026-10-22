@@ -1,13 +1,19 @@
 package org.olf.dcb.core.interaction.koha;
 
+import java.util.OptionalInt;
+import java.util.function.UnaryOperator;
+
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.ProcessStateService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.interaction.OaiPmhIngestSource;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.dataimport.job.VanishedRecords;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.rules.ObjectRulesService;
 import org.olf.dcb.storage.RawSourceRepository;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +23,7 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.serde.ObjectMapper;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.utils.MapUtils;
 
@@ -120,5 +127,32 @@ public class KohaOaiPmhIngestSource extends OaiPmhIngestSource {
 	protected Mono<String> getSuppressionRulesetName() {
 		return super.getSuppressionRulesetName()
 			.defaultIfEmpty(DEFAULT_SUPPRESSION_RULESET_NAME);
+	}
+
+	// Koha decides a record's status as it lists it, so these sweeps are how a change to
+	// OpacSuppression, OpacHiddenItems or OpacHiddenItemsHidesRecord reaches DCB: none of them
+	// moves a record's timestamp. Koha builds every record to answer, so they are operator-run.
+	@Override
+	public Flux<SourceRecord> findMissingRecords(Publisher<String> knownRemoteIds) {
+		return findMissingByRecordNumber(knownRemoteIds, KohaOaiPmhIngestSource::biblionumberOf);
+	}
+
+	@Override
+	public Mono<VanishedRecords> findVanishedRecords(Publisher<String> liveSourceRecordIds,
+		Publisher<String> storedRemoteIds) {
+
+		return findVanishedByRecordNumber(liveSourceRecordIds, storedRemoteIds,
+			KohaOaiPmhIngestSource::biblionumberOf, UnaryOperator.identity());
+	}
+
+	// "<archiveID>:12345" as stored from the harvest; "12345" as a bib's source record id
+	static OptionalInt biblionumberOf(String id) {
+		try {
+			final int biblionumber = Integer.parseInt(id.substring(id.lastIndexOf(':') + 1).trim());
+			return biblionumber > 0 ? OptionalInt.of(biblionumber) : OptionalInt.empty();
+		}
+		catch (NumberFormatException e) {
+			return OptionalInt.empty();
+		}
 	}
 }
