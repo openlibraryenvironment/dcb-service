@@ -168,6 +168,12 @@ public class MockKohaFixture {
 		mockServer.mock(commonRequests.post(PATRONS_PATH), created(created));
 	}
 
+	/** Koha's answer to a patron its schema refuses. */
+	public void mockCreatePatronRefused() {
+		mockServer.mock(commonRequests.post(PATRONS_PATH),
+			response().withStatusCode(400).withBody(json(Map.of("error", "Invalid parameter"))));
+	}
+
 	/**
 	 * @param onlyTheseFields JSON the body has to contain; other fields are ignored
 	 */

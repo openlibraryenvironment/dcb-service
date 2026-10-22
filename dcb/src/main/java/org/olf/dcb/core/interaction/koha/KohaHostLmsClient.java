@@ -207,7 +207,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 		// For creating a virtual patron
-		log.info("Attempting to create a patron for Koha with Patron: {}", patron);
+		log.info("Creating a virtual patron in {}", getHostLmsCode());
 
 		// Extract names
 		String firstName = (patron.getLocalNames() != null && !patron.getLocalNames().isEmpty())
@@ -280,7 +280,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
-		log.info("Finding virtual patron {}", patron);
+		log.info("Finding virtual patron for DCB patron {} in {}", getValueOrNull(patron, org.olf.dcb.core.model.Patron::getId), getHostLmsCode());
 
 		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 		if (uniqueId == null) {

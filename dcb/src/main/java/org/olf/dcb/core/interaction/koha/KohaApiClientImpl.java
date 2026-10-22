@@ -187,6 +187,11 @@ public class KohaApiClientImpl implements KohaApiClient {
 		return path.endsWith("/oauth/token") || path.endsWith("/auth/password/validation");
 	}
 
+	// A patron body carries names and identifiers
+	private static boolean carriesPersonalData(String path) {
+		return carriesCredentials(path) || path.contains("/patrons");
+	}
+
 	private URI resolve(URI relativeURI) {
 		return resolveBelow(config.getApiUrl(), relativeURI);
 	}
@@ -214,7 +219,7 @@ public class KohaApiClientImpl implements KohaApiClient {
 
 		// The path only: a query string carries a card number or userid
 		log.debug("Starting Koha exchange for - Method: {}, path: {}, argumentType: {}", request.getMethod(), request.getPath(), argumentType);
-		final String finalBodyJson = carriesCredentials(request.getPath()) ? "[redacted]" : bodyJson;
+		final String finalBodyJson = carriesPersonalData(request.getPath()) ? "[redacted]" : bodyJson;
 
 		return Mono.from(httpClient.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
@@ -239,6 +244,9 @@ public class KohaApiClientImpl implements KohaApiClient {
 					if (kohaError.isPresent()) {
 						KohaError errorResponse = kohaError.get();
 						log.error("Koha API error for {} (HTTP {}): [{}] {}", request.getPath(), status.getCode(), errorResponse.getErrorCode(), errorResponse.getError());
+						log.debug("Body of the refused {} {}: {}", request.getMethod(), request.getPath(), finalBodyJson);
+
+						// No request body: every problem parameter is copied into the request's audit record
 
 						return raiseError(Problem.builder()
 							.withTitle("Koha API Error")
@@ -247,7 +255,6 @@ public class KohaApiClientImpl implements KohaApiClient {
 							.with("Request Method", request.getMethod().name())
 							.with("Koha Error Code", errorResponse.getErrorCode())
 							.with("Koha Error Message", errorResponse.getError())
-							.with("Request Body", finalBodyJson)
 							.build());
 					}
 				}

@@ -31,6 +31,11 @@ In this order. Steps 1 to 8 are enough for a library that borrows and lends in t
 standard flow; step 9 is only for pickup-anywhere and walk-up when your library is the
 borrower.
 
+**Pickup-anywhere and walk-up with your library as the borrower are not available yet.**
+Both end with DCB checking the item in on your Koha, which it cannot do yet (ADR 0002), so
+such a request stops at the return step. Step 9 prepares for them; the standard flow, and
+both workflows with your library as the lender, are unaffected.
+
 1. **Version.** 25.05, 25.11 or 26.05.
 2. **A branch for the consortium.** Administration, Libraries: a new library such as
    `OPENRS`, flagged as a pickup location, not public, and never one that lends. This is
@@ -384,7 +389,7 @@ allow on-shelf holds, or Koha refuses it with "Hold not allowed" and the patron 
 | 4 | nobody | | when the borrower lends it, DCB checks your copy out to the virtual patron. Koha would ask staff to confirm lending an item that is in transit for a hold; DCB confirms that prompt, and only that kind. A block (a lost or not-for-loan item) or any other question (a debt, a loan limit, a patron of another branch) stops the loan and is reported by name on the request. The hold is filled, and your catalogue shows the copy on loan to the virtual patron, due by your circulation rule for the `DCB` category |
 | 5 | the borrowing patron | renews | renews the virtual patron's loan, within your rules. To call the item back, place a hold on it: DCB sees your hold and stops the borrower renewing |
 | 6 | the other library's staff | check the returned item in and send it back to you | shows the request in return transit |
-| 7 | your staff | check the returned item in. Koha closes the virtual patron's loan; checked in away from its home branch, the item goes into a transfer home as any item would | sees your copy available, completes the request. The virtual patron stays for the next loan; nothing else was created in your Koha |
+| 7 | your staff | check the returned item in. Koha closes the virtual patron's loan; checked in away from its home branch, the item goes into a transfer home as any item would | sees your copy available, completes the request. A copy checked in away from home reads as in transit, and the request completes when the transfer arrives. The virtual patron stays for the next loan; nothing else was created in your Koha |
 
 If the borrowing patron cancels before your staff have acted, DCB cancels the hold and it
 leaves your queue; nothing else changes. If the hold was cancelled by your staff, because
