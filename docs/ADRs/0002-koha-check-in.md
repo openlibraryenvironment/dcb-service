@@ -27,7 +27,7 @@ checked out to the bundle host or on hold at the moment of the call; those are 4
 
 ## Decision
 
-`checkin-method` is a Host LMS setting with three values, dispatched in `checkInItem`:
+`checkin-method` is a Host LMS setting with two values, dispatched in `checkInItem`:
 
 - `bundle` (the default choice): the bundle route above, against a permanent DCB-owned
   host item at the sharing branch named by `bundle-host-barcode`. The side effects (a
@@ -35,15 +35,16 @@ checked out to the bundle host or on hold at the moment of the call; those are 4
   on a virtual item DCB deletes at finalisation.
 - `sip2`: a SIP2 check-in through the existing `Sip2Adaptor`, for a site that will not
   set `BundleNotLoanValue` or whose provider will not allow the bundle route.
-- `plugin`: a route served by the OpenRS Koha plugin, for a site that installs it for
-  its other capabilities.
+
+No Koha plugin is part of this decision or depends on one; a plugin route could be added as
+a third value if a plugin is ever built.
 
 A Koha with none configured is a complete member for the standard and own-library
 workflows, and `checkConfiguration` says which workflows it supports.
 
 ## Consequences
 
-- No new port, credential or plugin is needed for the default.
+- No new port, credential or plugin is needed for either value.
 - The behaviour of `add_to_bundle` when `BundleNotLoanValue` is unset, and whether the
   return opens a transfer home for the virtual item, are verified on each supported
   version before the route is relied on; the sandbox checklist carries both.
