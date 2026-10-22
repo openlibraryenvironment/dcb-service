@@ -410,6 +410,18 @@ it in when it arrives and send it back, as you would a returned loan. If the len
 out not to have the copy, DCB asks the next library that does and rewrites the virtual
 item's barcode to that copy's; the hold and the pickup branch stay as they were.
 
+### When your patron collects at another library (pickup anywhere)
+
+Your patron chooses a pickup point at a third library. Your staff handle nothing: the item
+travels from the lender to that library and back.
+
+| Step | Who | What they do | What DCB does |
+|---|---|---|---|
+| 1 | your patron | requests a title and picks a pickup point at another library | as for borrowing, but the hold on the virtual item is at your sharing branch, because the patron will not collect from you |
+| 2 | the lender and the pickup library | ship, receive and shelve the item; lend it to your patron | when the pickup library lends it, lends the virtual item to your patron in your Koha, so your patron's account shows the loan |
+| 3 | the pickup library | check the returned item in and send it back to the lender | checks the virtual item in in your Koha (step 9 of the checklist) and tells the lender it is on its way |
+| 4 | the lender | check the item in at home | completes the request and deletes the virtual item and record |
+
 ### When a patron requests your own library's item
 
 With the consortium's own-library borrowing setting on, a patron may request a title

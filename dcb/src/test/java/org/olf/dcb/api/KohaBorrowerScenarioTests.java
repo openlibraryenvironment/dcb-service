@@ -14,20 +14,31 @@ import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
 import static org.olf.dcb.core.model.PatronRequest.Status.READY_FOR_PICKUP;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RETURN_TRANSIT;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.COMPLETED_STATE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.CUSTOM_RESPONSE_TYPE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.LOANED_STATE;
+import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.PICKUP_ROLE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.READY_FOR_PICKUP_STATE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RECEIVED_AT_PICKUP_STATE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RETURN_TRANSIT_STATE;
+import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RET_PUA_RESPONSE_TYPE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RET_STD_RESPONSE_TYPE;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.SUPPLIER_ROLE;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import org.mockserver.model.HttpResponse;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.mock.action.ExpectationResponseCallback;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +52,7 @@ import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
 import org.olf.dcb.core.interaction.koha.dto.KohaRenewability;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.test.AgencyFixture;
@@ -89,6 +101,11 @@ class KohaBorrowerScenarioTests {
 	private static final String SECOND_SUPPLIER_ITEM_LOCAL_ID = "798473";
 	private static final int SUPPLIER_ITEM_TYPE = 999;
 	private static final String COMMON_PATRON_TYPE = "15";
+	private static final String PICKUP_HOST_LMS_CODE = "koha-scenario-pickup";
+	private static final String PICKUP_AGENCY_CODE = "koha-scenario-pickup-agency";
+	private static final String BUNDLE_HOST_BARCODE = "DCB-BUNDLE-HOST";
+	private static final String BUNDLE_HOST_ITEM_ID = "900";
+	private static final String PICKUP_TRANSIT_STATE = "PICKUP_TRANSIT";
 
 	@Inject private PatronFixture patronFixture;
 	@Inject private PatronRequestsFixture patronRequestsFixture;
@@ -124,7 +141,8 @@ class KohaBorrowerScenarioTests {
 
 		// A dummy's state lives in its Host LMS record, so each test starts from fresh records
 		hostLmsFixture.deleteAll();
-		hostLmsFixture.createKohaHostLms(KOHA_HOST_LMS_CODE, "https://" + KOHA_HOST);
+		hostLmsFixture.createKohaHostLms(KOHA_HOST_LMS_CODE, "https://" + KOHA_HOST,
+			Map.of("bundle-host-barcode", BUNDLE_HOST_BARCODE));
 		supplyingHostLms = hostLmsFixture.createDummyHostLms(SUPPLYING_HOST_LMS_CODE, SUPPLYING_LOCATION_CODE);
 		secondSupplyingHostLms = hostLmsFixture.createDummyHostLms(SECOND_SUPPLYING_HOST_LMS_CODE, SECOND_SUPPLYING_LOCATION_CODE);
 
@@ -224,6 +242,114 @@ class KohaBorrowerScenarioTests {
 		koha.verifyHoldDeleted(HOLD_ID);
 		koha.verifyItemDeleted(VIRTUAL_ITEM_ID);
 		koha.verifyBibDeleted(VIRTUAL_BIBLIO_ID);
+	}
+
+	@Test
+	void kohaPatronCollectsAtAThirdLibraryAndDcbChecksTheVirtualItemInOnReturn() {
+		final var pickupAgency = definePickupAnywhereLibrary();
+		final var puaPickupLocationId = randomUUID();
+		locationFixture.createPickupLocation(puaPickupLocationId, "Elsewhere", "PICKUP-ELSEWHERE", pickupAgency);
+		koha.mockPlaceHold(placedHold().pickupLibraryId("DCB-SHARING").build());
+		VirtualItemLoan.reset();
+		koha.answerVirtualItemLoanWith(VIRTUAL_BIBLIO_ID, VIRTUAL_ITEM_ID, VirtualItemLoan.class);
+		koha.mockItem(virtualItem().build());
+		koha.mockBundleHost(BUNDLE_HOST_BARCODE, Long.parseLong(BUNDLE_HOST_ITEM_ID));
+		koha.mockAddToBundle(BUNDLE_HOST_ITEM_ID, virtualItem().build());
+		koha.mockRemoveFromBundle(BUNDLE_HOST_ITEM_ID, VIRTUAL_ITEM_ID);
+		final var clusterRecordId = createClusterRecordWithOneAvailableItem();
+
+		// The virtual item waits at the sharing branch: the patron collects at another library
+		final var placed = patronRequestApiClient.placePatronRequest(clusterRecordId,
+			PATRON_ID, puaPickupLocationId.toString(), KOHA_HOST_LMS_CODE, HOME_BRANCH);
+
+		final var requestId = placed.body().getId();
+		assertRequestIsInExpectedStatus(requestId, REQUEST_PLACED_AT_PICKUP_AGENCY);
+		assertThat(patronRequestsFixture.findById(requestId), hasActiveWorkflow(PICKUP_ANYWHERE_WORKFLOW));
+		koha.verifyHoldPlaced("{\"patron_id\": 12, \"item_id\": 55, \"pickup_library_id\": \"DCB-SHARING\"}");
+
+		log.info("The supplier ships to the pickup library, which receives it and puts it on its hold shelf");
+		setPickupAnywhereState(PICKUP_TRANSIT_STATE);
+		patronRequestApiClient.updatePatronRequest(requestId);
+		assertRequestIsInExpectedStatus(requestId, PICKUP_TRANSIT);
+		setPickupAnywhereState(RECEIVED_AT_PICKUP_STATE);
+		patronRequestApiClient.updatePatronRequest(requestId);
+		setPickupAnywhereState(READY_FOR_PICKUP_STATE);
+		patronRequestApiClient.updatePatronRequest(requestId);
+		assertRequestIsInExpectedStatus(requestId, READY_FOR_PICKUP);
+
+		log.info("The patron collects it; DCB lends the virtual item to the patron in Koha");
+		setPickupAnywhereState(LOANED_STATE);
+		patronRequestApiClient.updatePatronRequest(requestId);
+		assertRequestIsInExpectedStatus(requestId, LOANED);
+		koha.verifyCheckedOut("{\"patron_id\": 12, \"item_id\": 55}");
+
+		log.info("The patron returns it at the pickup library; DCB checks the virtual item in in Koha");
+		setPickupAnywhereState(RETURN_TRANSIT_STATE);
+		patronRequestApiClient.updatePatronRequest(requestId);
+		assertRequestIsInExpectedStatus(requestId, RETURN_TRANSIT);
+		koha.verifyAddedToBundle(BUNDLE_HOST_ITEM_ID, "{\"force_checkin\": true}");
+		koha.verifyRemovedFromBundle(BUNDLE_HOST_ITEM_ID, VIRTUAL_ITEM_ID);
+		koha.replaceItemCirculation(VIRTUAL_BIBLIO_ID, VIRTUAL_ITEM_ID, virtualItem().build());
+
+		log.info("The supplier has it back");
+		setPickupAnywhereState(COMPLETED_STATE);
+		patronRequestApiClient.updatePatronRequest(requestId);
+		assertRequestIsInExpectedStatus(requestId, FINALISED);
+
+		koha.verifyItemDeleted(VIRTUAL_ITEM_ID);
+		koha.verifyBibDeleted(VIRTUAL_BIBLIO_ID);
+	}
+
+	/**
+	 * Runs inside the mock server: Koha reads the virtual item as available until DCB checks
+	 * it out, and as lent from then on, as a real Koha would.
+	 */
+	public static class VirtualItemLoan implements ExpectationResponseCallback {
+		private static final AtomicBoolean lent = new AtomicBoolean();
+		private static final ObjectMapper JSON = new ObjectMapper();
+
+		static void reset() {
+			lent.set(false);
+		}
+
+		@Override
+		public HttpResponse handle(HttpRequest request) {
+			if ("POST".equals(request.getMethod().getValue())) {
+				lent.set(true);
+
+				return json(201, KohaCheckout.builder().checkoutId(8L).itemId(Long.valueOf(VIRTUAL_ITEM_ID)).build());
+			}
+
+			final var item = lent.get()
+				? virtualItem().checkedOutDate("2026-10-22")
+					.checkout(KohaCheckout.builder().checkoutId(8L).dueDate("2026-11-12T23:59:00Z").renewalsCount(0).build())
+					.build()
+				: virtualItem().build();
+
+			return json(200, new KohaItem[] {item});
+		}
+
+		private static HttpResponse json(int status, Object body) {
+			try {
+				return HttpResponse.response().withStatusCode(status)
+					.withBody(JSON.writeValueAsString(body), org.mockserver.model.MediaType.APPLICATION_JSON);
+			} catch (JsonProcessingException e) {
+				throw new IllegalStateException(e);
+			}
+		}
+	}
+
+	private DataAgency definePickupAnywhereLibrary() {
+		final var pickupHostLms = hostLmsFixture.createDummyHostLms(PICKUP_HOST_LMS_CODE);
+		referenceValueMappingFixture.definePatronTypeMapping("DCB", COMMON_PATRON_TYPE,
+			PICKUP_HOST_LMS_CODE, COMMON_PATRON_TYPE);
+
+		return agencyFixture.defineAgency(PICKUP_AGENCY_CODE, "Pickup Agency", pickupHostLms);
+	}
+
+	private void setPickupAnywhereState(String state) {
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, state, SUPPLIER_ROLE, RET_PUA_RESPONSE_TYPE);
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, state, PICKUP_ROLE, RET_PUA_RESPONSE_TYPE);
 	}
 
 	@Test

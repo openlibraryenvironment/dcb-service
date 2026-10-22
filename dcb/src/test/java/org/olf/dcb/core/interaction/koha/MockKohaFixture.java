@@ -398,6 +398,18 @@ public class MockKohaFixture {
 			okJson(new KohaItem[] {item}));
 	}
 
+	/**
+	 * The virtual item's circulation read and the checkout, both answered by a class of the
+	 * test's own, so that the item reads as lent once DCB has checked it out and not before.
+	 */
+	public void answerVirtualItemLoanWith(String biblioId, String itemId,
+		Class<? extends ExpectationResponseCallback> answer) {
+
+		client.clear(itemCirculationRequest(biblioId, itemId));
+		client.when(itemCirculationRequest(biblioId, itemId)).respond(callback().withCallbackClass(answer.getName()));
+		client.when(commonRequests.post(CHECKOUTS_PATH)).respond(callback().withCallbackClass(answer.getName()));
+	}
+
 	/** The DCB bundle host item, found by its barcode. */
 	public void mockBundleHost(String barcode, long itemId) {
 		mockItemByBarcode(KohaItem.builder().itemId(itemId).externalId(barcode).build());
