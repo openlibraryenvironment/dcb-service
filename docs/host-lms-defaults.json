@@ -12,6 +12,7 @@
   },
   "org.olf.dcb.core.interaction.koha.KohaHostLmsClient": {
     "do-not-renew-note": "Hold placed by owning library. Do not renew.",
+    "honour-opac-hidden-items": "true",
     "no-renew-collection-code": "DCB_NO_RENEW",
     "oai-path": "/cgi-bin/koha/oai.pl",
     "virtual-patron-category": "DCB"

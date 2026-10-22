@@ -43,6 +43,7 @@ class HostLmsDefaultsSnapshotTests {
 				"record-syntax", FolioOaiPmhIngestSource2.DEFAULT_RECORD_SYNTAX)),
 			"org.olf.dcb.core.interaction.koha.KohaHostLmsClient", new TreeMap<>(Map.of(
 				"do-not-renew-note", KohaClientConfig.DEFAULT_DO_NOT_RENEW_NOTE,
+				"honour-opac-hidden-items", KohaClientConfig.DEFAULT_HONOUR_OPAC_HIDDEN_ITEMS,
 				"no-renew-collection-code", KohaClientConfig.DEFAULT_NO_RENEW_COLLECTION_CODE,
 				"oai-path", KohaOaiPmhIngestSource.DEFAULT_OAI_PATH,
 				"virtual-patron-category", KohaClientConfig.DEFAULT_VIRTUAL_PATRON_CATEGORY)),

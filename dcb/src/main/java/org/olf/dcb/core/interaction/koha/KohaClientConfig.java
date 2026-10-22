@@ -121,10 +121,12 @@ public class KohaClientConfig {
 			hostLms.getClientConfig(), DEFAULT_VIRTUAL_PATRON_CATEGORY);
 	}
 
+	public static final String DEFAULT_HONOUR_OPAC_HIDDEN_ITEMS = "true";
+
 	// Only "false" turns it off: a mistyped value must not offer the copies a library hides
 	public boolean honoursOpacHiddenItems() {
 		return !"false".equalsIgnoreCase(HONOUR_OPAC_HIDDEN_ITEMS
-			.getOptionalValueFrom(hostLms.getClientConfig(), "true").trim());
+			.getOptionalValueFrom(hostLms.getClientConfig(), DEFAULT_HONOUR_OPAC_HIDDEN_ITEMS).trim());
 	}
 
 	public String getNoRenewCollectionCode() {
