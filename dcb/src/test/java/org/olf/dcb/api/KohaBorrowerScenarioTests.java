@@ -6,6 +6,8 @@ import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.FINALISED;
 import static org.olf.dcb.core.model.PatronRequest.Status.LOANED;
 import static org.olf.dcb.core.model.PatronRequest.Status.PICKUP_TRANSIT;
@@ -93,6 +95,7 @@ class KohaBorrowerScenarioTests {
 	@Inject private EventLogFixture eventLogFixture;
 	@Inject private ConsortiumFixture consortiumFixture;
 	@Inject private PatronRequestApiClient patronRequestApiClient;
+	@Inject private AdminApiClient adminApiClient;
 
 	private DataHostLms supplyingHostLms;
 	private MockKohaFixture koha;
@@ -138,6 +141,7 @@ class KohaBorrowerScenarioTests {
 
 	@Test
 	void kohaPatronBorrowsFromAnotherSystemStartToFinish() {
+		koha.mockPlaceHold(placedHold());
 		final var clusterRecordId = createClusterRecordWithOneAvailableItem();
 
 		// The patron requests the title; Koha gets a suppressed virtual bib, a virtual item
@@ -193,6 +197,42 @@ class KohaBorrowerScenarioTests {
 		koha.verifyBibDeleted(VIRTUAL_BIBLIO_ID);
 	}
 
+	@Test
+	void kohaRefusesTheBorrowerHoldAndTheReasonReachesTheAdminApi() {
+		// A circulation rule the patron's library owns: the request cannot proceed, and
+		// what staff need is the rule's name, not "Koha API Error"
+		koha.mockHoldRefused(403, "Hold cannot be placed. Reason: tooManyReserves");
+		final var clusterRecordId = createClusterRecordWithOneAvailableItem();
+
+		final var placed = patronRequestApiClient.placePatronRequest(clusterRecordId,
+			PATRON_ID, pickupLocationId, KOHA_HOST_LMS_CODE, HOME_BRANCH);
+
+		final var requestId = placed.body().getId();
+		assertRequestIsInExpectedStatus(requestId, ERROR);
+
+		final var request = adminApiClient.getPatronRequestViaAdminApi(requestId);
+
+		assertThat(request.getStatus().getErrorMessage(), is("Koha refused the hold"));
+
+		final var refusal = request.getAudits().stream()
+			.filter(audit -> audit.getData() != null && audit.getData().containsKey("reason"))
+			.findFirst()
+			.orElseThrow(() -> new AssertionError("No audit entry carries the refusal reason: " + request.getAudits()));
+
+		assertThat(refusal.getData().get("reason"), is("tooManyReserves"));
+		assertThat(String.valueOf(refusal.getData().get("remedy")), containsString("circulation rule"));
+	}
+
+	private static KohaHoldResponse placedHold() {
+		return KohaHoldResponse.builder()
+			.holdId(Long.valueOf(HOLD_ID))
+			.patronId(Long.valueOf(PATRON_ID))
+			.biblioId(Long.valueOf(VIRTUAL_BIBLIO_ID))
+			.itemId(Long.valueOf(VIRTUAL_ITEM_ID))
+			.pickupLibraryId(HOME_BRANCH)
+			.build();
+	}
+
 	private void mockKohaAsBorrower() {
 		koha.mockPatron(KohaPatron.builder()
 			.patronId(Long.valueOf(PATRON_ID))
@@ -208,13 +248,6 @@ class KohaBorrowerScenarioTests {
 		koha.mockNoItemWithBarcode(SUPPLIER_ITEM_LOCAL_ID + "-i0");
 		koha.mockCreateBib(KohaBiblio.builder().biblioId(Integer.valueOf(VIRTUAL_BIBLIO_ID)).build());
 		koha.mockCreateItem(VIRTUAL_BIBLIO_ID, virtualItem().build());
-		koha.mockPlaceHold(KohaHoldResponse.builder()
-			.holdId(Long.valueOf(HOLD_ID))
-			.patronId(Long.valueOf(PATRON_ID))
-			.biblioId(Long.valueOf(VIRTUAL_BIBLIO_ID))
-			.itemId(Long.valueOf(VIRTUAL_ITEM_ID))
-			.pickupLibraryId(HOME_BRANCH)
-			.build());
 		koha.mockHold(KohaHoldResponse.builder()
 			.holdId(Long.valueOf(HOLD_ID))
 			.patronId(Long.valueOf(PATRON_ID))
