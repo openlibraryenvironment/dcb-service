@@ -6,6 +6,7 @@
 * [Koha]
 	* a Koha library's patrons sign in by profile, are refused by Koha's own blocks and expiry, and borrow from another system start to finish [DCB-2143]
 	* hold and item states Koha no longer lists (filled, cancelled, in transit, on the hold shelf) reach the tracker [DCB-2144]
+	* a Koha library lends to any system start to finish: the loan to the virtual patron confirms Koha's in-transit prompt and refuses every other by name, a renewal finds the item's loan rather than the hold, and nothing but the virtual patron is left behind [DCB-2144]
 	* virtual bibs are OPAC-suppressed, item lists page past twenty, and virtual-patron holds override patron blocks [DCB-2145, DCB-2153]
 	* re-resolution and the discovery account page [DCB-2150]
 	* a Koha patron's request for an item on their own system is one hold on the real item, confirmed and handed off as local [DCB-2157]

@@ -36,6 +36,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.ArrayList;
@@ -1257,23 +1258,94 @@ public class KohaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
 		final String patronId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getPatronId);
+		final String itemId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemId);
 		final String itemBarcode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemBarcode);
 
-		if (itemBarcode.isBlank()|| patronId.isBlank()) {
-			return Mono.error(new IllegalArgumentException("Item barcode and Patron ID are required for Koha checkout"));
+		if (isBlank(patronId) || (isBlank(itemId) && isBlank(itemBarcode))) {
+			return Mono.error(new IllegalArgumentException(
+				"Patron ID and an item id or barcode are required for Koha checkout"));
 		}
 
-		log.info("Koha: Checking out item (barcode: {}) to patron {}", itemBarcode, patronId);
+		log.info("Koha: Checking out item {} (barcode {}) to patron {}", itemId, itemBarcode, patronId);
 
-		KohaCheckoutRequest req = new KohaCheckoutRequest(
-			Long.valueOf(patronId),
-			null,
-			itemBarcode
-		);
+		// item_id names the item outright; the barcode is the fallback for a caller that has
+		// nothing else
+		final var request = new KohaCheckoutRequest(Long.valueOf(patronId),
+			isBlank(itemId) ? null : Long.valueOf(itemId),
+			isBlank(itemId) ? itemBarcode : null);
 
-		return client.checkoutItem(req)
+		return client.checkoutItem(request)
+			.onErrorResume(KohaHostLmsClient::needsConfirmation,
+				needsConfirmation -> confirmCheckout(request, patronId, itemId))
 			.thenReturn("OK")
-			.doOnError(e -> log.error("Koha checkout failed for patron {} and item {}: {}", patronId, itemBarcode, e.getMessage()));
+			.doOnError(e -> log.error("Koha checkout of item {} to patron {} failed: {}",
+				itemId, patronId, e.getMessage()));
+	}
+
+	/**
+	 * The confirmations Koha asks staff for that a consortium loan always answers yes to:
+	 * the item is in transit to, reserved for, or waiting at the sharing branch for the very
+	 * patron it is being lent to. Any other confirmation, and any blocker, is a refusal.
+	 */
+	private static final Set<String> ACCEPTED_CHECKOUT_CONFIRMATIONS = Set.of(
+		"TRANSFERRED", "RESERVED", "RESERVE_WAITING");
+
+	// Koha answers 412 when staff would be asked to confirm; the availability read says what,
+	// and issues the token the confirmed checkout carries
+	private Mono<KohaCheckout> confirmCheckout(KohaCheckoutRequest request, String patronId, String itemId) {
+		if (isBlank(itemId)) {
+			return Mono.error(Problem.builder()
+				.withTitle("Koha wants the checkout confirmed")
+				.withStatus(Status.PRECONDITION_FAILED)
+				.withDetail("Koha asked for a confirmation before lending to patron %s in %s, and without the item id DCB cannot ask what"
+					.formatted(patronId, getHostLmsCode()))
+				.build());
+		}
+
+		return client.getCheckoutAvailability(patronId, itemId)
+			.flatMap(availability -> {
+				final var blockers = keysOf(availability.getBlockers());
+
+				if (!blockers.isEmpty()) {
+					return Mono.error(checkoutRefused("Koha refused the checkout", patronId, itemId,
+						"blocked", blockers));
+				}
+
+				final var confirms = keysOf(availability.getConfirms());
+				final var unaccepted = confirms.stream()
+					.filter(confirm -> !ACCEPTED_CHECKOUT_CONFIRMATIONS.contains(confirm))
+					.toList();
+
+				if (!unaccepted.isEmpty() || isBlank(availability.getConfirmationToken())) {
+					return Mono.error(checkoutRefused("Koha wants a confirmation DCB does not give",
+						patronId, itemId, "confirmations", unaccepted.isEmpty() ? confirms : unaccepted));
+				}
+
+				log.info("Koha: confirming checkout of item {} to patron {} over {}", itemId, patronId, confirms);
+
+				return client.checkoutItem(request, availability.getConfirmationToken());
+			});
+	}
+
+	private ThrowableProblem checkoutRefused(String title, String patronId, String itemId,
+		String parameter, List<String> reasons) {
+
+		return Problem.builder()
+			.withTitle(title)
+			.withStatus(Status.PRECONDITION_FAILED)
+			.withDetail("Koha did not lend item %s to patron %s in %s: %s"
+				.formatted(itemId, patronId, getHostLmsCode(), String.join(", ", reasons)))
+			.with(parameter, reasons)
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	private static List<String> keysOf(Map<String, Object> answers) {
+		return answers == null ? List.of() : List.copyOf(answers.keySet());
+	}
+
+	private static boolean needsConfirmation(Throwable error) {
+		return statusOf(error) == HttpStatus.PRECONDITION_FAILED.getCode();
 	}
 
 	@Override
@@ -1292,6 +1364,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 		log.info("Koha: Deleting hold: {}", holdId);
 		return client.deleteHold(holdId)
 			.thenReturn("OK")
+			// A filled or cancelled hold is already in old_reserves: there is nothing left to
+			// delete, which is the outcome the cleanup wanted
+			.onErrorResume(KohaHostLmsClient::isNotFound, gone -> {
+				log.info("Koha hold {} is already filled or cancelled; nothing to delete", holdId);
+				return Mono.just("OK");
+			})
 			.doOnError(e -> log.error("Failed to delete Koha hold {}: {}", holdId, e.getMessage()));
 	}
 	@Override
@@ -1752,19 +1830,28 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
-		final String checkoutId = hostLmsRenewal.getLocalRequestId();
+		final String itemId = getValueOrNull(hostLmsRenewal, HostLmsRenewal::getLocalItemId);
 
-		if (checkoutId == null || checkoutId.isBlank()) {
-			return Mono.error(new IllegalArgumentException("Checkout ID is required to renew a Koha loan"));
+		if (isBlank(itemId)) {
+			return Mono.error(new IllegalArgumentException("Item ID is required to renew a Koha loan"));
 		}
 
-		log.info("Koha: Renewing checkout: {}", checkoutId);
-
-		return client.renewCheckout(checkoutId)
-			.map(kohaCheckout -> {
-				log.info("Due date {}", kohaCheckout.getDueDate());
-				return hostLmsRenewal;
-			})
-			.doOnError(e -> log.error("Failed to renew Koha checkout {}: {}", checkoutId, e.getMessage()));
+		// The workflow's request id is the hold; Koha renews a checkout, and only the item's
+		// current loan knows that id
+		return client.getCheckoutsForItem(itemId)
+			.filter(checkouts -> checkouts.length > 0)
+			.map(checkouts -> String.valueOf(checkouts[0].getCheckoutId()))
+			.switchIfEmpty(Mono.error(() -> Problem.builder()
+				.withTitle("Koha has no loan to renew")
+				.withStatus(Status.CONFLICT)
+				.withDetail("Item %s in %s is not on loan, so there is no checkout to renew"
+					.formatted(itemId, getHostLmsCode()))
+				.with("hostLmsCode", getHostLmsCode())
+				.build()))
+			.flatMap(checkoutId -> client.renewCheckout(checkoutId)
+				.doOnNext(renewed -> log.info("Koha: renewed checkout {} of item {}, due {}",
+					checkoutId, itemId, renewed.getDueDate())))
+			.thenReturn(hostLmsRenewal)
+			.doOnError(e -> log.error("Koha renewal of item {} failed: {}", itemId, e.getMessage()));
 	}
 }

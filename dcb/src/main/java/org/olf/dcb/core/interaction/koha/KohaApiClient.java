@@ -348,6 +348,24 @@ public interface KohaApiClient {
 	}
 
 	/**
+	 * The same checkout, answering the confirmations Koha asked for with the token the
+	 * availability read issued.
+	 * API: POST /api/v1/checkouts?confirmation={token}
+	 */
+	default Mono<KohaCheckout> checkoutItem(KohaCheckoutRequest request, String confirmationToken) {
+		return post("/api/v1/checkouts", request, KohaCheckout.class, Map.of("confirmation", confirmationToken));
+	}
+
+	/**
+	 * What Koha would block, ask staff to confirm, or warn about before this checkout.
+	 * API: GET /api/v1/checkouts/availability?patron_id={id}&item_id={id}
+	 */
+	default Mono<KohaCheckoutAvailability> getCheckoutAvailability(String patronId, String itemId) {
+		return get("/api/v1/checkouts/availability", KohaCheckoutAvailability.class,
+			Map.of("patron_id", patronId, "item_id", itemId));
+	}
+
+	/**
 	 * Cancel/Delete a hold request.
 	 * API: DELETE /api/v1/holds/{hold_id}
 	 */

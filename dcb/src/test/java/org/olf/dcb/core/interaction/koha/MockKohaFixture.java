@@ -51,6 +51,7 @@ public class MockKohaFixture {
 	private static final String PATRONS_PATH = "/api/v1/patrons";
 	private static final String PASSWORD_VALIDATION_PATH = "/api/v1/auth/password/validation";
 	private static final String LIBRARIES_PATH = "/api/v1/libraries";
+	private static final String CHECKOUTS_PATH = "/api/v1/checkouts";
 	private static final String SYSTEM_PREFERENCES_PATH = "/api/v1/sysprefs";
 	private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -436,5 +437,100 @@ public class MockKohaFixture {
 
 	private static String itemsForBiblioPath(String biblioId) {
 		return "/api/v1/biblios/%s/items".formatted(biblioId);
+	}
+
+	/** No patron on this Koha carries the card number asked for, whatever it is. */
+	public void mockNoPatronWithAnyCardnumber() {
+		mockServer.mock(commonRequests.get(PATRONS_PATH).withQueryStringParameter("_match", "exact"),
+			okJson(new KohaPatron[0]));
+	}
+
+	public void verifyPatronNeverDeleted(String patronId) {
+		mockServer.verifyNever(commonRequests.delete(patronPath(patronId)));
+	}
+
+	/** The hold's state as the request progresses: the latest answer replaces the last. */
+	public void replaceHold(KohaHoldResponse hold) {
+		mockServer.replaceMock(commonRequests.get(holdPath(String.valueOf(hold.getHoldId()))), okJson(hold));
+	}
+
+	/** Koha has filled or cancelled the hold: the live read answers 404 and the old list has it. */
+	public void replaceHoldWithOldHold(KohaHoldResponse oldHold) {
+		final var holdId = String.valueOf(oldHold.getHoldId());
+
+		mockServer.replaceMock(commonRequests.get(holdPath(holdId)), notFound(Map.of("error", "Hold not found")));
+		mockOldHold(holdId, oldHold);
+	}
+
+	/** Koha's answer to deleting a hold it has already filled or cancelled. */
+	public void mockDeleteHoldGone(String holdId) {
+		mockServer.mock(commonRequests.delete(holdPath(holdId)), notFound(Map.of("error", "Hold not found")));
+	}
+
+	/** A checkout Koha makes without asking anything. */
+	public void mockCheckout(KohaCheckout checkout) {
+		mockServer.mock(commonRequests.post(CHECKOUTS_PATH), created(checkout));
+	}
+
+	/**
+	 * Koha wants a confirmation: 412 to the plain checkout. Add the confirmed checkout
+	 * first, because the first expectation that matches a request answers it.
+	 */
+	public void mockCheckoutNeedsConfirmation() {
+		mockServer.mock(commonRequests.post(CHECKOUTS_PATH),
+			response().withStatusCode(412).withBody(json(Map.of("error", "Checkout needs confirmation"))));
+	}
+
+	public void mockCheckoutConfirmed(String token, KohaCheckout checkout) {
+		mockServer.mock(commonRequests.post(CHECKOUTS_PATH).withQueryStringParameter("confirmation", token),
+			created(checkout));
+	}
+
+	/**
+	 * @param availabilityJson literal JSON, because the empty objects and strings in this
+	 * answer are exactly what MockServer's serialiser would drop
+	 */
+	public void mockCheckoutAvailability(String patronId, String itemId, String availabilityJson) {
+		mockServer.mock(commonRequests.get(CHECKOUTS_PATH + "/availability", "patron_id", patronId)
+			.withQueryStringParameter("item_id", itemId),
+			response().withStatusCode(200).withBody(json(availabilityJson, APPLICATION_JSON)));
+	}
+
+	/**
+	 * @param onlyTheseFields JSON the body has to contain; other fields are ignored
+	 */
+	public void verifyCheckedOut(String onlyTheseFields) {
+		client.verify(commonRequests.post(CHECKOUTS_PATH)
+			.withBody(json(onlyTheseFields, MatchType.ONLY_MATCHING_FIELDS)));
+	}
+
+	public void verifyCheckoutConfirmedWith(String token) {
+		client.verify(commonRequests.post(CHECKOUTS_PATH).withQueryStringParameter("confirmation", token));
+	}
+
+	public void verifyCheckoutNeverConfirmed() {
+		mockServer.verifyNever(commonRequests.post(CHECKOUTS_PATH).withQueryStringParameter("confirmation", ".+"));
+	}
+
+	public void mockRenewal(String checkoutId, KohaCheckout renewed) {
+		mockServer.mock(commonRequests.post(renewalsPath(checkoutId)), created(renewed));
+	}
+
+	/** Koha's answer when its rules do not allow the renewal. */
+	public void mockRenewalRefused(String checkoutId) {
+		mockServer.mock(commonRequests.post(renewalsPath(checkoutId)),
+			response().withStatusCode(403).withBody(json(Map.of("error", "Renewal not allowed"))));
+	}
+
+	public void verifyRenewed(String checkoutId) {
+		client.verify(commonRequests.post(renewalsPath(checkoutId)));
+	}
+
+	public void verifyNeverRenewed(String checkoutId) {
+		mockServer.verifyNever(commonRequests.post(renewalsPath(checkoutId)));
+	}
+
+	private static String renewalsPath(String checkoutId) {
+		return CHECKOUTS_PATH + "/" + checkoutId + "/renewals";
 	}
 }

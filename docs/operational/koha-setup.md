@@ -339,20 +339,22 @@ DCB: Koha refuses the hold itself and the patron is told why.
 
 ## Workflows
 
+Each workflow below says who does what, in order. "Your staff" are the Koha library's
+staff; "the other library" is the lending or borrowing library at the far end, on whatever
+system it runs. Nothing in these steps is specific to OpenRS at the desk: your staff check
+items in and out as they always do, and DCB acts on what Koha then says.
+
 ### When your library is the borrowing library
 
-1. The patron requests a title. DCB creates a suppressed virtual record and a virtual
-   item of type `DCB_VIRTUAL` at the patron's home branch, with the supplier's barcode,
-   and places a hold on it for the patron at the branch they chose.
-2. The item arrives. Staff check it in at the pickup branch; Koha traps the hold and
-   puts it on the shelf; DCB sees the waiting hold and tells the supplier.
-3. Staff check the item out to the patron. DCB sees the loan and checks the real item
-   out at the supplier. Renewals the patron makes are reflected there; if the owning
-   library needs the item back, DCB marks the virtual item with the `DCB_NO_RENEW`
-   collection code and Koha refuses further renewals.
-4. The patron returns the item. Staff check it in; DCB sees the item available again,
-   tells the supplier it is on its way back, and once the supplier has it, deletes the
-   hold, the virtual item and the virtual record.
+| Step | Who | What they do | What DCB does |
+|---|---|---|---|
+| 1 | your patron | requests a title in the discovery layer | checks the patron with your Koha (blocks, card, expiry); chooses a lending library and places a hold there for a virtual patron; creates in your Koha a suppressed virtual record and a virtual item of type `DCB_VIRTUAL` at the patron's home branch, carrying the lender's barcode; places a hold on it for the patron at the branch they chose |
+| 2 | the other library's staff | pull their hold, check the item in (their system puts it in transit) and ship it to your pickup branch | sees it leave and shows the request in transit |
+| 3 | your staff, at the pickup branch | check the arriving item in by the barcode on it, which is the barcode on the virtual item: Koha finds the hold, prints the slip, shelves it and sends the patron its usual hold notice | sees the waiting hold, marks the request ready for pickup and tells the lender |
+| 4 | your staff | check the item out to the patron as any other item | sees the loan and lends the real item at the lender to the virtual patron there, so the lender's catalogue shows it on loan |
+| 5 | your patron | renews at the desk or in the OPAC, within your rules | reflects each renewal at the lender. If the lender needs the item back, DCB sets the virtual item's collection code to `DCB_NO_RENEW` and writes the reason in its internal note; Koha then refuses renewals and your staff see why |
+| 6 | your patron, then your staff | returns the item; staff check it in. Koha closes the loan. The virtual item is not stock: send it back to the lender | sees the return and tells the lender it is on its way |
+| 7 | the other library's staff | check the item in at home | sees it available at the lender, completes the request, and deletes the hold, the virtual item and the virtual record from your Koha |
 
 ### When a patron requests your own library's item
 
@@ -367,11 +369,20 @@ allow on-shelf holds, or Koha refuses it with "Hold not allowed" and the patron 
 
 ### When your library is the lending library
 
-A hold for a virtual patron appears in your holds queue with the sharing branch as its
-pickup branch. Staff pull the item and check it in; Koha puts it in transit to the sharing
-branch, and DCB tells the borrower it is coming. When the borrower lends it, DCB checks
-it out to the virtual patron. When it comes back, staff check it in; Koha closes the loan
-and sends the item home.
+| Step | Who | What they do | What DCB does |
+|---|---|---|---|
+| 1 | a patron of another library | requests your copy | finds the virtual patron that stands for them in your Koha, or creates one at the sharing branch in the `DCB` category (card number `their id@their agency`, the consortium mailbox as its address); places an item-level hold on your copy for that patron with the sharing branch as the pickup branch. The hold overrides any block on the virtual patron, never on your own patrons |
+| 2 | your staff | the hold is on the holds queue and the holds-to-pull list for the owning branch, like any other. Pull the item and check it in: Koha finds the hold and asks to transfer it to the sharing branch; confirm, print the slip. The item is now in transit. Send it by courier to the borrowing library, which the slip's hold note and DCB Admin both name: the sharing branch is a label for "outside this Koha", not a place | sees the transfer and tells the borrower the item is on its way |
+| 3 | the other library's staff | receive the item, shelve it for the patron, and lend it in their own system | marks the request ready, then loaned |
+| 4 | nobody | | when the borrower lends it, DCB checks your copy out to the virtual patron. Koha would ask staff to confirm lending an item that is in transit for a hold; DCB confirms that prompt, and only that kind. A block (a lost or not-for-loan item) or any other question (a debt, a loan limit, a patron of another branch) stops the loan and is reported by name on the request. The hold is filled, and your catalogue shows the copy on loan to the virtual patron, due by your circulation rule for the `DCB` category |
+| 5 | the borrowing patron | renews | renews the virtual patron's loan, within your rules. To call the item back, place a hold on it: DCB sees your hold and stops the borrower renewing |
+| 6 | the other library's staff | check the returned item in and send it back to you | shows the request in return transit |
+| 7 | your staff | check the returned item in. Koha closes the virtual patron's loan; checked in away from its home branch, the item goes into a transfer home as any item would | sees your copy available, completes the request. The virtual patron stays for the next loan; nothing else was created in your Koha |
+
+The virtual patron's notices (hold filled, in transit) go to `virtual-patron-email`. The
+circulation rule for the `DCB` category decides the loan period and should charge no
+fines: a fine on the virtual patron blocks the next loan unless `AllowHoldPolicyOverride`
+is on, and is never collected.
 
 ## Virtual patron notices
 

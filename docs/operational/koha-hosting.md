@@ -100,6 +100,7 @@ inbound. SIP2 is not used by the standard, local or supplying flows.
 | tracking | one hold read and one item read per request DCB is tracking here, per sweep | the sweep interval |
 | harvest | `ListRecords` with resumption tokens | `OAI-PMH:MaxCount` records a request |
 | sign-in | one password validation and one patron read per sign-in | per request |
+| lending | one patron search and at most one patron creation, one hold, and when the borrower lends it one checkout, re-sent once with a confirmation after one availability read; one checkouts read and one renewal per borrower renewal | per request |
 
 ## What DCB leaves behind
 
@@ -116,7 +117,9 @@ finalised; they land in `deletedbiblio` and `deleteditems` like any staff deleti
 | `Koha refused the hold`, reason `noReservesAllowed`, `notReservable` or `tooManyReserves` | the circulation rule for the branch, category and item type | the setup guide's circulation rules |
 | `Koha refused the hold`, reason `debt_limit`, `expired`, `restricted`, `hold_limit`, `card_lost` | the patron's own block | for a real patron the block stands; for DCB's virtual patron, `AllowHoldPolicyOverride` |
 | 409 `debt_limit`, `expired`, `restricted` on a supplier hold | the virtual patron is blocked, and the override header was not honoured | the DCB category's enrolment period and fines rules |
-| 412 on checkout | Koha wants a confirmation (item in transit or waiting) | DCB confirms the known cases itself; an unknown confirmation is reported by name |
+| `Koha refused the checkout`, blocked `ITEM_LOST`, `NOT_FOR_LOAN` or another key | Koha will not lend the copy to anyone | the item's own status |
+| `Koha wants a confirmation DCB does not give`, confirmations `DEBT`, `TOO_MANY`, `BORRNOTSAMEBRANCH` or another key | a prompt Koha shows staff that DCB does not answer for a consortium loan; DCB answers only `TRANSFERRED`, `RESERVED` and `RESERVE_WAITING` | the `DCB` category's circulation rule (no fines, no loan limit); with `IndependentBranches`, the API patron acts across branches |
+| `Koha has no loan to renew` | the renewal reached Koha before the virtual patron's loan existed, or after the item was returned | nothing: the loan is renewed once it exists |
 | a hold answers 404 while the request is open | the hold was filled or cancelled and moved to Koha's old holds | nothing: DCB reads the old hold and acts on it |
 | virtual bibs appear in the OPAC or the shared index | the Koha predates the suppressed virtual bib, or `OpacSuppression` is off | enable `OpacSuppression`; DCB's ruleset drops them on the next harvest |
 | `Koha still allows this loan to be renewed` | `ItemsDeniedRenewal` does not list the collection code | add `ccode: [DCB_NO_RENEW]` |
