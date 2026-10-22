@@ -398,6 +398,50 @@ public class MockKohaFixture {
 			okJson(new KohaItem[] {item}));
 	}
 
+	/** The DCB bundle host item, found by its barcode. */
+	public void mockBundleHost(String barcode, long itemId) {
+		mockItemByBarcode(KohaItem.builder().itemId(itemId).externalId(barcode).build());
+	}
+
+	public void mockAddToBundle(String hostItemId, KohaItem bundled) {
+		mockServer.mock(commonRequests.post(bundledItemsPath(hostItemId)), created(bundled));
+	}
+
+	/** Koha's refusal to bundle: 409 with the error code the controller sets. */
+	public void mockAddToBundleRefused(String hostItemId, String errorCode) {
+		mockServer.mock(commonRequests.post(bundledItemsPath(hostItemId)),
+			response().withStatusCode(409).withBody(json(Map.of("error", "Refused", "error_code", errorCode))));
+	}
+
+	public void mockRemoveFromBundle(String hostItemId, String itemId) {
+		mockServer.mock(commonRequests.delete(bundledItemsPath(hostItemId) + "/" + itemId), noContent());
+	}
+
+	public void mockRemoveFromBundleGone(String hostItemId, String itemId) {
+		mockServer.mock(commonRequests.delete(bundledItemsPath(hostItemId) + "/" + itemId),
+			notFound(Map.of("error", "Bundle link not found")));
+	}
+
+	/**
+	 * @param onlyTheseFields JSON the body has to contain; other fields are ignored
+	 */
+	public void verifyAddedToBundle(String hostItemId, String onlyTheseFields) {
+		client.verify(commonRequests.post(bundledItemsPath(hostItemId))
+			.withBody(json(onlyTheseFields, MatchType.ONLY_MATCHING_FIELDS)));
+	}
+
+	public void verifyRemovedFromBundle(String hostItemId, String itemId) {
+		client.verify(commonRequests.delete(bundledItemsPath(hostItemId) + "/" + itemId));
+	}
+
+	public void verifyNeverBundled() {
+		mockServer.verifyNever(commonRequests.post("/api/v1/items/[0-9]+/bundled_items"));
+	}
+
+	private static String bundledItemsPath(String hostItemId) {
+		return "/api/v1/items/%s/bundled_items".formatted(hostItemId);
+	}
+
 	/** The plain single-item read, which carries no circulation embeds. */
 	public void mockItem(KohaItem item) {
 		mockServer.mock(commonRequests.get("/api/v1/items/" + item.getItemId()), okJson(item));

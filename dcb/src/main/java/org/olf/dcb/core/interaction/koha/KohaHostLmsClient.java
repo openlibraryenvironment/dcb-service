@@ -1128,12 +1128,34 @@ public class KohaHostLmsClient implements HostLmsClient {
 				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE),
 				librariesOrEmpty(),
 				systemPreferences(),
-				opacVisibilityCheck())
+				opacVisibilityCheck(),
+				bundleHostCheck())
 			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3())
 				.withChecks(preferenceChecks(answers.getT4()))
-				.withChecks(List.of(answers.getT5())))
+				.withChecks(List.of(answers.getT5(), answers.getT6())))
 			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
 				"Could not read configuration from Koha: " + error.getMessage())));
+	}
+
+	private Mono<ConfigurationReport.Check> bundleHostCheck() {
+		final var setting = "bundle-host-barcode";
+		final var hostBarcode = config.getBundleHostBarcode();
+
+		if (hostBarcode == null) {
+			return Mono.just(new ConfigurationReport.Check(setting, null,
+				ConfigurationReport.CheckResult.NOT_CONFIGURED,
+				"Not set: DCB cannot check a virtual item in, so pickup anywhere and walk-up with this Koha as the borrower stop at the return"));
+		}
+
+		return client.getItemByBarcode(hostBarcode)
+			.map(found -> found.length > 0
+				? new ConfigurationReport.Check(setting, hostBarcode, ConfigurationReport.CheckResult.PRESENT, null)
+				: new ConfigurationReport.Check(setting, hostBarcode, ConfigurationReport.CheckResult.MISSING,
+					"No item in Koha has this barcode"))
+			.defaultIfEmpty(new ConfigurationReport.Check(setting, hostBarcode,
+				ConfigurationReport.CheckResult.MISSING, "No item in Koha has this barcode"))
+			.onErrorResume(error -> Mono.just(new ConfigurationReport.Check(setting, hostBarcode,
+				ConfigurationReport.CheckResult.UNKNOWN, "Could not read the item: " + kohaErrorMessage(error))));
 	}
 
 	private Mono<ConfigurationReport.Check> opacVisibilityCheck() {
@@ -1407,9 +1429,91 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return statusOf(error) == HttpStatus.PRECONDITION_FAILED.getCode();
 	}
 
+	/**
+	 * Koha's REST API has no check-in. Bundling an item with force_checkin returns it first, so
+	 * the virtual item is linked into the DCB bundle host item and unlinked again (ADR 0002).
+	 * Called on a borrowing Koha in RET-PUA and RET-EXP only, for the virtual item DCB deletes
+	 * at finalisation.
+	 */
 	@Override
 	public Mono<String> checkInItem(CheckInItemCommand checkInItemCommand) {
-		return Mono.error(new NotImplementedException("This functionality has not yet been implemented for Koha"));
+		final String itemId = getValueOrNull(checkInItemCommand, CheckInItemCommand::getItemId);
+
+		if (isBlank(itemId)) {
+			return Mono.error(new IllegalArgumentException("Item ID is required to check a Koha item in"));
+		}
+
+		final var hostBarcode = config.getBundleHostBarcode();
+
+		if (hostBarcode == null) {
+			return Mono.error(checkInProblem("Koha check-in is not configured", itemId,
+				"no bundle-host-barcode", "Set bundle-host-barcode to a never-lent DCB item at the sharing branch"));
+		}
+
+		return Mono.zip(bundleHost(hostBarcode), client.getItem(itemId))
+			.flatMap(hostAndItem -> {
+				final var hostItemId = String.valueOf(hostAndItem.getT1().getItemId());
+
+				return client.addToBundle(hostItemId, hostAndItem.getT2().getExternalId())
+					.then()
+					// An earlier attempt bundled it, so the return happened; only the unlink is left
+					.onErrorResume(error -> "already_bundled".equals(kohaErrorCode(error)), bundled -> Mono.empty())
+					.then(client.removeFromBundle(hostItemId, itemId)
+						.onErrorResume(KohaHostLmsClient::isNotFound, unlinked -> Mono.empty()))
+					.thenReturn("OK");
+			})
+			.doOnSuccess(ok -> log.info("Koha item {} checked in at {} through bundle host {}",
+				itemId, getHostLmsCode(), hostBarcode))
+			.onErrorMap(error -> !(error instanceof ThrowableProblem problem
+					&& problem.getParameters().containsKey("checkInRemedy")),
+				error -> refusedCheckIn(itemId, hostBarcode, error));
+	}
+
+	private Mono<KohaItem> bundleHost(String hostBarcode) {
+		return client.getItemByBarcode(hostBarcode)
+			.filter(items -> items.length > 0)
+			.map(items -> items[0])
+			.switchIfEmpty(Mono.error(() -> checkInProblem("Koha bundle host item not found", null,
+				"no item has barcode " + hostBarcode,
+				"Set bundle-host-barcode to the barcode of the DCB bundle host item at the sharing branch")));
+	}
+
+	private ThrowableProblem refusedCheckIn(String itemId, String hostBarcode, Throwable error) {
+		final var code = kohaErrorCode(error);
+
+		final var remedy = switch (code == null ? "" : code) {
+			case "bundle_checked_out" -> "The bundle host item " + hostBarcode
+				+ " is on loan; check it in and keep it out of circulation";
+			case "failed_checkin" -> "Koha's AddReturn refused the item; check it in by hand";
+			case "failed_nesting" -> "The bundle host item " + hostBarcode
+				+ " is itself in a bundle, or the item is a bundle host; use a plain item";
+			default -> "Check the item in by hand in Koha";
+		};
+
+		return checkInProblem("Koha would not check the item in", itemId,
+			code != null ? code : kohaErrorMessage(error), remedy);
+	}
+
+	private ThrowableProblem checkInProblem(String title, String itemId, String reason, String remedy) {
+		return Problem.builder()
+			.withTitle(title)
+			.withStatus(Status.BAD_GATEWAY)
+			.withDetail("%s: item %s in %s".formatted(reason, itemId, getHostLmsCode()))
+			.with("reason", reason)
+			.with("checkInRemedy", remedy)
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	// The error_code KohaApiClientImpl kept from Koha's error body, where there was one
+	private static String kohaErrorCode(Throwable error) {
+		if (error instanceof ThrowableProblem problem) {
+			final var kept = problem.getParameters().get("Koha Error Code");
+
+			return kept == null ? null : String.valueOf(kept);
+		}
+
+		return null;
 	}
 
 	@Override

@@ -62,6 +62,11 @@ public class KohaClientConfig {
 	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_EMAIL = stringPropertyDefinition(
 		VirtualPatronEmail.SETTING, "Consortium mailbox for virtual patrons' notices", FALSE);
 
+	private static final HostLmsPropertyDefinition BUNDLE_HOST_BARCODE = stringPropertyDefinition(
+		"bundle-host-barcode",
+		"Barcode of the never-lent item DCB bundles a returned virtual item into to check it in (ADR 0002)",
+		FALSE);
+
 	private static final HostLmsPropertyDefinition HONOUR_OPAC_HIDDEN_ITEMS = booleanPropertyDefinition(
 		"honour-opac-hidden-items",
 		"Leave out the copies OpacHiddenItems hides from the OPAC; needs RESTPublicAPI and RESTPublicAnonymousRequests",
@@ -95,7 +100,8 @@ public class KohaClientConfig {
 			VIRTUAL_PATRON_CATEGORY,
 			VIRTUAL_PATRON_EMAIL,
 			DO_NOT_RENEW_NOTE,
-			HONOUR_OPAC_HIDDEN_ITEMS
+			HONOUR_OPAC_HIDDEN_ITEMS,
+			BUNDLE_HOST_BARCODE
 		);
 	}
 
@@ -122,6 +128,12 @@ public class KohaClientConfig {
 	}
 
 	public static final String DEFAULT_HONOUR_OPAC_HIDDEN_ITEMS = "true";
+
+	// Absent means check-in is not configured: there is no default host item to fall back to
+	public String getBundleHostBarcode() {
+		final var barcode = BUNDLE_HOST_BARCODE.getOptionalValueFrom(hostLms.getClientConfig(), null);
+		return barcode == null || barcode.isBlank() ? null : barcode.trim();
+	}
 
 	// Only "false" turns it off: a mistyped value must not offer the copies a library hides
 	public boolean honoursOpacHiddenItems() {

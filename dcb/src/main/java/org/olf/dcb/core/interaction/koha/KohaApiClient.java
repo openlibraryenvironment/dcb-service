@@ -275,6 +275,25 @@ public interface KohaApiClient {
 	}
 
 	/**
+	 * Links an item into a bundle. With force_checkin Koha first returns the item through
+	 * C4::Circulation::AddReturn, at the API patron's branch; ignore_holds keeps a hold on the
+	 * item from rolling that return back. The item is found by its barcode.
+	 * API: POST /api/v1/items/{item_id}/bundled_items
+	 */
+	default Mono<KohaItem> addToBundle(String hostItemId, String itemBarcode) {
+		return post("/api/v1/items/" + hostItemId + "/bundled_items",
+			Map.of("external_id", itemBarcode, "force_checkin", true, "ignore_holds", true), KohaItem.class);
+	}
+
+	/**
+	 * Unlinks a bundled item; Koha resets its not_for_loan_status to 0.
+	 * API: DELETE /api/v1/items/{item_id}/bundled_items/{bundled_item_id}
+	 */
+	default Mono<Void> removeFromBundle(String hostItemId, String itemId) {
+		return delete("/api/v1/items/" + hostItemId + "/bundled_items/" + itemId);
+	}
+
+	/**
 	 * A page of the biblio's items as an anonymous OPAC user sees them: Koha leaves out what
 	 * OpacHiddenItems and hidelostitems hide. Sent without a token, because Koha skips the rules
 	 * for a caller whose category is in OpacHiddenItemsExceptions.

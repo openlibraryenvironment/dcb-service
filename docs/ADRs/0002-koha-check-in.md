@@ -27,24 +27,27 @@ checked out to the bundle host or on hold at the moment of the call; those are 4
 
 ## Decision
 
-`checkin-method` is a Host LMS setting with two values, dispatched in `checkInItem`:
+`checkInItem` uses the bundle route above, against a permanent DCB-owned host item at the
+sharing branch named by `bundle-host-barcode`. The side effects (a return recorded at the
+API patron's branch, which may open a transfer home; `BundleNotLoanValue` briefly on the
+item) land on a virtual item DCB deletes at finalisation, and neither blocks the delete
+(`Koha::Item::safe_to_delete` checks loans, waiting holds, analytics and last-item-for-hold).
+`ignore_holds` is sent with `force_checkin`: Koha bundles inside one transaction, and a
+hold on the item would otherwise roll the return back.
 
-- `bundle` (the default choice): the bundle route above, against a permanent DCB-owned
-  host item at the sharing branch named by `bundle-host-barcode`. The side effects (a
-  return recorded at the sharing branch; `BundleNotLoanValue` briefly on the item) land
-  on a virtual item DCB deletes at finalisation.
-- `sip2`: a SIP2 check-in through the existing `Sip2Adaptor`, for a site that will not
-  set `BundleNotLoanValue` or whose provider will not allow the bundle route.
+SIP2 was the intended alternative for a site that will not set `BundleNotLoanValue`. It
+waits for a SIP2 transport: `Sip2Adaptor` has none, and every operation on it fails. When
+there is one, a `checkin-method` setting chooses between the two; until then there is
+nothing to choose and no such setting.
 
-No Koha plugin is part of this decision or depends on one; a plugin route could be added as
-a third value if a plugin is ever built.
+No Koha plugin is part of this decision or depends on one.
 
 A Koha with none configured is a complete member for the standard and own-library
 workflows, and `checkConfiguration` says which workflows it supports.
 
 ## Consequences
 
-- No new port, credential or plugin is needed for either value.
+- No new port, credential or plugin is needed.
 - The behaviour of `add_to_bundle` when `BundleNotLoanValue` is unset, and whether the
   return opens a transfer home for the virtual item, are verified on each supported
   version before the route is relied on; the sandbox checklist carries both.

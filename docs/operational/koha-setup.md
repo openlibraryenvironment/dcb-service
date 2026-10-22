@@ -31,10 +31,10 @@ In this order. Steps 1 to 8 are enough for a library that borrows and lends in t
 standard flow; step 9 is only for pickup-anywhere and walk-up when your library is the
 borrower.
 
-**Pickup-anywhere and walk-up with your library as the borrower are not available yet.**
-Both end with DCB checking the item in on your Koha, which it cannot do yet (ADR 0002), so
-such a request stops at the return step. Step 9 prepares for them; the standard flow, and
-both workflows with your library as the lender, are unaffected.
+**Pickup-anywhere and walk-up with your library as the borrower need step 9.** Both end with
+DCB checking the item in on your Koha, which it does by briefly bundling the item into a
+host item you create (ADR 0002). Without it such a request stops at the return step; the
+standard flow, and both workflows with your library as the lender, are unaffected.
 
 1. **Version.** 25.05, 25.11 or 26.05.
 2. **A branch for the consortium.** Administration, Libraries: a new library such as
@@ -74,7 +74,9 @@ both workflows with your library as the lender, are unaffected.
    requests on your own items (below), on-shelf holds allowed for their categories.
 9. **For pickup-anywhere or walk-up as borrower:** a bundle host item for DCB (one
    never-lent item of type `DCB_VIRTUAL` on a staff-only record at the sharing branch),
-   with `BundleNotLoanValue` set. See [ADR 0002](../ADRs/0002-koha-check-in.md).
+   with `BundleNotLoanValue` set. Give its barcode to your OpenRS team: it is the Host LMS
+   setting `bundle-host-barcode`. Never check it out or place a hold on it. See
+   [ADR 0002](../ADRs/0002-koha-check-in.md).
 10. **Verify from outside** with no credentials: `oai.pl?verb=Identify` and
     `?verb=ListMetadataFormats` (which must list `marcxml`); and with the token,
     `GET /api/v1/libraries?_per_page=1`.
