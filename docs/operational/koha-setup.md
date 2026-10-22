@@ -59,7 +59,8 @@ borrower.
 8. **Circulation rules.** Sharing branch, `DCB` category, all item types: holds and
    on-shelf holds allowed, the consortium's loan period and renewals, no fines. All
    branches, all categories, `DCB_VIRTUAL`: one hold per record, the consortium's loan
-   period, fines as you charge your own patrons for a late item.
+   period, fines as you charge your own patrons for a late item. For your own patrons'
+   requests on your own items (below), on-shelf holds allowed for their categories.
 9. **For pickup-anywhere or walk-up as borrower:** a bundle host item for DCB (one
    never-lent item of type `DCB_VIRTUAL` on a staff-only record at the sharing branch),
    with `BundleNotLoanValue` set. See [ADR 0002](../ADRs/0002-koha-check-in.md).
@@ -344,6 +345,17 @@ DCB: Koha refuses the hold itself and the patron is told why.
 4. The patron returns the item. Staff check it in; DCB sees the item available again,
    tells the supplier it is on its way back, and once the supplier has it, deletes the
    hold, the virtual item and the virtual record.
+
+### When a patron requests your own library's item
+
+With the consortium's own-library borrowing setting on, a patron may request a title
+your own library holds, or one held by another library on the same Koha. DCB places one
+hold on the real item for the real patron at the branch they chose, with no virtual
+record, no virtual item and no override of the patron's blocks, confirms Koha accepted
+it, and hands the request off: from then on it is an ordinary local hold that Koha and
+your staff manage, and DCB tracks nothing. A request for an available copy is an
+on-shelf hold, so the circulation rule for the patron's category and the item's type must
+allow on-shelf holds, or Koha refuses it with "Hold not allowed" and the patron is told.
 
 ### When your library is the lending library
 

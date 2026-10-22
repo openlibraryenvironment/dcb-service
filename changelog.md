@@ -8,6 +8,7 @@
 	* hold and item states Koha no longer lists (filled, cancelled, in transit, on the hold shelf) reach the tracker [DCB-2144]
 	* virtual bibs are OPAC-suppressed, item lists page past twenty, and virtual-patron holds override patron blocks [DCB-2145, DCB-2153]
 	* re-resolution and the discovery account page [DCB-2150]
+	* a Koha patron's request for an item on their own system is one hold on the real item, confirmed and handed off as local [DCB-2157]
 	* operational and developer guides replace koha_notes.md
 * [Placement]
 	* a supplier that cannot supply is skipped, and the request tries another

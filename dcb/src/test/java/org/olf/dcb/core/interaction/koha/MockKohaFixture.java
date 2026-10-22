@@ -146,6 +146,12 @@ public class MockKohaFixture {
 		mockServer.mock(commonRequests.delete("/api/v1/biblios/" + biblioId), noContent());
 	}
 
+	/** A local request places a hold on the real item and nothing else. */
+	public void verifyNoVirtualRecordsCreated() {
+		mockServer.verifyNever(commonRequests.post("/api/v1/biblios"));
+		mockServer.verifyNever(commonRequests.post("/api/v1/biblios/[0-9]+/items"));
+	}
+
 	public void verifyHoldDeleted(String holdId) {
 		client.verify(commonRequests.delete(holdPath(holdId)));
 	}
