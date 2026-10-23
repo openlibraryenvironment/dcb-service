@@ -255,9 +255,9 @@ public interface KohaApiClient {
 	}
 
 	/**
-	 * A hold Koha is still working on, read through the list. GET /holds/{hold_id} is not on
-	 * every supported Koha: the K-Int Koha has only PUT, PATCH and DELETE there, and answers a
-	 * GET with an HTML 404.
+	 * A hold Koha is still working on, read through the list. No Koha has GET /holds/{hold_id}:
+	 * its spec defines only PUT, PATCH and DELETE there (24.11 to main), and a GET answers an
+	 * HTML 404.
 	 * API: GET /api/v1/holds?hold_id={hold_id}&old=false
 	 */
 	default Mono<KohaHoldResponse[]> getCurrentHold(String holdId) {

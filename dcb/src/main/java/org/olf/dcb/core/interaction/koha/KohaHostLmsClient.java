@@ -65,8 +65,9 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * <p>Koha's hold {@code status} is {@code reserves.found}: null until the hold is filled,
  * {@code T} in transit to the pickup branch, {@code P} in processing there, {@code W} waiting
  * on the shelf. An item-level hold is CONFIRMED from the moment it exists; T and P are TRANSIT
- * and W is READY. A filled or cancelled hold moves to {@code old_reserves}, after which
- * {@code GET /holds/{id}} answers 404 and only {@code GET /holds?hold_id=&old=true} lists it:
+ * and W is READY. A hold is read through the holds list, {@code GET /holds?hold_id=}, as Koha
+ * has no single-hold read. A filled or cancelled hold moves to {@code old_reserves}, after
+ * which the current list leaves it out and only {@code GET /holds?hold_id=&old=true} lists it:
  * CANCELLED with a cancellation date, MISSING without. A Koha failure is an error, never MISSING.
  *
  * <h2>Item states</h2>
