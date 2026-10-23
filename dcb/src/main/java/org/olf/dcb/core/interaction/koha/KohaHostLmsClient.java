@@ -1821,10 +1821,6 @@ public class KohaHostLmsClient implements HostLmsClient {
 				.patronId(Integer.valueOf(parameters.getLocalPatronId()))
 				.pickupLibraryId(pickupLibraryId)
 				.notes(parameters.getNote())
-//				.expirationDate()
-//				.nonPriority()
-//				.itemTypeId()
-//				.holdDate()
 				.build();
 
 			final var placement = overridePatronBlocks
