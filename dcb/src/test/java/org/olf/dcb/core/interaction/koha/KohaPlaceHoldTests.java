@@ -5,6 +5,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
+import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
+import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -80,6 +82,26 @@ class KohaPlaceHoldTests {
 	}
 
 	@Test
+	void shouldHoldAtTheSharingBranchWhenThePatronCollectsElsewhere() {
+		mockKohaFixture.mockPlaceHold(placedHold());
+
+		client.placeHoldRequestAtBorrowingAgency(parameters(PICKUP_ANYWHERE_WORKFLOW)).block();
+
+		mockKohaFixture.verifyHoldPlaced("{\"pickup_library_id\": \"DCB-SHARING\"}");
+	}
+
+	@Test
+	void shouldHoldAtTheSharingBranchForAWalkUpAtAnotherLibrary() {
+		// The pickup location is the lender's, a branch this Koha does not have
+		mockKohaFixture.mockPlaceHold(placedHold());
+
+		client.placeHoldRequestAtBorrowingAgency(parameters(EXPEDITED_WORKFLOW)).block();
+
+		mockKohaFixture.verifyHoldPlaced("{\"pickup_library_id\": \"DCB-SHARING\"}");
+		mockKohaFixture.verifyHoldPlacedWithoutOverride();
+	}
+
+	@Test
 	void shouldLeaveARealPatronsBlocksStandingOnALocalHold() {
 		mockKohaFixture.mockPlaceHold(placedHold());
 
@@ -142,6 +164,10 @@ class KohaPlaceHoldTests {
 	}
 
 	private static PlaceHoldRequestParameters parameters() {
+		return parameters(STANDARD_WORKFLOW);
+	}
+
+	private static PlaceHoldRequestParameters parameters(String workflow) {
 		final var pickupLocation = Location.builder()
 			.id(randomUUID())
 			.code("PICKUP-NORTH")
@@ -156,7 +182,7 @@ class KohaPlaceHoldTests {
 			.localItemBarcode("item-barcode")
 			.pickupLocation(pickupLocation)
 			.pickupLocationCode(pickupLocation.getId().toString())
-			.activeWorkflow(STANDARD_WORKFLOW)
+			.activeWorkflow(workflow)
 			.patronRequestId(randomUUID().toString())
 			.build();
 	}

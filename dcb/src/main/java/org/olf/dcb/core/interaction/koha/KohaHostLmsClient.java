@@ -1602,8 +1602,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// Construct Koha hold request
 		// Deal with it if the values aren't integers
 		log.info("placeHoldRequestAtBorrowingAgency patron={} item={}", parameters.getLocalPatronId(), parameters.getLocalItemId());
+		// In pickup anywhere and walk-up the patron collects at another library, whose branch
+		// does not exist in this Koha
 		return Mono.just(parameters)
 			.map(p -> WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW.equals(p.getActiveWorkflow())
+				|| WorkflowConstants.EXPEDITED_WORKFLOW.equals(p.getActiveWorkflow())
 				? getDcbSharingLibraryCode() : resolveLibraryCode(p))
 			.flatMap(lib -> submitKohaHold(parameters, lib, false));
 	}

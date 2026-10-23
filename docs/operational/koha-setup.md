@@ -422,6 +422,16 @@ travels from the lender to that library and back.
 | 3 | the pickup library | check the returned item in and send it back to the lender | checks the virtual item in in your Koha (step 9 of the checklist) and tells the lender it is on its way |
 | 4 | the lender | check the item in at home | completes the request and deletes the virtual item and record |
 
+### When your patron borrows on site at another library (walk-up)
+
+Your patron is at another member library and borrows a copy from its shelf there and then.
+
+| Step | Who | What they do | What DCB does |
+|---|---|---|---|
+| 1 | the other library's staff | lend the copy to your patron through the walk-up screen | checks your patron with your Koha; creates the virtual record and item in your Koha with a hold at your sharing branch, and lends the virtual item to your patron, so your patron's account shows the loan |
+| 2 | your patron | renews within the lender's rules | as for borrowing |
+| 3 | the other library's staff | check the returned copy in | checks the virtual item in in your Koha (step 9 of the checklist), completes the request and deletes the virtual item and record |
+
 ### When a patron requests your own library's item
 
 With the consortium's own-library borrowing setting on, a patron may request a title

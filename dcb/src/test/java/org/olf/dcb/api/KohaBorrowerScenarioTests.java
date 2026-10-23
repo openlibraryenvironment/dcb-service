@@ -16,6 +16,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.READY_FOR_PICKUP;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.RETURN_TRANSIT;
+import static org.olf.dcb.core.model.WorkflowConstants.EXPEDITED_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.core.model.WorkflowConstants.STANDARD_WORKFLOW;
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.COMPLETED_STATE;
@@ -337,6 +338,46 @@ class KohaBorrowerScenarioTests {
 				throw new IllegalStateException(e);
 			}
 		}
+	}
+
+	@Test
+	void kohaPatronBorrowsOnSiteAtAnotherLibraryAndDcbChecksTheVirtualItemInOnReturn() {
+		// The walk-up desk is the lender's: lender and pickup are the same library
+		final var walkUpLocationId = randomUUID();
+		locationFixture.createPickupLocation(walkUpLocationId, "Lender's desk", "LENDER-DESK",
+			agencyFixture.findByCode(SUPPLYING_AGENCY_CODE));
+		koha.mockPlaceHold(placedHold().pickupLibraryId("DCB-SHARING").build());
+		VirtualItemLoan.reset();
+		koha.answerVirtualItemLoanWith(VIRTUAL_BIBLIO_ID, VIRTUAL_ITEM_ID, VirtualItemLoan.class);
+		koha.mockItem(virtualItem().build());
+		koha.mockBundleHost(BUNDLE_HOST_BARCODE, Long.parseLong(BUNDLE_HOST_ITEM_ID));
+		koha.mockAddToBundle(BUNDLE_HOST_ITEM_ID, virtualItem().build());
+		koha.mockRemoveFromBundle(BUNDLE_HOST_ITEM_ID, VIRTUAL_ITEM_ID);
+		final var clusterRecordId = createClusterRecordWithOneAvailableItem();
+
+		final var placed = patronRequestApiClient.placeExpeditedCheckout(clusterRecordId,
+			PATRON_ID, walkUpLocationId.toString(), KOHA_HOST_LMS_CODE, HOME_BRANCH);
+
+		// The lender lends it there and then; DCB lends the virtual item to the patron in Koha
+		final var requestId = placed.body().getId();
+		assertRequestIsInExpectedStatus(requestId, LOANED);
+		assertThat(patronRequestsFixture.findById(requestId), hasActiveWorkflow(EXPEDITED_WORKFLOW));
+		koha.verifyHoldPlaced("{\"patron_id\": 12, \"item_id\": 55, \"pickup_library_id\": \"DCB-SHARING\"}");
+		koha.verifyCheckedOut("{\"patron_id\": 12, \"item_id\": 55}");
+
+		log.info("The patron returns it to the lender; DCB checks the virtual item in in Koha");
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, COMPLETED_STATE, SUPPLIER_ROLE, RET_STD_RESPONSE_TYPE);
+		patronRequestApiClient.updatePatronRequest(requestId);
+		awaitRequest(requestId, "past the return",
+			request -> request.getStatus() == RETURN_TRANSIT || request.getStatus() == FINALISED);
+		koha.verifyAddedToBundle(BUNDLE_HOST_ITEM_ID, "{\"force_checkin\": true}");
+		koha.verifyRemovedFromBundle(BUNDLE_HOST_ITEM_ID, VIRTUAL_ITEM_ID);
+		koha.replaceItemCirculation(VIRTUAL_BIBLIO_ID, VIRTUAL_ITEM_ID, virtualItem().build());
+
+		patronRequestApiClient.updatePatronRequest(requestId);
+		assertRequestIsInExpectedStatus(requestId, FINALISED);
+		koha.verifyItemDeleted(VIRTUAL_ITEM_ID);
+		koha.verifyBibDeleted(VIRTUAL_BIBLIO_ID);
 	}
 
 	private DataAgency definePickupAnywhereLibrary() {
