@@ -86,8 +86,9 @@ public class KohaApiClientImpl implements KohaApiClient {
 	}
 
 	@Override
-	public <T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType) {
-		return request(HttpMethod.POST, path, body, responseType, queryParams, null, contentType);
+	public <T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams,
+		Map<String, String> headers, String contentType) {
+		return request(HttpMethod.POST, path, body, responseType, queryParams, headers, contentType);
 	}
 
 	@Override

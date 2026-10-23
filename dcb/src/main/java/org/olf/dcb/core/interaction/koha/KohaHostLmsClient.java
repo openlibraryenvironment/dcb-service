@@ -600,8 +600,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 		final String kohaBibXml = KohaMarcXmlGenerator.createBibXml(title, author);
 
 		return client.createBibRecord(kohaBibXml)
-			.map(kohaBiblio -> String.valueOf(kohaBiblio.getBiblioId()))
-			.doOnSuccess(id -> log.info("Successfully created Koha virtual bib with ID: {}", id))
+			.mapNotNull(KohaCreatedBiblio::id)
+			.map(String::valueOf)
+			.switchIfEmpty(Mono.error(new IllegalStateException(
+				"Koha created the virtual bib but did not say its id")))
+			.doOnSuccess(id -> log.info("Created Koha virtual bib {}", id))
 			.doOnError(e -> log.error("Failed to create Koha virtual bib: {}", e.getMessage()));
 	}
 

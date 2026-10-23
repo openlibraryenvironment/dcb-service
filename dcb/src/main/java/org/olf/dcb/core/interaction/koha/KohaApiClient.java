@@ -20,7 +20,8 @@ public interface KohaApiClient {
 	<T> Mono<T> get(String path, Class<T> responseType, Map<String, Object> queryParams);
 	<T> Mono<T> get(String path, Class<T> responseType, Map<String, Object> queryParams, Map<String, String> headers); // Sometimes we need to pass Koha headers
 	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
-	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType);
+	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams,
+		Map<String, String> headers, String contentType);
 	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams,
 		Map<String, String> headers);
 	<T> Mono<T> put(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
@@ -160,10 +161,14 @@ public interface KohaApiClient {
 	 * API docs: <a href="https://api.koha-community.org/#tag/biblios/operation/addBiblio">Add biblio</a>
 	 * </p>
 	 * API: POST /api/v1/biblios
+	 * <p>
+	 * Koha answers {"id": biblionumber}, and refuses a record matching one it holds unless
+	 * x-confirm-not-duplicate is sent, which a virtual copy of a title always would.
 	 */
-	default Mono<KohaBiblio> createBibRecord(String bibXml) {
+	default Mono<KohaCreatedBiblio> createBibRecord(String bibXml) {
 		// Note: Koha explicitly requires the 'application/marcxml+xml' content type for XML payloads
-		return post("/api/v1/biblios", bibXml, KohaBiblio.class, Collections.emptyMap(), "application/marcxml+xml");
+		return post("/api/v1/biblios", bibXml, KohaCreatedBiblio.class, Collections.emptyMap(),
+			Map.of("x-confirm-not-duplicate", "1"), "application/marcxml+xml");
 	}
 
 	/**
