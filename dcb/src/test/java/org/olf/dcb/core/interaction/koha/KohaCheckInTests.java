@@ -34,7 +34,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 /**
  * Koha's REST API has no check-in. Linking the returned virtual item into DCB's bundle host
  * item with force_checkin returns it (C4::Circulation::AddReturn), and unlinking leaves it as
- * it was but checked in (ADR 0002).
+ * it was but checked in.
  */
 @MockServerMicronautTest
 class KohaCheckInTests {
@@ -240,6 +240,45 @@ class KohaCheckInTests {
 	}
 
 	@Test
+	void shouldEscapeTheBarcodeItSendsOverNcip() {
+		koha.mockAddToBundleRefused(HOST_ITEM_ID, "failed_checkin");
+		koha.mockNcipCheckIn(NCIP_TOKEN, CHECKED_IN);
+
+		clientWith(withNcipFallback(true)).checkInItem(command("A&B<1>")).block();
+
+		koha.verifyNcipCheckIn(NCIP_TOKEN, "A&amp;B&lt;1&gt;");
+	}
+
+	@Test
+	void shouldNotCountANamespacedNcipProblemAsACheckIn() {
+		koha.mockAddToBundleRefused(HOST_ITEM_ID, "failed_checkin");
+		koha.mockNcipCheckIn(NCIP_TOKEN, """
+			<ns1:NCIPMessage xmlns:ns1="http://www.niso.org/2008/ncip"><ns1:CheckInItemResponse><ns1:Problem>
+			<ns1:ProblemType>Unknown Item</ns1:ProblemType>
+			<ns1:ProblemDetail>Item is not known.</ns1:ProblemDetail>
+			</ns1:Problem></ns1:CheckInItemResponse></ns1:NCIPMessage>""");
+
+		StepVerifier.create(clientWith(withNcipFallback(true)).checkInItem(command()))
+			.expectErrorSatisfies(error -> assertThat(
+				String.valueOf(((ThrowableProblem) error).getParameters().get("reason")),
+				containsString("NCIP: Unknown Item: Item is not known.")))
+			.verify();
+	}
+
+	@Test
+	void shouldNotCountAPageThatIsNotNcipAsACheckIn() {
+		koha.mockAddToBundleRefused(HOST_ITEM_ID, "failed_checkin");
+		// A proxy's sign-in page, answered with 200
+		koha.mockNcipCheckIn(NCIP_TOKEN, "<html><body>Please sign in</body></html>");
+
+		StepVerifier.create(clientWith(withNcipFallback(true)).checkInItem(command()))
+			.expectErrorSatisfies(error -> assertThat(
+				String.valueOf(((ThrowableProblem) error).getParameters().get("reason")),
+				containsString("NCIP: Unexpected response")))
+			.verify();
+	}
+
+	@Test
 	void shouldNeverLogTheNcipTokenOrAddress() {
 		final var logger = (Logger) LoggerFactory.getLogger("org.olf.dcb");
 		final var captured = new ListAppender<ILoggingEvent>();
@@ -317,9 +356,13 @@ class KohaCheckInTests {
 	}
 
 	private static CheckInItemCommand command() {
+		return command(VIRTUAL_ITEM_BARCODE);
+	}
+
+	private static CheckInItemCommand command(String barcode) {
 		return CheckInItemCommand.builder()
 			.itemId(VIRTUAL_ITEM_ID)
-			.itemBarcode(VIRTUAL_ITEM_BARCODE)
+			.itemBarcode(barcode)
 			.build();
 	}
 

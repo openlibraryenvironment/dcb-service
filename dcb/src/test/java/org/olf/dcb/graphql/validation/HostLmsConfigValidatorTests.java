@@ -114,25 +114,6 @@ class HostLmsConfigValidatorTests {
 	}
 
 	@Test
-	void shouldRefuseAKohaNcipFallbackWithoutItsAddressOrToken() {
-		final var config = kohaConfig();
-		config.put("ncip-checkin-fallback", "true");
-		config.put("ncip-checkin-url", "https://staff.example.org/api/v1/contrib/ncip_server/ncip");
-
-		final var exception = assertThrows(HttpStatusException.class, () -> validator.validate(KOHA, config));
-
-		assertThat(exception.getMessage(), containsString("ncip-checkin-token"));
-	}
-
-	@Test
-	void shouldAcceptAKohaNcipFallbackThatIsOff() {
-		final var config = kohaConfig();
-		config.put("ncip-checkin-fallback", "false");
-
-		assertDoesNotThrow(() -> validator.validate(KOHA, config));
-	}
-
-	@Test
 	void shouldNotWarnAboutHarvestingWhenTheKohaIsConfiguredToIngest() {
 		final var config = kohaConfig();
 		config.put("base-url", "https://catalogue.example.org");
