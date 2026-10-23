@@ -75,6 +75,24 @@ import services.k_int.utils.MapUtils;
  * filtered through the "koha-default" ruleset, which reads two MARC flags - 942$n for
  * "not to be shown to anyone" and 942$x for "local only". See docs/koha_notes.md for
  * what the library has to set, and why 942$n cannot carry both.
+ *
+ * <p><b>Identifiers.</b> Koha's OAI identifier is {@code <archiveID>:<biblionumber>}, and the
+ * last segment is the biblionumber {@link KohaHostLmsClient#getItems} reads items by. Record
+ * UUIDs are minted from the whole identifier, so changing OAI-PMH:archiveID after a harvest
+ * re-mints every record and leaves the old ones behind as duplicates.
+ *
+ * <p><b>Withheld records.</b> Koha lists a record it hides as a header with
+ * {@code status="deleted"} and no metadata: every item hidden with OpacHiddenItemsHidesRecord on
+ * (every version), or OpacSuppression on and the record suppressed (25.11.05 and 26.05 on). The
+ * deletion removes the bib and the ruleset has nothing to read. The record is built for the OPAC,
+ * so a subfield the framework hides from the OPAC never arrives and a ruleset reading it is inert.
+ * A preference change reaches DCB only for records edited afterwards; {@link #findVanishedRecords}
+ * and {@link #findMissingRecords} walk the identifiers to catch the rest.
+ *
+ * <p><b>Rulesets.</b> A condition describes a record to keep, and the result is negated.
+ * CONJUNCTIVE makes each flag suppress on its own; an absent property is an inclusion, so a
+ * catalogue that never uses a subfield is unaffected. 942$n is read as none of ["0"] because Koha
+ * treats any other non-empty value as true.
  */
 @Slf4j
 @Prototype

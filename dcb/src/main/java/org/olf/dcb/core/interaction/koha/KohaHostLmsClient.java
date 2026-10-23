@@ -60,6 +60,68 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * to make this code easier to scan.
  * Please respect the ordering if adding new methods, as it makes maintaining this a lot easier.
  * If you are unsure of where a new method belongs, put it under 'General'
+ *
+ * <h2>Hold states</h2>
+ * <p>Koha's hold {@code status} is {@code reserves.found}: null until the hold is filled,
+ * {@code T} in transit to the pickup branch, {@code P} in processing there, {@code W} waiting
+ * on the shelf. An item-level hold is CONFIRMED from the moment it exists; T and P are TRANSIT
+ * and W is READY. A filled or cancelled hold moves to {@code old_reserves}, after which
+ * {@code GET /holds/{id}} answers 404 and only {@code GET /holds?hold_id=&old=true} lists it:
+ * CANCELLED with a cancellation date, MISSING without. A Koha failure is an error, never MISSING.
+ *
+ * <h2>Item states</h2>
+ * <p>Koha has no item status column. Lost and withdrawn are flags on the item; on loan, in
+ * transit and on the hold shelf exist only as a checkout, a transfer sent and not arrived, and a
+ * waiting first hold, which is why the item reads embed {@code checkout,transfer,first_hold}. A
+ * not-for-loan item is LIBRARY_USE_ONLY, not MISSING: MISSING would strand a request in LOANED
+ * once the patron returned the item. The hold count is one with a first hold and zero without,
+ * never Koha's {@code holds_count}, a lifetime tally that includes the virtual patron's own hold.
+ *
+ * <h2>Patrons</h2>
+ * <p>A patron read carries Koha's {@code restricted} and {@code patron_card_lost} as a block and
+ * the expiry date as the end of the day Koha gives; debt is left to Koha, whose refusal at hold
+ * placement reaches the patron as a named problem. The virtual patron is found by
+ * {@code userid}, which is DCB's unique id ({@code localId@agencyCode}, too long for Koha's
+ * 32-character {@code cardnumber}); it has no card, and an update never sends the read-only
+ * {@code expired} and {@code restricted}.
+ *
+ * <h2>Lending</h2>
+ * <p>A supplier request is one virtual patron at the sharing branch, one item-level hold for it
+ * on the real item with the sharing branch as pickup and {@code x-koha-override: any}, and later
+ * one checkout. Koha answers that checkout with a 412 because the item is in transit for a hold;
+ * {@code checkOutItemToPatron} confirms TRANSFERRED, RESERVED and RESERVE_WAITING and raises any
+ * other confirmation or blocker as a problem naming it. The checkout fills the hold, which then
+ * reads as MISSING, so cleanup does not try to delete it. Cleanup deletes the hold, the item and
+ * then the bib, the order Koha's 409 rules need; a 404 on any of the three counts as deleted.
+ *
+ * <h2>Check-in</h2>
+ * <p>Koha's REST API has no check-in. {@code checkInItem} links the virtual item into the bundle
+ * host item named by {@code bundle-host-barcode}, with {@code force_checkin} and
+ * {@code ignore_holds}, which returns it through {@code C4::Circulation::AddReturn}, and unlinks
+ * it again. {@code already_bundled} means an earlier attempt returned the item and only the unlink
+ * is left; a 404 on the unlink is a link already gone. With {@code ncip-checkin-fallback} on, and
+ * only once the bundle route has failed, it sends an NCIP CheckInItem with the virtual item's
+ * barcode through {@code NcipAdaptor}; "Item Not Checked Out" counts as checked in. Neither the
+ * NCIP address nor its token reaches a log or a problem.
+ *
+ * <h2>Item suppression</h2>
+ * <p>A suppressed item is mapped, flagged and dropped at availability time; the bib stays. The
+ * ruleset is the Host LMS's {@code itemSuppressionRulesetName}, or {@code koha-item-default}
+ * (not-for-loan or restricted 42). Its subject is a {@code KohaItem} bean, so a condition names
+ * the Java property ({@code notForLoanStatus}), not the Koha column: a snake_case name does not
+ * resolve, and an unresolved property silently includes every item. A withdrawn item is
+ * suppressed in code whatever the ruleset says. Unless {@code honour-opac-hidden-items} is
+ * {@code false}, {@code getItems} also reads {@code /public/biblios/{id}/items}, anonymously on
+ * purpose because the API patron's category may override {@code OpacHiddenItems}; an item missing
+ * from it is suppressed, and a refused public read fails availability for this Koha rather than
+ * offer copies it cannot see are hidden.
+ *
+ * <h2>Bounds and gaps</h2>
+ * <p>Items are read {@code ITEMS_PAGE_SIZE} a page up to {@code MAX_ITEMS_PER_BIBLIO} a bib, with
+ * {@code ITEM_ENRICHMENT_CONCURRENCY} hold reads at a time; vocabularies are cut at
+ * {@code ConfigurationReport.MAX_VOCABULARY_ENTRIES}; the token is one per Host LMS per expiry.
+ * {@code supplierPreflight} and {@code checkRequestOptions} are not implemented, and check-in
+ * over SIP2 is not available.
  * */
 
 @Slf4j
@@ -1468,7 +1530,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	/**
 	 * Koha's REST API has no check-in. Bundling an item with force_checkin returns it first, so
-	 * the virtual item is linked into the DCB bundle host item and unlinked again (ADR 0002).
+	 * the virtual item is linked into the DCB bundle host item and unlinked again.
 	 * Called on a borrowing Koha in RET-PUA and RET-EXP only, for the virtual item DCB deletes
 	 * at finalisation.
 	 */
@@ -1514,7 +1576,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	/**
 	 * Only with ncip-checkin-fallback on, and only once the bundle route has failed, including
-	 * for want of a bundle host (ADR 0002). The address and token never reach a log or a problem.
+	 * for want of a bundle host. The address and token never reach a log or a problem.
 	 */
 	private Mono<String> ncipFallbackCheckIn(String itemId, CheckInItemCommand command, Throwable bundleFailure) {
 		log.warn("Bundle check-in of Koha item {} at {} failed ({}); trying NCIP",

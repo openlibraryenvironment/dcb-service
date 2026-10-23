@@ -29,7 +29,20 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.MediaType.APPLICATION_FORM_URLENCODED;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
-/** Koha Api Client Impl - based off Alma approach **/
+/**
+ * The Koha REST calls for one Host LMS.
+ * <p>Every call outside {@code /api/v1/public/} carries a bearer token from
+ * {@code POST /api/v1/oauth/token} (client credentials), held per Host LMS in
+ * {@link KohaTokenCache}. A 401 drops the token and retries once with a new one, except on the
+ * password validation, whose 401 is the patron's wrong password.
+ * <p>{@code api-url} may end in {@code /api} or {@code /api/v1}, in any case, and may carry a path
+ * prefix, which is kept and is part of the server's identity.
+ * <p>A failure whose body fits Koha's error schema is raised as a problem carrying the status and
+ * Koha's error and error code; any other failure is the raw {@code HttpClientResponseException}.
+ * The request body never goes into a problem, because every problem parameter is copied into the
+ * patron request's audit; a refused body reaches the debug log only, redacted on the token,
+ * password-validation and patron calls.
+ */
 
 @Slf4j
 @Secondary

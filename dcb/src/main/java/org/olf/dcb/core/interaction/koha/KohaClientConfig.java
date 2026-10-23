@@ -15,7 +15,13 @@ import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanProp
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 
-/** Config values for Koha LMS **/
+/**
+ * The settings of a Koha Host LMS.
+ * <p>{@code client_secret} and {@code ncip-checkin-token} are secrets. A switch changes on one
+ * value only: {@code ncip-checkin-fallback} is on only for "true", and
+ * {@code honour-opac-hidden-items} is off only for "false". The OAI-PMH settings are read by
+ * {@link KohaOaiPmhIngestSource}.
+ */
 
 public class KohaClientConfig {
 
@@ -65,7 +71,7 @@ public class KohaClientConfig {
 
 	private static final HostLmsPropertyDefinition BUNDLE_HOST_BARCODE = stringPropertyDefinition(
 		"bundle-host-barcode",
-		"Barcode of the never-lent item DCB bundles a returned virtual item into to check it in (ADR 0002)",
+		"Barcode of the never-lent item DCB bundles a returned virtual item into to check it in",
 		FALSE);
 
 	private static final HostLmsPropertyDefinition NCIP_CHECKIN_FALLBACK = booleanPropertyDefinition(

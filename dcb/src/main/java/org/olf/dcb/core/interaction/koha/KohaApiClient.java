@@ -10,6 +10,9 @@ import java.util.Map;
 /**
  * Provides core HTTP operations and strongly-typed endpoint methods for Koha. Please refer to <a href="https://api.koha-community.org">...</a> for API documentation
  * Versions supported TBC - 25.11
+ * <p>A lookup by an identifier ({@code cardnumber}, {@code userid}, {@code external_id}) passes
+ * {@code _match=exact}, because Koha's default is a substring match, and decodes to an array:
+ * a DTO extending {@code ArrayList} cannot be decoded.
  */
 public interface KohaApiClient {
 
