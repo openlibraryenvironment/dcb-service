@@ -57,14 +57,17 @@ public class MockKohaFixture {
 	private static final String LIBRARIES_PATH = "/api/v1/libraries";
 	private static final String CHECKOUTS_PATH = "/api/v1/checkouts";
 	private static final String SYSTEM_PREFERENCES_PATH = "/api/v1/sysprefs";
+	public static final String NCIP_PATH = "/api/v1/contrib/ncip_server/ncip";
 	private static final ObjectMapper JSON = new ObjectMapper();
 
 	private final MockServerClient client;
 	private final MockServerCommonRequests commonRequests;
 	private final MockServer mockServer;
+	private final String host;
 
 	public MockKohaFixture(MockServerClient mockServerClient, String host) {
 		this.client = mockServerClient;
+		this.host = host;
 		this.commonRequests = new MockServerCommonRequests(host);
 		this.mockServer = new MockServer(mockServerClient, commonRequests);
 
@@ -272,6 +275,15 @@ public class MockKohaFixture {
 		mockServer.mock(commonRequests.delete("/api/v1/biblios/" + biblioId), noContent());
 	}
 
+	public void mockDeleteItemGone(String itemId) {
+		mockServer.mock(commonRequests.delete("/api/v1/items/" + itemId), notFound(Map.of("error", "Item not found")));
+	}
+
+	public void mockDeleteBibGone(String biblioId) {
+		mockServer.mock(commonRequests.delete("/api/v1/biblios/" + biblioId),
+			notFound(Map.of("error", "Bibliographic record not found")));
+	}
+
 	/**
 	 * The three lists the configuration check reads, a Koha older than 26.05 for preferences, and
 	 * the public API open.
@@ -408,6 +420,32 @@ public class MockKohaFixture {
 		client.clear(itemCirculationRequest(biblioId, itemId));
 		client.when(itemCirculationRequest(biblioId, itemId)).respond(callback().withCallbackClass(answer.getName()));
 		client.when(commonRequests.post(CHECKOUTS_PATH)).respond(callback().withCallbackClass(answer.getName()));
+	}
+
+	/** This Koha's NCIP responder, answering a CheckInItem sent with the token as the last path segment. */
+	public void mockNcipCheckIn(String token, String responseXml) {
+		client.when(ncipRequest(token)).respond(response().withStatusCode(200)
+			.withBody(responseXml, org.mockserver.model.MediaType.TEXT_XML));
+	}
+
+	/** The responder's answer to a token it does not hold. */
+	public void mockNcipRefusesToken(String token) {
+		client.when(ncipRequest(token)).respond(response().withStatusCode(403)
+			.withBody(json(Map.of("error", "Invalid token"))));
+	}
+
+	public void verifyNcipCheckIn(String token, String barcode) {
+		client.verify(ncipRequest(token).withBody(org.mockserver.model.RegexBody.regex(
+			"(?s).*<CheckInItem>.*<ItemIdentifierValue>" + barcode + "</ItemIdentifierValue>.*")));
+	}
+
+	public void verifyNoNcipCall() {
+		mockServer.verifyNever(HttpRequest.request().withPath(NCIP_PATH + ".*"));
+	}
+
+	// NCIP is XML, so not the JSON Accept header the REST expectations match on
+	private HttpRequest ncipRequest(String token) {
+		return HttpRequest.request().withMethod("POST").withPath(NCIP_PATH + "/" + token).withHeader("Host", host);
 	}
 
 	/** The DCB bundle host item, found by its barcode. */

@@ -76,7 +76,9 @@ standard flow, and both workflows with your library as the lender, are unaffecte
    never-lent item of type `DCB_VIRTUAL` on a staff-only record at the sharing branch),
    with `BundleNotLoanValue` set. Give its barcode to your OpenRS team: it is the Host LMS
    setting `bundle-host-barcode`. Never check it out or place a hold on it. See
-   [ADR 0002](../ADRs/0002-koha-check-in.md).
+   [ADR 0002](../ADRs/0002-koha-check-in.md). If you run ByWater's NCIP plugin (Koha 25.11
+   or later), DCB can also fall back to NCIP when the bundle route fails; see the hosting
+   guide.
 10. **Verify from outside** with no credentials: `oai.pl?verb=Identify` and
     `?verb=ListMetadataFormats` (which must list `marcxml`); and with the token,
     `GET /api/v1/libraries?_per_page=1`.

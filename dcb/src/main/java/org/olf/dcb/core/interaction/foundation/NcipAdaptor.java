@@ -5,6 +5,7 @@ import io.micronaut.context.annotation.Prototype;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.foundation.commands.FoundationCreateItemCommand;
@@ -424,7 +425,9 @@ public class NcipAdaptor implements ProtocolAdaptor {
 				return response.contains("LookupVersionResponse") || response.contains("Problem");
 			})
 			.onErrorResume(e -> {
-				log.warn("NCIP Ping failed for {}: {}", hostLmsCode, e.getMessage());
+				// The type and status only: a client error's message can carry the request address
+				log.warn("NCIP Ping failed for {}: {}", hostLmsCode, e instanceof HttpClientResponseException response
+					? "HTTP " + response.getStatus().getCode() : e.getClass().getSimpleName());
 				return Mono.just(false);
 			});
 	}

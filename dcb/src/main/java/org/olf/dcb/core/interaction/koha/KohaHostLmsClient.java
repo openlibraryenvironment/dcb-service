@@ -20,6 +20,7 @@ import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.rules.AnnotatedObject;
 import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.rules.ObjectRulesService;
+import org.olf.dcb.core.interaction.foundation.NcipAdaptor;
 import org.zalando.problem.Problem;
 import org.zalando.problem.Status;
 import org.zalando.problem.ThrowableProblem;
@@ -74,6 +75,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private final RulesetCacheInvalidator cacheInvalidator;
 	private final HostLmsService hostLmsService;
 	private final KohaClientConfig config;
+	// Null unless ncip-checkin-fallback is on with its address and token
+	private final NcipAdaptor ncipCheckIn;
 
 
 
@@ -138,6 +141,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// definition and its only constructor takes the HostLms, so it could never have
 		// been satisfied as an injection point.
 		this.config = new KohaClientConfig(hostLms);
+
+		final var ncipEndpoint = config.isNcipCheckInFallbackEnabled() ? config.getNcipCheckInEndpoint() : null;
+		this.ncipCheckIn = ncipEndpoint == null ? null
+			: kohaClientFactory.createNcipClientFor(ncipEndpoint, hostLms.getCode());
 		}
 
 	/*** General operations - are we missing any? A version check would be useful. possibly implementer also***/
@@ -1041,6 +1048,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 		log.info("Koha: Deleting item: {}", itemId);
 		return client.deleteItem(itemId)
 			.thenReturn("OK")
+			// Gone already, as an NCIP responder with delete_item_on_checkin leaves it
+			.onErrorResume(KohaHostLmsClient::isNotFound, gone -> {
+				log.info("Koha item {} is already deleted", itemId);
+				return Mono.just("OK");
+			})
 			.doOnError(e -> log.error("Failed to delete Koha item {}: {}", itemId, e.getMessage()));
 	}
 
@@ -1129,12 +1141,33 @@ public class KohaHostLmsClient implements HostLmsClient {
 				librariesOrEmpty(),
 				systemPreferences(),
 				opacVisibilityCheck(),
-				bundleHostCheck())
+				bundleHostCheck(),
+				ncipFallbackCheck())
 			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3())
 				.withChecks(preferenceChecks(answers.getT4()))
-				.withChecks(List.of(answers.getT5(), answers.getT6())))
+				.withChecks(List.of(answers.getT5(), answers.getT6(), answers.getT7())))
 			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
 				"Could not read configuration from Koha: " + error.getMessage())));
+	}
+
+	private Mono<ConfigurationReport.Check> ncipFallbackCheck() {
+		final var setting = "ncip-checkin-fallback";
+
+		if (!config.isNcipCheckInFallbackEnabled()) {
+			return Mono.just(new ConfigurationReport.Check(setting, "false",
+				ConfigurationReport.CheckResult.NOT_CONFIGURED, "Off: the bundle route is the only check-in"));
+		}
+
+		if (ncipCheckIn == null) {
+			return Mono.just(new ConfigurationReport.Check(setting, "true", ConfigurationReport.CheckResult.MISSING,
+				"On without ncip-checkin-url and ncip-checkin-token"));
+		}
+
+		return ncipCheckIn.isAvailable()
+			.map(answered -> answered
+				? new ConfigurationReport.Check(setting, "true", ConfigurationReport.CheckResult.PRESENT, null)
+				: new ConfigurationReport.Check(setting, "true", ConfigurationReport.CheckResult.MISSING,
+					"The NCIP responder did not answer LookupVersion, or refused the token"));
 	}
 
 	private Mono<ConfigurationReport.Check> bundleHostCheck() {
@@ -1303,6 +1336,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		log.info("Koha: Deleting bib record: {}", id);
 		return client.deleteBib(id)
 			.thenReturn("OK")
+			.onErrorResume(KohaHostLmsClient::isNotFound, gone -> {
+				log.info("Koha bib {} is already deleted", id);
+				return Mono.just("OK");
+			})
 			.doOnError(e -> log.error("Failed to delete Koha bib {}: {}", id, e.getMessage()));
 	}
 
@@ -1443,6 +1480,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 			return Mono.error(new IllegalArgumentException("Item ID is required to check a Koha item in"));
 		}
 
+		return bundleCheckIn(itemId)
+			.onErrorResume(bundleFailure -> ncipCheckIn != null,
+				bundleFailure -> ncipFallbackCheckIn(itemId, checkInItemCommand, bundleFailure));
+	}
+
+	private Mono<String> bundleCheckIn(String itemId) {
 		final var hostBarcode = config.getBundleHostBarcode();
 
 		if (hostBarcode == null) {
@@ -1467,6 +1510,64 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.onErrorMap(error -> !(error instanceof ThrowableProblem problem
 					&& problem.getParameters().containsKey("checkInRemedy")),
 				error -> refusedCheckIn(itemId, hostBarcode, error));
+	}
+
+	/**
+	 * Only with ncip-checkin-fallback on, and only once the bundle route has failed, including
+	 * for want of a bundle host (ADR 0002). The address and token never reach a log or a problem.
+	 */
+	private Mono<String> ncipFallbackCheckIn(String itemId, CheckInItemCommand command, Throwable bundleFailure) {
+		log.warn("Bundle check-in of Koha item {} at {} failed ({}); trying NCIP",
+			itemId, getHostLmsCode(), checkInReason(bundleFailure));
+
+		return virtualItemBarcode(itemId, command)
+			.flatMap(ncipCheckIn::checkInItem)
+			// Koha says the item is not on loan: it is already back, which is what was asked
+			.onErrorResume(error -> "Item Not Checked Out".equals(ncipProblemType(error)), back -> Mono.just("OK"))
+			.doOnSuccess(ok -> log.info("Koha item {} checked in at {} over NCIP", itemId, getHostLmsCode()))
+			.onErrorMap(ncipFailure -> checkInProblem("Koha would not check the item in by either route", itemId,
+				"bundle: " + checkInReason(bundleFailure) + "; NCIP: " + checkInReason(ncipFailure),
+				isRefusedCredential(ncipFailure)
+					? "The NCIP responder refused ncip-checkin-token; check it against the plugin's auth_token"
+					: "Check the item in by hand in Koha"));
+	}
+
+	// The command carries the lender's barcode, which the virtual item was created with
+	private Mono<String> virtualItemBarcode(String itemId, CheckInItemCommand command) {
+		final var barcode = getValueOrNull(command, CheckInItemCommand::getItemBarcode);
+
+		return !isBlank(barcode)
+			? Mono.just(barcode)
+			: client.getItem(itemId).mapNotNull(KohaItem::getExternalId);
+	}
+
+	private static String ncipProblemType(Throwable error) {
+		return error instanceof ThrowableProblem problem
+			? Objects.toString(problem.getParameters().get(NcipAdaptor.PROBLEM_TYPE), null)
+			: null;
+	}
+
+	private static boolean isRefusedCredential(Throwable error) {
+		return error instanceof HttpClientResponseException response
+			&& (response.getStatus().getCode() == 401 || response.getStatus().getCode() == 403);
+	}
+
+	// What a failure was, in words that cannot carry a request's address
+	private static String checkInReason(Throwable error) {
+		if (error instanceof ThrowableProblem problem) {
+			final var reason = problem.getParameters().get("reason");
+			final var ncipType = problem.getParameters().get(NcipAdaptor.PROBLEM_TYPE);
+
+			return reason != null ? String.valueOf(reason)
+				: ncipType != null ? ncipType + ": " + problem.getDetail()
+				: String.valueOf(problem.getTitle());
+		}
+
+		if (error instanceof HttpClientResponseException response) {
+			return "HTTP " + response.getStatus().getCode();
+		}
+
+		return error.getClass().getSimpleName();
 	}
 
 	private Mono<KohaItem> bundleHost(String hostBarcode) {

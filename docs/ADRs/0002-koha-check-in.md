@@ -43,11 +43,35 @@ waits for a SIP2 transport: `Sip2Adaptor` has none, and every operation on it fa
 there is one, a `checkin-method` setting chooses between the two; until then there is
 nothing to choose and no such setting.
 
-No Koha plugin is part of this decision or depends on one. Two exist that would do it: ByWater's
-`koha-plugin-ncip-server` answers NCIP CheckInItem (Koha 25.11 or later, shared-token
-authentication), which DCB's `NcipAdaptor` already speaks; `koha-plugin-offline-circulation`
-returns through `ProcessOfflineReturn`, which skips `AddReturn` and its hold and transfer
-handling. ILS-DI has no return service, and Koha's ILL module does not return items.
+Nothing depends on a Koha plugin. Where a site has ByWater's `koha-plugin-ncip-server`
+(Koha 25.11 or later), its NCIP CheckInItem is an optional fallback, below.
+`koha-plugin-offline-circulation` also returns items, but through `ProcessOfflineReturn`,
+which skips `AddReturn` and its hold and transfer handling, so it is not used. ILS-DI has no
+return service, and Koha's ILL module does not return items.
+
+### The NCIP fallback
+
+With `ncip-checkin-fallback` set to `true`, and only after the bundle route has failed
+(including for want of a bundle host), DCB sends an NCIP CheckInItem with the virtual item's
+barcode to `ncip-checkin-url`. Off by default: only `true` turns it on, and
+`HostLmsConfigValidator` refuses it without both `ncip-checkin-url` and `ncip-checkin-token`.
+
+- The plugin's CheckInItem is stateless: it finds the item by barcode and calls `AddReturn`
+  at the item's holding branch, so a virtual item DCB made over REST checks in like any
+  other. It does not run the barcode through `barcodedecode`, which is why it covers the
+  bundle route's barcode-filter failure.
+- The plugin authenticates by a token in the last path segment. DCB holds it as its own
+  setting, `ncip-checkin-token`, apart from the address (`NcipEndpoint`), joins them only to
+  send, and never logs either or puts them in a problem. The HTTP client's own logger stays
+  at `WARN`: at `DEBUG` it can log request addresses.
+- "Item Not Checked Out" counts as checked in: the item is already back.
+- The plugin's settings are site-wide and may serve another NCIP partner.
+  `delete_item_on_checkin` would delete DCB's virtual item and record on check-in, before
+  finalisation does; Koha's `deleteItem` and `deleteBib` therefore count a 404 as deleted,
+  and the setup guide asks sites to scope that setting away from `DCB_VIRTUAL`. Returns over
+  NCIP are recorded against the plugin's `userenv_borrowernumber`, not DCB's API patron.
+- If both routes fail, the problem names both reasons, and the token when the responder
+  refused it.
 
 Known limits of the route, from Koha's source: the return is recorded at the API patron's
 home branch; it does not trap holds (`ModReserveAffect`), which on a virtual item with no

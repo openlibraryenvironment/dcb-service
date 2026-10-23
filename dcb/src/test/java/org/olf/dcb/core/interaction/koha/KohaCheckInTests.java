@@ -2,8 +2,11 @@ package org.olf.dcb.core.interaction.koha;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -15,9 +18,16 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaLibrary;
 import org.olf.dcb.test.HostLmsFixture;
+import org.slf4j.LoggerFactory;
 import org.zalando.problem.ThrowableProblem;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+
 import jakarta.inject.Inject;
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
@@ -34,6 +44,13 @@ class KohaCheckInTests {
 	private static final String HOST_ITEM_ID = "900";
 	private static final String VIRTUAL_ITEM_ID = "55";
 	private static final String VIRTUAL_ITEM_BARCODE = "6565750674";
+	private static final String NCIP_TOKEN = "ncip-secret-27182";
+	private static final String CHECKED_IN = "<NCIPMessage><CheckInItemResponse><ItemId><ItemIdentifierValue>"
+		+ VIRTUAL_ITEM_BARCODE + "</ItemIdentifierValue></ItemId></CheckInItemResponse></NCIPMessage>";
+	private static final String NOT_CHECKED_OUT = "<NCIPMessage><CheckInItemResponse><Problem>"
+		+ "<ProblemType>Item Not Checked Out</ProblemType>"
+		+ "<ProblemDetail>There is no record of the check out of the item.</ProblemDetail>"
+		+ "</Problem></CheckInItemResponse></NCIPMessage>";
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -148,6 +165,138 @@ class KohaCheckInTests {
 
 		assertThat(bundleHostCheck(clientWith(Map.of())).result(),
 			is(ConfigurationReport.CheckResult.NOT_CONFIGURED));
+	}
+
+	@Test
+	void shouldNotTryNcipWhenTheBundleRouteWorks() {
+		koha.mockAddToBundle(HOST_ITEM_ID, virtualItem());
+		koha.mockRemoveFromBundle(HOST_ITEM_ID, VIRTUAL_ITEM_ID);
+		koha.mockNcipCheckIn(NCIP_TOKEN, CHECKED_IN);
+
+		assertThat(clientWith(withNcipFallback(true)).checkInItem(command()).block(), is("OK"));
+
+		koha.verifyNoNcipCall();
+	}
+
+	@Test
+	void shouldCheckInOverNcipWhenTheBundleRouteFails() {
+		// The barcode filter case: Koha cannot find the virtual item by the lender's barcode
+		koha.mockAddToBundleRefused(HOST_ITEM_ID, "failed_checkin");
+		koha.mockNcipCheckIn(NCIP_TOKEN, CHECKED_IN);
+
+		assertThat(clientWith(withNcipFallback(true)).checkInItem(command()).block(), is("OK"));
+
+		koha.verifyNcipCheckIn(NCIP_TOKEN, VIRTUAL_ITEM_BARCODE);
+	}
+
+	@Test
+	void shouldCheckInOverNcipWhenNoBundleHostIsConfigured() {
+		final var config = withNcipFallback(true);
+		config.remove("bundle-host-barcode");
+		koha.mockNcipCheckIn(NCIP_TOKEN, CHECKED_IN);
+
+		assertThat(clientWith(config).checkInItem(command()).block(), is("OK"));
+
+		koha.verifyNeverBundled();
+		koha.verifyNcipCheckIn(NCIP_TOKEN, VIRTUAL_ITEM_BARCODE);
+	}
+
+	@Test
+	void shouldNotFallBackUnlessTheHostLmsEnablesIt() {
+		koha.mockAddToBundleRefused(HOST_ITEM_ID, "failed_checkin");
+		koha.mockNcipCheckIn(NCIP_TOKEN, CHECKED_IN);
+
+		StepVerifier.create(clientWith(withNcipFallback(false)).checkInItem(command()))
+			.expectErrorSatisfies(error -> assertThat(((ThrowableProblem) error).getTitle(),
+				is("Koha would not check the item in")))
+			.verify();
+
+		koha.verifyNoNcipCall();
+	}
+
+	@Test
+	void shouldCountAnItemNcipSaysIsNotOnLoanAsCheckedIn() {
+		koha.mockAddToBundleRefused(HOST_ITEM_ID, "failed_checkin");
+		koha.mockNcipCheckIn(NCIP_TOKEN, NOT_CHECKED_OUT);
+
+		assertThat(clientWith(withNcipFallback(true)).checkInItem(command()).block(), is("OK"));
+	}
+
+	@Test
+	void shouldNameBothRoutesAndTheTokenWhenNcipRefusesIt() {
+		koha.mockAddToBundleRefused(HOST_ITEM_ID, "failed_checkin");
+		koha.mockNcipRefusesToken(NCIP_TOKEN);
+
+		StepVerifier.create(clientWith(withNcipFallback(true)).checkInItem(command()))
+			.expectErrorSatisfies(error -> {
+				final var problem = (ThrowableProblem) error;
+				assertThat(problem.getTitle(), is("Koha would not check the item in by either route"));
+				assertThat(String.valueOf(problem.getParameters().get("reason")), containsString("failed_checkin"));
+				assertThat(String.valueOf(problem.getParameters().get("reason")), containsString("HTTP 403"));
+				assertThat(String.valueOf(problem.getParameters().get("checkInRemedy")), containsString("ncip-checkin-token"));
+				assertThat(problem.toString(), not(containsString(NCIP_TOKEN)));
+			})
+			.verify();
+	}
+
+	@Test
+	void shouldNeverLogTheNcipTokenOrAddress() {
+		final var logger = (Logger) LoggerFactory.getLogger("org.olf.dcb");
+		final var captured = new ListAppender<ILoggingEvent>();
+		final var previousLevel = logger.getLevel();
+		captured.start();
+		logger.setLevel(Level.TRACE);
+		logger.addAppender(captured);
+
+		try {
+			koha.mockAddToBundleRefused(HOST_ITEM_ID, "failed_checkin");
+			koha.mockNcipRefusesToken(NCIP_TOKEN);
+			final var client = clientWith(withNcipFallback(true));
+
+			client.checkInItem(command()).onErrorResume(error -> Mono.empty()).block();
+			client.checkConfiguration().onErrorResume(error -> Mono.empty()).block();
+		} finally {
+			logger.detachAppender(captured);
+			logger.setLevel(previousLevel);
+		}
+
+		final var logged = captured.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+		assertThat(logged, not(hasItem(containsString(NCIP_TOKEN))));
+		assertThat(logged, not(hasItem(containsString(MockKohaFixture.NCIP_PATH))));
+	}
+
+	@Test
+	void shouldReportAnAnsweringNcipResponderAtSetup() {
+		koha.mockConfigurationLists(KohaLibrary.builder().libraryId("DCB-SHARING").pickupLocation(true).build());
+		koha.mockNcipCheckIn(NCIP_TOKEN, "<NCIPMessage><LookupVersionResponse/></NCIPMessage>");
+
+		assertThat(check(clientWith(withNcipFallback(true)), "ncip-checkin-fallback").result(),
+			is(ConfigurationReport.CheckResult.PRESENT));
+	}
+
+	@Test
+	void shouldReportARefusedTokenAtSetup() {
+		koha.mockConfigurationLists(KohaLibrary.builder().libraryId("DCB-SHARING").pickupLocation(true).build());
+		koha.mockNcipRefusesToken(NCIP_TOKEN);
+
+		assertThat(check(clientWith(withNcipFallback(true)), "ncip-checkin-fallback").result(),
+			is(ConfigurationReport.CheckResult.MISSING));
+	}
+
+	private static Map<String, Object> withNcipFallback(boolean enabled) {
+		final Map<String, Object> config = new HashMap<>();
+		config.put("bundle-host-barcode", HOST_BARCODE);
+		config.put("ncip-checkin-fallback", String.valueOf(enabled));
+		config.put("ncip-checkin-url", "https://" + KOHA_HOST + MockKohaFixture.NCIP_PATH);
+		config.put("ncip-checkin-token", NCIP_TOKEN);
+		return config;
+	}
+
+	private static ConfigurationReport.Check check(HostLmsClient client, String setting) {
+		return client.checkConfiguration().block().checks().stream()
+			.filter(check -> check.setting().equals(setting))
+			.findFirst()
+			.orElseThrow();
 	}
 
 	private HostLmsClient configuredClient() {
