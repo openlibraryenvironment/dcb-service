@@ -1715,15 +1715,16 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		log.debug("Fetching Koha hold request by ID: {}", localRequestId);
 
-		return client.getHold(localRequestId)
-			.map(this::toHostLmsRequest)
-			.onErrorResume(KohaHostLmsClient::isNotFound, notFound -> oldHold(localRequestId))
+		return client.getCurrentHold(localRequestId)
+			.filter(holds -> holds.length > 0)
+			.map(holds -> toHostLmsRequest(holds[0]))
+			.switchIfEmpty(Mono.defer(() -> oldHold(localRequestId)))
 			.doOnError(e -> log.error("Failed to retrieve Koha hold request {}: {}", localRequestId, e.getMessage()));
 	}
 
 	/**
-	 * Koha moves a hold to old_reserves the moment it is filled or cancelled; GET /holds/{id}
-	 * then answers 404 and only the list with old=true still knows it. Its cancellation date
+	 * Koha moves a hold to old_reserves the moment it is filled or cancelled; the current list
+	 * then leaves it out and only the list with old=true still knows it. Its cancellation date
 	 * says which of the two happened. A hold found in neither place is gone, which the
 	 * workflow treats as it treats filled.
 	 */

@@ -255,11 +255,13 @@ public interface KohaApiClient {
 	}
 
 	/**
-	 * Get a hold request by its hold_id.
-	 * API: GET /api/v1/holds/{hold_id}
+	 * A hold Koha is still working on, read through the list. GET /holds/{hold_id} is not on
+	 * every supported Koha: the K-Int Koha has only PUT, PATCH and DELETE there, and answers a
+	 * GET with an HTML 404.
+	 * API: GET /api/v1/holds?hold_id={hold_id}&old=false
 	 */
-	default Mono<KohaHoldResponse> getHold(String holdId) {
-		return get("/api/v1/holds/" + holdId, KohaHoldResponse.class);
+	default Mono<KohaHoldResponse[]> getCurrentHold(String holdId) {
+		return get("/api/v1/holds", KohaHoldResponse[].class, Map.of("hold_id", holdId, "old", false));
 	}
 
 	/**
