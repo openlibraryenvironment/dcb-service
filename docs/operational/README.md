@@ -11,6 +11,13 @@ For libraries, consortium administrators and hosting providers running OpenRS DC
 - [Alma hosting and configuration reference](alma-hosting.md): every Host LMS setting, network
   access, load on Alma, and troubleshooting by error code.
 
+## Koha
+
+- [Setting up a Koha library](koha-setup.md): what a Koha library configures, what its OpenRS
+  team needs, DCB Admin setup and the workflows as staff see them.
+- [Koha hosting and configuration reference](koha-hosting.md): every Host LMS setting, the
+  permissions DCB needs and why, system preferences, load, and troubleshooting.
+
 ## Requesting
 
 - [Notes and tags on patron requests](patron-request-notes.md): who can see a request, who can

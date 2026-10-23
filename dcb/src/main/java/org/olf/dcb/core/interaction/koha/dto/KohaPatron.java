@@ -65,6 +65,15 @@ public class KohaPatron {
 	@JsonProperty("privacy")
 	private Integer privacy;
 
+	@JsonProperty("expired")
+	private Boolean expired;
+
+	@JsonProperty("restricted")
+	private Boolean restricted;
+
+	@JsonProperty("patron_card_lost")
+	private Boolean patronCardLost;
+
 	@JsonProperty("extended_attributes")
 	private List<KohaPatronAttribute> extendedAttributes;
 

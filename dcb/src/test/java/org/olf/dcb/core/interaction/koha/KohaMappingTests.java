@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -25,9 +26,7 @@ import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
-import org.olf.dcb.core.interaction.koha.dto.KohaItemsList;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
-import org.olf.dcb.core.interaction.koha.dto.KohaPatronsList;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
@@ -66,6 +65,9 @@ class KohaMappingTests {
 
 		apiClient = mock(KohaApiClient.class);
 		referenceValueMappingService = mock(ReferenceValueMappingService.class);
+		// No mappings: a patron read leaves the canonical type unset rather than failing
+		when(referenceValueMappingService.findMapping(any(), any(), any(), any(), any()))
+			.thenReturn(Mono.empty());
 
 		final var clientFactory = mock(KohaClientFactory.class);
 		when(clientFactory.createClientFor(hostLms)).thenReturn(apiClient);
@@ -109,7 +111,7 @@ class KohaMappingTests {
 			.libraryId("BRANCH-NORTH")
 			.build());
 
-		final var patron = client.getPatronByIdentifier("6747664").block();
+		final var patron = client.getPatronByIdentifier("1234").block();
 
 		assertThat(patron.getLocalHomeLibraryCode(), is("BRANCH-NORTH"));
 	}
@@ -124,7 +126,7 @@ class KohaMappingTests {
 			.categoryId("ADULT")
 			.build());
 
-		final var patron = client.getPatronByIdentifier("6747664").block();
+		final var patron = client.getPatronByIdentifier("1234").block();
 
 		assertThat(patron.getLocalHomeLibraryCode(), is((String) null));
 		assertThat(patron.getLocalPatronType(), is("ADULT"));
@@ -139,11 +141,9 @@ class KohaMappingTests {
 			.checkedOutDate("2026-09-01T10:00:00Z")
 			.build();
 
-		final var byBarcode = new KohaItemsList();
-		byBarcode.add(onLoan);
-
-		when(apiClient.getItemByBarcode("ITEM-BARCODE")).thenReturn(Mono.just(byBarcode));
+		when(apiClient.getItemByBarcode("ITEM-BARCODE")).thenReturn(Mono.just(new KohaItem[] {onLoan}));
 		when(apiClient.getItem("99")).thenReturn(Mono.just(onLoan));
+		when(apiClient.getItemCirculation("42", "99")).thenReturn(Mono.just(new KohaItem[] {onLoan}));
 
 		// Koha leaves every status field at "available" while an item is on loan
 		assertThat(client.getItemByBarcode("ITEM-BARCODE").block().getStatus(), is(HostLmsItem.ITEM_LOANED));
@@ -276,7 +276,7 @@ class KohaMappingTests {
 				.build())
 			.toArray(KohaItem[]::new);
 
-		when(apiClient.getItemsForBiblio("42")).thenReturn(Mono.just(kohaItems));
+		when(apiClient.getItemsForBiblio(eq("42"), anyInt(), anyInt())).thenReturn(Mono.just(kohaItems));
 
 		when(apiClient.getActiveHoldsForItem(any())).thenAnswer(invocation ->
 			Mono.fromCallable(() -> {
@@ -326,7 +326,7 @@ class KohaMappingTests {
 	}
 
 	private void givenItem(KohaItem kohaItem) {
-		when(apiClient.getItemsForBiblio("42"))
+		when(apiClient.getItemsForBiblio(eq("42"), anyInt(), anyInt()))
 			.thenReturn(Mono.just(new KohaItem[] { kohaItem }));
 
 		when(apiClient.getActiveHoldsForItem(String.valueOf(kohaItem.getItemId())))
@@ -334,10 +334,9 @@ class KohaMappingTests {
 	}
 
 	private void givenPatron(KohaPatron kohaPatron) {
-		final var list = new KohaPatronsList();
-		list.add(kohaPatron);
-
 		when(apiClient.getPatronByCardnumber(kohaPatron.getCardnumber()))
-			.thenReturn(Mono.just(list));
+			.thenReturn(Mono.just(new KohaPatron[] {kohaPatron}));
+		when(apiClient.getPatron(String.valueOf(kohaPatron.getPatronId())))
+			.thenReturn(Mono.just(kohaPatron));
 	}
 }

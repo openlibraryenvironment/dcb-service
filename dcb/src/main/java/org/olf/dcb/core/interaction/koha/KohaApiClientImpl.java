@@ -76,6 +76,12 @@ public class KohaApiClientImpl implements KohaApiClient {
 	}
 
 	@Override
+	public <T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams,
+		Map<String, String> headers) {
+		return request(HttpMethod.POST, path, body, responseType, queryParams, headers, APPLICATION_JSON);
+	}
+
+	@Override
 	public <T> Mono<T> put(String path, Object body, Class<T> responseType, Map<String, Object> queryParams) {
 		return request(HttpMethod.PUT, path, body, responseType, queryParams, null, APPLICATION_JSON);
 	}
@@ -165,6 +171,11 @@ public class KohaApiClientImpl implements KohaApiClient {
 		});
 	}
 
+	// The token request carries the client secret and the validation request a patron's password
+	private static boolean carriesCredentials(String path) {
+		return path.endsWith("/oauth/token") || path.endsWith("/auth/password/validation");
+	}
+
 	private URI resolve(URI relativeURI) {
 		return resolveBelow(config.getApiUrl(), relativeURI);
 	}
@@ -190,8 +201,9 @@ public class KohaApiClientImpl implements KohaApiClient {
 			}
 		}
 
-		log.debug("Starting Koha exchange for - Method: {}, URI: {}, argumentType: {}", request.getMethod(), request.getUri(), argumentType);
-		String finalBodyJson = bodyJson;
+		// The path only: a query string carries a card number or userid
+		log.debug("Starting Koha exchange for - Method: {}, path: {}, argumentType: {}", request.getMethod(), request.getPath(), argumentType);
+		final String finalBodyJson = carriesCredentials(request.getPath()) ? "[redacted]" : bodyJson;
 
 		return Mono.from(httpClient.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
@@ -220,7 +232,7 @@ public class KohaApiClientImpl implements KohaApiClient {
 						return raiseError(Problem.builder()
 							.withTitle("Koha API Error")
 							.withStatus(Status.valueOf(status.getCode()))
-							.withDetail(request.getUri().toString())
+							.withDetail(request.getPath())
 							.with("Request Method", request.getMethod().name())
 							.with("Koha Error Code", errorResponse.getErrorCode())
 							.with("Koha Error Message", errorResponse.getError())

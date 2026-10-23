@@ -18,6 +18,8 @@ public interface KohaApiClient {
 	<T> Mono<T> get(String path, Class<T> responseType, Map<String, Object> queryParams, Map<String, String> headers); // Sometimes we need to pass Koha headers
 	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
 	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType);
+	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams,
+		Map<String, String> headers);
 	<T> Mono<T> put(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
 	<T> Mono<T> patch(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
 	Mono<Void> delete(String path, Map<String, Object> queryParams);
@@ -49,12 +51,13 @@ public interface KohaApiClient {
 	}
 
 	/**
-	 * Search patrons by userid. Note that other options are available (see docs).
+	 * Search patrons by userid. _match defaults to contains, so without exact a userid is
+	 * matched by any other that contains it.
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/patrons/operation/listPatrons">Searching patrons in Koha</a>
 	 * </p>	 */
-	default Mono<KohaPatronsList> getPatronByUserId(String userid) {
-		return get("/api/v1/patrons", KohaPatronsList.class, Map.of("userid", userid));
+	default Mono<KohaPatron[]> getPatronByUserId(String userid) {
+		return get("/api/v1/patrons", KohaPatron[].class, Map.of("userid", userid, "_match", "exact"));
 	}
 
 	/**
@@ -64,8 +67,8 @@ public interface KohaApiClient {
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/patrons/operation/listPatrons">Searching patrons in Koha</a>
 	 * </p>	 */
-	default Mono<KohaPatronsList> getPatronByCardnumber(String cardnumber) {
-		return get("/api/v1/patrons", KohaPatronsList.class, Map.of("cardnumber", cardnumber));
+	default Mono<KohaPatron[]> getPatronByCardnumber(String cardnumber) {
+		return get("/api/v1/patrons", KohaPatron[].class, Map.of("cardnumber", cardnumber, "_match", "exact"));
 	}
 
 	/**
@@ -102,6 +105,24 @@ public interface KohaApiClient {
 	 */
 	default Mono<KohaPatron> updatePatron(String patronId, KohaPatron patron) {
 		return put("/api/v1/patrons/" + patronId, patron, KohaPatron.class);
+	}
+
+	/**
+	 * A patron's current loans with the item and its biblio embedded.
+	 * API: GET /api/v1/patrons/{patron_id}/checkouts
+	 */
+	default Mono<KohaCheckout[]> getPatronCheckouts(String patronId, int maxRows) {
+		return get("/api/v1/patrons/" + patronId + "/checkouts", KohaCheckout[].class,
+			Map.of("_per_page", maxRows), Map.of("x-koha-embed", "item.biblio"));
+	}
+
+	/**
+	 * A patron's balance with its outstanding lines. Needs updatecharges, which the API
+	 * patron may not hold.
+	 * API: GET /api/v1/patrons/{patron_id}/account
+	 */
+	default Mono<KohaPatronBalance> getPatronBalance(String patronId) {
+		return get("/api/v1/patrons/" + patronId + "/account", KohaPatronBalance.class);
 	}
 
 	/** Authenticate a patron
@@ -161,6 +182,22 @@ public interface KohaApiClient {
 	}
 
 	/**
+	 * One item with its checkout, transfer and first hold. Only the per-biblio list offers
+	 * those embeds, so the item is selected from it with Koha's q filter.
+	 * API: GET /api/v1/biblios/{biblio_id}/items?q={"item_id":N}
+	 */
+	default Mono<KohaItem[]> getItemCirculation(String biblioId, String itemId) {
+		return get("/api/v1/biblios/" + biblioId + "/items", KohaItem[].class,
+			Map.of("q", itemFilter(itemId)), Map.of("x-koha-embed", CIRCULATION_EMBEDS));
+	}
+
+	String CIRCULATION_EMBEDS = "checkout,transfer,first_hold";
+
+	static String itemFilter(String itemId) {
+		return "{\"item_id\":" + itemId + "}";
+	}
+
+	/**
 	 * The vocabularies a mapping is built from. Each returns a bare array rather than a
 	 * wrapped list, which is what the Koha REST spec declares for all three. '_per_page=-1'
 	 * because Koha otherwise returns its default page of 20, and every value past it would
@@ -190,25 +227,14 @@ public interface KohaApiClient {
 		return get("/api/v1/libraries", KohaLibrary[].class, Map.of("_per_page", -1));
 	}
 
-	/**
-	 * Find a list of items in Koha by the given criteria
-	 * API: <a href="https://api.koha-community.org/#tag/items/operation/listItems">...</a>
-	 * @param query The query to get the items
-	 * @return A list of Koha items filtered by the query
-	 */
-	default Mono<KohaItemsList> getItems(String query) {
-		// This will need to take a variety of parameters
-		// Get items for bibs, libraries etc
-		return get("/api/v1/items?q=" + query, KohaItemsList.class);
-	}
 
 
 	/**
 	 * Search for items by barcode (external_id).
 	 * API: GET /api/v1/items?external_id={barcode}
 	 */
-	default Mono<KohaItemsList> getItemByBarcode(String barcode) {
-		return get("/api/v1/items", KohaItemsList.class, Map.of("external_id", barcode));
+	default Mono<KohaItem[]> getItemByBarcode(String barcode) {
+		return get("/api/v1/items", KohaItem[].class, Map.of("external_id", barcode, "_match", "exact"));
 	}
 
 	/**
@@ -220,15 +246,23 @@ public interface KohaApiClient {
 	}
 
 	/**
+	 * A hold Koha has finished with, filled or cancelled, which only the list reports.
+	 * API: GET /api/v1/holds?hold_id={hold_id}&old=true
+	 */
+	default Mono<KohaHoldResponse[]> getOldHold(String holdId) {
+		return get("/api/v1/holds", KohaHoldResponse[].class, Map.of("hold_id", holdId, "old", true));
+	}
+
+	/**
 	 * Get items for a biblio.
 	 * Passes the x-koha-embed header to retrieve current checkouts, which is what we need for due dates. Good example of using x-koha-embed.
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/biblios/operation/getBiblioItems">Getting items for a biblio</a>
 	 * </p>
 	 */
-	default Mono<KohaItem[]> getItemsForBiblio(String biblioId) {
+	default Mono<KohaItem[]> getItemsForBiblio(String biblioId, int page, int perPage) {
 		return get("/api/v1/biblios/" + biblioId + "/items", KohaItem[].class,
-			Collections.emptyMap(), Map.of("x-koha-embed", "checkout"));
+			Map.of("_page", page, "_per_page", perPage), Map.of("x-koha-embed", "checkout"));
 	}
 
 	/**
@@ -284,6 +318,16 @@ public interface KohaApiClient {
 	 */
 	default Mono<KohaHoldResponse> placeHoldRequest(KohaHoldRequest request) {
 		return post("/api/v1/holds", request, KohaHoldResponse.class);
+	}
+
+	/**
+	 * A hold placed past the patron's own blocks (expiry, debt, restriction, hold limit,
+	 * lost card, bad address). Circulation rules still apply.
+	 * API: POST /api/v1/holds with x-koha-override: any
+	 */
+	default Mono<KohaHoldResponse> placeHoldRequestOverridingPatronBlocks(KohaHoldRequest request) {
+		return post("/api/v1/holds", request, KohaHoldResponse.class, Collections.emptyMap(),
+			Map.of("x-koha-override", "any"));
 	}
 
 	/**
