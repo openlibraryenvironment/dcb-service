@@ -18,12 +18,13 @@ import java.util.Map;
 
 import org.mockserver.client.MockServerClient;
 import org.mockserver.matchers.MatchType;
+import org.mockserver.matchers.TimeToLive;
 import org.mockserver.matchers.Times;
 import org.mockserver.mock.action.ExpectationResponseCallback;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.NottableString;
+import org.mockserver.model.HttpResponse;
 import org.mockserver.verify.VerificationTimes;
-import org.olf.dcb.core.interaction.koha.dto.KohaBiblio;
 import org.olf.dcb.core.interaction.koha.dto.KohaCheckout;
 import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
@@ -254,8 +255,17 @@ public class MockKohaFixture {
 		return "/api/v1/patrons/%s".formatted(patronId);
 	}
 
-	public void mockCreateBib(KohaBiblio created) {
-		mockServer.mock(commonRequests.post("/api/v1/biblios"), okJson(created));
+	/** Koha answers a new bib with its biblionumber alone, and only when told it is not a duplicate. */
+	public void mockCreateBib(long biblioId) {
+		mockServer.mock(createBibRequest(), okJson(Map.of("id", biblioId)));
+	}
+
+	public void mockCreateBibWithoutId() {
+		mockServer.mock(createBibRequest(), okJson(Map.of()));
+	}
+
+	private HttpRequest createBibRequest() {
+		return commonRequests.post("/api/v1/biblios").withHeader("x-confirm-not-duplicate", "1");
 	}
 
 	/** The virtual item's state as the request progresses: the latest answer replaces the last. */
@@ -598,23 +608,36 @@ public class MockKohaFixture {
 			okJson(items));
 	}
 
+	/** A hold Koha is still working on, as the holds list reports it. */
 	public void mockHold(KohaHoldResponse hold) {
-		mockServer.mock(commonRequests.get(holdPath(String.valueOf(hold.getHoldId()))), okJson(hold));
+		answerHoldRead("current", currentHoldRequest(String.valueOf(hold.getHoldId())),
+			okJson(new KohaHoldResponse[] { hold }));
 	}
 
-	/** Koha's answer for a hold it has moved to old_reserves, or never had. */
+	/** The current list no longer has the hold: Koha has filled or cancelled it, or never had it. */
 	public void mockHoldNotFound(String holdId) {
-		mockServer.mock(commonRequests.get(holdPath(holdId)),
-			notFound(Map.of("error", "Hold not found")));
+		answerHoldRead("current", currentHoldRequest(holdId), okJson(new KohaHoldResponse[0]));
 	}
 
 	public void mockHoldServerError(String holdId) {
-		mockServer.mock(commonRequests.get(holdPath(holdId)), serverError());
+		answerHoldRead("current", currentHoldRequest(holdId), serverError());
 	}
 
 	/** The old-holds list, which is the only place a filled or cancelled hold still appears. */
 	public void mockOldHold(String holdId, KohaHoldResponse... oldHolds) {
-		mockServer.mock(oldHoldRequest(holdId), okJson(oldHolds));
+		answerHoldRead("old", oldHoldRequest(holdId), okJson(oldHolds));
+	}
+
+	// Above mockNoActiveHolds, which matches the same path, and replaced by id as the hold moves on
+	private void answerHoldRead(String list, HttpRequest request, HttpResponse response) {
+		client.when(request, Times.unlimited(), TimeToLive.unlimited(), 10)
+			.withId("koha-%s-hold-%s-%s".formatted(list, host, request.getFirstQueryStringParameter("hold_id")))
+			.respond(response);
+	}
+
+	private HttpRequest currentHoldRequest(String holdId) {
+		return commonRequests.get(HOLDS_PATH, "hold_id", holdId)
+			.withQueryStringParameter("old", "false");
 	}
 
 	public void verifyOldHoldNeverRead(String holdId) {
@@ -660,14 +683,14 @@ public class MockKohaFixture {
 
 	/** The hold's state as the request progresses: the latest answer replaces the last. */
 	public void replaceHold(KohaHoldResponse hold) {
-		mockServer.replaceMock(commonRequests.get(holdPath(String.valueOf(hold.getHoldId()))), okJson(hold));
+		mockHold(hold);
 	}
 
-	/** Koha has filled or cancelled the hold: the live read answers 404 and the old list has it. */
+	/** Koha has filled or cancelled the hold: the current list leaves it out and the old list has it. */
 	public void replaceHoldWithOldHold(KohaHoldResponse oldHold) {
 		final var holdId = String.valueOf(oldHold.getHoldId());
 
-		mockServer.replaceMock(commonRequests.get(holdPath(holdId)), notFound(Map.of("error", "Hold not found")));
+		mockHoldNotFound(holdId);
 		mockOldHold(holdId, oldHold);
 	}
 

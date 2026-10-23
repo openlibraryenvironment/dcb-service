@@ -47,7 +47,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.koha.MockKohaFixture;
-import org.olf.dcb.core.interaction.koha.dto.KohaBiblio;
 import org.olf.dcb.core.interaction.koha.dto.KohaCheckout;
 import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
@@ -495,7 +494,7 @@ class KohaBorrowerScenarioTests {
 		koha.mockNoActiveHolds();
 		// Resolution checks whether the supplier's copy is already a virtual item here
 		koha.mockNoItemWithBarcode(SUPPLIER_ITEM_LOCAL_ID + "-i0");
-		koha.mockCreateBib(KohaBiblio.builder().biblioId(Integer.valueOf(VIRTUAL_BIBLIO_ID)).build());
+		koha.mockCreateBib(Long.parseLong(VIRTUAL_BIBLIO_ID));
 		koha.mockCreateItem(VIRTUAL_BIBLIO_ID, virtualItem().build());
 		koha.mockHold(KohaHoldResponse.builder()
 			.holdId(Long.valueOf(HOLD_ID))
