@@ -20,7 +20,9 @@ import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.rules.AnnotatedObject;
 import org.olf.dcb.rules.ObjectRuleset;
 import org.olf.dcb.rules.ObjectRulesService;
+import org.olf.dcb.core.interaction.foundation.NcipAdaptor;
 import org.zalando.problem.Problem;
+import org.zalando.problem.Status;
 import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,10 +36,14 @@ import java.util.Date;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.micrometer.common.util.StringUtils.isBlank;
 import static java.lang.Boolean.FALSE;
@@ -54,6 +60,69 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * to make this code easier to scan.
  * Please respect the ordering if adding new methods, as it makes maintaining this a lot easier.
  * If you are unsure of where a new method belongs, put it under 'General'
+ *
+ * <h2>Hold states</h2>
+ * <p>Koha's hold {@code status} is {@code reserves.found}: null until the hold is filled,
+ * {@code T} in transit to the pickup branch, {@code P} in processing there, {@code W} waiting
+ * on the shelf. An item-level hold is CONFIRMED from the moment it exists; T and P are TRANSIT
+ * and W is READY. A hold is read through the holds list, {@code GET /holds?hold_id=}, as Koha
+ * has no single-hold read. A filled or cancelled hold moves to {@code old_reserves}, after
+ * which the current list leaves it out and only {@code GET /holds?hold_id=&old=true} lists it:
+ * CANCELLED with a cancellation date, MISSING without. A Koha failure is an error, never MISSING.
+ *
+ * <h2>Item states</h2>
+ * <p>Koha has no item status column. Lost and withdrawn are flags on the item; on loan, in
+ * transit and on the hold shelf exist only as a checkout, a transfer sent and not arrived, and a
+ * waiting first hold, which is why the item reads embed {@code checkout,transfer,first_hold}. A
+ * not-for-loan item is LIBRARY_USE_ONLY, not MISSING: MISSING would strand a request in LOANED
+ * once the patron returned the item. The hold count is one with a first hold and zero without,
+ * never Koha's {@code holds_count}, a lifetime tally that includes the virtual patron's own hold.
+ *
+ * <h2>Patrons</h2>
+ * <p>A patron read carries Koha's {@code restricted} and {@code patron_card_lost} as a block and
+ * the expiry date as the end of the day Koha gives; debt is left to Koha, whose refusal at hold
+ * placement reaches the patron as a named problem. The virtual patron is found by
+ * {@code userid}, which is DCB's unique id ({@code localId@agencyCode}, too long for Koha's
+ * 32-character {@code cardnumber}); it has no card, and an update never sends the read-only
+ * {@code expired} and {@code restricted}.
+ *
+ * <h2>Lending</h2>
+ * <p>A supplier request is one virtual patron at the sharing branch, one item-level hold for it
+ * on the real item with the sharing branch as pickup and {@code x-koha-override: any}, and later
+ * one checkout. Koha answers that checkout with a 412 because the item is in transit for a hold;
+ * {@code checkOutItemToPatron} confirms TRANSFERRED, RESERVED and RESERVE_WAITING and raises any
+ * other confirmation or blocker as a problem naming it. The checkout fills the hold, which then
+ * reads as MISSING, so cleanup does not try to delete it. Cleanup deletes the hold, the item and
+ * then the bib, the order Koha's 409 rules need; a 404 on any of the three counts as deleted.
+ *
+ * <h2>Check-in</h2>
+ * <p>Koha's REST API has no check-in. {@code checkInItem} links the virtual item into the bundle
+ * host item named by {@code bundle-host-barcode}, with {@code force_checkin} and
+ * {@code ignore_holds}, which returns it through {@code C4::Circulation::AddReturn}, and unlinks
+ * it again. {@code already_bundled} means an earlier attempt returned the item and only the unlink
+ * is left; a 404 on the unlink is a link already gone. With {@code ncip-checkin-fallback} on, and
+ * only once the bundle route has failed, it sends an NCIP CheckInItem with the virtual item's
+ * barcode through {@code NcipAdaptor}; "Item Not Checked Out" counts as checked in. Neither the
+ * NCIP address nor its token reaches a log or a problem.
+ *
+ * <h2>Item suppression</h2>
+ * <p>A suppressed item is mapped, flagged and dropped at availability time; the bib stays. The
+ * ruleset is the Host LMS's {@code itemSuppressionRulesetName}, or {@code koha-item-default}
+ * (not-for-loan or restricted 42). Its subject is a {@code KohaItem} bean, so a condition names
+ * the Java property ({@code notForLoanStatus}), not the Koha column: a snake_case name does not
+ * resolve, and an unresolved property silently includes every item. A withdrawn item is
+ * suppressed in code whatever the ruleset says. Unless {@code honour-opac-hidden-items} is
+ * {@code false}, {@code getItems} also reads {@code /public/biblios/{id}/items}, anonymously on
+ * purpose because the API patron's category may override {@code OpacHiddenItems}; an item missing
+ * from it is suppressed, and a refused public read fails availability for this Koha rather than
+ * offer copies it cannot see are hidden.
+ *
+ * <h2>Bounds and gaps</h2>
+ * <p>Items are read {@code ITEMS_PAGE_SIZE} a page up to {@code MAX_ITEMS_PER_BIBLIO} a bib, with
+ * {@code ITEM_ENRICHMENT_CONCURRENCY} hold reads at a time; vocabularies are cut at
+ * {@code ConfigurationReport.MAX_VOCABULARY_ENTRIES}; the token is one per Host LMS per expiry.
+ * {@code supplierPreflight} and {@code checkRequestOptions} are not implemented, and check-in
+ * over SIP2 is not available.
  * */
 
 @Slf4j
@@ -69,6 +138,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private final RulesetCacheInvalidator cacheInvalidator;
 	private final HostLmsService hostLmsService;
 	private final KohaClientConfig config;
+	// Null unless ncip-checkin-fallback is on with its address and token
+	private final NcipAdaptor ncipCheckIn;
 
 
 
@@ -133,6 +204,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// definition and its only constructor takes the HostLms, so it could never have
 		// been satisfied as an injection point.
 		this.config = new KohaClientConfig(hostLms);
+
+		final var ncipEndpoint = config.isNcipCheckInFallbackEnabled() ? config.getNcipCheckInEndpoint() : null;
+		this.ncipCheckIn = ncipEndpoint == null ? null
+			: kohaClientFactory.createNcipClientFor(ncipEndpoint, hostLms.getCode());
 		}
 
 	/*** General operations - are we missing any? A version check would be useful. possibly implementer also***/
@@ -203,7 +278,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 		// For creating a virtual patron
-		log.info("Attempting to create a patron for Koha with Patron: {}", patron);
+		log.info("Creating a virtual patron in {}", getHostLmsCode());
 
 		// Extract names
 		String firstName = (patron.getLocalNames() != null && !patron.getLocalNames().isEmpty())
@@ -221,8 +296,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		String categoryId = patron.getLocalPatronType() != null
 			? patron.getLocalPatronType() : config.getVirtualPatronCategory();
 
+		// The unique id is the borrower's id and agency code, which overruns Koha's 32-character
+		// cardnumber; userid takes 75. The virtual patron has no card
 		final var kohaPatron = KohaPatron.builder()
-			.cardnumber(patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()
+			.userid(patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()
 				? patron.getUniqueIds().get(0) : null)
 			.surname(lastName)
 			.firstname(firstName)
@@ -274,14 +351,14 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<Patron> findVirtualPatron(org.olf.dcb.core.model.Patron patron) {
-		log.info("Finding virtual patron {}", patron);
+		log.info("Finding virtual patron for DCB patron {} in {}", getValueOrNull(patron, org.olf.dcb.core.model.Patron::getId), getHostLmsCode());
 
 		final var uniqueId = getValueOrNull(patron, org.olf.dcb.core.model.Patron::determineUniqueId);
 		if (uniqueId == null) {
 			return Mono.error(new IllegalArgumentException("Unable to find uniqueId for virtual patron"));
 		}
 
-		return client.getPatronByCardnumber(uniqueId)
+		return client.getPatronByUserId(uniqueId)
 			.filter(patrons -> patrons.length > 0)
 			.map(patrons -> mapKohaPatronToDcbPatron(patrons[0]))
 			.switchIfEmpty(Mono.error(VirtualPatronNotFound.builder()
@@ -478,7 +555,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private Patron mapKohaPatronToDcbPatron(KohaPatron kohaPatron) {
 		return Patron.builder()
 			.localId(List.of(String.valueOf(kohaPatron.getPatronId())))
-			.localNames(List.of(kohaPatron.getFirstname(), kohaPatron.getSurname()))
+			// Both names are nullable in Koha's schema
+			.localNames(Stream.of(kohaPatron.getFirstname(), kohaPatron.getSurname()).filter(Objects::nonNull).toList())
 			.localBarcodes(kohaPatron.getCardnumber() != null ? List.of(kohaPatron.getCardnumber()) : List.of())
 			.localPatronType(kohaPatron.getCategoryId())
 			// The Koha branch is the only thing distinguishing co-tenant libraries on a
@@ -523,8 +601,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 		final String kohaBibXml = KohaMarcXmlGenerator.createBibXml(title, author);
 
 		return client.createBibRecord(kohaBibXml)
-			.map(kohaBiblio -> String.valueOf(kohaBiblio.getBiblioId()))
-			.doOnSuccess(id -> log.info("Successfully created Koha virtual bib with ID: {}", id))
+			.mapNotNull(KohaCreatedBiblio::id)
+			.map(String::valueOf)
+			.switchIfEmpty(Mono.error(new IllegalStateException(
+				"Koha created the virtual bib but did not say its id")))
+			.doOnSuccess(id -> log.info("Created Koha virtual bib {}", id))
 			.doOnError(e -> log.error("Failed to create Koha virtual bib: {}", e.getMessage()));
 	}
 
@@ -598,7 +679,9 @@ public class KohaHostLmsClient implements HostLmsClient {
 				? checkout.getRenewalsCount()
 				: kohaItem.getRenewalsCount())
 			.dueDate(checkout == null ? null : DueDates.parse(checkout.getDueDate()))
-			.holdCount(kohaItem.getHoldCount())
+			// holds_count is the lifetime tally, which the virtual patron's own hold is part of;
+			// a first hold on a lent item is someone waiting for it now
+			.holdCount(kohaItem.getFirstHold() != null ? 1 : 0)
 			.holdingId(kohaItem.getHoldingLibraryId())
 			.build();
 	}
@@ -667,35 +750,18 @@ public class KohaHostLmsClient implements HostLmsClient {
 		}
 	}
 
+	// The tracking read's view of the item, so that availability and tracking agree. An item in
+	// transit or waiting for another patron is not offered: a hold on it queues behind theirs
 	private ItemStatusCode deriveItemStatus(KohaItem item) {
-		// Think about these
-		// Do Koha libraries have a restricted status they would use for suppression? Or do they use not for loan
-		// We could standardise on a restricted status of X. Note a non zero value blocks checkouts/holds
-		// Maybe a not for loan would work https://bywatersolutions.com/education/an-overview-of-item-statuses
-		// i.e. not for loan of 42 = suppressed from DCB?
-		// Or we use a collection code of NOT_FOR_DCB or something similar. Talk to libraries
-		// Other options: notes, restricted statuses
-
-		if (item.getCheckout() != null) {
-			return ItemStatusCode.CHECKED_OUT;
-		}
-		if (item.getWithdrawn() != null && item.getWithdrawn() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-		if (item.getLostStatus() != null && item.getLostStatus() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-		if (item.getDamagedStatus() != null && item.getDamagedStatus() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-		if (item.getNotForLoanStatus() != null && item.getNotForLoanStatus() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-		if (item.getRestrictedStatus() != null && item.getRestrictedStatus() > 0) {
-			return ItemStatusCode.UNAVAILABLE;
-		}
-
-		return ItemStatusCode.AVAILABLE;
+		return switch (KohaItemCirculation.of(item)) {
+			case CHECKED_OUT -> ItemStatusCode.CHECKED_OUT;
+			// Koha refuses a checkout for restricted 1 only; other values are the site's own
+			case AVAILABLE -> KohaItemCirculation.isSet(item.getDamagedStatus())
+				|| Integer.valueOf(1).equals(item.getRestrictedStatus())
+				? ItemStatusCode.UNAVAILABLE
+				: ItemStatusCode.AVAILABLE;
+			default -> ItemStatusCode.UNAVAILABLE;
+		};
 	}
 
 	/**
@@ -718,9 +784,9 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// Resolved once per call rather than per item. The accessor caches, so per item
 		// would also be cheap, but the ruleset cannot change midway through one bib's
 		// items and reading it once says so.
-		return getLmsItemSuppressionRuleset()
-			.flatMap(itemSuppressionRules -> allItemsForBiblio(bibId)
-				.flatMap(kohaItem -> mapKohaItemToDcbItem(kohaItem, itemSuppressionRules),
+		return Mono.zip(getLmsItemSuppressionRuleset(), opacVisibleItemIds(bibId))
+			.flatMap(rulesAndVisible -> allItemsForBiblio(bibId)
+				.flatMap(kohaItem -> mapKohaItemToDcbItem(kohaItem, rulesAndVisible.getT1(), rulesAndVisible.getT2()),
 					ITEM_ENRICHMENT_CONCURRENCY)
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()),
 					ITEM_ENRICHMENT_CONCURRENCY)
@@ -730,10 +796,53 @@ public class KohaHostLmsClient implements HostLmsClient {
 				.collectList());
 	}
 
-	// Pages until a short page or the cap; a title past the cap is reported, not read on
 	private Flux<KohaItem> allItemsForBiblio(String bibId) {
+		return pagedItems(bibId, client::getItemsForBiblio);
+	}
+
+	/**
+	 * The ids of the biblio's items Koha's OPAC shows, empty when this Host LMS does not honour
+	 * OpacHiddenItems. Same pages and cap as the staff read, so an item past the cap is treated as
+	 * hidden. A refused read fails the availability check rather than offer what the library hides.
+	 */
+	private Mono<Optional<Set<Long>>> opacVisibleItemIds(String bibId) {
+		if (!config.honoursOpacHiddenItems()) {
+			return Mono.just(Optional.empty());
+		}
+
+		return pagedItems(bibId, client::getOpacVisibleItemsForBiblio)
+			.map(KohaItem::getItemId)
+			.filter(Objects::nonNull)
+			.collect(Collectors.toUnmodifiableSet())
+			.map(Optional::of)
+			// The biblio is gone: the staff read finds nothing either
+			.onErrorResume(KohaHostLmsClient::isNotFound, gone -> Mono.just(Optional.of(Set.of())))
+			.onErrorMap(error -> !isNotFound(error), this::opacVisibilityUnreadable);
+	}
+
+	private ThrowableProblem opacVisibilityUnreadable(Throwable error) {
+		log.error("Koha at {} would not say which copies its OPAC hides", getHostLmsCode(), error);
+
+		return Problem.builder()
+			.withTitle("Koha would not say which copies its OPAC hides")
+			.withStatus(Status.BAD_GATEWAY)
+			.withDetail("The anonymous read of %s's public items failed: %s"
+				.formatted(getHostLmsCode(), kohaErrorMessage(error)))
+			.with("remedy", "Turn on RESTPublicAPI and RESTPublicAnonymousRequests, or set "
+				+ "honour-opac-hidden-items to false and mirror OpacHiddenItems in the item ruleset")
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	@FunctionalInterface
+	private interface ItemPageReader {
+		Mono<KohaItem[]> read(String biblioId, int page, int perPage);
+	}
+
+	// Pages until a short page or the cap; a title past the cap is reported, not read on
+	private Flux<KohaItem> pagedItems(String bibId, ItemPageReader readPage) {
 		return Flux.range(1, MAX_ITEMS_PER_BIBLIO / ITEMS_PAGE_SIZE)
-			.concatMap(page -> client.getItemsForBiblio(bibId, page, ITEMS_PAGE_SIZE)
+			.concatMap(page -> readPage.read(bibId, page, ITEMS_PAGE_SIZE)
 				.defaultIfEmpty(new KohaItem[0]))
 			.takeUntil(page -> page.length < ITEMS_PAGE_SIZE)
 			.flatMapIterable(Arrays::asList)
@@ -798,9 +907,14 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 * unreadable or missing ruleset must not silently empty a library's availability.
 	 */
 	private boolean deriveItemSuppressedFlag(KohaItem kohaItem,
-		Optional<ObjectRuleset> itemSuppressionRules) {
+		Optional<ObjectRuleset> itemSuppressionRules, Optional<Set<Long>> opacVisible) {
 
 		if (kohaItem.getWithdrawn() != null && kohaItem.getWithdrawn() > 0) {
+			return true;
+		}
+
+		if (opacVisible.isPresent() && !opacVisible.get().contains(kohaItem.getItemId())) {
+			log.debug("Koha item {} is hidden from the OPAC, so not offered", kohaItem.getItemId());
 			return true;
 		}
 
@@ -919,7 +1033,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 	}
 
 	private Mono<Item> mapKohaItemToDcbItem(KohaItem kohaItem,
-		Optional<ObjectRuleset> itemSuppressionRules) {
+		Optional<ObjectRuleset> itemSuppressionRules, Optional<Set<Long>> opacVisible) {
 		final String itemId = String.valueOf(kohaItem.getItemId());
 		final String bibId = String.valueOf(kohaItem.getBiblioId());
 
@@ -959,7 +1073,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 				// ruleset. The not_for_loan_status 42 convention that used to be hardcoded
 				// here now lives in the koha-item-default ruleset, so a library that uses a
 				// different value can say so in config instead of asking for a release.
-				Boolean isSuppressed = deriveItemSuppressedFlag(kohaItem, itemSuppressionRules);
+				Boolean isSuppressed = deriveItemSuppressedFlag(kohaItem, itemSuppressionRules, opacVisible);
 
 				return Item.builder()
 					.localId(itemId)
@@ -1000,6 +1114,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 		log.info("Koha: Deleting item: {}", itemId);
 		return client.deleteItem(itemId)
 			.thenReturn("OK")
+			// Gone already, as an NCIP responder with delete_item_on_checkin leaves it
+			.onErrorResume(KohaHostLmsClient::isNotFound, gone -> {
+				log.info("Koha item {} is already deleted", itemId);
+				return Mono.just("OK");
+			})
 			.doOnError(e -> log.error("Failed to delete Koha item {}: {}", itemId, e.getMessage()));
 	}
 
@@ -1085,10 +1204,131 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return Mono.zip(
 				emptyWhenUnreadable(MappingVocabulary.ITEM_TYPE),
 				emptyWhenUnreadable(MappingVocabulary.PATRON_TYPE),
-				librariesOrEmpty())
-			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3()))
+				librariesOrEmpty(),
+				systemPreferences(),
+				opacVisibilityCheck(),
+				bundleHostCheck(),
+				ncipFallbackCheck())
+			.map(answers -> buildConfigurationReport(answers.getT1(), answers.getT2(), answers.getT3())
+				.withChecks(preferenceChecks(answers.getT4()))
+				.withChecks(List.of(answers.getT5(), answers.getT6(), answers.getT7())))
 			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(getHostLmsCode(),
 				"Could not read configuration from Koha: " + error.getMessage())));
+	}
+
+	private Mono<ConfigurationReport.Check> ncipFallbackCheck() {
+		final var setting = "ncip-checkin-fallback";
+
+		if (!config.isNcipCheckInFallbackEnabled()) {
+			return Mono.just(new ConfigurationReport.Check(setting, "false",
+				ConfigurationReport.CheckResult.NOT_CONFIGURED, "Off: the bundle route is the only check-in"));
+		}
+
+		if (ncipCheckIn == null) {
+			return Mono.just(new ConfigurationReport.Check(setting, "true", ConfigurationReport.CheckResult.MISSING,
+				"On without ncip-checkin-url and ncip-checkin-token"));
+		}
+
+		return ncipCheckIn.isAvailable()
+			.map(answered -> answered
+				? new ConfigurationReport.Check(setting, "true", ConfigurationReport.CheckResult.PRESENT, null)
+				: new ConfigurationReport.Check(setting, "true", ConfigurationReport.CheckResult.MISSING,
+					"The NCIP responder did not answer LookupVersion, or refused the token"));
+	}
+
+	private Mono<ConfigurationReport.Check> bundleHostCheck() {
+		final var setting = "bundle-host-barcode";
+		final var hostBarcode = config.getBundleHostBarcode();
+
+		if (hostBarcode == null) {
+			return Mono.just(new ConfigurationReport.Check(setting, null,
+				ConfigurationReport.CheckResult.NOT_CONFIGURED,
+				"Not set: DCB cannot check a virtual item in, so pickup anywhere and walk-up with this Koha as the borrower stop at the return"));
+		}
+
+		return client.getItemByBarcode(hostBarcode)
+			.map(found -> found.length > 0
+				? new ConfigurationReport.Check(setting, hostBarcode, ConfigurationReport.CheckResult.PRESENT, null)
+				: new ConfigurationReport.Check(setting, hostBarcode, ConfigurationReport.CheckResult.MISSING,
+					"No item in Koha has this barcode"))
+			.defaultIfEmpty(new ConfigurationReport.Check(setting, hostBarcode,
+				ConfigurationReport.CheckResult.MISSING, "No item in Koha has this barcode"))
+			.onErrorResume(error -> Mono.just(new ConfigurationReport.Check(setting, hostBarcode,
+				ConfigurationReport.CheckResult.UNKNOWN, "Could not read the item: " + kohaErrorMessage(error))));
+	}
+
+	private Mono<ConfigurationReport.Check> opacVisibilityCheck() {
+		final var setting = "honour-opac-hidden-items";
+
+		if (!config.honoursOpacHiddenItems()) {
+			return Mono.just(new ConfigurationReport.Check(setting, "false",
+				ConfigurationReport.CheckResult.NOT_CONFIGURED,
+				"Off: copies OpacHiddenItems hides are offered unless the item ruleset mirrors it"));
+		}
+
+		final var reachable = new ConfigurationReport.Check(setting, "true",
+			ConfigurationReport.CheckResult.PRESENT, null);
+
+		return client.getOnePublicLibrary()
+			.map(answered -> reachable)
+			.defaultIfEmpty(reachable)
+			.onErrorResume(error -> Mono.just(new ConfigurationReport.Check(setting, "true",
+				ConfigurationReport.CheckResult.MISSING,
+				"The anonymous public API is refused (RESTPublicAPI or RESTPublicAnonymousRequests off), so every availability check for this Koha fails")));
+	}
+
+	// Read on Koha 26.05 and later; an older Koha answers 404 and the API patron may lack
+	// manage_sysprefs, so an unreadable preference is simply absent from the map
+	private static final List<String> PREFERENCES_DCB_DEPENDS_ON = List.of(
+		"AllowHoldPolicyOverride", "IndependentBranches", "canreservefromotherbranches",
+		"ItemsDeniedRenewal", "OpacSuppression", "ReservesNeedReturns");
+
+	private Mono<Map<String, String>> systemPreferences() {
+		return Flux.fromIterable(PREFERENCES_DCB_DEPENDS_ON)
+			.concatMap(name -> Mono.defer(() -> client.getSystemPreference(name))
+				.filter(found -> found.length > 0 && found[0].getValue() != null)
+				.map(found -> Map.entry(name, found[0].getValue()))
+				.onErrorResume(error -> Mono.empty()))
+			.collectMap(Map.Entry::getKey, Map.Entry::getValue);
+	}
+
+	/**
+	 * What DCB needs each preference to say, and what it costs when it does not. PRESENT means
+	 * "as DCB needs it", MISSING "not as DCB needs it", UNKNOWN "this Koha did not say".
+	 */
+	private List<ConfigurationReport.Check> preferenceChecks(Map<String, String> preferences) {
+		final var independentBranches = "1".equals(preferences.get("IndependentBranches"));
+
+		return List.of(
+			preferenceCheck(preferences, "AllowHoldPolicyOverride", value -> "1".equals(value),
+				"Off: DCB's override of its own virtual patron's blocks on supplier and pickup holds has no effect"),
+			preferenceCheck(preferences, "IndependentBranches", value -> !"1".equals(value),
+				"On: the API patron must act across branches (superlibrarian), or holds and item edits for other branches are refused"),
+			preferenceCheck(preferences, "canreservefromotherbranches",
+				value -> !independentBranches || "1".equals(value),
+				"Off with IndependentBranches on: a patron may hold only their own branch's items, so supplier holds and co-tenant local requests are refused"),
+			preferenceCheck(preferences, "ItemsDeniedRenewal",
+				value -> value.contains("ccode") && value.contains(config.getNoRenewCollectionCode()),
+				"Does not list ccode: [" + config.getNoRenewCollectionCode() + "], so renewal prevention fails on first use"),
+			preferenceCheck(preferences, "OpacSuppression", value -> "1".equals(value),
+				"Off: hidden records and DCB's virtual bibs show in the OPAC"),
+			preferenceCheck(preferences, "ReservesNeedReturns", value -> "1".equals(value),
+				"Automatic: a hold on a shelved item is waiting at placement and never transits to the sharing branch"));
+	}
+
+	private static ConfigurationReport.Check preferenceCheck(Map<String, String> preferences,
+		String name, java.util.function.Predicate<String> asDcbNeedsIt, String whenNot) {
+
+		final var value = preferences.get(name);
+
+		if (value == null) {
+			return new ConfigurationReport.Check(name, null, ConfigurationReport.CheckResult.UNKNOWN,
+				"Not readable: Koha before 26.05 has no system preference route, or the API patron lacks manage_sysprefs");
+		}
+
+		return asDcbNeedsIt.test(value)
+			? new ConfigurationReport.Check(name, value, ConfigurationReport.CheckResult.PRESENT, null)
+			: new ConfigurationReport.Check(name, value, ConfigurationReport.CheckResult.MISSING, whenNot);
 	}
 
 	// Read once: the branch list and which of them may be collected from come from the same call
@@ -1123,7 +1363,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 			vocabulary("Item types", itemTypes),
 			vocabulary("Patron categories", patronTypes),
 			vocabulary("Libraries", libraries),
-			vocabulary("Pickup libraries", pickupLibraries));
+			vocabulary(ConfigurationReport.PICKUP_VOCABULARY, pickupLibraries));
 
 		return new ConfigurationReport(getHostLmsCode(), ConfigurationReport.Status.CHECKED,
 			null, checks, vocabularies);
@@ -1162,6 +1402,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 		log.info("Koha: Deleting bib record: {}", id);
 		return client.deleteBib(id)
 			.thenReturn("OK")
+			.onErrorResume(KohaHostLmsClient::isNotFound, gone -> {
+				log.info("Koha bib {} is already deleted", id);
+				return Mono.just("OK");
+			})
 			.doOnError(e -> log.error("Failed to delete Koha bib {}: {}", id, e.getMessage()));
 	}
 
@@ -1191,36 +1435,252 @@ public class KohaHostLmsClient implements HostLmsClient {
 		}
 
 		log.info("Koha: Cancelling hold request: {}", localRequestId);
-		return client.deleteHold(localRequestId)
-			.thenReturn("OK")
+		return deleteHoldUnlessGone(localRequestId)
 			.doOnError(e -> log.error("Failed to cancel Koha hold {}: {}", localRequestId, e.getMessage()));
 	}
 
 	@Override
 	public Mono<String> checkOutItemToPatron(CheckoutItemCommand checkoutItemCommand) {
 		final String patronId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getPatronId);
+		final String itemId = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemId);
 		final String itemBarcode = getValueOrNull(checkoutItemCommand, CheckoutItemCommand::getItemBarcode);
 
-		if (itemBarcode.isBlank()|| patronId.isBlank()) {
-			return Mono.error(new IllegalArgumentException("Item barcode and Patron ID are required for Koha checkout"));
+		if (isBlank(patronId) || (isBlank(itemId) && isBlank(itemBarcode))) {
+			return Mono.error(new IllegalArgumentException(
+				"Patron ID and an item id or barcode are required for Koha checkout"));
 		}
 
-		log.info("Koha: Checking out item (barcode: {}) to patron {}", itemBarcode, patronId);
+		log.info("Koha: Checking out item {} (barcode {}) to patron {}", itemId, itemBarcode, patronId);
 
-		KohaCheckoutRequest req = new KohaCheckoutRequest(
-			Long.valueOf(patronId),
-			null,
-			itemBarcode
-		);
+		// item_id names the item outright; the barcode is the fallback for a caller that has
+		// nothing else
+		final var request = new KohaCheckoutRequest(Long.valueOf(patronId),
+			isBlank(itemId) ? null : Long.valueOf(itemId),
+			isBlank(itemId) ? itemBarcode : null);
 
-		return client.checkoutItem(req)
+		return client.checkoutItem(request)
+			.onErrorResume(KohaHostLmsClient::needsConfirmation,
+				needsConfirmation -> confirmCheckout(request, patronId, itemId))
 			.thenReturn("OK")
-			.doOnError(e -> log.error("Koha checkout failed for patron {} and item {}: {}", patronId, itemBarcode, e.getMessage()));
+			.doOnError(e -> log.error("Koha checkout of item {} to patron {} failed: {}",
+				itemId, patronId, e.getMessage()));
 	}
 
+	/**
+	 * The confirmations Koha asks staff for that a consortium loan always answers yes to:
+	 * the item is in transit to, reserved for, or waiting at the sharing branch for the very
+	 * patron it is being lent to. Any other confirmation, and any blocker, is a refusal.
+	 */
+	private static final Set<String> ACCEPTED_CHECKOUT_CONFIRMATIONS = Set.of(
+		"TRANSFERRED", "RESERVED", "RESERVE_WAITING");
+
+	// Koha answers 412 when staff would be asked to confirm; the availability read says what,
+	// and issues the token the confirmed checkout carries
+	private Mono<KohaCheckout> confirmCheckout(KohaCheckoutRequest request, String patronId, String itemId) {
+		if (isBlank(itemId)) {
+			return Mono.error(Problem.builder()
+				.withTitle("Koha wants the checkout confirmed")
+				.withStatus(Status.PRECONDITION_FAILED)
+				.withDetail("Koha asked for a confirmation before lending to patron %s in %s, and without the item id DCB cannot ask what"
+					.formatted(patronId, getHostLmsCode()))
+				.build());
+		}
+
+		return client.getCheckoutAvailability(patronId, itemId)
+			.flatMap(availability -> {
+				final var blockers = keysOf(availability.getBlockers());
+
+				if (!blockers.isEmpty()) {
+					return Mono.error(checkoutRefused("Koha refused the checkout", patronId, itemId,
+						"blocked", blockers));
+				}
+
+				final var confirms = keysOf(availability.getConfirms());
+				final var unaccepted = confirms.stream()
+					.filter(confirm -> !ACCEPTED_CHECKOUT_CONFIRMATIONS.contains(confirm))
+					.toList();
+
+				if (!unaccepted.isEmpty() || isBlank(availability.getConfirmationToken())) {
+					return Mono.error(checkoutRefused("Koha wants a confirmation DCB does not give",
+						patronId, itemId, "confirmations", unaccepted.isEmpty() ? confirms : unaccepted));
+				}
+
+				log.info("Koha: confirming checkout of item {} to patron {} over {}", itemId, patronId, confirms);
+
+				return client.checkoutItem(request, availability.getConfirmationToken());
+			});
+	}
+
+	private ThrowableProblem checkoutRefused(String title, String patronId, String itemId,
+		String parameter, List<String> reasons) {
+
+		return Problem.builder()
+			.withTitle(title)
+			.withStatus(Status.PRECONDITION_FAILED)
+			.withDetail("Koha did not lend item %s to patron %s in %s: %s"
+				.formatted(itemId, patronId, getHostLmsCode(), String.join(", ", reasons)))
+			.with(parameter, reasons)
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	private static List<String> keysOf(Map<String, Object> answers) {
+		return answers == null ? List.of() : List.copyOf(answers.keySet());
+	}
+
+	private static boolean needsConfirmation(Throwable error) {
+		return statusOf(error) == HttpStatus.PRECONDITION_FAILED.getCode();
+	}
+
+	/**
+	 * Koha's REST API has no check-in. Bundling an item with force_checkin returns it first, so
+	 * the virtual item is linked into the DCB bundle host item and unlinked again.
+	 * Called on a borrowing Koha in RET-PUA and RET-EXP only, for the virtual item DCB deletes
+	 * at finalisation.
+	 */
 	@Override
 	public Mono<String> checkInItem(CheckInItemCommand checkInItemCommand) {
-		return Mono.error(new NotImplementedException("This functionality has not yet been implemented for Koha"));
+		final String itemId = getValueOrNull(checkInItemCommand, CheckInItemCommand::getItemId);
+
+		if (isBlank(itemId)) {
+			return Mono.error(new IllegalArgumentException("Item ID is required to check a Koha item in"));
+		}
+
+		return bundleCheckIn(itemId)
+			.onErrorResume(bundleFailure -> ncipCheckIn != null,
+				bundleFailure -> ncipFallbackCheckIn(itemId, checkInItemCommand, bundleFailure));
+	}
+
+	private Mono<String> bundleCheckIn(String itemId) {
+		final var hostBarcode = config.getBundleHostBarcode();
+
+		if (hostBarcode == null) {
+			return Mono.error(checkInProblem("Koha check-in is not configured", itemId,
+				"no bundle-host-barcode", "Set bundle-host-barcode to a never-lent DCB item at the sharing branch"));
+		}
+
+		return Mono.zip(bundleHost(hostBarcode), client.getItem(itemId))
+			.flatMap(hostAndItem -> {
+				final var hostItemId = String.valueOf(hostAndItem.getT1().getItemId());
+
+				return client.addToBundle(hostItemId, hostAndItem.getT2().getExternalId())
+					.then()
+					// An earlier attempt bundled it, so the return happened; only the unlink is left
+					.onErrorResume(error -> "already_bundled".equals(kohaErrorCode(error)), bundled -> Mono.empty())
+					.then(client.removeFromBundle(hostItemId, itemId)
+						.onErrorResume(KohaHostLmsClient::isNotFound, unlinked -> Mono.empty()))
+					.thenReturn("OK");
+			})
+			.doOnSuccess(ok -> log.info("Koha item {} checked in at {} through bundle host {}",
+				itemId, getHostLmsCode(), hostBarcode))
+			.onErrorMap(error -> !(error instanceof ThrowableProblem problem
+					&& problem.getParameters().containsKey("checkInRemedy")),
+				error -> refusedCheckIn(itemId, hostBarcode, error));
+	}
+
+	/**
+	 * Only with ncip-checkin-fallback on, and only once the bundle route has failed, including
+	 * for want of a bundle host. The address and token never reach a log or a problem.
+	 */
+	private Mono<String> ncipFallbackCheckIn(String itemId, CheckInItemCommand command, Throwable bundleFailure) {
+		log.warn("Bundle check-in of Koha item {} at {} failed ({}); trying NCIP",
+			itemId, getHostLmsCode(), checkInReason(bundleFailure));
+
+		return virtualItemBarcode(itemId, command)
+			.flatMap(ncipCheckIn::checkInItem)
+			// Koha says the item is not on loan: it is already back, which is what was asked
+			.onErrorResume(error -> "Item Not Checked Out".equals(ncipProblemType(error)), back -> Mono.just("OK"))
+			.doOnSuccess(ok -> log.info("Koha item {} checked in at {} over NCIP", itemId, getHostLmsCode()))
+			.onErrorMap(ncipFailure -> checkInProblem("Koha would not check the item in by either route", itemId,
+				"bundle: " + checkInReason(bundleFailure) + "; NCIP: " + checkInReason(ncipFailure),
+				isRefusedCredential(ncipFailure)
+					? "The NCIP responder refused ncip-checkin-token; check it against the plugin's auth_token"
+					: "Check the item in by hand in Koha"));
+	}
+
+	// The command carries the lender's barcode, which the virtual item was created with
+	private Mono<String> virtualItemBarcode(String itemId, CheckInItemCommand command) {
+		final var barcode = getValueOrNull(command, CheckInItemCommand::getItemBarcode);
+
+		return !isBlank(barcode)
+			? Mono.just(barcode)
+			: client.getItem(itemId).mapNotNull(KohaItem::getExternalId);
+	}
+
+	private static String ncipProblemType(Throwable error) {
+		return error instanceof ThrowableProblem problem
+			? Objects.toString(problem.getParameters().get(NcipAdaptor.PROBLEM_TYPE), null)
+			: null;
+	}
+
+	private static boolean isRefusedCredential(Throwable error) {
+		return error instanceof HttpClientResponseException response
+			&& (response.getStatus().getCode() == 401 || response.getStatus().getCode() == 403);
+	}
+
+	// What a failure was, in words that cannot carry a request's address
+	private static String checkInReason(Throwable error) {
+		if (error instanceof ThrowableProblem problem) {
+			final var reason = problem.getParameters().get("reason");
+			final var ncipType = problem.getParameters().get(NcipAdaptor.PROBLEM_TYPE);
+
+			return reason != null ? String.valueOf(reason)
+				: ncipType != null ? ncipType + ": " + problem.getDetail()
+				: String.valueOf(problem.getTitle());
+		}
+
+		if (error instanceof HttpClientResponseException response) {
+			return "HTTP " + response.getStatus().getCode();
+		}
+
+		return error.getClass().getSimpleName();
+	}
+
+	private Mono<KohaItem> bundleHost(String hostBarcode) {
+		return client.getItemByBarcode(hostBarcode)
+			.filter(items -> items.length > 0)
+			.map(items -> items[0])
+			.switchIfEmpty(Mono.error(() -> checkInProblem("Koha bundle host item not found", null,
+				"no item has barcode " + hostBarcode,
+				"Set bundle-host-barcode to the barcode of the DCB bundle host item at the sharing branch")));
+	}
+
+	private ThrowableProblem refusedCheckIn(String itemId, String hostBarcode, Throwable error) {
+		final var code = kohaErrorCode(error);
+
+		final var remedy = switch (code == null ? "" : code) {
+			case "bundle_checked_out" -> "The bundle host item " + hostBarcode
+				+ " is on loan; check it in and keep it out of circulation";
+			case "failed_checkin" -> "Koha's AddReturn refused the item; check it in by hand";
+			case "failed_nesting" -> "The bundle host item " + hostBarcode
+				+ " is itself in a bundle, or the item is a bundle host; use a plain item";
+			default -> "Check the item in by hand in Koha";
+		};
+
+		return checkInProblem("Koha would not check the item in", itemId,
+			code != null ? code : kohaErrorMessage(error), remedy);
+	}
+
+	private ThrowableProblem checkInProblem(String title, String itemId, String reason, String remedy) {
+		return Problem.builder()
+			.withTitle(title)
+			.withStatus(Status.BAD_GATEWAY)
+			.withDetail("%s: item %s in %s".formatted(reason, itemId, getHostLmsCode()))
+			.with("reason", reason)
+			.with("checkInRemedy", remedy)
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	// The error_code KohaApiClientImpl kept from Koha's error body, where there was one
+	private static String kohaErrorCode(Throwable error) {
+		if (error instanceof ThrowableProblem problem) {
+			final var kept = problem.getParameters().get("Koha Error Code");
+
+			return kept == null ? null : String.valueOf(kept);
+		}
+
+		return null;
 	}
 
 	@Override
@@ -1232,9 +1692,19 @@ public class KohaHostLmsClient implements HostLmsClient {
 		}
 
 		log.info("Koha: Deleting hold: {}", holdId);
+		return deleteHoldUnlessGone(holdId)
+			.doOnError(e -> log.error("Failed to delete Koha hold {}: {}", holdId, e.getMessage()));
+	}
+
+	// A filled or cancelled hold is already in old_reserves: there is nothing left to delete,
+	// which is the outcome both a cancellation and a cleanup wanted
+	private Mono<String> deleteHoldUnlessGone(String holdId) {
 		return client.deleteHold(holdId)
 			.thenReturn("OK")
-			.doOnError(e -> log.error("Failed to delete Koha hold {}: {}", holdId, e.getMessage()));
+			.onErrorResume(KohaHostLmsClient::isNotFound, gone -> {
+				log.info("Koha hold {} is already filled or cancelled; nothing to delete", holdId);
+				return Mono.just("OK");
+			});
 	}
 	@Override
 	public Mono<HostLmsRequest> getRequest(HostLmsRequest request) {
@@ -1246,15 +1716,16 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		log.debug("Fetching Koha hold request by ID: {}", localRequestId);
 
-		return client.getHold(localRequestId)
-			.map(this::toHostLmsRequest)
-			.onErrorResume(KohaHostLmsClient::isNotFound, notFound -> oldHold(localRequestId))
+		return client.getCurrentHold(localRequestId)
+			.filter(holds -> holds.length > 0)
+			.map(holds -> toHostLmsRequest(holds[0]))
+			.switchIfEmpty(Mono.defer(() -> oldHold(localRequestId)))
 			.doOnError(e -> log.error("Failed to retrieve Koha hold request {}: {}", localRequestId, e.getMessage()));
 	}
 
 	/**
-	 * Koha moves a hold to old_reserves the moment it is filled or cancelled; GET /holds/{id}
-	 * then answers 404 and only the list with old=true still knows it. Its cancellation date
+	 * Koha moves a hold to old_reserves the moment it is filled or cancelled; the current list
+	 * then leaves it out and only the list with old=true still knows it. Its cancellation date
 	 * says which of the two happened. A hold found in neither place is gone, which the
 	 * workflow treats as it treats filled.
 	 */
@@ -1299,8 +1770,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// Construct Koha hold request
 		// Deal with it if the values aren't integers
 		log.info("placeHoldRequestAtBorrowingAgency patron={} item={}", parameters.getLocalPatronId(), parameters.getLocalItemId());
+		// In pickup anywhere and walk-up the patron collects at another library, whose branch
+		// does not exist in this Koha
 		return Mono.just(parameters)
 			.map(p -> WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW.equals(p.getActiveWorkflow())
+				|| WorkflowConstants.EXPEDITED_WORKFLOW.equals(p.getActiveWorkflow())
 				? getDcbSharingLibraryCode() : resolveLibraryCode(p))
 			.flatMap(lib -> submitKohaHold(parameters, lib, false));
 	}
@@ -1347,10 +1821,6 @@ public class KohaHostLmsClient implements HostLmsClient {
 				.patronId(Integer.valueOf(parameters.getLocalPatronId()))
 				.pickupLibraryId(pickupLibraryId)
 				.notes(parameters.getNote())
-//				.expirationDate()
-//				.nonPriority()
-//				.itemTypeId()
-//				.holdDate()
 				.build();
 
 			final var placement = overridePatronBlocks
@@ -1358,10 +1828,88 @@ public class KohaHostLmsClient implements HostLmsClient {
 				: client.placeHoldRequest(holdRequest);
 
 			return placement
+				.onErrorMap(KohaHostLmsClient::isHoldRefusal,
+					refused -> holdRefused(refused, parameters, pickupLibraryId))
 				.map(response -> mapKohaHoldToLocalRequest(response, parameters))
 				.doOnSubscribe(s -> log.info("Submitting Koha HOLD patron={} item={} pickupLibrary={}",
 					parameters.getLocalPatronId(), parameters.getLocalItemId(), pickupLibraryId));
 		});
+	}
+
+	/**
+	 * Koha's 403 carries "Hold cannot be placed. Reason: <status>" from CanItemBeReserved and its
+	 * 409 the patron block from can_place_holds. The reason is the administrator's action, so the
+	 * problem names it and what to do; the request audit is where they read it.
+	 */
+	private static final Map<String, String> HOLD_REFUSAL_REMEDIES = Map.ofEntries(
+		Map.entry("cannotReserveFromOtherBranches",
+			"IndependentBranches is on and canreservefromotherbranches is off, so this patron may hold only their own branch's items. Allow holds from other branches, or turn IndependentBranches off; for DCB's own virtual patron, AllowHoldPolicyOverride lets DCB's override apply."),
+		Map.entry("libraryNotPickupLocation",
+			"The branch is not flagged as a pickup location in Koha. Flag it, or point the DCB pickup location at a branch that is."),
+		Map.entry("tooManyReserves",
+			"The patron is at the hold limit the circulation rule sets for this branch, category and item type."),
+		Map.entry("noReservesAllowed",
+			"The circulation rule for this branch, patron category and item type allows no holds."),
+		Map.entry("notReservable",
+			"The circulation rule for this branch, patron category and item type allows no holds, or no on-shelf holds."),
+		Map.entry("itemAlreadyOnHold", "The patron already holds this item."),
+		Map.entry("alreadypossession", "The patron already has this item on loan."),
+		Map.entry("ageRestricted", "The item is age-restricted for this patron."),
+		Map.entry("pickupNotInHoldGroup", "The pickup branch is outside the item's hold group."),
+		Map.entry("branchNotInHoldGroup", "The patron's branch is outside the item's hold group."));
+
+	private static final Map<String, String> PATRON_BLOCK_REMEDIES = Map.of(
+		"debt_limit", "The patron owes more than Koha allows for holds.",
+		"expired", "The patron's account has expired.",
+		"restricted", "The patron is restricted.",
+		"hold_limit", "The patron is at their hold limit.",
+		"card_lost", "The patron's card is marked lost.",
+		"bad_address", "The patron's address is flagged as incorrect.");
+
+	// 403 is a policy refusal, 409 a block on the patron; both carry Koha's reason
+	private static boolean isHoldRefusal(Throwable error) {
+		final var status = statusOf(error);
+
+		return status == HttpStatus.FORBIDDEN.getCode() || status == HttpStatus.CONFLICT.getCode();
+	}
+
+	private static final java.util.regex.Pattern REFUSAL_REASON =
+		java.util.regex.Pattern.compile("Reason:\\s*(\\w+)");
+
+	private Throwable holdRefused(Throwable refused, PlaceHoldRequestParameters parameters,
+		String pickupLibraryId) {
+
+		final var message = kohaErrorMessage(refused);
+		final var matcher = REFUSAL_REASON.matcher(message);
+		final var reason = matcher.find() ? matcher.group(1) : message;
+		final var remedy = HOLD_REFUSAL_REMEDIES.containsKey(reason)
+			? HOLD_REFUSAL_REMEDIES.get(reason)
+			: PATRON_BLOCK_REMEDIES.getOrDefault(reason,
+				"See Koha's circulation rules and hold policies for this branch, patron category and item type.");
+
+		return Problem.builder()
+			.withTitle("Koha refused the hold")
+			.withStatus(Status.valueOf(statusOf(refused)))
+			.withDetail("Koha did not allow a hold for patron %s on item %s at branch %s in %s: %s"
+				.formatted(parameters.getLocalPatronId(), parameters.getLocalItemId(), pickupLibraryId,
+					getHostLmsCode(), reason))
+			.with("reason", reason)
+			.with("remedy", remedy)
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	// The message KohaApiClientImpl kept from Koha's error body, where there was one
+	private static String kohaErrorMessage(Throwable error) {
+		if (error instanceof ThrowableProblem problem) {
+			final var kept = problem.getParameters().get("Koha Error Message");
+
+			if (kept != null) {
+				return String.valueOf(kept);
+			}
+		}
+
+		return String.valueOf(error.getMessage());
 	}
 
 	private LocalRequest mapKohaHoldToLocalRequest(KohaHoldResponse response,
@@ -1616,19 +2164,28 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
-		final String checkoutId = hostLmsRenewal.getLocalRequestId();
+		final String itemId = getValueOrNull(hostLmsRenewal, HostLmsRenewal::getLocalItemId);
 
-		if (checkoutId == null || checkoutId.isBlank()) {
-			return Mono.error(new IllegalArgumentException("Checkout ID is required to renew a Koha loan"));
+		if (isBlank(itemId)) {
+			return Mono.error(new IllegalArgumentException("Item ID is required to renew a Koha loan"));
 		}
 
-		log.info("Koha: Renewing checkout: {}", checkoutId);
-
-		return client.renewCheckout(checkoutId)
-			.map(kohaCheckout -> {
-				log.info("Due date {}", kohaCheckout.getDueDate());
-				return hostLmsRenewal;
-			})
-			.doOnError(e -> log.error("Failed to renew Koha checkout {}: {}", checkoutId, e.getMessage()));
+		// The workflow's request id is the hold; Koha renews a checkout, and only the item's
+		// current loan knows that id
+		return client.getCheckoutsForItem(itemId)
+			.filter(checkouts -> checkouts.length > 0)
+			.map(checkouts -> String.valueOf(checkouts[0].getCheckoutId()))
+			.switchIfEmpty(Mono.error(() -> Problem.builder()
+				.withTitle("Koha has no loan to renew")
+				.withStatus(Status.CONFLICT)
+				.withDetail("Item %s in %s is not on loan, so there is no checkout to renew"
+					.formatted(itemId, getHostLmsCode()))
+				.with("hostLmsCode", getHostLmsCode())
+				.build()))
+			.flatMap(checkoutId -> client.renewCheckout(checkoutId)
+				.doOnNext(renewed -> log.info("Koha: renewed checkout {} of item {}, due {}",
+					checkoutId, itemId, renewed.getDueDate())))
+			.thenReturn(hostLmsRenewal)
+			.doOnError(e -> log.error("Koha renewal of item {} failed: {}", itemId, e.getMessage()));
 	}
 }

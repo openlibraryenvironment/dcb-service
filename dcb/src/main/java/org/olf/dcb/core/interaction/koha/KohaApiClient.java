@@ -10,6 +10,9 @@ import java.util.Map;
 /**
  * Provides core HTTP operations and strongly-typed endpoint methods for Koha. Please refer to <a href="https://api.koha-community.org">...</a> for API documentation
  * Versions supported TBC - 25.11
+ * <p>A lookup by an identifier ({@code cardnumber}, {@code userid}, {@code external_id}) passes
+ * {@code _match=exact}, because Koha's default is a substring match, and decodes to an array:
+ * a DTO extending {@code ArrayList} cannot be decoded.
  */
 public interface KohaApiClient {
 
@@ -17,7 +20,8 @@ public interface KohaApiClient {
 	<T> Mono<T> get(String path, Class<T> responseType, Map<String, Object> queryParams);
 	<T> Mono<T> get(String path, Class<T> responseType, Map<String, Object> queryParams, Map<String, String> headers); // Sometimes we need to pass Koha headers
 	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
-	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType);
+	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams,
+		Map<String, String> headers, String contentType);
 	<T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams,
 		Map<String, String> headers);
 	<T> Mono<T> put(String path, Object body, Class<T> responseType, Map<String, Object> queryParams);
@@ -77,9 +81,15 @@ public interface KohaApiClient {
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/patrons/operation/addPatron">Adding a patron in Koha</a>
 	 * </p>
+	 * <p>
+	 * From 25.11 Koha refuses, with a 409, a patron matching one it holds on its
+	 * PatronDuplicateMatchingAddFields (surname and first name by default) unless
+	 * x-confirm-not-duplicate is sent. A virtual patron copies the borrower's names, or "DCB
+	 * VPATRON" when there are none, so it would often match. 25.05 makes no such check.
 	 */
 	default Mono<KohaPatron> createPatron(KohaPatron patron) {
-		return post("/api/v1/patrons", patron, KohaPatron.class);
+		return post("/api/v1/patrons", patron, KohaPatron.class, Collections.emptyMap(),
+			Map.of("x-confirm-not-duplicate", "1"));
 	}
 
 	/**
@@ -125,6 +135,15 @@ public interface KohaApiClient {
 		return get("/api/v1/patrons/" + patronId + "/account", KohaPatronBalance.class);
 	}
 
+	/**
+	 * One system preference by name. Koha 26.05 and later, permission parameters:
+	 * manage_sysprefs; an older Koha answers 404.
+	 * API: GET /api/v1/sysprefs?variable={name}
+	 */
+	default Mono<KohaSystemPreference[]> getSystemPreference(String name) {
+		return get("/api/v1/sysprefs", KohaSystemPreference[].class, Map.of("variable", name));
+	}
+
 	/** Authenticate a patron
 	 * API docs: <a href="https://api.koha-community.org/#tag/patrons/operation/validateUserAndPassword">Validating a patron in Koha</a>
 	 * @param patronPrinciple - patron identifier
@@ -148,10 +167,14 @@ public interface KohaApiClient {
 	 * API docs: <a href="https://api.koha-community.org/#tag/biblios/operation/addBiblio">Add biblio</a>
 	 * </p>
 	 * API: POST /api/v1/biblios
+	 * <p>
+	 * Koha answers {"id": biblionumber}, and refuses a record matching one it holds unless
+	 * x-confirm-not-duplicate is sent, which a virtual copy of a title always would.
 	 */
-	default Mono<KohaBiblio> createBibRecord(String bibXml) {
+	default Mono<KohaCreatedBiblio> createBibRecord(String bibXml) {
 		// Note: Koha explicitly requires the 'application/marcxml+xml' content type for XML payloads
-		return post("/api/v1/biblios", bibXml, KohaBiblio.class, Collections.emptyMap(), "application/marcxml+xml");
+		return post("/api/v1/biblios", bibXml, KohaCreatedBiblio.class, Collections.emptyMap(),
+			Map.of("x-confirm-not-duplicate", "1"), "application/marcxml+xml");
 	}
 
 	/**
@@ -238,11 +261,13 @@ public interface KohaApiClient {
 	}
 
 	/**
-	 * Get a hold request by its hold_id.
-	 * API: GET /api/v1/holds/{hold_id}
+	 * A hold Koha is still working on, read through the list. No Koha has GET /holds/{hold_id}:
+	 * its spec defines only PUT, PATCH and DELETE there (24.11 to main), and a GET answers an
+	 * HTML 404.
+	 * API: GET /api/v1/holds?hold_id={hold_id}&old=false
 	 */
-	default Mono<KohaHoldResponse> getHold(String holdId) {
-		return get("/api/v1/holds/" + holdId, KohaHoldResponse.class);
+	default Mono<KohaHoldResponse[]> getCurrentHold(String holdId) {
+		return get("/api/v1/holds", KohaHoldResponse[].class, Map.of("hold_id", holdId, "old", false));
 	}
 
 	/**
@@ -254,15 +279,50 @@ public interface KohaApiClient {
 	}
 
 	/**
-	 * Get items for a biblio.
-	 * Passes the x-koha-embed header to retrieve current checkouts, which is what we need for due dates. Good example of using x-koha-embed.
+	 * Get items for a biblio, with the checkout, transfer and first hold that say whether each
+	 * can be lent.
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/biblios/operation/getBiblioItems">Getting items for a biblio</a>
 	 * </p>
 	 */
 	default Mono<KohaItem[]> getItemsForBiblio(String biblioId, int page, int perPage) {
 		return get("/api/v1/biblios/" + biblioId + "/items", KohaItem[].class,
-			Map.of("_page", page, "_per_page", perPage), Map.of("x-koha-embed", "checkout"));
+			Map.of("_page", page, "_per_page", perPage), Map.of("x-koha-embed", CIRCULATION_EMBEDS));
+	}
+
+	/**
+	 * Links an item into a bundle. With force_checkin Koha first returns the item through
+	 * C4::Circulation::AddReturn, at the API patron's branch; ignore_holds keeps a hold on the
+	 * item from rolling that return back. The item is found by its barcode.
+	 * API: POST /api/v1/items/{item_id}/bundled_items
+	 */
+	default Mono<KohaItem> addToBundle(String hostItemId, String itemBarcode) {
+		return post("/api/v1/items/" + hostItemId + "/bundled_items",
+			Map.of("external_id", itemBarcode, "force_checkin", true, "ignore_holds", true), KohaItem.class);
+	}
+
+	/**
+	 * Unlinks a bundled item; Koha resets its not_for_loan_status to 0.
+	 * API: DELETE /api/v1/items/{item_id}/bundled_items/{bundled_item_id}
+	 */
+	default Mono<Void> removeFromBundle(String hostItemId, String itemId) {
+		return delete("/api/v1/items/" + hostItemId + "/bundled_items/" + itemId);
+	}
+
+	/**
+	 * A page of the biblio's items as an anonymous OPAC user sees them: Koha leaves out what
+	 * OpacHiddenItems and hidelostitems hide. Sent without a token, because Koha skips the rules
+	 * for a caller whose category is in OpacHiddenItemsExceptions.
+	 * API: GET /api/v1/public/biblios/{biblio_id}/items
+	 */
+	default Mono<KohaItem[]> getOpacVisibleItemsForBiblio(String biblioId, int page, int perPage) {
+		return get("/api/v1/public/biblios/" + biblioId + "/items", KohaItem[].class,
+			Map.of("_page", page, "_per_page", perPage));
+	}
+
+	/** Answers only when RESTPublicAPI and RESTPublicAnonymousRequests are both on. */
+	default Mono<KohaLibrary[]> getOnePublicLibrary() {
+		return get("/api/v1/public/libraries", KohaLibrary[].class, Map.of("_per_page", 1));
 	}
 
 	/**
@@ -336,6 +396,24 @@ public interface KohaApiClient {
 	 */
 	default Mono<KohaCheckout> checkoutItem(KohaCheckoutRequest request) {
 		return post("/api/v1/checkouts", request, KohaCheckout.class);
+	}
+
+	/**
+	 * The same checkout, answering the confirmations Koha asked for with the token the
+	 * availability read issued.
+	 * API: POST /api/v1/checkouts?confirmation={token}
+	 */
+	default Mono<KohaCheckout> checkoutItem(KohaCheckoutRequest request, String confirmationToken) {
+		return post("/api/v1/checkouts", request, KohaCheckout.class, Map.of("confirmation", confirmationToken));
+	}
+
+	/**
+	 * What Koha would block, ask staff to confirm, or warn about before this checkout.
+	 * API: GET /api/v1/checkouts/availability?patron_id={id}&item_id={id}
+	 */
+	default Mono<KohaCheckoutAvailability> getCheckoutAvailability(String patronId, String itemId) {
+		return get("/api/v1/checkouts/availability", KohaCheckoutAvailability.class,
+			Map.of("patron_id", patronId, "item_id", itemId));
 	}
 
 	/**

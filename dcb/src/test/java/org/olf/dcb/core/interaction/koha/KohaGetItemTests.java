@@ -92,6 +92,31 @@ class KohaGetItemTests {
 	}
 
 	@Test
+	void shouldNotCountKohasLifetimeHoldTallyAsAHold() {
+		// holds_count is how many times the item has ever been held, which the virtual
+		// patron's own hold is part of; counting it stopped renewals on every Koha loan
+		mockKohaFixture.mockItemCirculation(BIBLIO_ID, ITEM_ID, item()
+			.holdCount(3)
+			.checkedOutDate("2026-10-01")
+			.checkout(KohaCheckout.builder().checkoutId(7L).dueDate("2026-10-29T23:59:00Z").build())
+			.build());
+
+		assertThat(getItem().getHoldCount(), is(0));
+	}
+
+	@Test
+	void shouldCountAFirstHoldOnALentItemAsSomeoneWaiting() {
+		mockKohaFixture.mockItemCirculation(BIBLIO_ID, ITEM_ID, item()
+			.holdCount(3)
+			.checkedOutDate("2026-10-01")
+			.checkout(KohaCheckout.builder().checkoutId(7L).dueDate("2026-10-29T23:59:00Z").build())
+			.firstHold(KohaHoldResponse.builder().holdId(602L).patronId(13L).build())
+			.build());
+
+		assertThat(getItem().getHoldCount(), is(1));
+	}
+
+	@Test
 	void shouldReportAnItemSentToAnotherBranchAsInTransit() {
 		mockKohaFixture.mockItemCirculation(BIBLIO_ID, ITEM_ID, item()
 			.transfer(KohaTransfer.builder()

@@ -117,8 +117,12 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 
 	@Override
 	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
-		log.warn("Update patron request is not currently implemented for {}", getHostLms().getName());
-		return null;
+		log.info("Update hold request {} accepted without change by {}", localRequest, getHostLms().getName());
+		return Mono.just(localRequest);
+	}
+
+	private static Integer integerIn(Map<String, Object> data, String key) {
+		return data.get(key) instanceof Number number ? number.intValue() : null;
 	}
 
     @Override
@@ -360,6 +364,8 @@ public class DummyLmsClient implements HostLmsClient, IngestSource {
 						.localId(localItemId)
 						.status(itemStatus)
 						.rawStatus(rawItemStatus)
+						.renewalCount(integerIn(responseData, "renewalCount"))
+						.holdCount(integerIn(responseData, "holdCount"))
 						.build();
 				});
 		}

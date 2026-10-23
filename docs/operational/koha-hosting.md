@@ -32,6 +32,11 @@ by different hosts on most hosted installations.
 | `no-renew-collection-code` | no, default `DCB_NO_RENEW` | must equal the value in this Koha's `ItemsDeniedRenewal` |
 | `do-not-renew-note` | no | the internal note DCB writes on an item it has stopped being renewed |
 | `virtual-patron-email` | no | the consortium mailbox given to virtual patrons |
+| `bundle-host-barcode` | for pickup anywhere and walk-up as borrower | the barcode of the never-lent DCB item at the sharing branch that DCB bundles a returned virtual item into to check it in (ADR 0002); absent, those two workflows stop at the return |
+| `ncip-checkin-fallback` | no, default `false` | `true` lets DCB check a virtual item in over NCIP when the bundle route fails; needs the two below and ByWater's NCIP plugin (Koha 25.11 or later). See [The NCIP check-in fallback](#the-ncip-check-in-fallback) |
+| `ncip-checkin-url` | with the fallback | the NCIP responder's address without its token, e.g. `https://staff.example.org/api/v1/contrib/ncip_server/ncip` |
+| `ncip-checkin-token` | with the fallback | the plugin's `auth_token`, a secret; DCB sends it as the last path segment and never logs it |
+| `honour-opac-hidden-items` | no, default `true` | leave out the copies `OpacHiddenItems` hides from the OPAC, read anonymously from the public API. Only `false` turns it off, for a Koha that keeps its public API closed; the OpenRS team then mirrors `OpacHiddenItems` in the item rule |
 | `shared-system`, `contextHierarchy` | for a co-tenanted Koha | see [shared systems](../shared-systems.md) |
 
 ## Access DCB needs, and why
@@ -54,6 +59,7 @@ Permissions are the `x-koha-authorization` values from the REST specification.
 | `editcatalogue: edit_items` | create and update item | the virtual item; renewal prevention; re-resolution | borrower, pickup |
 | `parameters: manage_patron_categories` | patron categories | the configuration check's category list | setup |
 | `updatecharges: remaining_permissions` | patron account | charges on the discovery account page; optional, loans are still shown without it | borrower |
+| `parameters: manage_sysprefs` | system preferences (Koha 26.05 and later) | the configuration check reads the preferences above and says which are not as DCB needs; optional, and absent on older Kohas | setup |
 
 OAI-PMH needs no credentials; the OPAC must be reachable from DCB.
 
@@ -77,11 +83,35 @@ are refused. Confirm this on a test server before onboarding a shared Koha.
 | `OAI-PMH` | Enable | the harvest |
 | `OAI-PMH:archiveID` | site-specific, set before the first harvest | DCB mints record ids from it; changing it later duplicates the catalogue in DCB |
 | `OAI-PMH:DeletedRecord` | persistent | deletions reach the shared index |
-| `OpacSuppression` | Hide, once at least one record carries `942$n` | hidden records stay hidden; DCB's virtual bibs carry the flag |
+| `OpacSuppression` | Hide, once at least one record carries `942$n` | hidden records stay hidden; DCB's virtual bibs carry the flag. Turning it on after the first harvest reaches DCB only for records edited afterwards, or when the OpenRS team runs the vanished sweep |
+| `OpacHiddenItems` | any | a copy it hides is not offered to the consortium: DCB reads the OPAC's own view of each title's copies. A record it hides entirely (with `OpacHiddenItemsHidesRecord`) is withheld from the harvest once the record is next edited, or when the OpenRS team runs the vanished sweep |
+| `BundleNotLoanValue` | a `NOT_LOAN` value (Koha's installer default is "Added to bundle") | the value a virtual item carries while DCB checks it in; Koha resets it to 0 when DCB unlinks the item |
+| `RESTPublicAPI`, `RESTPublicAnonymousRequests` | Enable (Koha's default) | DCB reads the OPAC's view of a title's copies anonymously. With either off, every availability check for this Koha fails, unless `honour-opac-hidden-items` is `false` |
 | `ItemsDeniedRenewal` | contains `ccode: [DCB_NO_RENEW]` | renewal prevention; DCB verifies it on each use and fails loudly when it is missing |
+| `AllowHoldPolicyOverride` | Allow | DCB sends `x-koha-override: any` on holds for its own virtual patron; Koha honours the header only with this on, and then skips its hold policies for that hold. Holds for real patrons never send it |
+| `IndependentBranches` | off, or the API patron acts across branches | on, the API patron may only edit items and patrons of its own branch |
+| `canreservefromotherbranches` | on, if `IndependentBranches` is on | off, a patron may hold only their own branch's items: supplier holds and co-tenant local requests are refused with `cannotReserveFromOtherBranches` |
 | `ReservesNeedReturns` | the default ("don't automatically") | a filled hold must go through transit to the sharing branch |
 | `UseBranchTransferLimits` | if on, allow transfers to and from the sharing branch | otherwise supplier holds cannot be filled |
 | `RESTdefaultPageSize` | any | DCB pages explicitly |
+
+## The NCIP check-in fallback
+
+Optional, and off unless the Host LMS sets `ncip-checkin-fallback` to `true`. DCB checks a
+returned virtual item in through the bundle route; only when that fails, for example because
+an `itemBarcodeInputFilter` stops Koha finding the item by the lender's barcode, does it send
+an NCIP CheckInItem instead. It needs ByWater's `koha-plugin-ncip-server` on Koha 25.11 or
+later. In the plugin's configuration:
+
+| Plugin setting | Value | Why |
+|---|---|---|
+| `token_required` | `true`, with `auth_token` set | DCB sends the token as the last path segment; without one the responder is open to anyone who can reach it |
+| `userenv_borrowernumber` | an "NCIP Librarian" staff patron | returns over NCIP are recorded against this patron, not DCB's API patron |
+| `delete_item_on_checkin` | off, or scoped with `delete_item_on_checkin_itemtype` to anything but `DCB_VIRTUAL` | otherwise the check-in deletes DCB's virtual item and record before DCB does; DCB tolerates it, but the request's audit shows it |
+| `no_error_on_return_without_checkout` | either | DCB treats "Item Not Checked Out" as checked in |
+
+Keep the `io.micronaut.http.client` logger at `WARN` or above: at `DEBUG` the HTTP client can
+log request addresses, and this one carries the token.
 
 ## Network
 
@@ -92,10 +122,11 @@ inbound. SIP2 is not used by the standard, local or supplying flows.
 
 | Path | What DCB does | Bound |
 |---|---|---|
-| availability | one paged item read per title that has copies here, per search, plus one active-holds read per copy | 100 items a page, 500 a title; four copies at a time per Host LMS |
+| availability | one paged item read and one paged anonymous public item read per title that has copies here, per search, plus one active-holds read per copy | 100 items a page, 500 a title, each read; four copies at a time per Host LMS |
 | tracking | one hold read and one item read per request DCB is tracking here, per sweep | the sweep interval |
 | harvest | `ListRecords` with resumption tokens | `OAI-PMH:MaxCount` records a request |
 | sign-in | one password validation and one patron read per sign-in | per request |
+| lending | one patron search and at most one patron creation, one hold, and when the borrower lends it one checkout, re-sent once with a confirmation after one availability read; one checkouts read and one renewal per borrower renewal | per request |
 
 ## What DCB leaves behind
 
@@ -107,11 +138,21 @@ finalised; they land in `deletedbiblio` and `deleteditems` like any staff deleti
 
 | Symptom | Cause | Remedy |
 |---|---|---|
-| `Hold not allowed` (403) on placement | the circulation rule for the branch, category and item type allows no holds | the setup guide's circulation rules |
+| `Koha refused the hold`, reason `cannotReserveFromOtherBranches` | `IndependentBranches` on without `canreservefromotherbranches` | allow holds from other branches, or `AllowHoldPolicyOverride` for DCB's virtual patron |
+| `Koha refused the hold`, reason `libraryNotPickupLocation` | the pickup location's `localId` is a branch Koha does not flag for pickup | the configuration check lists the pickup branches and judges each DCB pickup location against them |
+| `Koha refused the hold`, reason `noReservesAllowed`, `notReservable` or `tooManyReserves` | the circulation rule for the branch, category and item type | the setup guide's circulation rules |
+| `Koha refused the hold`, reason `debt_limit`, `expired`, `restricted`, `hold_limit`, `card_lost` | the patron's own block | for a real patron the block stands; for DCB's virtual patron, `AllowHoldPolicyOverride` |
 | 409 `debt_limit`, `expired`, `restricted` on a supplier hold | the virtual patron is blocked, and the override header was not honoured | the DCB category's enrolment period and fines rules |
-| 412 on checkout | Koha wants a confirmation (item in transit or waiting) | DCB confirms the known cases itself; an unknown confirmation is reported by name |
+| `Koha refused the checkout`, blocked `ITEM_LOST`, `NOT_FOR_LOAN` or another key | Koha will not lend the copy to anyone | the item's own status |
+| `Koha wants a confirmation DCB does not give`, confirmations `DEBT`, `TOO_MANY`, `BORRNOTSAMEBRANCH` or another key | a prompt Koha shows staff that DCB does not answer for a consortium loan; DCB answers only `TRANSFERRED`, `RESERVED` and `RESERVE_WAITING` | the `DCB` category's circulation rule (no fines, no loan limit); with `IndependentBranches`, the API patron acts across branches |
+| `Koha has no loan to renew` | the renewal reached Koha before the virtual patron's loan existed, or after the item was returned | nothing: the loan is renewed once it exists |
 | a hold answers 404 while the request is open | the hold was filled or cancelled and moved to Koha's old holds | nothing: DCB reads the old hold and acts on it |
 | virtual bibs appear in the OPAC or the shared index | the Koha predates the suppressed virtual bib, or `OpacSuppression` is off | enable `OpacSuppression`; DCB's ruleset drops them on the next harvest |
+| `Koha check-in is not configured` | `bundle-host-barcode` is not set | create the bundle host item and set the setting; until then pickup anywhere and walk-up with this Koha as borrower stop at the return |
+| `Koha would not check the item in`, reason `bundle_checked_out` | the bundle host item is on loan | check it in and keep it out of circulation |
+| `Koha would not check the item in`, reason `failed_checkin` | Koha's own return refused the item | check the virtual item in by hand |
+| `Koha would not check the item in by either route` | the bundle route failed and so did the NCIP fallback; the reason names both | as the bundle reason says; for `HTTP 403` from NCIP, `ncip-checkin-token` does not match the plugin's `auth_token` |
+| `Koha would not say which copies its OPAC hides` | `RESTPublicAPI` or `RESTPublicAnonymousRequests` is off | turn both on, or set `honour-opac-hidden-items` to `false` and have the OpenRS team mirror `OpacHiddenItems` in the item rule |
 | `Koha still allows this loan to be renewed` | `ItemsDeniedRenewal` does not list the collection code | add `ccode: [DCB_NO_RENEW]` |
 | every supplier request stalls before transit | the sharing library is a lending branch, or `ReservesNeedReturns` is automatic | a dedicated sharing branch |
 | twenty copies reported for a title with more | the DCB release predates paged item reads | upgrade |

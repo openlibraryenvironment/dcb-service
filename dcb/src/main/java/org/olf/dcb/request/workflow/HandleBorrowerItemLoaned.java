@@ -221,6 +221,9 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 		return hostLmsService.getClientFor(rwc.getPatronSystemCode())
 			.flatMap(hostLmsClient -> hostLmsClient.checkOutItemToPatron(command))
+			// The virtual item is lent now. Its last tracked status may say available, which
+			// HandleBorrowerRequestReturnTransit would read as returned in this same pass
+			.doOnNext(ok -> rwc.getPatronRequest().setLocalItemStatus(HostLmsItem.ITEM_LOANED))
 			.map(ok -> logSuccessfulCheckout(rwc, command.getItemId(), command.getPatronBarcode()))
 			.onErrorResume(error -> handleCheckoutError(error, rwc, command.getItemId(), command.getPatronBarcode()));
 	}

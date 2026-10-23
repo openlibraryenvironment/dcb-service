@@ -16,12 +16,12 @@ import org.olf.dcb.core.interaction.koha.dto.KohaAuthResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaError;
 import org.zalando.problem.Problem;
 import org.zalando.problem.Status;
+import org.zalando.problem.ThrowableProblem;
 import reactor.core.publisher.Mono;
-
+import reactor.util.retry.Retry;
 
 import java.net.URI;
 import java.util.Objects;
-import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 
@@ -29,7 +29,20 @@ import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.MediaType.APPLICATION_FORM_URLENCODED;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
-/** Koha Api Client Impl - based off Alma approach **/
+/**
+ * The Koha REST calls for one Host LMS.
+ * <p>Every call outside {@code /api/v1/public/} carries a bearer token from
+ * {@code POST /api/v1/oauth/token} (client credentials), held per Host LMS in
+ * {@link KohaTokenCache}. A 401 drops the token and retries once with a new one, except on the
+ * password validation, whose 401 is the patron's wrong password.
+ * <p>{@code api-url} may end in {@code /api} or {@code /api/v1}, in any case, and may carry a path
+ * prefix, which is kept and is part of the server's identity.
+ * <p>A failure whose body fits Koha's error schema is raised as a problem carrying the status and
+ * Koha's error and error code; any other failure is the raw {@code HttpClientResponseException}.
+ * The request body never goes into a problem, because every problem parameter is copied into the
+ * patron request's audit; a refused body reaches the debug log only, redacted on the token,
+ * password-validation and patron calls.
+ */
 
 @Slf4j
 @Secondary
@@ -38,9 +51,8 @@ public class KohaApiClientImpl implements KohaApiClient {
 	private final HttpClient httpClient;
 	private final KohaClientConfig config; // Assuming you create a Koha version of AlmaClientConfig
 	private final ObjectMapper objectMapper;
-
-	// Reactive cache for the OAuth2 token
-	private Mono<String> currentTokenMono;
+	private final KohaTokenCache tokenCache;
+	private final String hostLmsCode;
 
 	public KohaApiClientImpl() {
 		throw new IllegalStateException();
@@ -48,10 +60,13 @@ public class KohaApiClientImpl implements KohaApiClient {
 
 	@Creator
 	public KohaApiClientImpl(@Parameter("hostLms") HostLms hostLms,
-													 @Parameter("client") HttpClient httpClient,
-													 ObjectMapper objectMapper) {
+		@Parameter("client") HttpClient httpClient,
+		ObjectMapper objectMapper,
+		KohaTokenCache tokenCache) {
 		this.httpClient = httpClient;
 		this.objectMapper = objectMapper;
+		this.tokenCache = tokenCache;
+		this.hostLmsCode = hostLms.getCode();
 		this.config = new KohaClientConfig(hostLms);
 	}
 
@@ -71,8 +86,9 @@ public class KohaApiClientImpl implements KohaApiClient {
 	}
 
 	@Override
-	public <T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams, String contentType) {
-		return request(HttpMethod.POST, path, body, responseType, queryParams, null, contentType);
+	public <T> Mono<T> post(String path, Object body, Class<T> responseType, Map<String, Object> queryParams,
+		Map<String, String> headers, String contentType) {
+		return request(HttpMethod.POST, path, body, responseType, queryParams, headers, contentType);
 	}
 
 	@Override
@@ -97,29 +113,10 @@ public class KohaApiClientImpl implements KohaApiClient {
 	}
 
 	/**
-	 * Token Manager: Creates the caching stream for the OAuth2 token. Experimental so let's see how it works
-	 */
-	private synchronized Mono<String> getValidToken() {
-		if (currentTokenMono == null) {
-			currentTokenMono = fetchNewToken()
-				.cache(
-					// Cache the token until 60 seconds before it actually expires
-					response -> Duration.ofSeconds(response.getExpiresIn() - 60),
-					error -> Duration.ZERO,
-					() -> Duration.ZERO
-				)
-				.map(KohaAuthResponse::getAccessToken);
-		}
-		return currentTokenMono;
-	}
-
-	/**
 	 *  POST request to /api/v1/oauth/token to get the new token
 	 */
 	private Mono<KohaAuthResponse> fetchNewToken() {
-//		log.debug("Fetching new Koha OAuth token for HostLMS: {}", config.getHostLmsCode());
-		// it would be good to have an identifier in here
-		log.debug("Fetching new Koha OAuth token for HostLMS");
+		log.debug("Fetching new Koha OAuth token for {}", hostLmsCode);
 
 		Map<String, String> formData = Map.of(
 			"grant_type", "client_credentials",
@@ -147,11 +144,13 @@ public class KohaApiClientImpl implements KohaApiClient {
 		// Check if endpoint is public
 		boolean isPublic = path.contains("/api/v1/public/");
 
+		// Deferred so that a retry after a refused token reads the cache again
 		Mono<MutableHttpRequest<?>> requestBuilderMono = isPublic
 			? Mono.just(HttpRequest.create(method, finalUri.toString()))
-			: getValidToken().map(token -> HttpRequest.create(method, finalUri.toString()).bearerAuth(token));
+			: Mono.defer(() -> tokenCache.get(hostLmsCode, this::fetchNewToken))
+				.map(token -> HttpRequest.create(method, finalUri.toString()).bearerAuth(token));
 
-		return requestBuilderMono.flatMap(request -> {
+		final Mono<T> exchange = requestBuilderMono.flatMap(request -> {
 			request.contentType(contentType).accept(APPLICATION_JSON);
 			// Inject Custom Headers (e.g. x-koha-embed)
 			if (headers != null) {
@@ -169,11 +168,42 @@ public class KohaApiClientImpl implements KohaApiClient {
 					}
 				});
 		});
+
+		return isPublic || carriesCredentials(path)
+			? exchange
+			: exchange.retryWhen(fetchTokenOnceMoreWhenRefused());
+	}
+
+	// A token Koha has dropped early (a restart, a key rotation) is otherwise reused until its
+	// stated expiry. Safe for every method: a 401 means Koha did not act on the request. The
+	// password validation is excluded because its 401 is the patron's wrong password
+	private Retry fetchTokenOnceMoreWhenRefused() {
+		return Retry.max(1)
+			.filter(KohaApiClientImpl::isUnauthorised)
+			.doBeforeRetry(signal -> {
+				log.info("Koha refused the token for {}, fetching a new one and retrying once", hostLmsCode);
+				tokenCache.invalidate(hostLmsCode);
+			})
+			.onRetryExhaustedThrow((spec, signal) -> signal.failure());
+	}
+
+	// doExchange raises a Problem when Koha's body fits its error schema, the raw exception otherwise
+	private static boolean isUnauthorised(Throwable error) {
+		if (error instanceof HttpClientResponseException response) {
+			return response.getStatus() == HttpStatus.UNAUTHORIZED;
+		}
+
+		return error instanceof ThrowableProblem problem && problem.getStatus() == Status.UNAUTHORIZED;
 	}
 
 	// The token request carries the client secret and the validation request a patron's password
 	private static boolean carriesCredentials(String path) {
 		return path.endsWith("/oauth/token") || path.endsWith("/auth/password/validation");
+	}
+
+	// A patron body carries names and identifiers
+	private static boolean carriesPersonalData(String path) {
+		return carriesCredentials(path) || path.contains("/patrons");
 	}
 
 	private URI resolve(URI relativeURI) {
@@ -203,7 +233,7 @@ public class KohaApiClientImpl implements KohaApiClient {
 
 		// The path only: a query string carries a card number or userid
 		log.debug("Starting Koha exchange for - Method: {}, path: {}, argumentType: {}", request.getMethod(), request.getPath(), argumentType);
-		final String finalBodyJson = carriesCredentials(request.getPath()) ? "[redacted]" : bodyJson;
+		final String finalBodyJson = carriesPersonalData(request.getPath()) ? "[redacted]" : bodyJson;
 
 		return Mono.from(httpClient.exchange(request, argumentType, Argument.of(HttpClientResponseException.class)))
 			.flatMap(response -> {
@@ -228,6 +258,9 @@ public class KohaApiClientImpl implements KohaApiClient {
 					if (kohaError.isPresent()) {
 						KohaError errorResponse = kohaError.get();
 						log.error("Koha API error for {} (HTTP {}): [{}] {}", request.getPath(), status.getCode(), errorResponse.getErrorCode(), errorResponse.getError());
+						log.debug("Body of the refused {} {}: {}", request.getMethod(), request.getPath(), finalBodyJson);
+
+						// No request body: every problem parameter is copied into the request's audit record
 
 						return raiseError(Problem.builder()
 							.withTitle("Koha API Error")
@@ -236,7 +269,6 @@ public class KohaApiClientImpl implements KohaApiClient {
 							.with("Request Method", request.getMethod().name())
 							.with("Koha Error Code", errorResponse.getErrorCode())
 							.with("Koha Error Message", errorResponse.getError())
-							.with("Request Body", finalBodyJson)
 							.build());
 					}
 				}

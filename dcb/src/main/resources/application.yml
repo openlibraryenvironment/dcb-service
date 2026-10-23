@@ -346,12 +346,14 @@ dcb:
       conditions:
         # "Not to be shown to anyone" - Koha's own OpacSuppression flag, 942$n in
         # the stock MARC21 framework. UNIMARC has no official field for it, so a
-        # UNIMARC site needs its own ruleset. Koha's documented value is 1.
-        - operation: propertyValueAnyOf
+        # UNIMARC site needs its own ruleset. Koha suppresses on any value Perl
+        # treats as true (Koha::Biblio::Metadata::Extractor::MARC, TransformMarcToKoha),
+        # so "no" and "2" suppress there too; only 0 and absent do not.
+        - operation: propertyValueNoneOf
           property: "metadata.record.fields.942.subfields.n"
-          values: [ "1", "true", "TRUE", "True", "y", "Y", "yes", "Yes", "YES" ]
+          values: [ "0" ]
           negated: true
-          documentation: "Koha 942$n - suppressed in the OPAC, so suppressed in DCB"
+          documentation: "Koha 942$n - any value but 0 suppresses in the OPAC, so suppresses in DCB"
 
         # "Local only" - visible in the library's own OPAC but not contributed to
         # the consortium. Koha has no native flag for this, so 942$x is DCB's
@@ -386,6 +388,15 @@ dcb:
           values: [ "42" ]
           negated: true
           documentation: "Koha not_for_loan_status 42 - local only, not shared with the consortium"
+
+        # The same 42 in restricted (952$5) keeps a copy the library still lends from the
+        # consortium: Koha refuses a checkout only when restricted is 1, and holds never read it,
+        # whereas any not_for_loan above zero stops local loans and holds as well.
+        - operation: propertyValueAnyOf
+          property: "restrictedStatus"
+          values: [ "42" ]
+          negated: true
+          documentation: "Koha restricted 42 - lent locally, not shared with the consortium"
 
 concurrency:
   groups:

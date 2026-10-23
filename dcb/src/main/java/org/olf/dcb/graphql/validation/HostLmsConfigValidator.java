@@ -321,6 +321,12 @@ public class HostLmsConfigValidator {
 		// that no code path ever read. Alma keeps its own key - that one is used.
 		checkPresent(config, "virtual-item-library-code", missing);
 
+		// The NCIP check-in fallback is all or nothing: on, it needs its address and its token
+		if ("true".equalsIgnoreCase(String.valueOf(config.get("ncip-checkin-fallback")).trim())) {
+			checkPresent(config, "ncip-checkin-url", missing);
+			checkPresent(config, "ncip-checkin-token", missing);
+		}
+
 		throwIfMissing("Koha", missing);
 		validateVirtualPatronEmail("Koha", config);
 	}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OAI-PMH xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns='http://www.openarchives.org/OAI/2.0/' xsi:schemaLocation='http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd'><responseDate>2026-10-22T09:00:00Z</responseDate><request verb='ListRecords' metadataPrefix='marcxml'>https://fake-koha-opac-withheld/cgi-bin/koha/oai.pl</request><ListRecords><record><header><identifier>KOHA-OAI-TEST:30</identifier><datestamp>2026-10-21T10:00:00Z</datestamp></header><metadata><record xmlns='http://www.loc.gov/MARC21/slim'>
+  <leader>00242nam a22000857a 4500</leader>
+  <controlfield tag='005'>20261021100000.0</controlfield>
+  <datafield tag='245' ind1=' ' ind2=' '>
+    <subfield code='a'>Shared with the consortium</subfield>
+  </datafield>
+  <datafield tag='942' ind1=' ' ind2=' '>
+    <subfield code='c'>BK</subfield>
+  </datafield>
+  <datafield tag='999' ind1=' ' ind2=' '>
+    <subfield code='c'>30</subfield>
+    <subfield code='d'>30</subfield>
+  </datafield>
+</record></metadata></record><record><header><identifier>KOHA-OAI-TEST:31</identifier><datestamp>2026-10-21T10:00:00Z</datestamp></header><metadata><record xmlns='http://www.loc.gov/MARC21/slim'>
+  <leader>00242nam a22000857a 4500</leader>
+  <controlfield tag='005'>20261021100000.0</controlfield>
+  <datafield tag='245' ind1=' ' ind2=' '>
+    <subfield code='a'>Suppressed after it was harvested, served in full by a Koha before 25.11.05</subfield>
+  </datafield>
+  <datafield tag='942' ind1=' ' ind2=' '>
+    <subfield code='c'>BK</subfield>
+    <subfield code='n'>1</subfield>
+  </datafield>
+  <datafield tag='999' ind1=' ' ind2=' '>
+    <subfield code='c'>31</subfield>
+    <subfield code='d'>31</subfield>
+  </datafield>
+</record></metadata></record><record><header status="deleted"><identifier>KOHA-OAI-TEST:32</identifier><datestamp>2026-10-21T10:00:00Z</datestamp></header></record></ListRecords></OAI-PMH>

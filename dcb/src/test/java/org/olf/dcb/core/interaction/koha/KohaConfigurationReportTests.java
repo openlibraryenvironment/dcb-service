@@ -3,26 +3,22 @@ package org.olf.dcb.core.interaction.koha;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.events.RulesetCacheInvalidator;
+import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.ConfigurationReport;
-import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.koha.dto.KohaItemType;
 import org.olf.dcb.core.interaction.koha.dto.KohaLibrary;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatronCategory;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
-import org.olf.dcb.rules.ObjectRulesService;
+import org.olf.dcb.test.HostLmsFixture;
 
-import reactor.core.publisher.Mono;
+import jakarta.inject.Inject;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 /**
  * What the configuration check tells an implementer about a Koha. A pickup location's
@@ -30,12 +26,30 @@ import reactor.core.publisher.Mono;
  * such branch, so the report says which branches those are and checks the setting
  * against them rather than against every branch.
  */
+@MockServerMicronautTest
 class KohaConfigurationReportTests {
-	private final KohaApiClient apiClient = mock(KohaApiClient.class);
+	private static final String KOHA_HOST_LMS_CODE = "koha-configuration-report";
+	private static final String KOHA_HOST = "fake-koha-configuration-report";
+	private static final List<String> PREFERENCES = List.of("AllowHoldPolicyOverride", "IndependentBranches",
+		"canreservefromotherbranches", "ItemsDeniedRenewal", "OpacSuppression", "ReservesNeedReturns");
+
+	@Inject
+	private HostLmsFixture hostLmsFixture;
+
+	private MockKohaFixture koha;
+
+	@BeforeEach
+	void beforeEach(MockServerClient mockServerClient) {
+		mockServerClient.reset();
+		hostLmsFixture.deleteAll();
+
+		koha = new MockKohaFixture(mockServerClient, KOHA_HOST);
+		givenKohaLists();
+	}
 
 	@Test
 	void shouldListTheBranchesKohaAllowsCollectionFrom() {
-		givenKohaLists();
+		givenPreferences(Map.of());
 
 		final var report = client("DCB-SHARING").checkConfiguration().block();
 
@@ -49,7 +63,7 @@ class KohaConfigurationReportTests {
 
 	@Test
 	void shouldAcceptASharingBranchKohaAllowsCollectionFrom() {
-		givenKohaLists();
+		givenPreferences(Map.of());
 
 		final var report = client("DCB-SHARING").checkConfiguration().block();
 
@@ -61,7 +75,7 @@ class KohaConfigurationReportTests {
 	void shouldReportASharingBranchKohaDoesNotAllowCollectionFrom() {
 		// Every supplier hold names the sharing branch as its pickup branch; Koha refuses
 		// a hold at a branch that is not a pickup location, so the setting is wrong
-		givenKohaLists();
+		givenPreferences(Map.of());
 
 		final var report = client("BRANCH-S").checkConfiguration().block();
 
@@ -69,15 +83,63 @@ class KohaConfigurationReportTests {
 			is(ConfigurationReport.CheckResult.MISSING));
 	}
 
+	@Test
+	void shouldAcceptThePreferencesWhenTheySayWhatDcbNeeds() {
+		givenPreferences(Map.of(
+			"AllowHoldPolicyOverride", "1", "IndependentBranches", "0", "canreservefromotherbranches", "0",
+			"ItemsDeniedRenewal", "ccode: [DCB_NO_RENEW]", "OpacSuppression", "1", "ReservesNeedReturns", "1"));
+
+		final var report = client("DCB-SHARING").checkConfiguration().block();
+
+		for (String name : PREFERENCES) {
+			assertThat(name, check(report, name).result(), is(ConfigurationReport.CheckResult.PRESENT));
+		}
+	}
+
+	@Test
+	void shouldReportIndependentBranchesWithoutHoldsFromOtherBranches() {
+		// Together these refuse every supplier hold and every co-tenant local request
+		givenPreferences(Map.of("IndependentBranches", "1", "canreservefromotherbranches", "0",
+			"AllowHoldPolicyOverride", "0", "ItemsDeniedRenewal", "", "OpacSuppression", "0", "ReservesNeedReturns", "0"));
+
+		final var report = client("DCB-SHARING").checkConfiguration().block();
+
+		assertThat(check(report, "IndependentBranches").result(), is(ConfigurationReport.CheckResult.MISSING));
+		assertThat(check(report, "canreservefromotherbranches").result(), is(ConfigurationReport.CheckResult.MISSING));
+		assertThat(check(report, "AllowHoldPolicyOverride").result(), is(ConfigurationReport.CheckResult.MISSING));
+		assertThat(check(report, "ItemsDeniedRenewal").result(), is(ConfigurationReport.CheckResult.MISSING));
+		assertThat(check(report, "ReservesNeedReturns").result(), is(ConfigurationReport.CheckResult.MISSING));
+	}
+
+	@Test
+	void shouldSayWhenAKohaCannotBeAskedForItsPreferences() {
+		// Before 26.05 there is no route; on 26.05 the API patron may lack manage_sysprefs
+		koha.mockNoSystemPreferencesRoute();
+
+		final var report = client("DCB-SHARING").checkConfiguration().block();
+
+		assertThat(check(report, "IndependentBranches").result(), is(ConfigurationReport.CheckResult.UNKNOWN));
+		assertThat(report.status(), is(ConfigurationReport.Status.CHECKED));
+	}
+
+	/** A Koha 26.05 answering each preference DCB asks about: its value, or no value. */
+	private void givenPreferences(Map<String, String> preferences) {
+		for (String name : PREFERENCES) {
+			if (preferences.containsKey(name)) {
+				koha.mockSystemPreference(name, preferences.get(name));
+			} else {
+				koha.mockSystemPreferenceUnset(name);
+			}
+		}
+	}
+
 	private void givenKohaLists() {
-		when(apiClient.getItemTypes()).thenReturn(Mono.just(new KohaItemType[] {
-			KohaItemType.builder().itemTypeId("BK").description("Book").build()}));
-		when(apiClient.getPatronCategories()).thenReturn(Mono.just(new KohaPatronCategory[] {
-			KohaPatronCategory.builder().patronCategoryId("DCB").name("Consortium patron").build()}));
-		when(apiClient.getLibraries()).thenReturn(Mono.just(new KohaLibrary[] {
+		koha.mockItemTypes(KohaItemType.builder().itemTypeId("BK").description("Book").build());
+		koha.mockPatronCategories(KohaPatronCategory.builder().patronCategoryId("DCB").name("Consortium patron").build());
+		koha.mockLibraries(
 			KohaLibrary.builder().libraryId("BRANCH-N").name("North Branch").pickupLocation(true).build(),
 			KohaLibrary.builder().libraryId("BRANCH-S").name("South Branch").pickupLocation(false).build(),
-			KohaLibrary.builder().libraryId("DCB-SHARING").name("Consortium").pickupLocation(true).build()}));
+			KohaLibrary.builder().libraryId("DCB-SHARING").name("Consortium").pickupLocation(true).build());
 	}
 
 	private static ConfigurationReport.Vocabulary vocabulary(ConfigurationReport report, String name) {
@@ -98,25 +160,11 @@ class KohaConfigurationReportTests {
 		return new ConfigurationReport.Entry(code, description);
 	}
 
-	private KohaHostLmsClient client(String sharingLibraryCode) {
-		final var hostLms = mock(HostLms.class);
-		when(hostLms.getCode()).thenReturn("KOHA");
-		when(hostLms.getClientConfig()).thenReturn(Map.<String, Object>of(
-			"api-url", "https://koha.example.com",
-			"client_id", "any-id",
-			"client_secret", "any-secret",
+	private HostLmsClient client(String sharingLibraryCode) {
+		hostLmsFixture.createKohaHostLms(KOHA_HOST_LMS_CODE, "https://" + KOHA_HOST, Map.of(
 			"sharing-library-code", sharingLibraryCode,
 			"virtual-item-library-code", "BRANCH-N"));
 
-		final var clientFactory = mock(KohaClientFactory.class);
-		when(clientFactory.createClientFor(hostLms)).thenReturn(apiClient);
-
-		final var objectRulesService = mock(ObjectRulesService.class);
-		when(objectRulesService.findByName(any())).thenReturn(Mono.empty());
-
-		return new KohaHostLmsClient(hostLms, mock(ReferenceValueMappingService.class),
-			clientFactory, mock(MaterialTypeToItemTypeMappingService.class),
-			mock(LocationToAgencyMappingService.class), objectRulesService,
-			new RulesetCacheInvalidator(), mock(HostLmsService.class));
+		return hostLmsFixture.createClient(KOHA_HOST_LMS_CODE);
 	}
 }

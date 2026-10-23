@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.koha;
 import org.olf.dcb.core.interaction.VirtualPatronEmail;
 
 import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
+import org.olf.dcb.core.interaction.foundation.NcipEndpoint;
 import org.olf.dcb.core.model.HostLms;
 
 import java.net.URI;
@@ -10,10 +11,17 @@ import java.util.List;
 
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.booleanPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.stringPropertyDefinition;
 import static org.olf.dcb.core.interaction.HostLmsPropertyDefinition.urlPropertyDefinition;
 
-/** Config values for Koha LMS **/
+/**
+ * The settings of a Koha Host LMS.
+ * <p>{@code client_secret} and {@code ncip-checkin-token} are secrets. A switch changes on one
+ * value only: {@code ncip-checkin-fallback} is on only for "true", and
+ * {@code honour-opac-hidden-items} is off only for "false". The OAI-PMH settings are read by
+ * {@link KohaOaiPmhIngestSource}.
+ */
 
 public class KohaClientConfig {
 
@@ -61,6 +69,27 @@ public class KohaClientConfig {
 	private static final HostLmsPropertyDefinition VIRTUAL_PATRON_EMAIL = stringPropertyDefinition(
 		VirtualPatronEmail.SETTING, "Consortium mailbox for virtual patrons' notices", FALSE);
 
+	private static final HostLmsPropertyDefinition BUNDLE_HOST_BARCODE = stringPropertyDefinition(
+		"bundle-host-barcode",
+		"Barcode of the never-lent item DCB bundles a returned virtual item into to check it in",
+		FALSE);
+
+	private static final HostLmsPropertyDefinition NCIP_CHECKIN_FALLBACK = booleanPropertyDefinition(
+		"ncip-checkin-fallback",
+		"Check a virtual item in over NCIP when the bundle route fails; needs ncip-checkin-url and ncip-checkin-token",
+		FALSE);
+
+	private static final HostLmsPropertyDefinition NCIP_CHECKIN_URL = urlPropertyDefinition(
+		"ncip-checkin-url", "Address of this Koha's NCIP responder, without its token", FALSE);
+
+	private static final HostLmsPropertyDefinition NCIP_CHECKIN_TOKEN = stringPropertyDefinition(
+		"ncip-checkin-token", "The NCIP responder's token, sent as the last path segment; a secret", FALSE);
+
+	private static final HostLmsPropertyDefinition HONOUR_OPAC_HIDDEN_ITEMS = booleanPropertyDefinition(
+		"honour-opac-hidden-items",
+		"Leave out the copies OpacHiddenItems hides from the OPAC; needs RESTPublicAPI and RESTPublicAnonymousRequests",
+		FALSE);
+
 
 
 	private final HostLms hostLms;
@@ -88,7 +117,12 @@ public class KohaClientConfig {
 			NO_RENEW_COLLECTION_CODE,
 			VIRTUAL_PATRON_CATEGORY,
 			VIRTUAL_PATRON_EMAIL,
-			DO_NOT_RENEW_NOTE
+			DO_NOT_RENEW_NOTE,
+			HONOUR_OPAC_HIDDEN_ITEMS,
+			BUNDLE_HOST_BARCODE,
+			NCIP_CHECKIN_FALLBACK,
+			NCIP_CHECKIN_URL,
+			NCIP_CHECKIN_TOKEN
 		);
 	}
 
@@ -112,6 +146,38 @@ public class KohaClientConfig {
 	public String getVirtualPatronCategory() {
 		return VIRTUAL_PATRON_CATEGORY.getOptionalValueFrom(
 			hostLms.getClientConfig(), DEFAULT_VIRTUAL_PATRON_CATEGORY);
+	}
+
+	public static final String DEFAULT_HONOUR_OPAC_HIDDEN_ITEMS = "true";
+
+	public static final String DEFAULT_NCIP_CHECKIN_FALLBACK = "false";
+
+	// Only "true" turns it on: the fallback sends a credential to a second endpoint
+	public boolean isNcipCheckInFallbackEnabled() {
+		return "true".equalsIgnoreCase(NCIP_CHECKIN_FALLBACK
+			.getOptionalValueFrom(hostLms.getClientConfig(), DEFAULT_NCIP_CHECKIN_FALLBACK).trim());
+	}
+
+	// Null unless both are set; HostLmsConfigValidator refuses an enabled fallback without either
+	public NcipEndpoint getNcipCheckInEndpoint() {
+		final var url = NCIP_CHECKIN_URL.getOptionalValueFrom(hostLms.getClientConfig(), null);
+		final var token = NCIP_CHECKIN_TOKEN.getOptionalValueFrom(hostLms.getClientConfig(), null);
+
+		return url == null || url.isBlank() || token == null || token.isBlank()
+			? null
+			: new NcipEndpoint(url.trim(), token.trim());
+	}
+
+	// Absent means check-in is not configured: there is no default host item to fall back to
+	public String getBundleHostBarcode() {
+		final var barcode = BUNDLE_HOST_BARCODE.getOptionalValueFrom(hostLms.getClientConfig(), null);
+		return barcode == null || barcode.isBlank() ? null : barcode.trim();
+	}
+
+	// Only "false" turns it off: a mistyped value must not offer the copies a library hides
+	public boolean honoursOpacHiddenItems() {
+		return !"false".equalsIgnoreCase(HONOUR_OPAC_HIDDEN_ITEMS
+			.getOptionalValueFrom(hostLms.getClientConfig(), DEFAULT_HONOUR_OPAC_HIDDEN_ITEMS).trim());
 	}
 
 	public String getNoRenewCollectionCode() {

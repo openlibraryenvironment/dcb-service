@@ -66,6 +66,19 @@ public record ConfigurationReport(
 	public static final int MAX_VOCABULARY_ENTRIES = 500;
 
 	/**
+	 * The vocabulary an adapter publishes when its system says which codes a pickup location's
+	 * localId may be; InteropTestService judges every pickup Location of the Host LMS against it.
+	 */
+	public static final String PICKUP_VOCABULARY = "Pickup libraries";
+
+	public ConfigurationReport withChecks(List<Check> more) {
+		final var all = new java.util.ArrayList<>(checks);
+		all.addAll(more);
+
+		return new ConfigurationReport(hostLmsCode, status, detail, List.copyOf(all), vocabularies);
+	}
+
+	/**
 	 * Judges a setting DCB holds against a list read from the Host LMS. An empty list is taken
 	 * as unreadable, so it reports UNKNOWN and never MISSING.
 	 */

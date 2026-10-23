@@ -37,9 +37,6 @@ public class KohaHoldRequest {
 	@JsonProperty("notes")
 	private String notes;
 
-	@JsonProperty("item_type_id")
-	private String itemTypeId;
-
 	@JsonProperty("non_priority")
 	private Boolean nonPriority;
 

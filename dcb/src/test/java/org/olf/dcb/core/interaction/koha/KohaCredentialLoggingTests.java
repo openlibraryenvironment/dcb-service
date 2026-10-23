@@ -3,6 +3,8 @@ package org.olf.dcb.core.interaction.koha;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
@@ -15,10 +17,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatronAuthResponse;
 import org.olf.dcb.test.HostLmsFixture;
 import org.slf4j.LoggerFactory;
+import org.zalando.problem.ThrowableProblem;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -31,7 +35,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
 /**
  * What a Koha patron sign-in leaves in the log and in the error it raises. The password,
  * the card number, the name and the access token are credentials, at every level, and a
- * refused validation must not carry the request body into the problem it reports.
+ * refused validation, or a refused virtual patron, must not carry the request body into the
+ * problem it reports.
  */
 @MockServerMicronautTest
 class KohaCredentialLoggingTests {
@@ -111,6 +116,27 @@ class KohaCredentialLoggingTests {
 		mockKohaFixture.mockPatronsByCardnumber(CARDNUMBER, patron());
 
 		assertThat(patronAuth("BASIC/BARCODE+NAME", NAME), is(notNullValue()));
+		assertNothingSecretLogged(NAME);
+	}
+
+	@Test
+	void shouldNotCarryAPatronsDetailsIntoTheProblemWhenKohaRefusesTheVirtualPatron() {
+		// Every parameter of the problem is copied into the patron request's audit record
+		mockKohaFixture.mockCreatePatronRefused();
+
+		final var error = Mono.from(hostLmsFixture.createClient(KOHA_HOST_LMS_CODE)
+				.createPatron(Patron.builder()
+					.uniqueIds(List.of(CARDNUMBER + "@borrowing-agency"))
+					.localNames(List.of("Ada", NAME))
+					.build()))
+			.map(created -> (Throwable) null)
+			.onErrorResume(Mono::just)
+			.block();
+
+		assertThat(error, is(instanceOf(ThrowableProblem.class)));
+		assertThat(((ThrowableProblem) error).getParameters(), not(hasKey("Request Body")));
+		assertThat(error.toString(), not(containsString(NAME)));
+		assertThat(error.toString(), not(containsString(CARDNUMBER)));
 		assertNothingSecretLogged(NAME);
 	}
 

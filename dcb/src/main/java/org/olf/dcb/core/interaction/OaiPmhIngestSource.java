@@ -17,7 +17,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.BitSet;
+import java.util.OptionalInt;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import org.marc4j.marc.Record;
 import org.olf.dcb.configuration.ConfigurationRecord;
@@ -27,6 +31,7 @@ import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.interaction.folio.OaiResumptionTokenError;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.dataimport.job.VanishedRecords;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
@@ -350,6 +355,74 @@ public class OaiPmhIngestSource implements MarcIngestSource<OaiRecord>, SourceRe
 					: Mono.error(new DcbError(describe(error)));
 			})
 			.map(response -> new IdentifierPage(resumptionToken, response));
+	}
+
+	private static final int VANISHED_SAMPLE_SIZE = 20;
+
+	/**
+	 * {@code findMissingRecords} for a provider whose identifiers end in an integer record number,
+	 * so the held set is a BitSet. Costs one ListIdentifiers walk plus one GetRecord per missing
+	 * record, one request at a time.
+	 */
+	protected Flux<SourceRecord> findMissingByRecordNumber(Publisher<String> knownRemoteIds,
+		Function<String, OptionalInt> recordNumberOf) {
+
+		return Flux.from(knownRemoteIds)
+			// reduceWith, not reduce: the accumulator must be created per subscription.
+			.reduceWith(BitSet::new, (held, id) -> mark(held, id, recordNumberOf))
+			.flatMapMany(held -> {
+				final Instant fetchedAt = Instant.now();
+
+				return listAllIdentifiers()
+					.filter(header -> isLive(header) && !contains(held, header.identifier(), recordNumberOf))
+					.concatMap(header -> getRecord(header.identifier()))
+					.concatMap(record -> sourceRecordFor(record, fetchedAt));
+			});
+	}
+
+	/**
+	 * {@code findVanishedRecords} for the same kind of provider. A record vanishes when it is held
+	 * but not listed as live, so one the provider reports as deleted vanishes too, and every stored
+	 * row for it is replaced so that none can bring the bib back on reprocessing.
+	 *
+	 * @param identifierFor the OAI identifier to write into the deletion for a stored remote id
+	 */
+	protected Mono<VanishedRecords> findVanishedByRecordNumber(Publisher<String> liveSourceRecordIds,
+		Publisher<String> storedRemoteIds, Function<String, OptionalInt> recordNumberOf,
+		UnaryOperator<String> identifierFor) {
+
+		return Flux.from(liveSourceRecordIds)
+			.reduceWith(BitSet::new, (held, id) -> mark(held, id, recordNumberOf))
+			.flatMap(held -> listAllIdentifiers()
+				.filter(OaiPmhIngestSource::isLive)
+				.map(Header::identifier)
+				.reduceWith(BitSet::new, (listed, id) -> mark(listed, id, recordNumberOf))
+				.map(listed -> {
+					final BitSet vanished = (BitSet) held.clone();
+					vanished.andNot(listed);
+
+					final Instant at = Instant.now();
+
+					return new VanishedRecords(held.cardinality(), vanished.cardinality(),
+						vanished.stream().limit(VANISHED_SAMPLE_SIZE).mapToObj(String::valueOf).toList(),
+						Flux.from(storedRemoteIds)
+							.filter(remoteId -> contains(vanished, remoteId, recordNumberOf))
+							.concatMap(remoteId -> deletedSourceRecord(remoteId, identifierFor.apply(remoteId), at)));
+				}));
+	}
+
+	private static BitSet mark(BitSet records, String id, Function<String, OptionalInt> recordNumberOf) {
+		recordNumberOf.apply(id).ifPresent(records::set);
+		return records;
+	}
+
+	private static boolean contains(BitSet records, String id, Function<String, OptionalInt> recordNumberOf) {
+		final OptionalInt recordNumber = recordNumberOf.apply(id);
+		return recordNumber.isPresent() && records.get(recordNumber.getAsInt());
+	}
+
+	private static boolean isLive(Header header) {
+		return !"deleted".equalsIgnoreCase(header.status());
 	}
 
 	/**
