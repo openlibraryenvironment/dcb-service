@@ -81,9 +81,15 @@ public interface KohaApiClient {
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/patrons/operation/addPatron">Adding a patron in Koha</a>
 	 * </p>
+	 * <p>
+	 * From 25.11 Koha refuses, with a 409, a patron matching one it holds on its
+	 * PatronDuplicateMatchingAddFields (surname and first name by default) unless
+	 * x-confirm-not-duplicate is sent. A virtual patron copies the borrower's names, or "DCB
+	 * VPATRON" when there are none, so it would often match. 25.05 makes no such check.
 	 */
 	default Mono<KohaPatron> createPatron(KohaPatron patron) {
-		return post("/api/v1/patrons", patron, KohaPatron.class);
+		return post("/api/v1/patrons", patron, KohaPatron.class, Collections.emptyMap(),
+			Map.of("x-confirm-not-duplicate", "1"));
 	}
 
 	/**

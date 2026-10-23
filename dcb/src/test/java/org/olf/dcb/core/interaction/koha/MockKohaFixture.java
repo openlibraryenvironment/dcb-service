@@ -202,8 +202,10 @@ public class MockKohaFixture {
 		return Arrays.stream(patrons).map(MockKohaFixture::asKohaAnswers).toList();
 	}
 
+	/** Koha from 25.11 creates a patron matching an existing one only when told it is not a duplicate. */
 	public void mockCreatePatron(KohaPatron created) {
-		mockServer.mock(commonRequests.post(PATRONS_PATH), created(created));
+		mockServer.mock(commonRequests.post(PATRONS_PATH).withHeader("x-confirm-not-duplicate", "1"),
+			created(created));
 	}
 
 	/** Koha's answer to a patron its schema refuses. */
