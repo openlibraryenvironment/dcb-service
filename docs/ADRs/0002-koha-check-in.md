@@ -11,8 +11,11 @@ itself checked out. The standard and own-library workflows never call it: the li
 staff check the virtual item in at the desk.
 
 Koha's REST API has no check-in operation on 25.05, 25.11 or 26.05. The checkouts
-resource offers nine operations and none returns an item; bug 19406, asking for one, has
-been open since 2017. The alternatives that look like a return are not one: `DELETE
+resource offers nine operations and none returns an item. Bug 24401 adds `POST /checkins`
+and `GET /checkins/availability`; it passed QA on 2026-09-04 but depends on bug 42418,
+which no longer applies (2026-10-21), so it can reach 26.11 at the earliest and is not
+recorded for backport (bug 19406 was closed as its duplicate in 2020). When a Koha DCB
+supports has it, it replaces the route below. The alternatives that look like a return are not one: `DELETE
 /items/{id}` answers 409 `book_on_loan`, `DELETE /patrons/{id}` answers 409
 `has_checkouts`, and setting `lost_status` relies on `MarkLostItemsAsReturned` and leaves
 a lost statistic on a record DCB deletes.
@@ -40,7 +43,19 @@ waits for a SIP2 transport: `Sip2Adaptor` has none, and every operation on it fa
 there is one, a `checkin-method` setting chooses between the two; until then there is
 nothing to choose and no such setting.
 
-No Koha plugin is part of this decision or depends on one.
+No Koha plugin is part of this decision or depends on one. Two exist that would do it: ByWater's
+`koha-plugin-ncip-server` answers NCIP CheckInItem (Koha 25.11 or later, shared-token
+authentication), which DCB's `NcipAdaptor` already speaks; `koha-plugin-offline-circulation`
+returns through `ProcessOfflineReturn`, which skips `AddReturn` and its hold and transfer
+handling. ILS-DI has no return service, and Koha's ILL module does not return items.
+
+Known limits of the route, from Koha's source: the return is recorded at the API patron's
+home branch; it does not trap holds (`ModReserveAffect`), which on a virtual item with no
+other holds changes nothing; Koha passes both the bundled barcode and, in the unlink, the
+itemnumber through `barcodedecode` (bug 38398), so a site with an `itemBarcodeInputFilter`
+or a barcode-transform plugin may not find the virtual item by the lender's barcode. An
+unlink that misses leaves a link the finalising delete removes, because `item_bundles`
+cascades on delete.
 
 A Koha with none configured is a complete member for the standard and own-library
 workflows, and `checkConfiguration` says which workflows it supports.
