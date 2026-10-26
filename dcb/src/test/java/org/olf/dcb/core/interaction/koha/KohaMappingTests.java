@@ -250,6 +250,24 @@ class KohaMappingTests {
 	}
 
 	@Test
+	void shouldNameTheLendingLibraryOnTheVirtualItem() {
+		// Staff checking the returned copy in have to know where to send it
+		referenceValueMappingFixture.defineCanonicalToLocalItemTypeMapping(KOHA_HOST_LMS_CODE, "BKM", "BK");
+		koha.mockCreateItem(BIBLIO_ID, KohaItem.builder().itemId(99L).build());
+
+		client.createItem(CreateItemCommand.builder()
+			.bibId(BIBLIO_ID)
+			.barcode("6565750674")
+			.canonicalItemType("BKM")
+			.locationCode("LENDING-AGENCY")
+			.patronHomeLocation("BRANCH-NORTH")
+			.build()).block();
+
+		koha.verifyCreateItem(BIBLIO_ID,
+			"{\"internal_notes\": \"Virtual item = created by DCB. Return to LENDING-AGENCY\"}");
+	}
+
+	@Test
 	void shouldFallBackToTheConfiguredVirtualItemLibrary() {
 		// A Host LMS serving one library has nothing per-request to go on
 		createVirtualItem(null);

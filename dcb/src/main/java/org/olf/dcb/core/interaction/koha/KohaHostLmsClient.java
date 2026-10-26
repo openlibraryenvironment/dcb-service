@@ -972,8 +972,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 //					.notForLoanStatus(virtualNotForLoanStatus) // This could also make it so that virtual items are NOT requestable by local patrons.
 					// But we need to check it won't break checkouts (or that we can override) Override can be done via confirmation token so one to experiment with
 					.callnumber(DCB_VIRTUAL_ITEM_CALL_NUMBER)
-					.internalNotes("Virtual item = created by DCB")
-					.publicNotes("Virtual item = created by DCB")
+					.internalNotes(virtualItemNote(cic))
+					.publicNotes(virtualItemNote(cic))
 					.build();
 
 				// POST /api/v1/biblios/{biblio_id}/items
@@ -1000,6 +1000,15 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 * serving one library and wrong for one serving sixty - every library's incoming
 	 * loans would otherwise materialise at whichever branch was configured.
 	 */
+	// The lending agency's code: what staff need to send the copy back once the loan ends
+	private static String virtualItemNote(CreateItemCommand cic) {
+		final var lender = getValueOrNull(cic, CreateItemCommand::getLocationCode);
+
+		return isBlank(lender)
+			? "Virtual item = created by DCB"
+			: "Virtual item = created by DCB. Return to " + lender;
+	}
+
 	private String virtualItemLibraryFor(CreateItemCommand cic) {
 		final var patronHomeLocation = getValueOrNull(cic, CreateItemCommand::getPatronHomeLocation);
 
