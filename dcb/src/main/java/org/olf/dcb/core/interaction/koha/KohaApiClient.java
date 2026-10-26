@@ -342,15 +342,15 @@ public interface KohaApiClient {
 	}
 
 	/**
-	 * Get active holds for an item.
-	 * Filters out old (completed/cancelled) holds using the 'old=false' query parameter. This is used for the DCB hold count.
-	 * We have something similar in Polaris, as we cannot trust the holdsCount variable to give us active holds.
+	 * A biblio's current holds, on one copy or on the title, at most perPage of them.
+	 * Filters out old (completed/cancelled) holds using the 'old=false' query parameter.
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/holds/operation/listHolds">List holds</a>
 	 * </p>
 	 */
-	default Mono<Object[]> getActiveHoldsForItem(String itemId) {
-		return get("/api/v1/holds", Object[].class, Map.of("item_id", itemId, "old", false));
+	default Mono<KohaHoldResponse[]> getActiveHoldsForBiblio(String biblioId, int perPage) {
+		return get("/api/v1/holds", KohaHoldResponse[].class,
+			Map.of("biblio_id", biblioId, "old", false, "_per_page", perPage));
 	}
 
 	/**

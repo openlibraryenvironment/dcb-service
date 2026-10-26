@@ -127,11 +127,21 @@ public class MockKohaFixture {
 	}
 
 	/**
-	 * No active holds, which is what getItems asks for per item to derive the hold
-	 * count. Matched on the path alone so one expectation covers every item.
+	 * No active holds: what getItems reads once per biblio to derive hold counts. Matched on
+	 * the path alone so one expectation covers every biblio.
 	 */
 	public void mockNoActiveHolds() {
 		mockServer.mock(commonRequests.get(HOLDS_PATH), okJson(new Object[0]));
+	}
+
+	/** A biblio's current holds: on one copy where item_id is set, on the title where it is not. */
+	public void mockActiveHoldsForBiblio(String biblioId, KohaHoldResponse... holds) {
+		mockServer.mock(commonRequests.get(HOLDS_PATH, "biblio_id", biblioId), okJson(holds));
+	}
+
+	public void mockActiveHoldsUnreadable() {
+		mockServer.mock(commonRequests.get(HOLDS_PATH),
+			response().withStatusCode(500).withBody(json(Map.of("error", "Something went wrong"))));
 	}
 
 	/**

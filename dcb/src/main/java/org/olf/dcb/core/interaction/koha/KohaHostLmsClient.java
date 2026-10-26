@@ -121,8 +121,8 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * offer copies it cannot see are hidden.
  *
  * <h2>Bounds and gaps</h2>
- * <p>Items are read {@code ITEMS_PAGE_SIZE} a page up to {@code MAX_ITEMS_PER_BIBLIO} a bib, with
- * {@code ITEM_ENRICHMENT_CONCURRENCY} hold reads at a time; vocabularies are cut at
+ * <p>Items are read {@code ITEMS_PAGE_SIZE} a page up to {@code MAX_ITEMS_PER_BIBLIO} a bib, and
+ * their holds in one read of up to {@code HOLDS_PAGE_SIZE}; vocabularies are cut at
  * {@code ConfigurationReport.MAX_VOCABULARY_ENTRIES}; the token is one per Host LMS per expiry.
  * {@code supplierPreflight} and {@code checkRequestOptions} are not implemented, and check-in
  * over SIP2 is not available.
@@ -159,16 +159,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 		"BASIC/BARCODE+PASSWORD", "BASIC/BARCODE+PIN", "BASIC/BARCODE+NAME");
 
 
-	/**
-	 * How many items getItems enriches at once.
-	 * <p>
-	 * mapKohaItemToDcbItem issues a getActiveHoldsForItem per item, so an unbounded
-	 * flatMap turns one availability check into one API call per holding. A title
-	 * held at sixty branches of a shared Koha is then sixty concurrent calls to a
-	 * single server, per check, per user - and co-tenancy is exactly what makes the
-	 * holding count large while the server count stays at one.
-	 */
+	// Each item's agency and item type are mapping lookups in DCB's own database
 	private static final int ITEM_ENRICHMENT_CONCURRENCY = 4;
+
+	// Enough to tell a free copy from one with a queue; a fuller page counts as a queue on every copy
+	private static final int HOLDS_PAGE_SIZE = 100;
 
 	// Koha's list answers RESTdefaultPageSize rows (20 by default) unless asked for a page
 	// size; a title on a shared Koha has more copies than that. The cap bounds one check.
@@ -797,16 +792,56 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// Resolved once per call rather than per item. The accessor caches, so per item
 		// would also be cheap, but the ruleset cannot change midway through one bib's
 		// items and reading it once says so.
-		return Mono.zip(getLmsItemSuppressionRuleset(), opacVisibleItemIds(bibId))
-			.flatMap(rulesAndVisible -> allItemsForBiblio(bibId)
-				.flatMap(kohaItem -> mapKohaItemToDcbItem(kohaItem, rulesAndVisible.getT1(), rulesAndVisible.getT2()),
-					ITEM_ENRICHMENT_CONCURRENCY)
+		return Mono.zip(getLmsItemSuppressionRuleset(), opacVisibleItemIds(bibId), activeHolds(bibId))
+			.flatMap(found -> allItemsForBiblio(bibId)
+				.map(kohaItem -> mapKohaItemToDcbItem(kohaItem, found.getT1(), found.getT2(), found.getT3()))
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()),
 					ITEM_ENRICHMENT_CONCURRENCY)
 				.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType,
 					ITEM_ENRICHMENT_CONCURRENCY)
-				.onErrorContinue((throwable, item) -> log.warn("Mapping error for Koha item {}: {}", item, throwable.getMessage()))
 				.collectList());
+	}
+
+	/**
+	 * One read for the title, not one per copy. Koha's patrons mostly hold titles, and a
+	 * title-level hold can be filled by any copy, so every copy carries it; a read per copy by
+	 * item_id never saw them. A failed read fails the check: a copy cannot be shown free of
+	 * holds that were not read.
+	 */
+	private Mono<BiblioHolds> activeHolds(String bibId) {
+		return client.getActiveHoldsForBiblio(bibId, HOLDS_PAGE_SIZE)
+			.map(BiblioHolds::of)
+			.defaultIfEmpty(BiblioHolds.NONE)
+			.onErrorMap(this::holdsUnreadable);
+	}
+
+	private ThrowableProblem holdsUnreadable(Throwable error) {
+		log.error("Koha at {} would not say which copies have holds", getHostLmsCode(), error);
+
+		return Problem.builder()
+			.withTitle("Koha would not say which copies have holds")
+			.withStatus(Status.BAD_GATEWAY)
+			.withDetail("The holds read at %s failed: %s".formatted(getHostLmsCode(), kohaErrorMessage(error)))
+			.with("remedy", "Listing holds needs the same reserveforothers: place_holds permission as placing them; check the API patron still has it")
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	record BiblioHolds(Map<Long, Integer> perItem, int onTitle) {
+		static final BiblioHolds NONE = new BiblioHolds(Map.of(), 0);
+
+		static BiblioHolds of(KohaHoldResponse[] holds) {
+			final var perItem = Arrays.stream(holds)
+				.filter(hold -> hold.getItemId() != null)
+				.collect(Collectors.toUnmodifiableMap(KohaHoldResponse::getItemId, hold -> 1, Integer::sum));
+			final var onTitle = (int) Arrays.stream(holds).filter(hold -> hold.getItemId() == null).count();
+
+			return new BiblioHolds(perItem, holds.length < HOLDS_PAGE_SIZE ? onTitle : onTitle + 1);
+		}
+
+		int countFor(Long itemId) {
+			return perItem.getOrDefault(itemId, 0) + onTitle;
+		}
 	}
 
 	private Flux<KohaItem> allItemsForBiblio(String bibId) {
@@ -1101,74 +1136,67 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.build());
 	}
 
-	private Mono<Item> mapKohaItemToDcbItem(KohaItem kohaItem,
-		Optional<ObjectRuleset> itemSuppressionRules, Optional<Set<Long>> opacVisible) {
+	private Item mapKohaItemToDcbItem(KohaItem kohaItem, Optional<ObjectRuleset> itemSuppressionRules,
+		Optional<Set<Long>> opacVisible, BiblioHolds holds) {
+
 		final String itemId = String.valueOf(kohaItem.getItemId());
 		final String bibId = String.valueOf(kohaItem.getBiblioId());
+		final int activeHoldCount = holds.countFor(kohaItem.getItemId());
 
-		// First we need the active holds.
-		return client.getActiveHoldsForItem(itemId)
-			.map(holds -> holds != null ? holds.length : 0)
-			.onErrorResume(e -> {
-				log.warn("Failed to fetch active holds for Koha item {}: {}", itemId, e.getMessage());
-				return Mono.just(0);
-			})
-			.map(activeHoldCount -> {
-				ItemStatusCode dcbStatusCode = deriveItemStatus(kohaItem);
-				Boolean isRequestable = ItemStatusCode.AVAILABLE.equals(dcbStatusCode); // CHECK THAT THIS IS THE SAME THING IN KOHA
+		ItemStatusCode dcbStatusCode = deriveItemStatus(kohaItem);
+		Boolean isRequestable = ItemStatusCode.AVAILABLE.equals(dcbStatusCode); // CHECK THAT THIS IS THE SAME THING IN KOHA
 
 
-				final Instant dueDate = kohaItem.getCheckout() == null
-					? null
-					: DueDates.parse(kohaItem.getCheckout().getDueDate());
+		final Instant dueDate = kohaItem.getCheckout() == null
+			? null
+			: DueDates.parse(kohaItem.getCheckout().getDueDate());
 
-				// Koha's "location" is a shelving classifier - REF, STACKS, JUV - and every
-				// branch on a shared server uses the same set of them, so it can never
-				// identify which library owns an item. The branch is home_library_id, with
-				// holding_library_id as the fallback for an item currently away from home.
-				// See Item, which documents the two as distinct concepts.
-				final var owningBranch = kohaItem.getHomeLibraryId() != null
-					? kohaItem.getHomeLibraryId()
-					: kohaItem.getHoldingLibraryId();
+		// Koha's "location" is a shelving classifier - REF, STACKS, JUV - and every
+		// branch on a shared server uses the same set of them, so it can never
+		// identify which library owns an item. The branch is home_library_id, with
+		// holding_library_id as the fallback for an item currently away from home.
+		// See Item, which documents the two as distinct concepts.
+		final var owningBranch = kohaItem.getHomeLibraryId() != null
+			? kohaItem.getHomeLibraryId()
+			: kohaItem.getHoldingLibraryId();
 
-				Location derivedLocation = owningBranch != null
-					? Location.builder()
-					.code(owningBranch)
-					.name(owningBranch)
-					.build()
-					: null;
+		Location derivedLocation = owningBranch != null
+			? Location.builder()
+			.code(owningBranch)
+			.name(owningBranch)
+			.build()
+			: null;
 
-				// Withdrawn is native and unconditional; everything else is the operator's
-				// ruleset. The not_for_loan_status 42 convention that used to be hardcoded
-				// here now lives in the koha-item-default ruleset, so a library that uses a
-				// different value can say so in config instead of asking for a release.
-				Boolean isSuppressed = deriveItemSuppressedFlag(kohaItem, itemSuppressionRules, opacVisible);
+		// Withdrawn is native and unconditional; everything else is the operator's
+		// ruleset. The not_for_loan_status 42 convention that used to be hardcoded
+		// here now lives in the koha-item-default ruleset, so a library that uses a
+		// different value can say so in config instead of asking for a release.
+		Boolean isSuppressed = deriveItemSuppressedFlag(kohaItem, itemSuppressionRules, opacVisible);
 
-				return Item.builder()
-					.localId(itemId)
-					.status(new ItemStatus(dcbStatusCode))
-					.dueDate(dueDate)
-					.location(derivedLocation)
-					.shelvingLocation(kohaItem.getLocation())
-					.barcode(kohaItem.getExternalId())
-					.callNumber(kohaItem.getCallnumber())
-					.isRequestable(isRequestable)
-					.holdCount(activeHoldCount) // Uses active holds, not the historical hold_count tally
-					.localBibId(bibId)
-					.localItemType(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
-					.localItemTypeCode(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
-					.suppressed(isSuppressed)
-					.rawVolumeStatement(kohaItem.getSerialIssueNumber())
-					.parsedVolumeStatement(VolumeDesignation.normalise(kohaItem.getSerialIssueNumber()))
-					// The system the item came from, as opposed to owningContext, which is
-					// overwritten with the agency's Host LMS once the location resolves. When
-					// the location does not resolve there is no agency and so no owning
-					// context, and this is then the only record of where the item came from -
-					// which is exactly the case an operator has to diagnose on a shared system.
-					.sourceHostLmsCode(getHostLmsCode())
-					.owningContext(getHostLms().getCode())
-					.build();
-			});
+		return Item.builder()
+			.localId(itemId)
+			.status(new ItemStatus(dcbStatusCode))
+			.dueDate(dueDate)
+			.location(derivedLocation)
+			.shelvingLocation(kohaItem.getLocation())
+			.barcode(kohaItem.getExternalId())
+			.callNumber(kohaItem.getCallnumber())
+			.isRequestable(isRequestable)
+			.holdCount(activeHoldCount) // Uses active holds, not the historical hold_count tally
+			.localBibId(bibId)
+			.localItemType(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
+			.localItemTypeCode(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
+			.suppressed(isSuppressed)
+			.rawVolumeStatement(kohaItem.getSerialIssueNumber())
+			.parsedVolumeStatement(VolumeDesignation.normalise(kohaItem.getSerialIssueNumber()))
+			// The system the item came from, as opposed to owningContext, which is
+			// overwritten with the agency's Host LMS once the location resolves. When
+			// the location does not resolve there is no agency and so no owning
+			// context, and this is then the only record of where the item came from -
+			// which is exactly the case an operator has to diagnose on a shared system.
+			.sourceHostLmsCode(getHostLmsCode())
+			.owningContext(getHostLms().getCode())
+			.build();
 	}
 
 

@@ -3,14 +3,13 @@ package org.olf.dcb.core.interaction.koha;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.olf.dcb.test.MockServerCommonResponses.okJson;
 
 import java.util.List;
@@ -39,6 +38,7 @@ import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.zalando.problem.ThrowableProblem;
 
 import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -352,11 +352,9 @@ class KohaMappingTests {
 	}
 
 	@Test
-	void shouldNotCallKohaOncePerHoldingAllAtOnce() {
-		// getItems issues a getActiveHoldsForItem per item. Unbounded, a title held at
-		// sixty branches of a shared Koha is sixty concurrent calls to one server, per
-		// availability check, per user - and co-tenancy is what makes the holding count
-		// large while the server count stays at one.
+	void shouldReadTheHoldsOfEveryHoldingInOneCall() {
+		// A read per copy made a title held at sixty branches of a shared Koha sixty calls to
+		// one server, per availability check, per user
 		final var holdings = 60;
 
 		koha.mockItemsForBiblio(BIBLIO_ID, IntStream.range(0, holdings)
@@ -374,38 +372,63 @@ class KohaMappingTests {
 		final var items = client.getItems(BibRecord.builder().sourceRecordId(BIBLIO_ID).build()).block();
 
 		assertThat("Every holding is still mapped", items, hasSize(holdings));
-		assertThat("Every holding's holds were read", ActiveHoldsProbe.calls.get(), is(holdings));
-		assertThat("The probe has to see reads overlap, or it has measured nothing",
-			ActiveHoldsProbe.peakInFlight.get(), is(greaterThan(1)));
-		assertThat("Concurrent calls to one Koha must stay bounded",
-			ActiveHoldsProbe.peakInFlight.get(), is(lessThanOrEqualTo(4)));
+		assertThat("One holds read for the title", ActiveHoldsProbe.calls.get(), is(1));
 	}
 
-	/**
-	 * Runs inside the mock server, one invocation per active-holds read, and holds each
-	 * open long enough for concurrent reads to overlap.
-	 */
+	@Test
+	void shouldCountATitleLevelHoldOnEveryCopy() {
+		// Koha's patrons mostly hold the title, and any copy may fill it
+		koha.mockItemsForBiblio(BIBLIO_ID, copy(1L), copy(2L));
+		koha.mockActiveHoldsForBiblio(BIBLIO_ID, KohaHoldResponse.builder().holdId(9L).patronId(13L).build());
+
+		final var items = client.getItems(BibRecord.builder().sourceRecordId(BIBLIO_ID).build()).block();
+
+		assertThat(items.stream().map(Item::getHoldCount).toList(), contains(1, 1));
+	}
+
+	@Test
+	void shouldCountACopysOwnHoldOnThatCopyAlone() {
+		koha.mockItemsForBiblio(BIBLIO_ID, copy(1L), copy(2L));
+		koha.mockActiveHoldsForBiblio(BIBLIO_ID, KohaHoldResponse.builder().holdId(9L).patronId(13L).itemId(2L).build());
+
+		final var items = client.getItems(BibRecord.builder().sourceRecordId(BIBLIO_ID).build()).block();
+
+		assertThat(items.stream().filter(item -> item.getLocalId().equals("1")).findFirst().orElseThrow().getHoldCount(), is(0));
+		assertThat(items.stream().filter(item -> item.getLocalId().equals("2")).findFirst().orElseThrow().getHoldCount(), is(1));
+	}
+
+	@Test
+	void shouldFailTheCheckWhenKohaWillNotListHolds() {
+		// A copy cannot be shown free of holds that were not read; it used to read as none
+		koha.mockItemsForBiblio(BIBLIO_ID, copy(1L));
+		koha.mockActiveHoldsUnreadable();
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> client.getItems(BibRecord.builder().sourceRecordId(BIBLIO_ID).build()).block());
+
+		assertThat(problem.getTitle(), is("Koha would not say which copies have holds"));
+	}
+
+	private static KohaItem copy(long itemId) {
+		return KohaItem.builder()
+			.itemId(itemId)
+			.biblioId(Long.valueOf(BIBLIO_ID))
+			.externalId("barcode-" + itemId)
+			.homeLibraryId("BRANCH-N")
+			.build();
+	}
+
+	/** Runs inside the mock server, one invocation per holds read. */
 	public static class ActiveHoldsProbe implements ExpectationResponseCallback {
 		static final AtomicInteger calls = new AtomicInteger();
-		static final AtomicInteger inFlight = new AtomicInteger();
-		static final AtomicInteger peakInFlight = new AtomicInteger();
 
 		static void reset() {
 			calls.set(0);
-			inFlight.set(0);
-			peakInFlight.set(0);
 		}
 
 		@Override
-		public HttpResponse handle(HttpRequest request) throws InterruptedException {
+		public HttpResponse handle(HttpRequest request) {
 			calls.incrementAndGet();
-			peakInFlight.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
-
-			try {
-				Thread.sleep(20);
-			} finally {
-				inFlight.decrementAndGet();
-			}
 
 			return okJson(new Object[0]);
 		}
