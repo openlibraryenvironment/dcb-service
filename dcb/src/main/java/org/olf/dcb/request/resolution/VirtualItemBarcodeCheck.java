@@ -48,7 +48,7 @@ public class VirtualItemBarcodeCheck {
 		return hostLmsService.getClientFor(itemHostLmsCode)
 			.flatMap(supplierClient -> systemsToCheck(borrowingHostLmsCode, pickupAgencyCode)
 				.filter(client -> createsAVirtualItemThere(client, supplierClient))
-				.concatMap(client -> presentAt(client, barcode, item))
+				.concatMap(client -> presentAt(client, client.virtualItemBarcodeFor(barcode), item))
 				.any(Boolean::booleanValue))
 			.defaultIfEmpty(false)
 			.onErrorResume(error -> {

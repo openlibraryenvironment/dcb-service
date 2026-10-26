@@ -33,6 +33,7 @@ by different hosts on most hosted installations.
 | `do-not-renew-note` | no | the internal note DCB writes on an item it has stopped being renewed |
 | `virtual-patron-email` | no | the consortium mailbox given to virtual patrons |
 | `bundle-host-barcode` | for pickup anywhere and walk-up as borrower | the barcode of the never-lent DCB item at the sharing branch that DCB bundles a returned virtual item into to check it in (ADR 0002); absent, those two workflows stop at the return |
+| `virtual-item-barcode-prefix` | no | put before the lender's barcode on every virtual item DCB creates in this Koha, so a virtual item never shares a real item's barcode. Needed where a copy DCB lends can already be in this Koha: a shared Koha whose patrons collect outside it. 1 to 19 characters, and with the lender's barcode at most 20, Koha's limit. Staff at a borrowing or pickup branch then type the prefix before the copy's barcode to find the virtual item, because the label on the copy carries the lender's barcode alone |
 | `ncip-checkin-fallback` | no, default `false` | `true` lets DCB check a virtual item in over NCIP when the bundle route fails; needs the two below and ByWater's NCIP plugin (Koha 25.11 or later). See [The NCIP check-in fallback](#the-ncip-check-in-fallback) |
 | `ncip-checkin-url` | with the fallback | the NCIP responder's address without its token, e.g. `https://staff.example.org/api/v1/contrib/ncip_server/ncip` |
 | `ncip-checkin-token` | with the fallback | the plugin's `auth_token`, a secret; DCB sends it as the last path segment and never logs it |
@@ -148,6 +149,8 @@ finalised; they land in `deletedbiblio` and `deleteditems` like any staff deleti
 | `Koha has no loan to renew` | the renewal reached Koha before the virtual patron's loan existed, or after the item was returned | nothing: the loan is renewed once it exists |
 | a hold answers 404 while the request is open | the hold was filled or cancelled and moved to Koha's old holds | nothing: DCB reads the old hold and acts on it |
 | virtual bibs appear in the OPAC or the shared index | the Koha predates the suppressed virtual bib, or `OpacSuppression` is off | enable `OpacSuppression`; DCB's ruleset drops them on the next harvest |
+| `Koha already has an item with this barcode` | a virtual item would share a barcode with an item already in this Koha: the lender's own copy on a shared Koha, a virtual item a finished request left behind, or another library's item with the same number | delete a virtual item no open request needs; otherwise set `virtual-item-barcode-prefix` |
+| `The virtual item's barcode is too long for Koha` | the prefix and the lender's barcode come to more than 20 characters | shorten `virtual-item-barcode-prefix`; without one, that copy cannot be borrowed into this Koha |
 | `Koha check-in is not configured` | `bundle-host-barcode` is not set | create the bundle host item and set the setting; until then pickup anywhere and walk-up with this Koha as borrower stop at the return |
 | `Koha would not check the item in`, reason `bundle_checked_out` | the bundle host item is on loan | check it in and keep it out of circulation |
 | `Koha would not check the item in`, reason `failed_checkin` | Koha's own return refused the item | check the virtual item in by hand |

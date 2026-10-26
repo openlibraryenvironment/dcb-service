@@ -573,6 +573,12 @@ public class MockKohaFixture {
 		mockServer.mock(commonRequests.post(itemsForBiblioPath(biblioId)), created(createdItem));
 	}
 
+	/** Koha's answer to a second item with a barcode it already holds (Koha::REST::V1::Biblios). */
+	public void mockCreateItemDuplicateBarcode(String biblioId) {
+		mockServer.mock(commonRequests.post(itemsForBiblioPath(biblioId)),
+			response().withStatusCode(409).withBody(json(Map.of("error", "Duplicate barcode."))));
+	}
+
 	/** The loans on one item, which is how DCB finds the checkout to ask about renewal. */
 	public void mockCheckoutsForItem(String itemId, KohaCheckout... checkouts) {
 		mockServer.mock(commonRequests.get("/api/v1/checkouts", "q", "{\"item_id\":" + itemId + "}"),

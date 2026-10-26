@@ -955,6 +955,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		log.info("Koha: Creating virtual item for bibId: {}, barcode: {}", bibId, barcode);
 
+		final String virtualBarcode = virtualItemBarcodeFor(barcode);
+
+		if (virtualBarcode.length() > KohaClientConfig.MAX_BARCODE_LENGTH) {
+			return Mono.error(barcodeTooLong(virtualBarcode));
+		}
+
 		final String targetLibraryCode = virtualItemLibraryFor(cic);
 //		final Integer virtualNotForLoanStatus = -1; // We might need to make this configurable
 
@@ -963,7 +969,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.flatMap(itemType -> {
 
 				KohaItem virtualItem = KohaItem.builder()
-					.externalId(barcode) // Maps to Koha's barcode field
+					.externalId(virtualBarcode) // Maps to Koha's barcode field
 					.itemTypeId(itemType)
 					.homeLibraryId(targetLibraryCode)
 					.holdingLibraryId(targetLibraryCode)
@@ -977,7 +983,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 					.build();
 
 				// POST /api/v1/biblios/{biblio_id}/items
-				return client.createItem(bibId, virtualItem);
+				return client.createItem(bibId, virtualItem)
+					.onErrorMap(KohaHostLmsClient::isConflict, conflict -> duplicateBarcode(virtualBarcode));
 			})
 			.map(this::mapKohaItemToHostLmsItem)
 			.doOnSuccess(item -> log.info("Successfully created Koha virtual item: {}", item.getLocalId()))
@@ -1000,6 +1007,46 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 * serving one library and wrong for one serving sixty - every library's incoming
 	 * loans would otherwise materialise at whichever branch was configured.
 	 */
+	@Override
+	public String virtualItemBarcodeFor(String supplierBarcode) {
+		final var prefix = config.getVirtualItemBarcodePrefix();
+
+		return prefix == null || supplierBarcode == null ? supplierBarcode : prefix + supplierBarcode;
+	}
+
+	// Koha answers 409 "Duplicate barcode." to a second item with the same barcode
+	private ThrowableProblem duplicateBarcode(String virtualBarcode) {
+		final var remedy = config.getVirtualItemBarcodePrefix() == null
+			? "Another item in this Koha already has the lender's barcode. If it is a DCB virtual item a finished request left behind, delete it; otherwise set virtual-item-barcode-prefix so DCB's virtual items cannot share a real item's barcode"
+			: "A DCB virtual item with this barcode is still in this Koha: an earlier request for the same copy has not finished, or left it behind. Delete it if no open request needs it";
+
+		return Problem.builder()
+			.withTitle("Koha already has an item with this barcode")
+			.withStatus(Status.CONFLICT)
+			.withDetail("Koha at %s refused the virtual item with barcode %s as a duplicate"
+				.formatted(getHostLmsCode(), virtualBarcode))
+			.with("remedy", remedy)
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	private ThrowableProblem barcodeTooLong(String virtualBarcode) {
+		return Problem.builder()
+			.withTitle("The virtual item's barcode is too long for Koha")
+			.withStatus(Status.BAD_REQUEST)
+			.withDetail("Barcode %s is %d characters; Koha at %s holds at most %d"
+				.formatted(virtualBarcode, virtualBarcode.length(), getHostLmsCode(), KohaClientConfig.MAX_BARCODE_LENGTH))
+			.with("remedy", config.getVirtualItemBarcodePrefix() == null
+				? "The lender's barcode does not fit a Koha item; this copy cannot be borrowed into this Koha"
+				: "Shorten virtual-item-barcode-prefix")
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	private static boolean isConflict(Throwable error) {
+		return statusOf(error) == HttpStatus.CONFLICT.getCode();
+	}
+
 	// The lending agency's code: what staff need to send the copy back once the loan ends
 	private static String virtualItemNote(CreateItemCommand cic) {
 		final var lender = getValueOrNull(cic, CreateItemCommand::getLocationCode);
@@ -1617,12 +1664,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 					: "Check the item in by hand in Koha"));
 	}
 
-	// The command carries the lender's barcode, which the virtual item was created with
+	// The command carries the lender's barcode, which the virtual item was created from
 	private Mono<String> virtualItemBarcode(String itemId, CheckInItemCommand command) {
 		final var barcode = getValueOrNull(command, CheckInItemCommand::getItemBarcode);
 
 		return !isBlank(barcode)
-			? Mono.just(barcode)
+			? Mono.just(virtualItemBarcodeFor(barcode))
 			: client.getItem(itemId).mapNotNull(KohaItem::getExternalId);
 	}
 
@@ -2006,7 +2053,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		return Mono.zip(biblioIdFor(localRequest.getBibId(), itemId), itemType)
 			.flatMap(found -> client.updateItem(found.getT1(), itemId, KohaItem.builder()
-				.externalId(barcode)
+				.externalId(virtualItemBarcodeFor(barcode))
 				.itemTypeId(found.getT2().orElse(null))
 				.build()))
 			.thenReturn(localRequest);

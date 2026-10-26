@@ -85,6 +85,14 @@ public class KohaClientConfig {
 	private static final HostLmsPropertyDefinition NCIP_CHECKIN_TOKEN = stringPropertyDefinition(
 		"ncip-checkin-token", "The NCIP responder's token, sent as the last path segment; a secret", FALSE);
 
+	private static final HostLmsPropertyDefinition VIRTUAL_ITEM_BARCODE_PREFIX = stringPropertyDefinition(
+		"virtual-item-barcode-prefix",
+		"Put before the lender's barcode on every virtual item DCB creates in this Koha, so it never shares a real item's barcode",
+		FALSE);
+
+	// items.barcode is varchar(20) in every supported Koha
+	public static final int MAX_BARCODE_LENGTH = 20;
+
 	private static final HostLmsPropertyDefinition HONOUR_OPAC_HIDDEN_ITEMS = booleanPropertyDefinition(
 		"honour-opac-hidden-items",
 		"Leave out the copies OpacHiddenItems hides from the OPAC; needs RESTPublicAPI and RESTPublicAnonymousRequests",
@@ -120,6 +128,7 @@ public class KohaClientConfig {
 			DO_NOT_RENEW_NOTE,
 			HONOUR_OPAC_HIDDEN_ITEMS,
 			BUNDLE_HOST_BARCODE,
+			VIRTUAL_ITEM_BARCODE_PREFIX,
 			NCIP_CHECKIN_FALLBACK,
 			NCIP_CHECKIN_URL,
 			NCIP_CHECKIN_TOKEN
@@ -172,6 +181,13 @@ public class KohaClientConfig {
 	public String getBundleHostBarcode() {
 		final var barcode = BUNDLE_HOST_BARCODE.getOptionalValueFrom(hostLms.getClientConfig(), null);
 		return barcode == null || barcode.isBlank() ? null : barcode.trim();
+	}
+
+	// Absent means none, and the virtual item carries the lender's barcode as it is;
+	// HostLmsConfigValidator refuses a blank one
+	public String getVirtualItemBarcodePrefix() {
+		final var prefix = VIRTUAL_ITEM_BARCODE_PREFIX.getOptionalValueFrom(hostLms.getClientConfig(), null);
+		return prefix == null || prefix.isBlank() ? null : prefix.trim();
 	}
 
 	// Only "false" turns it off: a mistyped value must not offer the copies a library hides

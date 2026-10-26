@@ -88,6 +88,37 @@ class CreateKohaHostLmsTests {
 		assertThat(data.get("createHostLms").get("hostLms").get("code"), is(CODE));
 	}
 
+	@Test
+	void shouldRefuseABlankVirtualItemBarcodePrefix() {
+		final var config = kohaConfig();
+		config.put("virtual-item-barcode-prefix", " ");
+
+		final var result = create(config);
+
+		assertThat(result.getErrors(), hasSize(1));
+		assertThat(result.getErrors().get(0).getMessage(), containsString("virtual-item-barcode-prefix"));
+		assertThat(Mono.from(hostLmsRepository.findByCode(CODE)).blockOptional().isPresent(), is(false));
+	}
+
+	@Test
+	void shouldRefuseAPrefixThatLeavesNoRoomForTheLendersBarcode() {
+		final var config = kohaConfig();
+		config.put("virtual-item-barcode-prefix", "P".repeat(20));
+
+		final var result = create(config);
+
+		assertThat(result.getErrors(), hasSize(1));
+		assertThat(result.getErrors().get(0).getMessage(), containsString("1 to 19 characters"));
+	}
+
+	@Test
+	void shouldCreateAKohaWithAVirtualItemBarcodePrefix() {
+		final var config = kohaConfig();
+		config.put("virtual-item-barcode-prefix", "DCB-");
+
+		assertThat(create(config).getErrors(), is(empty()));
+	}
+
 	private ExecutionResult create(Map<String, Object> clientConfig) {
 		return graphQL.execute(ExecutionInput.newExecutionInput()
 			.query(CREATE)
