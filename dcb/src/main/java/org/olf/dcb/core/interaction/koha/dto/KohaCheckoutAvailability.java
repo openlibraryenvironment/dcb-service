@@ -13,8 +13,8 @@ import lombok.Setter;
 
 /**
  * GET /api/v1/checkouts/availability: what Koha would block, ask staff to confirm, or
- * warn about before lending an item to a patron. The token is only issued when there is
- * something to confirm, and the confirmed checkout carries it back.
+ * warn about before lending an item to a patron. DCB reads it only to say why a checkout
+ * was refused, so the confirmation token Koha also issues is not kept.
  */
 @Serdeable
 @Getter
@@ -31,7 +31,4 @@ public class KohaCheckoutAvailability {
 
 	@JsonProperty("warnings")
 	private Map<String, Object> warnings;
-
-	@JsonProperty("confirmation_token")
-	private String confirmationToken;
 }

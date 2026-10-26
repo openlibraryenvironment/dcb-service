@@ -36,6 +36,7 @@ import java.util.Date;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.Objects;
@@ -89,10 +90,12 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * <h2>Lending</h2>
  * <p>A supplier request is one virtual patron at the sharing branch, one item-level hold for it
  * on the real item with the sharing branch as pickup and {@code x-koha-override: any}, and later
- * one checkout. Koha answers that checkout with a 412 because the item is in transit for a hold;
- * {@code checkOutItemToPatron} confirms TRANSFERRED, RESERVED and RESERVE_WAITING and raises any
- * other confirmation or blocker as a problem naming it. The checkout fills the hold, which then
- * reads as MISSING, so cleanup does not try to delete it. Cleanup deletes the hold, the item and
+ * one checkout. Koha asks staff to confirm lending a copy held for someone else (RESERVED,
+ * RESERVE_WAITING, TRANSFERRED, PROCESSING), never for the patron the hold is for, so DCB confirms
+ * nothing: {@code checkOutItemToPatron} raises any confirmation or blocker as a problem naming it,
+ * except the answers that mean the copy is already on loan to this patron, which is what was
+ * asked. The checkout fills the hold, which then reads as MISSING, so cleanup does not try to
+ * delete it. Cleanup deletes the hold, the item and
  * then the bib, the order Koha's 409 rules need; a 404 on any of the three counts as deleted.
  *
  * <h2>Check-in</h2>
@@ -1460,23 +1463,19 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		return client.checkoutItem(request)
 			.onErrorResume(KohaHostLmsClient::needsConfirmation,
-				needsConfirmation -> confirmCheckout(request, patronId, itemId))
+				needsConfirmation -> explainUnconfirmedCheckout(patronId, itemId))
 			.thenReturn("OK")
 			.doOnError(e -> log.error("Koha checkout of item {} to patron {} failed: {}",
 				itemId, patronId, e.getMessage()));
 	}
 
-	/**
-	 * The confirmations Koha asks staff for that a consortium loan always answers yes to:
-	 * the item is in transit to, reserved for, or waiting at the sharing branch for the very
-	 * patron it is being lent to. Any other confirmation, and any blocker, is a refusal.
-	 */
-	private static final Set<String> ACCEPTED_CHECKOUT_CONFIRMATIONS = Set.of(
-		"TRANSFERRED", "RESERVED", "RESERVE_WAITING");
+	// Koha sets these only when the copy is already on loan to this same patron (C4::Circulation's
+	// CanBookBeIssued), which is the outcome a retried checkout asked for
+	private static final Set<String> ALREADY_LENT_TO_THIS_PATRON = Set.of(
+		"RENEW_ISSUE", "NO_MORE_RENEWALS", "NO_RENEWAL_FOR_ONSITE_CHECKOUTS");
 
-	// Koha answers 412 when staff would be asked to confirm; the availability read says what,
-	// and issues the token the confirmed checkout carries
-	private Mono<KohaCheckout> confirmCheckout(KohaCheckoutRequest request, String patronId, String itemId) {
+	// Koha answers 412 when staff would be asked to confirm; the availability read says why
+	private Mono<KohaCheckout> explainUnconfirmedCheckout(String patronId, String itemId) {
 		if (isBlank(itemId)) {
 			return Mono.error(Problem.builder()
 				.withTitle("Koha wants the checkout confirmed")
@@ -1488,27 +1487,28 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		return client.getCheckoutAvailability(patronId, itemId)
 			.flatMap(availability -> {
-				final var blockers = keysOf(availability.getBlockers());
+				final var blockers = reasonCodes(availability.getBlockers());
+				final var confirms = reasonCodes(availability.getConfirms());
 
-				if (!blockers.isEmpty()) {
-					return Mono.error(checkoutRefused("Koha refused the checkout", patronId, itemId,
-						"blocked", blockers));
+				if (Stream.concat(blockers.stream(), confirms.stream()).anyMatch(ALREADY_LENT_TO_THIS_PATRON::contains)) {
+					log.info("Koha item {} is already on loan to patron {} in {}", itemId, patronId, getHostLmsCode());
+
+					return Mono.<KohaCheckout>empty();
 				}
 
-				final var confirms = keysOf(availability.getConfirms());
-				final var unaccepted = confirms.stream()
-					.filter(confirm -> !ACCEPTED_CHECKOUT_CONFIRMATIONS.contains(confirm))
-					.toList();
-
-				if (!unaccepted.isEmpty() || isBlank(availability.getConfirmationToken())) {
-					return Mono.error(checkoutRefused("Koha wants a confirmation DCB does not give",
-						patronId, itemId, "confirmations", unaccepted.isEmpty() ? confirms : unaccepted));
-				}
-
-				log.info("Koha: confirming checkout of item {} to patron {} over {}", itemId, patronId, confirms);
-
-				return client.checkoutItem(request, availability.getConfirmationToken());
+				return Mono.error(blockers.isEmpty()
+					? checkoutRefused("Koha wants a confirmation DCB does not give", patronId, itemId, "confirmations", confirms)
+					: checkoutRefused("Koha refused the checkout", patronId, itemId, "blocked", blockers));
 			});
+	}
+
+	// Koha's reasons are upper case; the lower-case keys beside them describe another patron
+	// (resfirstname, rescardnumber and the rest) and go no further than this
+	private static List<String> reasonCodes(Map<String, Object> answers) {
+		return keysOf(answers).stream()
+			.filter(key -> key.equals(key.toUpperCase(Locale.ROOT)))
+			.sorted()
+			.toList();
 	}
 
 	private ThrowableProblem checkoutRefused(String title, String patronId, String itemId,

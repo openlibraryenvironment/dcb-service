@@ -1,8 +1,9 @@
 package org.olf.dcb.core.interaction.koha;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -18,9 +19,10 @@ import jakarta.inject.Inject;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 /**
- * Lending the real item to DCB's virtual patron while it is in transit to, or waiting at,
- * the sharing branch: exactly what Koha asks staff to confirm. DCB confirms what a
- * consortium loan always answers yes to, and refuses everything else by name.
+ * Koha lends without a question to the patron a copy is held for. It asks staff to confirm
+ * lending a copy held for someone else, and asks nothing DCB answers yes to: a refusal is
+ * named, and a copy already on loan to the patron is what was asked. The availability
+ * answers below are the shapes Koha's staff API returns (C4::Circulation, Koha::REST::V1::Checkouts).
  */
 @MockServerMicronautTest
 class KohaCheckoutTests {
@@ -56,15 +58,41 @@ class KohaCheckoutTests {
 	}
 
 	@Test
-	void shouldConfirmTheCheckoutOfAnItemInTransitToTheSharingBranch() {
-		koha.mockCheckoutConfirmed(TOKEN, checkout());
+	void shouldRefuseToLendACopyHeldForAnotherPatronAndKeepThatPatronOutOfTheProblem() {
 		koha.mockCheckoutNeedsConfirmation();
 		koha.mockCheckoutAvailability(PATRON_ID, ITEM_ID,
-			"{\"blockers\": {}, \"confirms\": {\"TRANSFERRED\": 1}, \"warnings\": {}, \"confirmation_token\": \"" + TOKEN + "\"}");
+			"{\"blockers\": {}, \"confirms\": {\"RESERVED\": 1, \"resfirstname\": \"Ann\", \"ressurname\": \"Other\","
+				+ " \"rescardnumber\": \"23456789\", \"resborrowernumber\": 13, \"resbranchcode\": \"BRANCH-S\","
+				+ " \"resreservedate\": \"2026-10-20\", \"reserve_id\": 602}, \"warnings\": {}, \"confirmation_token\": \"" + TOKEN + "\"}");
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> client.checkOutItemToPatron(command().build()).block());
+
+		assertThat(problem.getTitle(), is("Koha wants a confirmation DCB does not give"));
+		assertThat(problem.getParameters().get("confirmations"), is(java.util.List.of("RESERVED")));
+		assertThat(problem.getDetail(), not(containsString("Ann")));
+		assertThat(problem.getDetail(), not(containsString("23456789")));
+		koha.verifyCheckoutNeverConfirmed();
+	}
+
+	@Test
+	void aCopyAlreadyOnLoanToThePatronIsLent() {
+		koha.mockCheckoutNeedsConfirmation();
+		koha.mockCheckoutAvailability(PATRON_ID, ITEM_ID,
+			"{\"blockers\": {}, \"confirms\": {\"RENEW_ISSUE\": 1}, \"warnings\": {}, \"confirmation_token\": \"" + TOKEN + "\"}");
 
 		assertThat(client.checkOutItemToPatron(command().build()).block(), is("OK"));
 
-		koha.verifyCheckoutConfirmedWith(TOKEN);
+		koha.verifyCheckoutNeverConfirmed();
+	}
+
+	@Test
+	void aCopyOnLoanToThePatronWithNoRenewalsLeftIsLent() {
+		koha.mockCheckoutNeedsConfirmation();
+		koha.mockCheckoutAvailability(PATRON_ID, ITEM_ID,
+			"{\"blockers\": {\"NO_MORE_RENEWALS\": 1}, \"confirms\": {}, \"warnings\": {}}");
+
+		assertThat(client.checkOutItemToPatron(command().build()).block(), is("OK"));
 	}
 
 	@Test
@@ -83,7 +111,7 @@ class KohaCheckoutTests {
 
 	@Test
 	void shouldNotConfirmWhatAConsortiumLoanDoesNotAnswerFor() {
-		// A debt or a lost-card prompt is the library's decision, not DCB's to wave through
+		// A debt is the library's decision, not DCB's to wave through
 		koha.mockCheckoutNeedsConfirmation();
 		koha.mockCheckoutAvailability(PATRON_ID, ITEM_ID,
 			"{\"blockers\": {}, \"confirms\": {\"TRANSFERRED\": 1, \"DEBT\": 12.5}, \"warnings\": {}, \"confirmation_token\": \"" + TOKEN + "\"}");
@@ -92,7 +120,7 @@ class KohaCheckoutTests {
 			() -> client.checkOutItemToPatron(command().build()).block());
 
 		assertThat(problem.getTitle(), is("Koha wants a confirmation DCB does not give"));
-		assertThat(problem.getParameters().get("confirmations"), is(java.util.List.of("DEBT")));
+		assertThat(problem.getParameters().get("confirmations"), is(java.util.List.of("DEBT", "TRANSFERRED")));
 		koha.verifyCheckoutNeverConfirmed();
 	}
 

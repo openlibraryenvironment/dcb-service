@@ -706,18 +706,10 @@ public class MockKohaFixture {
 		mockServer.mock(commonRequests.post(CHECKOUTS_PATH), created(checkout));
 	}
 
-	/**
-	 * Koha wants a confirmation: 412 to the plain checkout. Add the confirmed checkout
-	 * first, because the first expectation that matches a request answers it.
-	 */
+	/** Koha wants a confirmation: 412 to the plain checkout. */
 	public void mockCheckoutNeedsConfirmation() {
 		mockServer.mock(commonRequests.post(CHECKOUTS_PATH),
 			response().withStatusCode(412).withBody(json(Map.of("error", "Checkout needs confirmation"))));
-	}
-
-	public void mockCheckoutConfirmed(String token, KohaCheckout checkout) {
-		mockServer.mock(commonRequests.post(CHECKOUTS_PATH).withQueryStringParameter("confirmation", token),
-			created(checkout));
 	}
 
 	/**
@@ -736,10 +728,6 @@ public class MockKohaFixture {
 	public void verifyCheckedOut(String onlyTheseFields) {
 		client.verify(commonRequests.post(CHECKOUTS_PATH)
 			.withBody(json(onlyTheseFields, MatchType.ONLY_MATCHING_FIELDS)));
-	}
-
-	public void verifyCheckoutConfirmedWith(String token) {
-		client.verify(commonRequests.post(CHECKOUTS_PATH).withQueryStringParameter("confirmation", token));
 	}
 
 	public void verifyCheckoutNeverConfirmed() {
