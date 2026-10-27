@@ -300,12 +300,15 @@ public class KohaHostLmsClient implements HostLmsClient {
 			? patron.getLocalPatronType() : config.getVirtualPatronCategory();
 
 		// The unique id is the borrower's id and agency code, which overruns Koha's 32-character
-		// cardnumber; userid takes 75. The virtual patron has no card
+		// cardnumber; userid takes 75. The virtual patron has no card: a card number would let
+		// BASIC/BARCODE+NAME sign in as it. The home barcode goes in othernames instead, which the
+		// staff patron search reads, so a pickup desk finds the patron by the card they carry
 		final var kohaPatron = KohaPatron.builder()
 			.userid(patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()
 				? patron.getUniqueIds().get(0) : null)
 			.surname(lastName)
 			.firstname(firstName)
+			.otherName(firstBarcode(patron))
 			.email(config.getVirtualPatronEmail())
 			.libraryId(libraryId)
 			.categoryId(categoryId)
@@ -314,6 +317,13 @@ public class KohaHostLmsClient implements HostLmsClient {
 		return client.createPatron(kohaPatron)
 			.map(returnedPatron -> String.valueOf(returnedPatron.getPatronId()))
 			.doOnSuccess(id -> log.info("Created Koha patron with ID: {}", id));
+	}
+
+	private static String firstBarcode(Patron patron) {
+		return Optional.ofNullable(patron.getLocalBarcodes()).orElse(List.of()).stream()
+			.filter(barcode -> !isBlank(barcode))
+			.findFirst()
+			.orElse(null);
 	}
 
 	@Override

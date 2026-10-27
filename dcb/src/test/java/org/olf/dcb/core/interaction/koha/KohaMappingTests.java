@@ -292,6 +292,24 @@ class KohaMappingTests {
 	}
 
 	@Test
+	void shouldCarryTheHomeBarcodeWhereTheStaffSearchFindsItAndNotAsACard() {
+		// A pickup desk scans the card the patron carries. As a card number it would also let
+		// BASIC/BARCODE+NAME sign in as the virtual patron
+		koha.mockCreatePatron(KohaPatron.builder().patronId(77L).build());
+
+		client.createPatron(Patron.builder()
+			.uniqueIds(List.of("unique-id"))
+			.localNames(List.of("Ada", "Lovelace"))
+			.localBarcodes(List.of("2100045", "2100046"))
+			.localPatronType("DCB")
+			.build()).block();
+
+		final var sent = koha.patronCreationSent();
+		assertThat(sent, hasEntry("other_name", "2100045"));
+		assertThat(sent, not(hasKey("cardnumber")));
+	}
+
+	@Test
 	void shouldFindTheVirtualPatronByUserid() {
 		final var uniqueId = "1234567890@" + "a".repeat(29);
 		koha.mockPatronsByUserid(uniqueId, KohaPatron.builder()
