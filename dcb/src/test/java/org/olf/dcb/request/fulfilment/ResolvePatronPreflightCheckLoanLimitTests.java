@@ -44,8 +44,9 @@ class ResolvePatronPreflightCheckLoanLimitTests {
 		when(patronRequestRepository.getActiveRequestCountForPatron(any(), any()))
 			.thenReturn(Mono.error(new IllegalStateException("database unavailable")));
 
-		final var check = new ResolvePatronPreflightCheck(localPatronService,
-			new IntMessageService(), patronRequestRepository);
+		final var intMessageService = new IntMessageService();
+		final var check = new ResolvePatronPreflightCheck(localPatronService, intMessageService,
+			new PatronEligibilityChecks(localPatronService, intMessageService, patronRequestRepository));
 
 		final var results = check.check(PlacePatronRequestCommand.builder()
 				.requestor(PlacePatronRequestCommand.Requestor.builder()
