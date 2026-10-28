@@ -1038,6 +1038,61 @@ public interface PatronRequestRepository {
 		@Nullable Instant endDate
 	);
 
+	// What other libraries ask a library to supply, scoped on the supplier's Host LMS as
+	// countSuppliedForLibrary is. Groups below :minimum are left out; the caller counts them as other.
+	@Query(
+		value = """
+			SELECT cr.id AS cluster_id, cr.title, COUNT(pr.id) AS request_count
+			FROM patron_request pr
+			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+			WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
+			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
+			  AND cr.is_deleted IS NULL
+			GROUP BY cr.id, cr.title
+			HAVING COUNT(pr.id) >= :minimum
+			ORDER BY request_count DESC, cr.id
+			LIMIT :maximum
+		""",
+		nativeQuery = true
+	)
+	Flux<LentTitleStat> findMostLentTitles(String libraryCode, @Nullable Instant startDate,
+		@Nullable Instant endDate, int minimum, int maximum);
+
+	@Query(
+		value = """
+			SELECT COALESCE(br.canonical_metadata->>'derivedType', 'Unknown') AS format,
+				COUNT(pr.id) AS request_count
+			FROM patron_request pr
+			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+			LEFT JOIN bib_record br ON cr.selected_bib = br.id
+			WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
+			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
+			GROUP BY COALESCE(br.canonical_metadata->>'derivedType', 'Unknown')
+			HAVING COUNT(pr.id) >= :minimum
+			ORDER BY request_count DESC
+		""",
+		nativeQuery = true
+	)
+	Flux<LendingFormatStat> findLendingByFormat(String libraryCode, @Nullable Instant startDate,
+		@Nullable Instant endDate, int minimum);
+
+	@Query(
+		value = """
+			SELECT COUNT(pr.id)
+			FROM patron_request pr
+			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+			WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
+			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
+		""",
+		nativeQuery = true
+	)
+	@SingleResult
+	Publisher<Long> countRequestsSuppliedBy(String libraryCode, @Nullable Instant startDate,
+		@Nullable Instant endDate);
+
 	// Consortial collection analysis - demand by canonical format (derivedType).
 	@Query(
 		value = """

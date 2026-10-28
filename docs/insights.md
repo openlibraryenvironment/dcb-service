@@ -396,6 +396,25 @@ the tile would have disagreed with its own trend.
 
 ---
 
+### 3.10 What a library is asked to lend, with small groups folded
+
+`/insights/most-lent-titles` and `/insights/lending-by-format` answer "what do other libraries
+ask us for most?" (S-22), the lending half of collection analysis; borrowing demand by format,
+unfillable demand and collection balance already had endpoints. Both are scoped on the
+supplier's Host LMS (`local_item_hostlms_code`), as `countSuppliedForLibrary` is, through
+`StatsScopeGuard` like every other route here, and both require `requestedLibraryCode`.
+
+They differ from the other title queries in two ways, both deliberate:
+
+- **A group below five requests is never shown on its own.** It is counted in `other`, and
+  `total` is every request in the window, so `groups` plus `other` always reconciles. A title one
+  or two people asked for can point to a reader in a small library; five cannot.
+- **The window is a year at most and ends now.** A caller asking for more gets the last year.
+  Answers are cached per library and window, to the hour, for the collection analysis cache
+  lifetime, and a failure is not kept (`LendingAnalysisService`).
+
+At most fifty titles are listed; every other request is in `other`.
+
 ## Part 4 — Scale
 
 The scale constants that matter here are **100,000 patron requests/year** (~1M rows in

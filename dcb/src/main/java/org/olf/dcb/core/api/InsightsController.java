@@ -18,6 +18,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.serde.*;
 import org.olf.dcb.core.svc.CollectionAnalysisService;
+import org.olf.dcb.core.svc.LendingAnalysisService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.svc.TimeBucket;
 import org.olf.dcb.core.svc.TrendMetric;
@@ -74,12 +75,15 @@ public class InsightsController {
 
 	/** Owns the concurrency limit and cache for the catalogue-wide queries. */
 	private final CollectionAnalysisService collectionAnalysisService;
+	private final LendingAnalysisService lendingAnalysisService;
 
 	public InsightsController(PatronRequestRepository patronRequestRepository,
 			ClusterRecordRepository clusterRecordRepository,
 			StatsScopeGuard statsScopeGuard,
-			CollectionAnalysisService collectionAnalysisService) {
+			CollectionAnalysisService collectionAnalysisService,
+			LendingAnalysisService lendingAnalysisService) {
 
+		this.lendingAnalysisService = lendingAnalysisService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.clusterRecordRepository = clusterRecordRepository;
 		this.statsScopeGuard = statsScopeGuard;
@@ -726,6 +730,32 @@ public class InsightsController {
 			});
 	}
 
+
+	/** What other libraries ask this one to supply most, a year at most, small groups folded (S-22). */
+	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
+	@Get("/most-lent-titles")
+	public Mono<LendingAnalysis<LentTitleStat>> getMostLentTitles(
+		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue Instant startDate,
+		@Nullable @QueryValue Instant endDate,
+		Authentication authentication) {
+
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+			.flatMap(scope -> lendingAnalysisService.mostLent(scope.libraryCode(), startDate, endDate));
+	}
+
+	/** The same, by canonical format (S-22). */
+	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
+	@Get("/lending-by-format")
+	public Mono<LendingAnalysis<LendingFormatStat>> getLendingByFormat(
+		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue Instant startDate,
+		@Nullable @QueryValue Instant endDate,
+		Authentication authentication) {
+
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+			.flatMap(scope -> lendingAnalysisService.byFormat(scope.libraryCode(), startDate, endDate));
+	}
 
 	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
 	@Get("/unfillable-demand")
