@@ -50,3 +50,19 @@ Without it, Polaris refuses the override and the request's audit records "Virtua
 | `true`
 | Set to `false` on a Polaris Host LMS to stop DCB overriding a block at checkout. The checkout is then refused, and the request's audit says so.
 |===
+
+== When the lender checkout fails
+
+If the checkout still fails, the loan stands and the request stays *Loaned*. DCB:
+
+* records "Virtual checkout failed" in the request's audit, with the lender's answer, and
+* sets the request's `needsAttention` flag.
+
+Staff at the lending library should check the copy out to the virtual patron by hand. Until they
+do, the copy shows *Transferred* and is routed again when it is checked in.
+
+To list these requests, query GraphQL with `patronRequests(query: "needsAttention:true")`. The flag
+is also set when a checkout in the patron's own library fails, and when a request has been tracked
+for too long, so read the audit to see which applies.
+
+DCB does not yet retry a failed lender checkout.

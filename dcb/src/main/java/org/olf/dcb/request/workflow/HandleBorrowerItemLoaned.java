@@ -138,8 +138,10 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 						auditData.put("lender-system-code", rwc.getLenderSystemCode());
 						auditThrowable(auditData, "Throwable", error);
 
-						// Intentionally transform Error
-						// A virtual checkout is deemed as more of a notification than a critical action
+						// The loan stands, but the lender's copy still shows Transferred and loops on
+						// check-in until someone checks it out by hand
+						rwc.getPatronRequest().setNeedsAttention(Boolean.TRUE);
+
 						return patronRequestAuditService
 							.addAuditEntry(rwc.getPatronRequest(), "Virtual checkout failed : " + error.getMessage(), auditData)
 							.thenReturn(rwc);
