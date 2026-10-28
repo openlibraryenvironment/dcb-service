@@ -35,6 +35,7 @@ import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -276,6 +277,17 @@ public class PAPIClient {
 		return new IllegalStateException("PAPI error " + errorCode + ": " + errorMessage);
 	}
 
+	// PAPI's answer when the patron's blocks stop a checkout. The documented code; PatronBlockFlags
+	// on the result says which blocks, as a bitmask whose values PAPI does not document.
+	static final int PATRON_BLOCKED_ERROR_CODE = -6101;
+	static final String PAPI_ERROR_CODE_PARAMETER = "papiErrorCode";
+
+	static boolean isPatronBlockRefusal(Throwable error) {
+		return error instanceof ThrowableProblem problem
+			&& Integer.valueOf(PATRON_BLOCKED_ERROR_CODE)
+				.equals(problem.getParameters().get(PAPI_ERROR_CODE_PARAMETER));
+	}
+
 	public Mono<ItemOperationResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron", patronBarcode, "itemsout");
@@ -336,6 +348,7 @@ public class PAPIClient {
 
 		throw Problem.builder()
 			.withTitle("Polaris " + operation + " failed")
+			.with(PAPI_ERROR_CODE_PARAMETER, errorCode)
 			.withDetail(itemOperationResult.getErrorMessage() != null ? itemOperationResult.getErrorMessage() : "Error message was null")
 			.with(operation, itemOperationResult)
 			.build();
@@ -820,6 +833,17 @@ public class PAPIClient {
 		private String errorMessage;
 		@JsonProperty("CanPatronCirculate")
 		private Boolean canPatronCirculate;
+		@JsonProperty("Blocks")
+		private List<CirculationBlock> blocks;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class CirculationBlock {
+		@JsonProperty("BlockDescription")
+		private String blockDescription;
 	}
 
 	@Builder

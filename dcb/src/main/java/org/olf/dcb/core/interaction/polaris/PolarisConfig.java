@@ -114,6 +114,18 @@ public class PolarisConfig {
 	 * If enabled then we can "hard delete" records such as virtual items
 	 * Otherwise default to the "soft delete" approach to records
 	 */
+	/**
+	 * Whether a lender checkout Polaris refuses for a patron block (PAPI -6101) is retried with the
+	 * block overridden, when no stored block on the virtual patron was placed by a person. The item is
+	 * already with the borrowing patron by then, so a refusal only leaves the lender's copy showing
+	 * Transferred. Default true.
+	 */
+	@JsonProperty("override-blocks-at-checkout")
+	private Boolean overrideBlocksAtCheckout;
+	public boolean isOverrideBlocksAtCheckout() {
+		return valueWithDefault(overrideBlocksAtCheckout, Boolean.class, true);
+	}
+
 	@JsonProperty("enableDoubleDelete")
 	private Boolean enableDoubleDelete;
 	public Boolean isDoubleDeleteEnabled() { return valueWithDefault(enableDoubleDelete, Boolean.class, false); }

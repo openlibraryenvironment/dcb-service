@@ -1120,6 +1120,24 @@ class ApplicationServicesClient {
 	}
 
 	/**
+	 * True when no stored block on the patron is one a person placed: the list is empty, or holds only
+	 * the blocks a virtual patron brings on itself. Polaris can still refuse such a patron at checkout,
+	 * from blocks it works out at circulation time and never stores. False when the blocks cannot be
+	 * read.
+	 */
+	Mono<Boolean> hasOnlySelfResolvableBlocksOrNone(Integer localPatronId) {
+		return getPatronBlocks(localPatronId)
+			.map(blocks -> blocks.stream()
+				.allMatch(block -> SELF_RESOLVABLE_BLOCKS.contains(block.getBlockType())))
+			.defaultIfEmpty(TRUE)
+			.onErrorResume(error -> {
+				log.warn("Could not determine blocks for patron {}, will not override a checkout refusal: {}",
+					localPatronId, error.getMessage());
+				return Mono.just(FALSE);
+			});
+	}
+
+	/**
 	 * Based upon <a href="https://stlouis-training.polarislibrary.com/polaris.applicationservices/help/workflow/create_hold_request">post hold request docs</a>
 	 */
 	Mono<Tuple4<String, String, String, String>> createILLHoldRequestWorkflow(HoldRequestParameters holdRequestParameters) {

@@ -162,6 +162,7 @@ class PolarisLmsClientTests {
 	private static final int ILL_LOCATION_ID = 50;
 	// Saved without the validator, as REST and the configuration import do
 	private static final String ILL_FLOW_HOST_LMS_CODE = "polaris-ill-flow";
+	private static final String NO_CHECKOUT_OVERRIDE_HOST_LMS_CODE = "polaris-no-override";
 
 	@Inject
 	private TestResourceLoaderProvider testResourceLoaderProvider;
@@ -196,6 +197,10 @@ class PolarisLmsClientTests {
 		hostLmsFixture.createPolarisHostLms(ILL_FLOW_HOST_LMS_CODE, key,
 			secret, baseUrl, domain, key, secret, "default-agency-code",
 			ILL_LOCATION_ID, Map.of("borrower-lending-flow", "ILL"));
+
+		hostLmsFixture.createPolarisHostLms(NO_CHECKOUT_OVERRIDE_HOST_LMS_CODE, key,
+			secret, baseUrl, domain, key, secret, "default-agency-code",
+			ILL_LOCATION_ID, Map.of("override-blocks-at-checkout", false));
 
 		mockPolarisFixture = new MockPolarisFixture(host,
 			mockServerClient, testResourceLoaderProvider);
@@ -1744,6 +1749,141 @@ class PolarisLmsClientTests {
 
 		// The real block must reach Polaris via the normal checkout, never be overridden
 		mockPolarisFixture.verifyWorkflowBodyNeverContains("IgnorePatronBlocksCheck");
+	}
+
+	@Test
+	void shouldOverrideACheckoutRefusedForABlockPolarisOnlyRaisesAtCheckout() {
+		// Arrange
+		final var itemId = generateNumericLocalId();
+		final var patronId = generateNumericLocalId();
+		final var patronBarcode = generateBarcode();
+		final var itemBarcode = generateBarcode();
+
+		mockPolarisFixture.mockGetItemStatuses(List.of(availableStatus()));
+		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
+		mockItemWorkflow(generateNumericLocalId());
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
+		mockPolarisFixture.mockGetItemBarcode(itemId, itemBarcode);
+
+		// Nothing stored on the patron, as at Altoona, yet Polaris refuses the PAPI checkout
+		mockPolarisFixture.mockGetPatronBlocksSummary(patronId);
+		mockPolarisFixture.mockItemCheckout(patronBarcode, patronBlockedCheckout(itemId));
+		mockPolarisFixture.mockGetPatronCirculationBlocks(patronBarcode,
+			PAPIClient.PatronCirculationBlocksResult.builder()
+				.papiErrorCode(0)
+				.canPatronCirculate(false)
+				.blocks(List.of(new PAPIClient.CirculationBlock("Patron's address needs to be verified")))
+				.build());
+
+		mockPolarisFixture.mockWorkflowResponseOnce(WorkflowResponse.builder()
+			.workflowRequestGuid(randomUUID().toString())
+			.workflowStatus(1)
+			.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var response = singleValueFrom(client.checkOutItemToPatron(CheckoutItemCommand.builder()
+			.itemId(convertIntegerToString(itemId))
+			.patronId(convertIntegerToString(patronId))
+			.patronBarcode(patronBarcode)
+			.build()));
+
+		// Assert
+		assertThat(response, is("OK"));
+
+		mockPolarisFixture.verifyWorkflowBodyContains("\"IgnorePatronBlocksCheck\":true");
+		mockPolarisFixture.verifyWorkflowBodyContains("\"PatronBarcode\":\"%s\"".formatted(patronBarcode));
+	}
+
+	@Test
+	void shouldNotOverrideACheckoutRefusalWhenAPersonPlacedABlock() {
+		// Arrange
+		final var itemId = generateNumericLocalId();
+		final var patronId = generateNumericLocalId();
+		final var patronBarcode = generateBarcode();
+		final var itemBarcode = generateBarcode();
+
+		mockPolarisFixture.mockGetItemStatuses(List.of(availableStatus()));
+		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
+		mockItemWorkflow(generateNumericLocalId());
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
+		mockPolarisFixture.mockGetItemBarcode(itemId, itemBarcode);
+
+		final var blockAPersonPlaced = 5;
+		mockPolarisFixture.mockGetPatronBlocksSummary(patronId, List.of(
+			ApplicationServicesClient.PatronBlockGetRow.builder()
+				.patronID(patronId)
+				.blockType(blockAPersonPlaced)
+				.blockID(generateNumericLocalId())
+				.build()));
+		mockPolarisFixture.mockItemCheckout(patronBarcode, patronBlockedCheckout(itemId));
+		mockPolarisFixture.mockGetPatronCirculationBlocks(patronBarcode,
+			PAPIClient.PatronCirculationBlocksResult.builder()
+				.papiErrorCode(0)
+				.canPatronCirculate(false)
+				.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.checkOutItemToPatron(CheckoutItemCommand.builder()
+				.itemId(convertIntegerToString(itemId))
+				.patronId(convertIntegerToString(patronId))
+				.patronBarcode(patronBarcode)
+				.build())));
+
+		// Assert
+		assertThat(problem, hasProperty("title", is("Polaris itemCheckoutPost failed")));
+
+		mockPolarisFixture.verifyWorkflowBodyNeverContains("IgnorePatronBlocksCheck");
+	}
+
+	@Test
+	void shouldNotOverrideACheckoutRefusalWhenTheHostLmsTurnsTheOverrideOff() {
+		// Arrange
+		final var itemId = generateNumericLocalId();
+		final var patronId = generateNumericLocalId();
+		final var patronBarcode = generateBarcode();
+		final var itemBarcode = generateBarcode();
+
+		mockPolarisFixture.mockGetItemStatuses(List.of(availableStatus()));
+		mockGetItem(itemId, itemBarcode, generateNumericLocalId());
+		mockItemWorkflow(generateNumericLocalId());
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
+		mockPolarisFixture.mockGetItemBarcode(itemId, itemBarcode);
+
+		mockPolarisFixture.mockGetPatronBlocksSummary(patronId);
+		mockPolarisFixture.mockItemCheckout(patronBarcode, patronBlockedCheckout(itemId));
+
+		// Act
+		final var client = hostLmsFixture.createClient(NO_CHECKOUT_OVERRIDE_HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.checkOutItemToPatron(CheckoutItemCommand.builder()
+				.itemId(convertIntegerToString(itemId))
+				.patronId(convertIntegerToString(patronId))
+				.patronBarcode(patronBarcode)
+				.build())));
+
+		// Assert
+		assertThat(problem, hasProperty("title", is("Polaris itemCheckoutPost failed")));
+
+		mockPolarisFixture.verifyWorkflowBodyNeverContains("IgnorePatronBlocksCheck");
+	}
+
+	private static ItemOperationResult patronBlockedCheckout(Integer itemId) {
+		// What Altoona's Polaris answered on 64 refused checkouts between Aug and Oct 2026
+		return ItemOperationResult.builder()
+			.itemRecordID(convertIntegerToString(itemId))
+			.papiErrorCode(-6101)
+			.errorMessage("Patron block")
+			.patronBlockFlags(512)
+			.build();
 	}
 
 	@Test

@@ -1,5 +1,8 @@
 # Polaris notes
 
+Operator pages written for the documentation site are in [`docs/polaris/`](polaris/README.adoc),
+in AsciiDoc. Start there for lender checkout and patron blocks.
+
 ## Settings the admin API requires
 
 Creating or changing a Polaris Host LMS is refused unless these are set, as well as the

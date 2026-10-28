@@ -1347,8 +1347,55 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			}
 
 			return PAPIService.itemCheckoutPost(itemBarcode, patronBarcode)
-				.thenReturn("OK");
+				.thenReturn("OK")
+				.onErrorResume(PAPIClient::isPatronBlockRefusal,
+					refusal -> overrideBlockRefusal(itemBarcode, patronBarcode, localPatronId, refusal));
 		});
+	}
+
+	/**
+	 * Polaris works some blocks out only at checkout, so the stored list read above can be empty and
+	 * the PAPI checkout still refused. Override once, unless a person placed a block on the patron.
+	 * The circulation blocks are read so the log says which block it was.
+	 */
+	private Mono<String> overrideBlockRefusal(String itemBarcode, String patronBarcode,
+		Integer localPatronId, Throwable refusal) {
+
+		if (!polarisConfig.isOverrideBlocksAtCheckout() || localPatronId == null) {
+			return Mono.error(refusal);
+		}
+
+		return describeCirculationBlocks(patronBarcode)
+			.doOnNext(blocks -> log.debug("Circulation blocks for virtual patron {} at {}: {}",
+				localPatronId, getHostLmsCode(), blocks))
+			.zipWith(ApplicationServices.hasOnlySelfResolvableBlocksOrNone(localPatronId))
+			.flatMap(function((blocks, overridable) -> {
+				if (!overridable) {
+					log.info("Polaris refused checkout to virtual patron {} at {} with a block a person placed; not overriding",
+						localPatronId, getHostLmsCode());
+
+					return Mono.<String>error(refusal);
+				}
+
+				log.info("Polaris refused checkout to virtual patron {} at {} for {} circulation block(s); retrying with override",
+					localPatronId, getHostLmsCode(), blocks.size());
+
+				return ApplicationServices.checkoutItemToPatron(itemBarcode, patronBarcode, true)
+					.thenReturn("OK");
+			}));
+	}
+
+	private Mono<List<String>> describeCirculationBlocks(String patronBarcode) {
+		return PAPIService.getPatronCirculationBlocks(patronBarcode)
+			.map(result -> Optional.ofNullable(result.getBlocks()).orElse(List.of()).stream()
+				.map(PAPIClient.CirculationBlock::getBlockDescription)
+				.filter(Objects::nonNull)
+				.toList())
+			.onErrorResume(error -> {
+				log.warn("Could not read circulation blocks at {}: {}", getHostLmsCode(), error.getMessage());
+				return Mono.just(List.of());
+			})
+			.defaultIfEmpty(List.of());
 	}
 
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {

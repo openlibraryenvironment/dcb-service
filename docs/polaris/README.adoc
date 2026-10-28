@@ -1,0 +1,7 @@
+= Polaris operator pages
+
+These pages are written in AsciiDoc for the Antora documentation site. Each is a standalone page:
+copy it into a module's `pages/` directory as it stands. They carry no includes and no
+cross-repository links.
+
+* xref:lender-checkout.adoc[Lender checkout and patron blocks]
