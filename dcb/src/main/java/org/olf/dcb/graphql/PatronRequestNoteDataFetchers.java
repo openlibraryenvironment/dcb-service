@@ -99,7 +99,7 @@ public class PatronRequestNoteDataFetchers {
 			final Map<String, Object> input = env.getArgument("input");
 
 			return tagService.createTag((String) input.get("code"), (String) input.get("label"),
-				(String) input.get("description")).toFuture();
+				(String) input.get("description"), (String) input.get("colour")).toFuture();
 		};
 	}
 
@@ -109,9 +109,10 @@ public class PatronRequestNoteDataFetchers {
 
 			final Map<String, Object> input = env.getArgument("input");
 
-			// Present-but-null is not the same as omitted: an omitted description is kept
+			// Present-but-null is not the same as omitted: an omitted description or colour is kept
 			return tagService.updateTag((String) input.get("code"), (String) input.get("label"),
 				(String) input.get("description"), !input.containsKey("description"),
+				(String) input.get("colour"), !input.containsKey("colour"),
 				(Boolean) input.get("active")).toFuture();
 		};
 	}

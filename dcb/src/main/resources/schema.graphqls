@@ -715,6 +715,8 @@ type RequestTag {
 	label: String
 	description: String
 	active: Boolean
+	# A name from the theme palette, not a colour; null means the app's default
+	colour: String
 }
 
 input RequestTagInput {
@@ -722,6 +724,10 @@ input RequestTagInput {
 	label: String!
 	description: String
 	active: Boolean
+	# A name from the theme palette, not a colour. Rejected on write if it is not one of:
+	# default, primary, secondary, info, success, warning, error. On update, leave it out to
+	# keep the stored colour, or send null to clear it.
+	colour: String
 }
 
 type PatronRequestAudit {

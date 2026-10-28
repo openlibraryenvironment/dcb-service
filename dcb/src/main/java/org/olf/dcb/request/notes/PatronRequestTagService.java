@@ -36,6 +36,10 @@ public class PatronRequestTagService {
 
 	private static final Pattern TAG_CODE = Pattern.compile("[A-Z][A-Z0-9_]{1,31}");
 
+	/** Theme palette names, matched exactly; ck_request_tag_colour holds the same list. */
+	public static final List<String> TAG_COLOURS =
+		List.of("default", "primary", "secondary", "info", "success", "warning", "error");
+
 	private final PatronRequestTagRepository tagRepository;
 	private final RequestTagRepository vocabulary;
 	private final RequestNoteAccess access;
@@ -100,9 +104,9 @@ public class PatronRequestTagService {
 	}
 
 	public Mono<RequestTag> createTag(@Nullable String code, @Nullable String label,
-		@Nullable String description) {
+		@Nullable String description, @Nullable String colour) {
 
-		final var tag = validated(code, label, description, true);
+		final var tag = validated(code, label, description, colour, true);
 
 		return Mono.from(vocabulary.count())
 			.flatMap(count -> count >= MAX_VOCABULARY_SIZE
@@ -116,16 +120,18 @@ public class PatronRequestTagService {
 
 	/** What the input leaves out keeps its stored value, so a retired tag stays retired. */
 	public Mono<RequestTag> updateTag(@Nullable String code, @Nullable String label,
-		@Nullable String description, boolean keepDescription, @Nullable Boolean active) {
+		@Nullable String description, boolean keepDescription,
+		@Nullable String colour, boolean keepColour, @Nullable Boolean active) {
 
-		final var requested = validated(code, label, description, true);
+		final var requested = validated(code, label, description, keepColour ? null : colour, true);
 
 		return Mono.from(vocabulary.findById(requested.getCode()))
 			.switchIfEmpty(Mono.error(() -> new HttpStatusException(HttpStatus.NOT_FOUND,
 				"No such tag: " + requested.getCode() + ".")))
 			.flatMap(existing -> Mono.from(vocabulary.update(requested
 				.setActive(active != null ? active : existing.getActive())
-				.setDescription(keepDescription ? existing.getDescription() : requested.getDescription()))));
+				.setDescription(keepDescription ? existing.getDescription() : requested.getDescription())
+				.setColour(keepColour ? existing.getColour() : requested.getColour()))));
 	}
 
 	/** A tag that a request carries is retired, not deleted, so no request loses one. */
@@ -153,7 +159,7 @@ public class PatronRequestTagService {
 	}
 
 	private static RequestTag validated(@Nullable String code, @Nullable String label,
-		@Nullable String description, boolean active) {
+		@Nullable String description, @Nullable String colour, boolean active) {
 
 		if (code == null || !TAG_CODE.matcher(code).matches()) {
 			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
@@ -172,10 +178,16 @@ public class PatronRequestTagService {
 			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "A tag description must have at most 200 characters.");
 		}
 
+		if (colour != null && !TAG_COLOURS.contains(colour)) {
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST, "A tag colour must be one of: "
+				+ String.join(", ", TAG_COLOURS) + "; or null for the app's default.");
+		}
+
 		return RequestTag.builder()
 			.code(code)
 			.label(trimmedLabel)
 			.description(trimmedDescription)
+			.colour(colour)
 			.active(active)
 			.build();
 	}
