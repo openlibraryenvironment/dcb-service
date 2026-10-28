@@ -31,6 +31,9 @@ type Query {
 		# different query with different scale properties that nothing has asked for.
 		libraryUsers(libraryId: ID!): [LibraryUser!]!
 		requestTags: [RequestTag]
+		# One library's notifications, worked out when read: at most 50, newest first. A library
+		# user reads their own; kinds narrows to REQUESTS_NEED_ACTION, REQUEST_EXCEPTIONS, NOTE_ADDED, TREND
+		staffNotifications(agencyCode: String, kinds: [String!]): StaffNotificationFeed!
 		# Whether this deployment has an identity provider configured at all, so the UI can
 		# hide a tab that could only fail rather than render a form nobody can submit.
 		libraryUserProvisioningAvailable: Boolean!
@@ -936,6 +939,26 @@ type DataChangeLog {
 """
 See: https://micronaut-projects.github.io/micronaut-data/2.4.0/api/io/micronaut/data/model/Page.html
 """
+type StaffNotificationFeed {
+	generatedAt: String!
+	items: [StaffNotification!]!
+}
+
+# No field carries a patron or the text of a note
+type StaffNotification {
+	id: ID!
+	kind: String!
+	occurredAt: String!
+	count: Int
+	bucket: String
+	patronRequestId: ID
+	authorAgencyCode: String
+	measure: String
+	current: Float
+	baseline: Float
+	direction: String
+}
+
 type Pageable {
   number: Int
   offset: Int
