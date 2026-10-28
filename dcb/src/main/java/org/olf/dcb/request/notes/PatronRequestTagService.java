@@ -34,7 +34,7 @@ import reactor.core.publisher.Mono;
 public class PatronRequestTagService {
 	public static final int MAX_VOCABULARY_SIZE = 100;
 
-	private static final Pattern TAG_CODE = Pattern.compile("[A-Z][A-Z0-9_]{1,31}");
+	static final Pattern TAG_CODE =Pattern.compile("[A-Z][A-Z0-9_]{1,31}");
 
 	private final PatronRequestTagRepository tagRepository;
 	private final RequestTagRepository vocabulary;

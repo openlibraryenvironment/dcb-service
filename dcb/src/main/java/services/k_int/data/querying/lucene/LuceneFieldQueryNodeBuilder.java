@@ -1,10 +1,12 @@
 package services.k_int.data.querying.lucene;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.persistence.criteria.JoinType;
 import org.apache.lucene.queryparser.flexible.core.nodes.FieldQueryNode;
+import org.olf.dcb.request.notes.PatronRequestNoteQueries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,12 +48,19 @@ public class LuceneFieldQueryNodeBuilder<T> implements JpaQuerySpecificationBuil
 		var fieldName = fieldNode.getFieldAsString();
 		var fieldText = fieldNode.getTextAsString();
 
-		log.debug("Field... {}:{}", fieldName, fieldText);
+		// The value is not logged: it can be a barcode or the text of a note
+		log.debug("Field... {}", fieldName);
 
 		final var queryPath = QUERY_PATHS.get(fieldName);
 
 		if (queryPath != null) {
 			return queryPath.is(fieldText);
+		}
+
+		final Optional<QuerySpecification<T>> noteOrTag = PatronRequestNoteQueries.forField(fieldName, fieldText);
+
+		if (noteOrTag.isPresent()) {
+			return noteOrTag.get();
 		}
 
 		// Default behavior for regular fields
