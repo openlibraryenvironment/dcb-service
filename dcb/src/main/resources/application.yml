@@ -8,6 +8,12 @@ micronaut:
   server:
     cors:
       enabled: true
+      configurations:
+        # Any origin, as before; a named configuration is the only way to expose a header.
+        # Retry-After on a 429, which a browser otherwise hides from the admin apps.
+        all:
+          exposed-headers:
+            - Retry-After
     multipart:
       # There is deliberately no `enabled` here: absent is not the same as false, and only
       # an explicit false refuses. See docs/branding.md.
@@ -265,6 +271,14 @@ dcb:
       cache-ttl: 15m
       # Postgres cancels a whole-catalogue pass that runs longer than this.
       statement-timeout: 10m
+
+  # Library staff asking why one of their patrons would be refused: docs/operational/patron-checks.md.
+  patron-checks:
+    enabled: true
+    # Every check is a live read of a library system DCB does not own.
+    per-caller-per-minute: 10
+    per-host-lms-per-minute: 30
+    timeout: 10s
 
   # discovery: off unless dcb.discovery.enabled is true. Settings and defaults: DiscoveryConfig.
   # How an image gets in, for each store: docs/branding.md.
