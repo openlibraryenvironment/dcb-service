@@ -42,6 +42,9 @@ import services.k_int.data.querying.QueryService;
 @TypeHint(typeNames = { "org.apache.lucene.search.Query", "org.apache.lucene.search.MultiTermQuery" }, accessType = {
 		AccessType.ALL_DECLARED_CONSTRUCTORS, AccessType.ALL_DECLARED_FIELDS, AccessType.ALL_DECLARED_METHODS })
 public class DataFetchers {
+	/** At most this many audit events a page, whatever a caller asks for. */
+	static final int MAX_AUDIT_PAGE_SIZE = 200;
+
 
 	private static Logger log = LoggerFactory.getLogger(DataFetchers.class);
 
@@ -266,9 +269,12 @@ public class DataFetchers {
 
 			Sort.Order.Direction orderBy =  Sort.Order.Direction.valueOf(direction);
 
+			// A library reads its events across requests a page at a time; id breaks ties, since many
+			// events share a timestamp and a page boundary must fall in the same place every time
 			Pageable pageable = Pageable
-				.from(pageno.intValue(), pagesize.intValue())
-				.order(order, orderBy);
+				.from(Math.max(0, pageno.intValue()), Math.min(Math.max(1, pagesize.intValue()), MAX_AUDIT_PAGE_SIZE))
+				.order(order, orderBy)
+				.order("id", orderBy);
 
 			// Audits carried no role check and no scope at all: any authenticated caller
 			// could read every state transition of every request in the consortium, and
