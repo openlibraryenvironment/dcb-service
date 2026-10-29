@@ -2198,7 +2198,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						.flatMap(this::refuseFailedPage)
 						.retryWhen(FAILED_HARVEST_PAGE_RETRY))
 
-          .doOnNext ( bibsPaged -> log.info("bibsPaged {}",bibsPaged) )
+          .doOnNext ( bibsPaged -> log.trace("bibsPaged {}",bibsPaged) )
 					
 					.flatMap( bibsPaged -> {
 
@@ -2300,7 +2300,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
                            ( ( extParams.getHighestDateUpdatedSeen() == null ) ||
 											       ( extParams.getHighestDateUpdatedSeen().isBefore(modification_instant) ) ) ) {
 											  extParams.setHighestDateUpdatedSeen(modification_instant);
-												log.info("{} extParams.setHighestDateUpdatedSeen({})",lms.getCode(), modification_instant);
+												log.debug("{} extParams.setHighestDateUpdatedSeen({})",lms.getCode(), modification_instant);
 										  }
 
 					  			} catch (Throwable t) {  				
