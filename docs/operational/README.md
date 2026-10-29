@@ -18,6 +18,15 @@ For libraries, consortium administrators and hosting providers running OpenRS DC
 - [Koha hosting and configuration reference](koha-hosting.md): every Host LMS setting, the
   permissions DCB needs and why, system preferences, load, and troubleshooting.
 
+## Staff tools
+
+- [Staff preferences](admin-preferences.md): settings, saved filters and watched requests that
+  follow a member of staff between browsers; turning it off, what is kept and for how long.
+- [Checking a patron](patron-checks.md): whether a patron can borrow through the network, and the
+  limits on how often it is asked.
+- [Staff notifications](staff-notifications.md): what the bell in the library app reports, and how
+  often it is worked out.
+
 ## Requesting
 
 - [Notes and tags on patron requests](patron-request-notes.md): who can see a request, who can
