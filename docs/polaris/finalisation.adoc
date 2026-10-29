@@ -28,5 +28,5 @@ to remove the hold by hand.
 
 Before this release, a hold the lender no longer had was recorded as "Failed": at MOBIUS that was
 761 of 908 failures between August and October 2026. A cancellation could also fail with no
-detail, because its context carried no virtual patron, and then succeed seconds later on
-finalisation.
+detail and then succeed seconds later on finalisation. The likely cause, inferred from the empty
+error, was a context with no virtual patron, which DCB now handles.
