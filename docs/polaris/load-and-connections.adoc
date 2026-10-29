@@ -1,0 +1,27 @@
+= Load on a Polaris server
+:description: How DCB limits the traffic it sends to a Polaris server, and what is not limited yet.
+
+A Polaris server is shared by its library's staff, its OPAC and DCB. DCB's traffic must not take
+it, or DCB's own connection to it, down.
+
+== Streams per connection
+
+DCB talks to Polaris over HTTP/2, where one connection carries many requests at once. Polaris
+accepts at most 100 at a time on a connection (observed August 2026). Going over makes Polaris
+close the connection, and every request on it fails, including patron sign-in.
+
+DCB's Polaris clients carry at most 64 requests on one connection, whatever the shared HTTP
+client allows. More requests open another connection. The shared limit for other systems is
+unchanged.
+
+== What else limits the load
+
+* Item enrichment for one bib makes at most 4 calls to Polaris at a time.
+* The Polaris staff token is cached, so most calls do not sign in again.
+
+== Not limited yet
+
+* Live availability can still ask many Polaris bibs at once, with no limit per library.
+* Bulk work (the harvest, availability sweeps) shares the clients with patron sign-in.
+* Nothing moves heavy jobs out of a library's overnight maintenance window. At MOBIUS, 98.9% of
+read timeouts to Polaris between August and October 2026 fell between 19:00 and 08:00 Central.

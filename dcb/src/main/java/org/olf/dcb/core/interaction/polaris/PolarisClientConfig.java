@@ -308,13 +308,37 @@ public class PolarisClientConfig extends DefaultHttpClientConfiguration {
 		return defaultConfig.toString();
 	}
 
+	// Polaris advertises MAX_CONCURRENT_STREAMS 100 (observed 2026-08-05). Going over tears the
+	// connection down and fails every call on it, patron sign-in included.
+	static final int MAX_STREAMS_PER_POLARIS_CONNECTION = 64;
+
+	private final ConnectionPoolConfiguration polarisPool;
+
 	public PolarisClientConfig(DefaultHttpClientConfiguration defaultConfig) {
 		this.defaultConfig = defaultConfig;
+		this.polarisPool = polarisPool(defaultConfig.getConnectionPoolConfiguration());
 	}
 
 	@Override
 	public ConnectionPoolConfiguration getConnectionPoolConfiguration() {
-		return defaultConfig.getConnectionPoolConfiguration();
+		return polarisPool;
+	}
+
+	private static ConnectionPoolConfiguration polarisPool(ConnectionPoolConfiguration shared) {
+		final var pool = new DefaultHttpClientConfiguration.DefaultConnectionPoolConfiguration();
+
+		pool.setEnabled(shared.isEnabled());
+		pool.setMaxPendingAcquires(shared.getMaxPendingAcquires());
+		shared.getAcquireTimeout().ifPresent(pool::setAcquireTimeout);
+		pool.setMaxPendingConnections(shared.getMaxPendingConnections());
+		pool.setMaxConcurrentHttp1Connections(shared.getMaxConcurrentHttp1Connections());
+		pool.setMaxConcurrentHttp2Connections(shared.getMaxConcurrentHttp2Connections());
+		pool.setConnectionLocality(shared.getConnectionLocality());
+		pool.setVersion(shared.getVersion());
+		pool.setMaxConcurrentRequestsPerHttp2Connection(Math.min(
+			shared.getMaxConcurrentRequestsPerHttp2Connection(), MAX_STREAMS_PER_POLARIS_CONNECTION));
+
+		return pool;
 	}
 
 	@Override
