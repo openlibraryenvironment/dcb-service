@@ -13,8 +13,8 @@ belongs to.
 | `item.item-agency-resolution-method` | How DCB finds the item's library
 
 | `Legacy` (default)
-| Looks the location code (the branch id) up in the Host LMS's `Location` mappings, then falls back
-to a `*` mapping or the Host LMS's default agency.
+| Looks the location code (the branch id) up in the Host LMS's `Location` mappings, falling back to
+a `*` mapping. The Host LMS's default agency is used only for an item with no location at all.
 
 | `LocationId`
 | Looks the branch id up in the Host LMS's `Location` mappings. There is no fallback: an item at a
