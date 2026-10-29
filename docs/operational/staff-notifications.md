@@ -26,12 +26,13 @@ person has switched on; an unknown kind is refused.
 
 ## Cost
 
-At most 50 items, newest first; by construction there are at most 28 (six counts, twenty noted
-requests, two trends). Per library, not per person:
+At most 50 items, newest first; by construction there are at most 30 (six counts, twenty noted
+requests, four trends). Per library, not per person:
 
 - the feed is cached for a minute (Caffeine, 1,000 libraries at most): six count queries and at
   most twenty-one note queries, two at a time;
-- trends are cached for twelve hours (same bound): eighteen count queries over the audit trail.
+- trends are cached for twelve hours (same bound): eighteen count queries over the audit trail,
+  and for the stored measures two reads of their recorded weeks and two live figures.
 
 Trends are worked out when a library's staff first read the feed rather than by a weekly job, so
 no instance runs eighteen queries for each of five hundred libraries nobody is looking at. A cold
@@ -48,6 +49,16 @@ a past week's figure does not change as its requests move on.
 | --- | --- | --- |
 | `UNFILLED_BORROWING` | the library's patrons' requests that no library could fill | 3 or more, and twice the trailing average |
 | `FAILED_SUPPLYING` | requests the library was supplying that stopped with an error | 3 or more, and twice the trailing average |
+| `MEDIAN_TURNAROUND_HOURS` | median hours from placing to ready for pickup, for the library's patrons | 72 or more, and half again the trailing average |
+| `AWAITING_PICKUP` | the library's patrons' items on a hold shelf | 5 or more, and twice the trailing average |
 
-Median turnaround and items awaiting collection, which the plan also named, need a history of
-values DCB does not keep without a table, so they are not measured here.
+The first two are counted from the audit trail, so any past week can be counted again. The last
+two cannot: a count of items on the shelf is true only at the moment it is taken. So
+`WeeklyMeasureJob` records them every Monday at 01:30 UTC, for the week just ended, in
+`library_weekly_measure` (V9_0_022). It reads DCB's own tables only: two queries a library, two
+libraries at a time. Rewriting a week replaces it, so two instances running together do no harm.
+Figures are kept 52 weeks.
+
+A stored measure compares this week so far with the recorded trailing eight, and says nothing
+until at least four of those weeks are recorded. A new deployment therefore has these two trends
+from its fifth Monday.

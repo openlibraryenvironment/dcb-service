@@ -18,6 +18,7 @@ import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.PatronRequestNote;
 import org.olf.dcb.security.RequestInvolvement;
 import org.olf.dcb.storage.PatronRequestNoteRepository;
+import org.olf.dcb.storage.WeeklyMeasureRepository;
 import org.olf.dcb.storage.postgres.PostgresPatronRequestAuditRepository;
 import org.olf.dcb.storage.postgres.PostgresPatronRequestRepository;
 
@@ -50,6 +51,8 @@ public class StaffNotificationService {
 	static final Duration NOTE_WINDOW = Duration.ofDays(7);
 	static final Duration EXCEPTION_WINDOW = Duration.ofDays(1);
 	static final int TRAILING_WEEKS = 8;
+	/** A stored measure says nothing until this many of its trailing weeks are recorded. */
+	static final int MIN_STORED_WEEKS = 4;
 	private static final int MAX_NOTED_REQUESTS = 20;
 	// Count queries against tables DCB owns; two at a time per library being read
 	private static final int QUERY_CONCURRENCY = 2;
@@ -57,6 +60,8 @@ public class StaffNotificationService {
 	private final PostgresPatronRequestRepository requests;
 	private final PostgresPatronRequestAuditRepository audits;
 	private final PatronRequestNoteRepository notes;
+	private final WeeklyMeasures weeklyMeasures;
+	private final WeeklyMeasureRepository storedMeasures;
 	private final Clock clock;
 
 	// Keyed by agency code from DCB's own records: hundreds per consortium, a minute each
@@ -73,17 +78,21 @@ public class StaffNotificationService {
 
 	@Inject
 	public StaffNotificationService(PostgresPatronRequestRepository requests,
-		PostgresPatronRequestAuditRepository audits, PatronRequestNoteRepository notes) {
+		PostgresPatronRequestAuditRepository audits, PatronRequestNoteRepository notes,
+		WeeklyMeasures weeklyMeasures, WeeklyMeasureRepository storedMeasures) {
 
-		this(requests, audits, notes, Clock.systemUTC());
+		this(requests, audits, notes, weeklyMeasures, storedMeasures, Clock.systemUTC());
 	}
 
 	StaffNotificationService(PostgresPatronRequestRepository requests,
-		PostgresPatronRequestAuditRepository audits, PatronRequestNoteRepository notes, Clock clock) {
+		PostgresPatronRequestAuditRepository audits, PatronRequestNoteRepository notes,
+		WeeklyMeasures weeklyMeasures, WeeklyMeasureRepository storedMeasures, Clock clock) {
 
 		this.requests = requests;
 		this.audits = audits;
 		this.notes = notes;
+		this.weeklyMeasures = weeklyMeasures;
+		this.storedMeasures = storedMeasures;
 		this.clock = clock;
 	}
 
@@ -112,7 +121,9 @@ public class StaffNotificationService {
 		final var thisWeek = startOfWeek(clock.instant());
 
 		return Flux.fromArray(TrendMeasure.values())
-			.concatMap(measure -> trend(agencyCode, measure, thisWeek))
+			.concatMap(measure -> measure.source() == TrendMeasure.Source.AUDIT
+				? trend(agencyCode, measure, thisWeek)
+				: storedTrend(agencyCode, measure, thisWeek))
 			.collectList()
 			.doOnNext(found -> trends.put(agencyCode, found));
 	}
@@ -198,6 +209,24 @@ public class StaffNotificationService {
 						current, trailing))
 					: Mono.empty();
 			});
+	}
+
+	/** This week so far against the recorded trailing weeks; silent until enough are recorded. */
+	private Mono<StaffNotification> storedTrend(String agencyCode, TrendMeasure measure, Instant thisWeek) {
+		final var week = LocalDate.ofInstant(thisWeek, ZoneOffset.UTC);
+
+		return Flux.from(storedMeasures.trailing(agencyCode, measure.name(), week.minusWeeks(TRAILING_WEEKS), week))
+			.collectList()
+			.filter(recorded -> recorded.size() >= MIN_STORED_WEEKS)
+			.flatMap(recorded -> weeklyMeasures.figure(agencyCode, measure, thisWeek, clock.instant())
+				.flatMap(current -> {
+					final double trailing = recorded.stream().mapToDouble(WeeklyMeasureRepository.Stored::value)
+						.average().orElse(0);
+					return measure.alerts(current.value(), trailing)
+						? Mono.just(StaffNotification.trend(measure, weekName(thisWeek), thisWeek.toString(),
+							Math.round(current.value()), trailing))
+						: Mono.empty();
+				}));
 	}
 
 	/** Requests of this library that moved into the measure's status between from and to. */
