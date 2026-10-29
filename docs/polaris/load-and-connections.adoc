@@ -16,7 +16,7 @@ unchanged.
 
 == What else limits the load
 
-* Item enrichment for one bib makes at most 4 calls to Polaris at a time.
+* Item enrichment for one bib works on at most 4 items at a time. Each item can take several calls.
 * The Polaris staff token is cached, so most calls do not sign in again.
 
 == Not limited yet
