@@ -3,6 +3,7 @@ package org.olf.dcb.api;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -95,6 +96,13 @@ class AdminWatchedRequestApiTests {
 	@BeforeEach
 	void beforeEach() {
 		List.of(BORROWER, OTHER, CONSORTIUM).forEach(this::forget);
+	}
+
+	@Test
+	void anEmptyWatchListStillSaysContentIsEmpty() {
+		final var body = client.toBlocking().retrieve(HttpRequest.GET("/preferences/watched").bearerAuth(BORROWER), String.class);
+
+		assertThat(body, containsString("\"content\":[]"));
 	}
 
 	@Test
