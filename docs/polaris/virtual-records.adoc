@@ -35,3 +35,15 @@ DCB deletes with `IsAutoDelete` false, so Polaris soft-deletes the item. Whether
 item keeps its barcode, which would make Polaris refuse the next virtual item with that barcode
 (prompt 72, "duplicate barcode"), has not been checked against a Polaris server. The Host LMS
 setting `enableDoubleDelete` exists but is not read anywhere yet.
+
+== When several virtual patrons match
+
+DCB finds the borrowing patron's virtual patron at a Polaris lender by searching Polaris. If more
+than one patron matches:
+
+* If any match lacks the virtual patron barcode prefix (`services.patron-barcode-prefix`, default
+`DCB-`), it is a real patron. DCB refuses, and the request's audit says "Virtual patron : multiple
+found", with the reason. Staff should resolve the match in Polaris.
+* Otherwise DCB uses the virtual patron it used last for this borrower, and records a warning in
+the request's audit naming the others by their Polaris patron id, to merge or delete.
+* If DCB has used none of them, it refuses as before.

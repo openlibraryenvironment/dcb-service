@@ -107,6 +107,7 @@ import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.DeleteCommand;
 import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -537,6 +538,94 @@ class PolarisLmsClientTests {
 
 		// DCB appends a prefix to the barcode used in the generated field for the virtual patron
 		mockPolarisFixture.verifyPatronSearch(barcode);
+	}
+
+	@Test
+	void shouldUseTheVirtualPatronDcbUsedLastWhenSeveralMatch() {
+		// Arrange
+		final var homeBarcode = generateBarcode();
+		final var lastUsedId = generateNumericLocalId();
+		final var duplicateId = generateNumericLocalId();
+
+		mockPolarisFixture.mockPatronSearch(homeBarcode, List.of(
+			searchRow(duplicateId, "DCB-" + homeBarcode),
+			searchRow(lastUsedId, "DCB-" + homeBarcode)));
+		mockPolarisFixture.mockGetPatron(lastUsedId, ApplicationServicesClient.PatronData.builder()
+			.patronID(lastUsedId).patronCodeID(3).barcode("DCB-" + homeBarcode).organizationID(39).build());
+		mockPolarisFixture.mockGetPatronCirculationBlocks("DCB-" + homeBarcode,
+			PatronCirculationBlocksResult.builder().canPatronCirculate(true).build());
+		mockPolarisFixture.mockGetPatronBlocksSummary(lastUsedId);
+		referenceValueMappingFixture.defineNumericPatronTypeRangeMapping(CATALOGUING_HOST_LMS_CODE,
+			3L, 3L, "DCB", "UNDERGRADUATE");
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		final var found = singleValueFrom(client.findVirtualPatron(borrowerWithVirtualIdentity(homeBarcode, lastUsedId)));
+
+		// Assert
+		assertThat(found, hasLocalIds(convertIntegerToString(lastUsedId)));
+		assertThat(found.getWarnings().toString(), containsString(convertIntegerToString(duplicateId)));
+	}
+
+	@Test
+	void shouldRefuseWhenARealPatronIsAmongTheMatches() {
+		// Arrange
+		final var homeBarcode = generateBarcode();
+		final var lastUsedId = generateNumericLocalId();
+
+		mockPolarisFixture.mockPatronSearch(homeBarcode, List.of(
+			searchRow(lastUsedId, "DCB-" + homeBarcode),
+			searchRow(generateNumericLocalId(), homeBarcode)));
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		final var problem = assertThrows(MultipleVirtualPatronsFound.class, () -> singleValueFrom(
+			client.findVirtualPatron(borrowerWithVirtualIdentity(homeBarcode, lastUsedId))));
+
+		// Assert
+		assertThat(problem.getDetail(), containsString("not a virtual patron"));
+	}
+
+	@Test
+	void shouldStillRefuseSeveralVirtualPatronsWhenDcbHasNotUsedAnyOfThem() {
+		// Arrange
+		final var homeBarcode = generateBarcode();
+
+		mockPolarisFixture.mockPatronSearch(homeBarcode, List.of(
+			searchRow(generateNumericLocalId(), "DCB-" + homeBarcode),
+			searchRow(generateNumericLocalId(), "DCB-" + homeBarcode)));
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		// Assert
+		assertThrows(MultipleVirtualPatronsFound.class, () -> singleValueFrom(
+			client.findVirtualPatron(borrowerWithVirtualIdentity(homeBarcode, generateNumericLocalId()))));
+	}
+
+	private static PAPIClient.PatronSearchRow searchRow(Integer patronId, String barcode) {
+		return PAPIClient.PatronSearchRow.builder()
+			.PatronID(patronId)
+			.Barcode(barcode)
+			.OrganizationID(18)
+			.build();
+	}
+
+	private org.olf.dcb.core.model.Patron borrowerWithVirtualIdentity(String homeBarcode, Integer virtualPatronId) {
+		return org.olf.dcb.core.model.Patron.builder()
+			.id(randomUUID())
+			.patronIdentities(List.of(
+				PatronIdentity.builder()
+					.localId(generateNumericLocalIdAsString())
+					.localBarcode(barcodeAsSerialisedList(homeBarcode))
+					.homeIdentity(true)
+					.build(),
+				PatronIdentity.builder()
+					.localId(convertIntegerToString(virtualPatronId))
+					.hostLms(hostLmsFixture.findByCode(CATALOGUING_HOST_LMS_CODE))
+					.homeIdentity(false)
+					.build()))
+			.build();
 	}
 
 	@Test

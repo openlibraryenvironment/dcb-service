@@ -67,6 +67,7 @@ import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.ClockSkew;
@@ -88,6 +89,7 @@ import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
@@ -1138,7 +1140,61 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// to then create the patron
 		return PAPIService.patronSearch(firstBarcodeInList)
 			.map(PAPIClient.PatronSearchRow::getPatronID)
-			.flatMap(this::foundVirtualPatron);	}
+			.flatMap(this::foundVirtualPatron)
+			.onErrorResume(MultipleVirtualPatronsFound.class, multiple -> chooseVirtualPatron(multiple, patron));
+	}
+
+	/**
+	 * Several Polaris patrons match the borrower. Use the virtual patron DCB used last, when every
+	 * match is a virtual patron, and say in the request's audit which others to clean up. A match
+	 * without the virtual patron barcode prefix is a real patron, and the request is refused.
+	 */
+	private Mono<Patron> chooseVirtualPatron(MultipleVirtualPatronsFound multiple,
+		org.olf.dcb.core.model.Patron patron) {
+
+		final List<PAPIClient.PatronSearchRow> rows = multiple.getParameters().get("Response")
+			instanceof PAPIClient.PatronSearchResult result && result.getPatronSearchRows() != null
+				? result.getPatronSearchRows()
+				: List.of();
+
+		final var prefix = polarisConfig.getPatronBarcodePrefix(PolarisConfig.DEFAULT_PATRON_BARCODE_PREFIX);
+
+		if (rows.isEmpty() || rows.stream().anyMatch(row -> row.getBarcode() == null || !row.getBarcode().startsWith(prefix))) {
+			return Mono.error(MultipleVirtualPatronsFound.builder()
+				.withDetail("%d patrons match at %s and at least one is not a virtual patron (its barcode does not start with %s). Resolve in Polaris."
+					.formatted(rows.size(), getHostLmsCode(), prefix))
+				.build());
+		}
+
+		final var lastUsed = Optional.ofNullable(patron.getPatronIdentities()).orElse(List.of()).stream()
+			.filter(identity -> FALSE.equals(identity.getHomeIdentity()))
+			.filter(identity -> identity.getHostLms() != null && Objects.equals(identity.getHostLms().getId(), lms.getId()))
+			.map(PatronIdentity::getLocalId)
+			.filter(Objects::nonNull)
+			.collect(Collectors.toSet());
+
+		final var chosen = rows.stream()
+			.filter(row -> row.getPatronID() != null && lastUsed.contains(String.valueOf(row.getPatronID())))
+			.findFirst();
+
+		if (chosen.isEmpty()) {
+			return Mono.error(multiple);
+		}
+
+		final var others = rows.stream()
+			.map(PAPIClient.PatronSearchRow::getPatronID)
+			.filter(id -> !Objects.equals(id, chosen.get().getPatronID()))
+			.map(String::valueOf)
+			.collect(Collectors.joining(", "));
+
+		log.warn("{} virtual patrons match at {}; using {}, the one DCB used last", rows.size(), getHostLmsCode(),
+			chosen.get().getPatronID());
+
+		return foundVirtualPatron(chosen.get().getPatronID())
+			.map(found -> found.addWarning(("Polaris at %s holds %d virtual patrons for this borrower. DCB used %s, "
+				+ "the one it used last. Merge or delete the others in Polaris: %s")
+				.formatted(getHostLmsCode(), rows.size(), chosen.get().getPatronID(), others)));
+	}
 
 	private Mono<Patron> foundVirtualPatron(Integer patronId) {
 		log.info("Found virtual patron with local id: {}", patronId);

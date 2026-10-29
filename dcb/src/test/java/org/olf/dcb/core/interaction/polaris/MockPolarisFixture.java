@@ -236,6 +236,15 @@ public class MockPolarisFixture {
 				.build()));
 	}
 
+	public void mockPatronSearch(String firstLastName, List<PAPIClient.PatronSearchRow> rows) {
+		mockServer.mock(patronSearchRequest(firstLastName),
+			okJson(PatronSearchResult.builder()
+				.papiErrorCode(rows.size())
+				.PatronSearchRows(rows)
+				.TotalRecordsFound(rows.size())
+				.build()));
+	}
+
 	public void mockPatronSearchPapiError(String firstLastName, int papiErrorCode, String errorMessage) {
 		mockServer.mock(patronSearchRequest(firstLastName),
 			okJson(PatronSearchResult.builder()
