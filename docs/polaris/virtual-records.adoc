@@ -19,3 +19,19 @@ PAC, DCB stops: it attaches no item, and the request errors with "Polaris did no
 virtual bib", naming the bib id. Staff should check that bib in Polaris.
 
 DCB also stops if it cannot read the bib back.
+
+== Deleting the virtual item
+
+When a request finishes, DCB deletes the virtual item through the Application Services delete
+item workflow. Polaris refuses to delete an item that a loan or hold still links to. It reports
+that by listing the item as blocked while still answering that the workflow completed.
+
+DCB now records that case in the request's audit as "Delete virtual item : Failed", with the
+detail "Polaris refused to delete the virtual item". Earlier releases recorded it as a success,
+so the item stayed in the catalogue unnoticed. Staff should delete it by hand once its loan or
+hold has gone.
+
+DCB deletes with `IsAutoDelete` false, so Polaris soft-deletes the item. Whether a soft-deleted
+item keeps its barcode, which would make Polaris refuse the next virtual item with that barcode
+(prompt 72, "duplicate barcode"), has not been checked against a Polaris server. The Host LMS
+setting `enableDoubleDelete` exists but is not read anywhere yet.

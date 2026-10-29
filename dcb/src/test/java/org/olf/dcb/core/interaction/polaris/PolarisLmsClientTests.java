@@ -2086,6 +2086,32 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldFailToDeleteAVirtualItemPolarisListsAsBlocked() {
+		// Arrange
+		final var itemId = generateNumericLocalIdAsString();
+
+		mockPolarisFixture.mockStartWorkflow(WorkflowResponse.builder()
+			.workflowRequestGuid(randomUUID().toString())
+			.workflowStatus(WorkflowResponse.CompletedSuccessfully)
+			.answerExtension(AnswerExtension.builder()
+				.answerData(AnswerData.builder()
+					.blockedRecordIds(List.of(itemId))
+					.deletedRecordIds(List.of())
+					.build())
+				.build())
+			.build());
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.deleteItem(DeleteCommand.builder().itemId(itemId).build())));
+
+		// Assert
+		assertThat(problem, hasProperty("title", is("Polaris refused to delete the virtual item")));
+	}
+
+	@Test
 	void shouldBeAbleToCreateVirtualItem() {
 		// Arrange
 		final var itemId = generateNumericLocalId();

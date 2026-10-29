@@ -1834,7 +1834,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						// This is important as it would appear to be deleted, but it wouldn't actually have been deleted
 						if (Optional.ofNullable(answerData.getBlockedRecordIds()).orElse(Collections.emptyList()).contains(id)) {
 							log.warn("Workflow for item {} completed (Status: 1), but deletion was BLOCKED by Polaris.", id);
-							return Mono.just("OK_WORKFLOW_BLOCKED");
+							return Mono.error(Problem.builder()
+								.withTitle("Polaris refused to delete the virtual item")
+								.withDetail("Polaris listed item %s at %s as blocked, usually because a loan or hold still links to it"
+									.formatted(id, getHostLmsCode()))
+								.with("localItemId", id)
+								.build());
 						}
 						// Weirdly it wasn't in either list
 						log.warn("Polaris Workflow for item {} completed but ID was not present in the response", id);
