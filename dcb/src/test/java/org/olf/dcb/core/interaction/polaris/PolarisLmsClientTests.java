@@ -99,6 +99,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.Bib;
+import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.DeleteCommand;
@@ -1884,6 +1885,54 @@ class PolarisLmsClientTests {
 			.errorMessage("Patron block")
 			.patronBlockFlags(512)
 			.build();
+	}
+
+	@Test
+	void shouldCancelAHold() {
+		// Arrange
+		final var patronId = generateNumericLocalId();
+		final var patronBarcode = generateBarcode();
+		final var holdId = generateNumericLocalIdAsString();
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
+		mockPolarisFixture.mockCancelHold(patronBarcode, holdId,
+			"{ \"PAPIErrorCode\": 0, \"ErrorMessage\": null }");
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var cancelled = singleValueFrom(client.cancelHoldRequest(CancelHoldRequestParameters.builder()
+			.patronId(convertIntegerToString(patronId))
+			.localRequestId(holdId)
+			.build()));
+
+		// Assert
+		assertThat(cancelled, is(holdId));
+	}
+
+	@Test
+	void shouldFailToCancelAHoldWhenPolarisSendsNoErrorCode() {
+		// Arrange
+		final var patronId = generateNumericLocalId();
+		final var patronBarcode = generateBarcode();
+		final var holdId = generateNumericLocalIdAsString();
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
+		mockPolarisFixture.mockCancelHold(patronBarcode, holdId, "{ \"ErrorMessage\": \"Something went wrong\" }");
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.cancelHoldRequest(CancelHoldRequestParameters.builder()
+				.patronId(convertIntegerToString(patronId))
+				.localRequestId(holdId)
+				.build())));
+
+		// Assert
+		assertThat(problem, hasProperty("title", is("Failed to cancel hold request")));
+		assertThat("The patron's barcode is not carried into the audit",
+			problem.getParameters().containsKey("PatronBarcode"), is(false));
 	}
 
 	@Test

@@ -367,7 +367,8 @@ public class PAPIClient {
 			Argument.of(HoldRequestCancelResult.class))
 			.map(result -> {
 
-				if (result.getPapiErrorCode() >= 0) {
+				// No error code is not a success
+				if (result.getPapiErrorCode() != null && result.getPapiErrorCode() >= 0) {
 					return requestID;
 				}
 
@@ -375,7 +376,7 @@ public class PAPIClient {
 					.withTitle("Failed to cancel hold request")
 					.withDetail(result.getErrorMessage() != null ? result.getErrorMessage()
 						: "HoldRequestCancelResult error message was null")
-					.with("PatronBarcode", patronBarcode)
+					.with("papiErrorCode", String.valueOf(result.getPapiErrorCode()))
 					.with("RequestID", requestID)
 					.with("userid", userid)
 					.with("wsid", wsid)
@@ -392,7 +393,7 @@ public class PAPIClient {
 		return Mono.from( synch_BibsPagedGetRaw (startdatemodified, lastId, nrecs) )
       .doOnNext( jsonNode -> log.trace("SYNC BIB PAGED GET RESPONSE: {}",jsonNode) )
 			.map( node -> conversionService.convertRequired(node, BibsPagedResult.class))
-      .doOnNext( bpr -> log.info("BPR: {}",bpr ))
+      .doOnNext( bpr -> log.trace("BPR: {}",bpr ))
       .doOnError( e -> log.error("Problem in  synch_BibsPagedGet {}",e) );
 	}
 

@@ -326,6 +326,11 @@ public class MockPolarisFixture {
 			okText("\"%s\"".formatted(barcode)));
 	}
 
+	public void mockCancelHold(String patronBarcode, String holdId, String responseBody) {
+		mockServer.mockPut(paths.patronByBarcode(patronBarcode) + "/holdrequests/" + holdId + "/cancelled",
+			okJson(responseBody));
+	}
+
 	public void mockItemCheckout(String localPatronBarcode, ItemOperationResult response) {
 		mockServer.mockPost(paths.patronItemCheckOut(localPatronBarcode), response);
 	}
