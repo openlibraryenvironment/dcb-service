@@ -760,6 +760,8 @@ type SupplierRequest {
   localHoldingId: String
 	localRenewable: Boolean
 	localHoldCount: Int
+	"When reads of the lender's hold started failing; null while they succeed. localStatus is the last status read"
+	localReadFailingSince: String
 }
 
 type InactiveSupplierRequest {

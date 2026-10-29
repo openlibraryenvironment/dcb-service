@@ -1,0 +1,35 @@
+= When DCB cannot read the lender's hold
+:description: What DCB records when a read of the lending library's hold fails, for every library system.
+
+DCB polls the hold it placed at the lending library to follow the request. This page applies to
+every library system, not just Polaris.
+
+== What happens when a read fails
+
+The lender's hold keeps the last status DCB read. DCB:
+
+* sets `localReadFailingSince` on the supplier request to when the failures began,
+* records one audit entry, "Tracking : Supplier hold could not be read", saying what kind of
+failure it was: `timeout`, `sign-in refused`, `not found`, `server fault`, `HTTP <code>` or
+`other`, and
+* adds the request to the alarm `ILS.<host LMS code>.SUPPLIER_HOLD_READS_FAILING`, which lists up
+to 100 supplier requests per library and expires two days after the last one is added.
+
+Further failed polls add nothing. When a read succeeds again, DCB clears `localReadFailingSince`
+and records "Tracking : Supplier hold read again", with how long reads failed.
+
+GraphQL exposes the field as `SupplierRequest.localReadFailingSince`.
+
+== Before this release
+
+A failed read set the lender's hold status to `ERROR`, and the next good read set the real status
+back. At MOBIUS between August and October 2026 that happened 4,300 times on 1,878 requests, and
+99% came back with the same status. A request whose last read failed kept showing `ERROR`.
+
+Holds already showing `ERROR` when this release is installed keep it until DCB next reads them
+successfully.
+
+== Database
+
+The release adds the nullable column `supplier_request.local_read_failing_since`. It needs no
+backfill and does not rewrite the table.
