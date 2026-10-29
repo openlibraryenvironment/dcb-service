@@ -1900,7 +1900,11 @@ class PolarisLmsClientTests {
 			.localItemBarcode(localItemBarcode)
 			.localPatronBarcode(localPatronBarcode).build();
 
-		mockPolarisFixture.mockItemCheckout(localPatronBarcode,
+		// Polaris prefixes a virtual patron's barcode, so it never matches the one DCB stored
+		final var polarisPatronBarcode = "DCB-" + localPatronBarcode;
+		mockPolarisFixture.mockGetPatronBarcode(Integer.valueOf(localPatronId), polarisPatronBarcode);
+
+		mockPolarisFixture.mockItemCheckout(polarisPatronBarcode,
 			ItemOperationResult.builder()
 				.itemRecordID(localItemId)
 				.papiErrorCode(0)
@@ -1938,6 +1942,7 @@ class PolarisLmsClientTests {
 
 		final var errorMessage = "The item cannot be checked out because the item is blocked.";
 
+		mockPolarisFixture.mockGetPatronBarcode(Integer.valueOf(localPatronId), localPatronBarcode);
 		mockPolarisFixture.mockItemCheckout(localPatronBarcode,
 			ItemOperationResult.builder()
 				.itemRecordID(localItemId)

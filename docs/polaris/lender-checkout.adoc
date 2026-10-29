@@ -66,3 +66,14 @@ is also set when a checkout in the patron's own library fails, and when a reques
 for too long, so read the audit to see which applies.
 
 DCB does not yet retry a failed lender checkout.
+
+== Renewals at the lender
+
+When the patron's own library renews a loan, DCB renews the lender's copy by checking it out to
+the virtual patron again through PAPI. Polaris gives each virtual patron its own barcode, with
+the prefix set by `services.patron-barcode-prefix` (default `DCB-`), so DCB asks Polaris for the
+virtual patron's barcode by patron id before it renews. Before this, every renewal at a Polaris
+lender failed with PAPI error -4005, "Invalid patron barcode".
+
+After upgrading, compare due dates on loans that are already open: copies whose renewal failed
+earlier still have the old due date at the lender.

@@ -305,11 +305,26 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
-		log.info("renew({})", hostLmsRenewal);
+		log.info("renew item {} for patron {}", hostLmsRenewal.getLocalItemId(),
+			hostLmsRenewal.getLocalPatronId());
 
-		return PAPIService.itemCheckoutPost(hostLmsRenewal.getLocalItemBarcode(), hostLmsRenewal.getLocalPatronBarcode())
+		return renewalPatronBarcode(hostLmsRenewal)
+			.flatMap(patronBarcode -> PAPIService.itemCheckoutPost(
+				hostLmsRenewal.getLocalItemBarcode(), patronBarcode))
 			.map(itemCheckoutResult -> hostLmsRenewal)
-			.doOnError(e -> log.error("Error renewing item", e));
+			.doOnError(e -> log.error("Error renewing item {}", hostLmsRenewal.getLocalItemId(), e));
+	}
+
+	// Polaris gives a virtual patron its own prefixed barcode, so the one DCB stored is refused
+	// with -4005 "Invalid patron barcode". Ask Polaris, as checkout does.
+	private Mono<String> renewalPatronBarcode(HostLmsRenewal hostLmsRenewal) {
+		final var localPatronId = hostLmsRenewal.getLocalPatronId();
+
+		if (localPatronId == null) {
+			return Mono.justOrEmpty(hostLmsRenewal.getLocalPatronBarcode());
+		}
+
+		return ApplicationServices.getPatronBarcode(localPatronId);
 	}
 
 	@Override
