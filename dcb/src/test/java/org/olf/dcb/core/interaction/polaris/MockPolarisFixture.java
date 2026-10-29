@@ -392,6 +392,16 @@ public class MockPolarisFixture {
 		mockServer.mockGet(paths.localRequests(patronId), serverError());
 	}
 
+	public void mockGetItemHolds(Integer itemId, String rawJson) {
+		mockServer.mock(commonRequests.get(paths.applicationServices("/itemrecords/" + itemId + "/holds")),
+			response().withStatusCode(200).withBody(json(rawJson)));
+	}
+
+	public void mockGetHoldServerError(Integer holdId) {
+		mockServer.mock(commonRequests.get(paths.getHold(convertIntegerToString(holdId))),
+			response().withStatusCode(500));
+	}
+
 	public void mockGetHold(Integer holdId, LibraryHold responseBody) {
 		mockGetHold(convertIntegerToString(holdId), responseBody);
 	}

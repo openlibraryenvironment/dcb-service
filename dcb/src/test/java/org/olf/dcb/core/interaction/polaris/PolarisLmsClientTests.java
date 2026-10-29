@@ -2305,6 +2305,36 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldCountAHoldWhoseDetailCannotBeRead() {
+		// Arrange - a hold with no item barcode, whose detail Polaris fails to return
+		final var localItemId = generateNumericLocalId();
+		final var holdId = generateNumericLocalId();
+
+		mockPolarisFixture.mockGetItem(localItemId,
+			ItemRecordFull.builder()
+				.itemRecordID(localItemId)
+				.barcode(generateBarcode())
+				.itemStatusDescription(checkedOutCirculationStatus())
+				.circulationData(CirculationData.builder().renewalCount(0).build())
+				.bibInfo(BibInfo.builder()
+					.bibliographicRecordID(generateNumericLocalId())
+					.canItemBeRenewed(true)
+					.build())
+				.build());
+		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
+		mockPolarisFixture.mockGetItemHolds(localItemId, """
+			{ "TotalCount": 1, "Offset": 0, "Reservations": [ { "SysHoldRequestID": %d, "SysHoldStatusID": 3 } ] }"""
+			.formatted(holdId));
+		mockPolarisFixture.mockGetHoldServerError(holdId);
+
+		// Act
+		final var localItem = getItem(localItemId);
+
+		// Assert - counted, so a renewal over a possible hold is refused
+		assertThat(localItem.getHoldCount(), is(1));
+	}
+
+	@Test
 	void shouldBeAbleToGetAnItemById() {
 		// Arrange
 		final var localItemId = generateNumericLocalId();

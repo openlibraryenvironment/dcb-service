@@ -932,7 +932,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
 		if (localId == null) return Mono.just(currentCount);
 
-		log.info("Current count is {}", currentCount);
+		log.debug("Current count is {}", currentCount);
 
 		final int itemId = Integer.parseInt(localId);
 		final int PAGE_SIZE = 50; // In practice, we are extremely unlikely to need to paginate here.
@@ -986,8 +986,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						}
 						return false;
 					})
-					.defaultIfEmpty(false)
-					.onErrorReturn(false);
+					// A hold that cannot be read counts: wrongly refusing a renewal can be put right,
+					// renewing over another patron's hold cannot
+					.defaultIfEmpty(true)
+					.onErrorReturn(true);
 			})
 			.filter(Boolean::booleanValue)
 			.count()
