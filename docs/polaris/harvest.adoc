@@ -35,7 +35,14 @@ and raises the alarm `ILS.<host LMS code>.POLARIS_HARVEST_UNSTAGED`, which lists
 ids. The walk moves past the row, so the bib is not harvested again until it changes in Polaris.
 Run the reconcile (`POST /admin/sourceImport/<code>/reconcile`) once the cause is fixed.
 
-== Not picked up
+== Deleted bibs
 
-* *Deleted bibs.* The PAPI harvest does not ask Polaris for deletions, so a bib deleted in Polaris
-stays in DCB. The OAI-PMH harvest, with the vanished-bib sweep, is the way to remove them.
+When a walk finishes, DCB asks Polaris which bibs were deleted since its deletions watermark, and
+removes each one from DCB. It asks at most every 30 minutes, reads at most 20 pages of 100 ids in
+one run (a run that hits the cap carries on from where it stopped next time), and logs
+`POLARIS_HARVEST_DELETIONS` with how many it found.
+
+The first time, DCB reads deletions from the last 90 days. A bib deleted in Polaris before that
+stays in DCB until a reconcile or, on the OAI-PMH harvest, the vanished-bib sweep removes it.
+
+If Polaris does not answer, the update harvest carries on and DCB asks again on the next run.

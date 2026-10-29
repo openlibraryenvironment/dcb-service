@@ -25,6 +25,9 @@ public class ExtendedBibsPagedGetParams {
 	// When this id walk began, by DCB's clock. A record edited behind the cursor during the walk is
 	// older than the highest date seen, so the next watermark must not pass this.
 	private Instant walkStartedAt;
+	// Polaris deletions are read on their own watermark and cursor; see PolarisLmsClient.readDeletions
+	private Instant deletedSince;
+	private Integer deletedLastId;
   private final String cpType="POLARIS";
   private String hostCode;
 

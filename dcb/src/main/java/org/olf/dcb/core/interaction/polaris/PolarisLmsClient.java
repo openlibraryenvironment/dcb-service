@@ -19,6 +19,7 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.StringUtils.stringEquals;
 
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -1954,7 +1955,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.sourceRecordId(String.valueOf(resource.getBibliographicRecordID()))
 			// TODO: resolve differences from sierra
 			.suppressFromDiscovery(!resource.getIsDisplayInPAC())
-			.deleted(false);
+			.deleted(TRUE.equals(resource.getDcbDeleted()));
 	}
 
 	@Override
@@ -2090,6 +2091,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		@JsonProperty("BibliographicRecordXML")
 		@JsonInclude(JsonInclude.Include.NON_NULL)
 		private String BibliographicRecordXML;
+		// Not a PAPI field: set only on the rows DCB writes for bibs Polaris reports deleted
+		@JsonProperty("DCBDeleted")
+		@JsonInclude(JsonInclude.Include.NON_NULL)
+		private Boolean dcbDeleted;
 	}
 
 	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
@@ -2404,13 +2409,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									extParams.setLastId(Integer.valueOf(lastId));
 								}
 
-								// We return the current data with the Checkpoint that will return the next chunk.
-								final JsonNode newCheckpoint = objectMapper.writeValueToTree(extParams);
-								log.info("Polaris checkpoint {} {} {}",lms.getCode(), extParams, newCheckpoint);
+								if (!isLastChunk) {
+									return Mono.just(withCheckpoint(builder, extParams));
+								}
 
-								builder.checkpoint( newCheckpoint );
-								
-								return Mono.just( builder.build() );
+								return readDeletions(extParams, now)
+									.map(deleted -> {
+										deleted.forEach(builder::dataEntry);
+										return withCheckpoint(builder, extParams);
+									});
 								
 							} catch (Exception e) {
 								return Mono.error( e );
@@ -2420,6 +2427,94 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		} catch (Exception e) {
 			return Mono.error( e );
 		}
+	}
+
+	// The checkpoint returned with the data is the one that fetches the next chunk
+	private SourceRecordImportChunk withCheckpoint(SourceRecordImportChunk.SourceRecordImportChunkBuilder builder,
+		ExtendedBibsPagedGetParams extParams) {
+
+		try {
+			final JsonNode newCheckpoint = objectMapper.writeValueToTree(extParams);
+			log.info("Polaris checkpoint {} {} {}", lms.getCode(), extParams, newCheckpoint);
+
+			return builder.checkpoint(newCheckpoint).build();
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException("Could not write the Polaris harvest checkpoint", e);
+		}
+	}
+
+	// The PAPI walk never sees a deleted bib. When a walk ends, read the ids Polaris reports deleted
+	// and emit a deleted row for each, keyed like the bib's own row, so ingest removes it. Bounded per
+	// run; the cursor resumes where a capped run stopped. A failed read leaves the watermark alone.
+	static final Duration FIRST_DELETIONS_WINDOW = Duration.ofDays(90);
+	static final Duration DELETIONS_INTERVAL = Duration.ofMinutes(30);
+	private static final int DELETIONS_PAGE_SIZE = 100;
+	private static final int DELETIONS_PAGES_PER_RUN = 20;
+
+	private Mono<List<SourceRecord>> readDeletions(ExtendedBibsPagedGetParams extParams, Instant now) {
+		final Instant since = extParams.getDeletedSince() != null
+			? extParams.getDeletedSince()
+			: now.minus(FIRST_DELETIONS_WINDOW);
+		final int startId = extParams.getDeletedLastId() == null ? 0 : extParams.getDeletedLastId();
+
+		// Read again once the watermark is this old, not on every two-minute run
+		if (startId == 0 && extParams.getDeletedSince() != null && since.isAfter(now.minus(DELETIONS_INTERVAL))) {
+			return Mono.just(List.of());
+		}
+
+		final String sinceParam = since.truncatedTo(ChronoUnit.MILLIS).toString();
+
+		return deletedBibPage(sinceParam, startId)
+			.expand(ids -> ids.size() < DELETIONS_PAGE_SIZE
+				? Mono.empty()
+				: deletedBibPage(sinceParam, ids.get(ids.size() - 1)))
+			.take(DELETIONS_PAGES_PER_RUN)
+			.collectList()
+			.map(pages -> {
+				final List<Integer> deletedIds = pages.stream().flatMap(List::stream).toList();
+				final boolean capped = pages.size() == DELETIONS_PAGES_PER_RUN
+					&& pages.get(pages.size() - 1).size() == DELETIONS_PAGE_SIZE;
+
+				if (capped) {
+					extParams.setDeletedSince(since);
+					extParams.setDeletedLastId(deletedIds.get(deletedIds.size() - 1));
+				}
+				else {
+					extParams.setDeletedSince(now.minus(polarisConfig.getHarvestWatermarkOverlap()));
+					extParams.setDeletedLastId(0);
+				}
+
+				log.info("POLARIS_HARVEST_DELETIONS :: Host: {} {} bib(s) deleted since {}{}", lms.getCode(),
+					deletedIds.size(), sinceParam, capped ? ", more to read next run" : "");
+
+				return deletedIds.stream().map(id -> deletedBibRow(id, now)).toList();
+			})
+			.onErrorResume(error -> {
+				log.warn("POLARIS_HARVEST_DELETIONS :: Host: {} could not read deleted bibs since {}; will retry",
+					lms.getCode(), sinceParam, error);
+				return Mono.just(List.of());
+			});
+	}
+
+	private Mono<List<Integer>> deletedBibPage(String since, int lastId) {
+		return Mono.from(PAPIService.synch_GetDeletedBibsPaged(since, DELETIONS_PAGE_SIZE, lastId))
+			.map(result -> Optional.ofNullable(result.getBibIDListRows()).orElseGet(List::of).stream()
+				.map(PAPIClient.BibIDListRow::getBibliographicRecordID)
+				.filter(Objects::nonNull)
+				.toList());
+	}
+
+	private SourceRecord deletedBibRow(Integer bibId, Instant now) {
+		return SourceRecord.builder()
+			.hostLmsId(lms.getId())
+			.lastFetched(now)
+			.remoteId(String.valueOf(bibId))
+			.sourceRecordData(JsonNode.createObjectNode(Map.of(
+				"BibliographicRecordID", JsonNode.createNumberNode(bibId),
+				"IsDisplayInPAC", JsonNode.createBooleanNode(false),
+				"DCBDeleted", JsonNode.createBooleanNode(true))))
+			.build();
 	}
 
 	// A negative PAPIErrorCode is a failure, whatever rows the page carries

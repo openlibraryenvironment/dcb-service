@@ -441,6 +441,18 @@ public class PAPIClient {
 			.doOnNext(result -> log.trace("Result of synch_GetUpdatedBibsPaged {}",result));
 	}
 
+	// Bib ids deleted since deletedate, paged by bib id from lastid
+	@SingleResult
+	public Publisher<GetBibsPagedResult> synch_GetDeletedBibsPaged(String deletedate, Integer nrecs, Integer lastId) {
+		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "deleted", "paged");
+		return client.retrieve(createRequest(GET, path, uri -> uri
+			.queryParam("deletedate", deletedate)
+			.queryParam("lastid", lastId)
+			.queryParam("nrecs", nrecs))
+			.flatMap(authFilter::ensureStaffAuth),
+			Argument.of(GetBibsPagedResult.class));
+	}
+
 	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsMaxIDGet.htm
 	// Upper bound of the bib id space, used by reconciliation to size its membership check.
 	// Only covers records with a "final" status, which is the same population the harvest sees.

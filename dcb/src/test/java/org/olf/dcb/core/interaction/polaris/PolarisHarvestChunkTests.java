@@ -246,6 +246,45 @@ class PolarisHarvestChunkTests {
 	}
 
 	@Test
+	void theEndOfAWalkCarriesTheBibsPolarisReportsDeleted() {
+		// Arrange
+		mockPolarisFixture.mockGetUpdatedBibs(0, updatedBibsResponse(10, 20, 30));
+		mockPolarisFixture.mockGetBibsById("10,20,30", bibsByIdResponse(10, 20, 30));
+		mockPolarisFixture.mockGetUpdatedBibs(30, updatedBibsResponse());
+		mockPolarisFixture.mockGetDeletedBibs(0, updatedBibsResponse(77, 78));
+
+		// Act
+		final var first = singleValueFrom(client.getChunk(Optional.of(deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 0))));
+		final var last = singleValueFrom(client.getChunk(Optional.of(first.getCheckpoint())));
+
+		// Assert
+		assertThat(last.isLastChunk(), is(true));
+		assertThat(remoteIds(last), contains("77", "78"));
+
+		final var deleted = singleValueFrom(client.convertSourceToIngestRecord(last.getData().iterator().next()));
+		assertThat("Ingest removes the bib", deleted.getDeleted(), is(true));
+
+		final var checkpoint = checkpointOf(last);
+		assertThat(checkpoint.getDeletedSince(), is(notNullValue()));
+		assertThat(checkpoint.getDeletedLastId(), is(0));
+	}
+
+	@Test
+	void aFailedReadOfDeletionsLeavesTheirWatermarkForTheNextRun() {
+		// Arrange
+		mockPolarisFixture.mockGetUpdatedBibs(0, updatedBibsResponse());
+		mockPolarisFixture.mockGetDeletedBibsServerError();
+
+		// Act
+		final var last = singleValueFrom(client.getChunk(Optional.of(deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 0))));
+
+		// Assert - the update harvest is not held up
+		assertThat(last.isLastChunk(), is(true));
+		assertThat(last.getData(), hasSize(0));
+		assertThat(checkpointOf(last).getDeletedSince(), is(nullValue()));
+	}
+
+	@Test
 	void aRowThatCannotBeReadRaisesAnAlarmNamingTheBib() {
 		// Arrange - bib 40 arrives without the modification date the walk reads
 		mockPolarisFixture.mockGetPagedBibs(0, """

@@ -488,6 +488,15 @@ public class MockPolarisFixture {
 	private static final String FAILED_PAGED_BIBS = """
 		{ "PAPIErrorCode": -1, "ErrorMessage": "An unhandled exception occurred" }""";
 
+	public void mockGetDeletedBibs(Integer lastId, Object responseBody) {
+		mockServer.mock(deletedBibsRequest()
+			.withQueryStringParameter("lastid", String.valueOf(lastId)), responseBody);
+	}
+
+	public void mockGetDeletedBibsServerError() {
+		mockServer.mock(deletedBibsRequest(), response().withStatusCode(500));
+	}
+
 	public void mockGetUpdatedBibs(Integer lastId, Object responseBody) {
 		mockServer.mock(updatedBibsRequest()
 			.withQueryStringParameter("lastid", String.valueOf(lastId)), responseBody);
@@ -525,6 +534,10 @@ public class MockPolarisFixture {
 
 	private HttpRequest updatedBibsRequest() {
 		return commonRequests.get(paths.protectedPapiService("/string/synch/bibs/updated/paged"));
+	}
+
+	private HttpRequest deletedBibsRequest() {
+		return commonRequests.get(paths.protectedPapiService("/string/synch/bibs/deleted/paged"));
 	}
 
 	private HttpRequest bibsByIdRequest() {
