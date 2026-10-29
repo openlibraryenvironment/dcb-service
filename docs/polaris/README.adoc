@@ -5,3 +5,4 @@ copy it into a module's `pages/` directory as it stands. They carry no includes 
 cross-repository links.
 
 * xref:lender-checkout.adoc[Lender checkout and patron blocks]
+* xref:virtual-records.adoc[Virtual bibs and items in Polaris]

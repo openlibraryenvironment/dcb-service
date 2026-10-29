@@ -2006,6 +2006,23 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldRefuseABibPolarisResolvedOntoARecordThePacDisplays() {
+		// Arrange
+		final var bibId = generateNumericLocalId();
+
+		mockPolarisFixture.mockCreateBibResolvingOntoDisplayedBib(bibId);
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.createBib(Bib.builder().title("title").build())));
+
+		// Assert
+		assertThat(problem, hasProperty("title", is("Polaris did not create a hidden virtual bib")));
+	}
+
+	@Test
 	void shouldCreateBibWithBookMaterialTypeWhenSourceTypeIsUnknown() {
 		// Arrange
 		final var bibId = generateNumericLocalId();

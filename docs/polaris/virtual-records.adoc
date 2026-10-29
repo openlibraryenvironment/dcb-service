@@ -1,0 +1,21 @@
+= Virtual bibs and items in Polaris
+:description: What DCB creates in a borrowing library's Polaris for a request, and the checks it makes.
+
+When a Polaris library borrows from another library, DCB creates a virtual bib and a virtual
+item in that library's Polaris, and places the patron's hold on the virtual item.
+
+== The virtual bib is hidden from the PAC
+
+DCB creates the virtual bib with *Display in PAC* off and *Do not overlay* on. It carries the
+title (245 $a) and the source record's material type in leader position 06.
+
+Polaris can answer the create with the id of a bib it already had, presumably through its
+duplicate detection. If that bib is displayed in the PAC, a holdable virtual item attached to it
+joins the bib's local hold queue: on return, it traps for the next local hold, and a local patron
+is told an item is ready that must go back to another library.
+
+So DCB reads the bib back after creating it. Unless Polaris reports it as *not* displayed in the
+PAC, DCB stops: it attaches no item, and the request errors with "Polaris did not create a hidden
+virtual bib", naming the bib id. Staff should check that bib in Polaris.
+
+DCB also stops if it cannot read the bib back.

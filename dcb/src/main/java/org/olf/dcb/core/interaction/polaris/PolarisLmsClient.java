@@ -716,7 +716,24 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return refuseIllBorrowingFlow();
 		}
 
-		return ApplicationServices.createBibliographicRecord(bib).map(String::valueOf);
+		return ApplicationServices.createBibliographicRecord(bib)
+			.flatMap(this::confirmHiddenVirtualBib)
+			.map(String::valueOf);
+	}
+
+	// Polaris can answer a create with the id of a bib it already had. A holdable virtual item on
+	// a bib the PAC displays joins that bib's local hold queue and traps for the next local hold,
+	// so only a record hidden from the PAC is accepted. DisplayInPAC missing is not accepted.
+	private Mono<Integer> confirmHiddenVirtualBib(Integer bibId) {
+		return ApplicationServices.getBibliographicRecordByID(String.valueOf(bibId))
+			.filter(record -> FALSE.equals(record.getDisplayInPAC()))
+			.map(record -> bibId)
+			.switchIfEmpty(Mono.defer(() -> Mono.error(Problem.builder()
+				.withTitle("Polaris did not create a hidden virtual bib")
+				.withDetail("Bib %d at %s is displayed in the PAC, or could not be read back, so no virtual item was attached to it"
+					.formatted(bibId, getHostLmsCode()))
+				.with("localBibId", bibId)
+				.build())));
 	}
 
 	@Override

@@ -408,6 +408,21 @@ public class MockPolarisFixture {
 
 	public void mockCreateBib(Integer bibId) {
 		mockServer.replaceMock(createBibRequest(), bibId);
+		mockGetBib(bibId, BibliographicRecord.builder()
+			.bibliographicRecordID(bibId)
+			.displayInPAC(false)
+			.build());
+	}
+
+	/**
+	 * Polaris answers the create with the id of a bib it already had, which the PAC displays
+	 */
+	public void mockCreateBibResolvingOntoDisplayedBib(Integer bibId) {
+		mockServer.replaceMock(createBibRequest(), bibId);
+		mockGetBib(bibId, BibliographicRecord.builder()
+			.bibliographicRecordID(bibId)
+			.displayInPAC(true)
+			.build());
 	}
 
 	public void verifyCreateBibBodyContains(String fragment) {
