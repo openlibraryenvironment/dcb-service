@@ -6,3 +6,4 @@ cross-repository links.
 
 * xref:lender-checkout.adoc[Lender checkout and patron blocks]
 * xref:virtual-records.adoc[Virtual bibs and items in Polaris]
+* xref:what-is-lent.adoc[Which Polaris items DCB offers to other libraries]

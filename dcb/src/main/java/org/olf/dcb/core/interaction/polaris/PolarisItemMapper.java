@@ -1,7 +1,9 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.GENERAL;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.NO_LEND;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -94,8 +96,10 @@ public class PolarisItemMapper {
 				final var suppressionFlag = deriveItemSuppressedFlag(itemGetRow, itemSuppressionRules, decisionLogEntries);
 				final var parsedVolumeStatement = VolumeDesignation.normalise(itemGetRow.getVolumeNumber());
 
-				final var derivedLoanPolicy = deriveLoanPolicy(hostLmsCode, shelvingLocation,
-					polarisConfig.getShelfLocationPolicyMap(), decisionLogEntries);
+				final var derivedLoanPolicy = isNeverLent(itemGetRow, decisionLogEntries)
+					? NO_LEND
+					: deriveLoanPolicy(hostLmsCode, shelvingLocation,
+						polarisConfig.getShelfLocationPolicyMap(), decisionLogEntries);
 
 				return org.olf.dcb.core.model.Item.builder()
 					.localId(localId)
@@ -127,6 +131,22 @@ public class PolarisItemMapper {
 			.flatMap(item -> enrichItemWithAgency(itemGetRow, item, hostLmsCode, itemAgencyResolutionMethod))
 			.flatMap(itemTypeMapper::enrichItemWithMappedItemType)
 			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
+	}
+
+	// PAPI does not publish "Loanable outside system"; these are the two flags it does send that
+	// say an item cannot be lent. Either one wins over the shelf location policy map.
+	private static boolean isNeverLent(ItemGetRow itemGetRow, List<String> decisionLogEntries) {
+		if (FALSE.equals(itemGetRow.getHoldable())) {
+			decisionLogEntries.add("LoanPolicy NO_LEND because the item is not holdable");
+			return true;
+		}
+
+		if (TRUE.equals(itemGetRow.getNonCirculating())) {
+			decisionLogEntries.add("LoanPolicy NO_LEND because the item is non-circulating");
+			return true;
+		}
+
+		return false;
 	}
 
 	private DerivedLoanPolicy deriveLoanPolicy(String hostLmsCode, String shelvingLocation,

@@ -10,6 +10,8 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.olf.dcb.core.model.*;
 import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.DcbTest;
@@ -45,6 +47,24 @@ class RequestableItemServiceTests {
 		final var result = isRequestable(item);
 
 		assertThat(result, is(false));
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = DerivedLoanPolicy.class, names = {"NO_LEND", "LOCAL_ONLY", "REFERENCE_ONLY"})
+	void itemTheLibraryWillNotLendShouldNotBeRequestable(DerivedLoanPolicy policy) {
+		final var item = createItem("id", AVAILABLE, "BOOK");
+		item.setDerivedLoanPolicy(policy);
+
+		assertThat(isRequestable(item), is(false));
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = DerivedLoanPolicy.class, names = {"GENERAL", "SHORT_LOAN", "UNKNOWN"})
+	void itemWithALendablePolicyShouldBeRequestable(DerivedLoanPolicy policy) {
+		final var item = createItem("id", AVAILABLE, "BOOK");
+		item.setDerivedLoanPolicy(policy);
+
+		assertThat(isRequestable(item), is(true));
 	}
 
 	@Test

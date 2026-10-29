@@ -2,12 +2,18 @@ package org.olf.dcb.item.availability;
 
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.ConsortiumService;
+import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.FunctionalSetting;
 import org.olf.dcb.core.model.Item;
+
+import java.util.Set;
 
 import io.micronaut.context.annotation.Prototype;
 import reactor.core.publisher.Mono;
 
+import static org.olf.dcb.core.model.DerivedLoanPolicy.LOCAL_ONLY;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.NO_LEND;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.REFERENCE_ONLY;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 
@@ -16,6 +22,8 @@ import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 public class RequestableItemService {
 
 	private static final String NONCIRC = "NONCIRC";
+	// UNKNOWN is not here: it is the default for an adapter that derives no policy
+	private static final Set<DerivedLoanPolicy> NOT_LENT = Set.of(NO_LEND, LOCAL_ONLY, REFERENCE_ONLY);
 	private final ConsortiumService consortiumService;
 
 	public RequestableItemService(ConsortiumService consortiumService) {
@@ -53,6 +61,11 @@ public class RequestableItemService {
 
 		if ( item.getCanonicalItemType().equals(NONCIRC) ) {
 			log.debug("Item is NON-CIRCULATING - reject");
+			return false;
+		}
+
+		if (NOT_LENT.contains(item.getDerivedLoanPolicy())) {
+			log.debug("Item loan policy is {} - reject", item.getDerivedLoanPolicy());
 			return false;
 		}
 

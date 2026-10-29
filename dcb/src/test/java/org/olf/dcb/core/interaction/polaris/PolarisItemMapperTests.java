@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.GENERAL;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.NO_LEND;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.SHORT_LOAN;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -158,6 +159,38 @@ class PolarisItemMapperTests {
 			notNullValue(),
 			hasDerivedLoanPolicy(expectedPolicy)
 		));
+	}
+
+	@Test
+	void shouldNotLendAnItemPolarisSaysIsNotHoldable() {
+		// Arrange
+		final var locationName = "Mapped Location";
+		final var config = locationToPolicyMapConfig(Map.of(locationName, GENERAL.name()));
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation(locationName)
+			.Holdable(false)
+			.build(), config);
+
+		// Assert
+		assertThat(item, hasDerivedLoanPolicy(NO_LEND));
+	}
+
+	@Test
+	void shouldNotLendAnItemPolarisSaysIsNonCirculating() {
+		// Arrange
+		final var config = locationToPolicyMapConfig(Map.of());
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation("Unmapped Location")
+			.Holdable(true)
+			.NonCirculating(true)
+			.build(), config);
+
+		// Assert
+		assertThat(item, hasDerivedLoanPolicy(NO_LEND));
 	}
 
 	@Test

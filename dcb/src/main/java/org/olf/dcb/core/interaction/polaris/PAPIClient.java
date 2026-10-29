@@ -1082,6 +1082,8 @@ public class PAPIClient {
 		@JsonProperty("ModificationDate")
 		@JsonInclude(JsonInclude.Include.NON_NULL)
 		private String ModificationDate;
+		@JsonProperty("NonCirculating")
+		private Boolean NonCirculating;
 	}
 
 	@Builder
