@@ -185,16 +185,7 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 		if ( hostLmsClient.reflectPatronLoanAtSupplier() ) {
 
-			final var command = CheckoutItemCommand.builder()
-				.itemId(supplierRequest.getLocalItemId())
-				.itemBarcode(supplierRequest.getLocalItemBarcode())
-				.patronId(rwc.getPatronVirtualIdentity().getLocalId())
-				.patronBarcode(patronBarcode[0])
-				.localRequestId(supplierRequest.getLocalId())
-				.libraryCode(supplierRequest.getLocalItemLocationCode())
-				.build();
-
-			return hostLmsClient.checkOutItemToPatron(command)
+			return hostLmsClient.checkOutItemToPatron(lenderCheckoutCommand(rwc, patronBarcode[0]))
 				.doOnNext(resp -> log.debug("checkOutItemToPatron returned {}", resp))
 				.thenReturn(rwc);
 		}
@@ -202,6 +193,38 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 			rwc.getWorkflowMessages().add("reflectPatronLoanAtSupplier disabled for this client");
 			return Mono.just(rwc);
 		}
+	}
+
+	private static CheckoutItemCommand lenderCheckoutCommand(RequestWorkflowContext rwc, String virtualPatronBarcode) {
+		final var supplierRequest = rwc.getSupplierRequest();
+
+		return CheckoutItemCommand.builder()
+			.itemId(supplierRequest.getLocalItemId())
+			.itemBarcode(supplierRequest.getLocalItemBarcode())
+			.patronId(rwc.getPatronVirtualIdentity().getLocalId())
+			.patronBarcode(virtualPatronBarcode)
+			.localRequestId(supplierRequest.getLocalId())
+			.libraryCode(supplierRequest.getLocalItemLocationCode())
+			.build();
+	}
+
+	/**
+	 * The lender checkout alone, failing rather than auditing, for a person retrying one that failed.
+	 * Errors when the request lacks what the checkout needs or the lender's system refuses.
+	 */
+	public Mono<String> checkOutAtLender(RequestWorkflowContext rwc, HostLmsClient lenderClient) {
+		final var supplierRequest = rwc.getSupplierRequest();
+		final String[] barcodes = extractPatronBarcodes(getValueOrNull(rwc,
+			RequestWorkflowContext::getPatronVirtualIdentity, PatronIdentity::getLocalBarcode));
+
+		if (supplierRequest == null || supplierRequest.getLocalItemId() == null
+			|| barcodes == null || barcodes.length == 0) {
+
+			return Mono.error(new IllegalStateException(
+				"The request has no lender item or virtual patron barcode to check out with"));
+		}
+
+		return lenderClient.checkOutItemToPatron(lenderCheckoutCommand(rwc, barcodes[0]));
 	}
 
 	private String[] extractPatronBarcodes(String inputstr) {

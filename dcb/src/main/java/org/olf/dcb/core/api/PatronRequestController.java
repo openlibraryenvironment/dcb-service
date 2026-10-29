@@ -33,6 +33,7 @@ import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.fulfilment.WalkUpRequestCommand;
 import org.olf.dcb.request.workflow.ConfirmItemReturnedService;
+import org.olf.dcb.request.workflow.RetryLenderCheckoutService;
 import org.olf.dcb.request.workflow.ManualCleanupService;
 import org.olf.dcb.security.PatronRequestAccessGuard;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -84,6 +85,7 @@ public class PatronRequestController {
 
 	private final PatronRequestService patronRequestService;
 	private final ConfirmItemReturnedService confirmItemReturnedService;
+	private final RetryLenderCheckoutService retryLenderCheckoutService;
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestAccessGuard patronRequestAccessGuard;
 	private final ManualCleanupService manualCleanupService;
@@ -93,6 +95,7 @@ public class PatronRequestController {
 
 	public PatronRequestController(PatronRequestService patronRequestService,
 			ConfirmItemReturnedService confirmItemReturnedService,
+			RetryLenderCheckoutService retryLenderCheckoutService,
 			PatronRequestRepository patronRequestRepository,
 			PatronRequestAccessGuard patronRequestAccessGuard,
 			ManualCleanupService manualCleanupService,
@@ -100,6 +103,7 @@ public class PatronRequestController {
 
 		this.patronRequestService = patronRequestService;
 		this.confirmItemReturnedService = confirmItemReturnedService;
+		this.retryLenderCheckoutService = retryLenderCheckoutService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.patronRequestAccessGuard = patronRequestAccessGuard;
 		this.manualCleanupService = manualCleanupService;
@@ -152,6 +156,24 @@ public class PatronRequestController {
 		return confirmItemReturnedService.confirm(patronRequestId,
 				CallerScope.from(authentication.getRoles(), authentication.getAttributes()))
 			.doOnError(error -> log.warn("Confirming the return of patron request {} refused or failed: {}",
+				patronRequestId, error.getMessage()));
+	}
+
+	@Operation(
+		summary = "Retry the checkout of the lender's copy to the virtual patron",
+		description = "For a request on loan whose checkout at the lending library failed, so the lender's copy "
+			+ "still shows as in transit or transferred. Reads the lender's copy first and does nothing if it is "
+			+ "already checked out. A library caller must be the lending library."
+	)
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR, LIBRARY_ADMIN})
+	@SingleResult
+	@Post(value = "/{patronRequestId}/transition/retry-lender-checkout", consumes = APPLICATION_JSON)
+	public Mono<String> retryLenderCheckout(@NotNull final UUID patronRequestId, Authentication authentication) {
+		log.info("Retry lender checkout for patron request {}", patronRequestId);
+
+		return retryLenderCheckoutService.retry(patronRequestId,
+				CallerScope.from(authentication.getRoles(), authentication.getAttributes()))
+			.doOnError(error -> log.warn("Retrying the lender checkout of patron request {} refused or failed: {}",
 				patronRequestId, error.getMessage()));
 	}
 

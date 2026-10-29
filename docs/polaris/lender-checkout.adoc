@@ -65,7 +65,30 @@ To list these requests, query GraphQL with `patronRequests(query: "needsAttentio
 is also set when a checkout in the patron's own library fails, and when a request has been tracked
 for too long, so read the audit to see which applies.
 
-DCB does not yet retry a failed lender checkout.
+== Retrying a failed lender checkout
+
+DCB does not retry a failed lender checkout by itself. Consortium staff, or staff at the lending
+library, can retry it:
+
+----
+POST /patrons/requests/{patronRequestId}/transition/retry-lender-checkout
+----
+
+The request must be on loan. DCB first reads the lender's copy, because checking out a copy that
+is already out to the virtual patron would renew the loan:
+
+[cols="2,3",options="header"]
+|===
+| Lender's copy | Result and audit entry
+
+| Checked out already | Nothing is checked out. "Lender checkout retry : Skipped, the lender's copy is already checked out".
+| Anything else | DCB checks it out to the virtual patron, overriding a block as the original checkout does. "Lender checkout retry : Success", or "Lender checkout retry : Failed" with the lender's answer (HTTP 502).
+| Cannot be read | Nothing is changed (HTTP 502).
+|===
+
+After a success or a skip, DCB clears `needsAttention`, unless the request is also flagged as
+tracked too long, or a checkout in the patron's own library failed. The audit names the library
+that retried, never the person.
 
 == Renewals at the lender
 
