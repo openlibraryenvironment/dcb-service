@@ -122,7 +122,7 @@ public class PAPIClient {
 	}
 
 	public Mono<PatronRegistrationCreateResult> patronRegistrationCreate(Patron patron) {
-		log.info("patronRegistrationCreate {}", patron);
+		log.debug("patronRegistrationCreate {}", patron);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron");
 
@@ -390,7 +390,7 @@ public class PAPIClient {
 	public Publisher<BibsPagedResult> synch_BibsPagedGet(String startdatemodified, Integer lastId, Integer nrecs) {
 		
 		return Mono.from( synch_BibsPagedGetRaw (startdatemodified, lastId, nrecs) )
-      .doOnNext( jsonNode -> log.info("SYNC BIB PAGED GET RESPONSE: {}",jsonNode.toString()) )
+      .doOnNext( jsonNode -> log.trace("SYNC BIB PAGED GET RESPONSE: {}",jsonNode) )
 			.map( node -> conversionService.convertRequired(node, BibsPagedResult.class))
       .doOnNext( bpr -> log.info("BPR: {}",bpr ))
       .doOnError( e -> log.error("Problem in  synch_BibsPagedGet {}",e) );
@@ -437,7 +437,7 @@ public class PAPIClient {
 			.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth),
 			Argument.of(GetBibsPagedResult.class))
-			.doOnNext(result -> log.info("Result of synch_GetUpdatedBibsPaged {}",result));
+			.doOnNext(result -> log.trace("Result of synch_GetUpdatedBibsPaged {}",result));
 	}
 
 	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsMaxIDGet.htm
@@ -547,7 +547,7 @@ public class PAPIClient {
 			}
 
 			// Return the PatronSearchRow
-			log.info("checkForUniquePatronResult passed: {}", patronSearchResult);
+			log.debug("checkForUniquePatronResult passed: {}", patronSearchResult);
 			return patronSearchResult.getPatronSearchRows().get(0);
 		};
 	}

@@ -330,7 +330,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
 
-		log.info("updatePatronRequest({})", localRequest);
+		log.debug("updatePatronRequest({})", localRequest);
 
 		final var itemId = localRequest.getRequestedItemId();
 
@@ -344,7 +344,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				ApplicationServices.itemrecords(itemId, FALSE),
 				getMappedItemType(localRequest.getCanonicalItemType())
 			)
-			.doOnSuccess(item -> log.info("Successfully received item record: {}", item))
+			.doOnSuccess(item -> log.debug("Successfully received item record: {}", item))
 			.doOnError(error -> log.error("Error retrieving item record: {}", error.getMessage()))
 			.flatMap(tuple -> {
 				final var item = tuple.getT1();
@@ -354,7 +354,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 				return ApplicationServices.updateItemRecord(itemId, itemStatusId, newBarcode, noteForStaff, itemType);
 			})
-			.doOnSuccess(item -> log.info("Successfully updated item, returning {}.", item))
+			.doOnSuccess(item -> log.debug("Successfully updated item, returning {}.", item))
 			.doOnError(error -> log.error("Error updating item: {}", error.getMessage()))
 			.then(Mono.defer(() -> getRequest(HostLmsRequest.builder().localId(localRequest.getLocalId()).build())))
 			.map(hostLmsRequest -> LocalRequest.builder()
@@ -458,7 +458,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.itemBarcode(item.getBarcode())
 					.build();
 			})
-			.doOnNext(hr -> log.info("Attempt to place hold... {}", hr))
+			.doOnNext(hr -> log.debug("Attempt to place hold... {}", hr))
 			.flatMap(ApplicationServices::createHoldRequestWorkflow)
 			.doOnNext(__ -> log.info("Hold paced, attempting to get hold.. "))
 			.doOnError(error -> log.error("Failed to place hold.. ", error))
@@ -494,7 +494,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Mono.just(patronId)
 			.delayElement(Duration.ofSeconds(delay))
 			.flatMap(ApplicationServices::listPatronLocalHolds)
-			.doOnSuccess(resp -> log.info("Full log resp of getting hold after placing in {}: {}", getHostLmsCode(), resp))
+			.doOnSuccess(resp -> log.debug("Full log resp of getting hold after placing in {}: {}", getHostLmsCode(), resp))
 			.doOnError(error -> log.error("Full log resp of getting hold after placing in {}", getHostLmsCode(), error))
 			.doOnNext(logLocalHolds())
 			.flatMap(holds -> processHolds(holds, bibId, activationDate, note, patronId, parameters));
@@ -750,14 +750,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
-		log.info("createItem({})",createItemCommand);
+		log.debug("createItem({})",createItemCommand);
 
 		if (followsIllBorrowingFlow(polarisConfig)) {
 			return refuseIllBorrowingFlow();
 		}
 
 		return ApplicationServices.addItemRecord(createItemCommand)
-			.doOnSuccess(r -> log.info("Got create item response from Polaris: {}",r))
+			.doOnSuccess(r -> log.debug("Got create item response from Polaris: {}",r))
 			.map(itemCreateResponse -> {
 				if (itemCreateResponse.getAnswerExtension() == null) {
 					final var messages = itemCreateResponse.getInformationMessages() != null
@@ -851,7 +851,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		return parseLocalItemId(localItemId)
 			.flatMap(id -> ApplicationServices.itemrecords(id,TRUE))
-			.doOnSuccess(itemRecordFull -> log.info("Got item: {}", itemRecordFull))
+			.doOnSuccess(itemRecordFull -> log.debug("Got item: {}", itemRecordFull))
 			.map(item -> validate(localItemId, item))
 			.flatMap(this::collectItemStatusName)
 			.map(itemRecord -> {
@@ -1123,7 +1123,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
-		log.info("createPatron({}) at {}", patron, lms);
+		log.debug("createPatron({}) at {}", patron, lms);
 
 		return collectDefaultsForCreatePatron(patron)
 			.flatMap(PAPIService::patronRegistrationCreate)
@@ -1261,7 +1261,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(Patron patron) {
-		log.info("getPatronCirculationBlocks: {}", patron);
+		log.debug("getPatronCirculationBlocks: {}", patron);
 
 		final var barcode = getValueOrNull(patron, Patron::getFirstBarcode);
 
@@ -2045,7 +2045,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> checkInItem(CheckInItemCommand checkInItemCommand){
-		log.info("Check In Item({})", checkInItemCommand);
+		log.debug("Check In Item({})", checkInItemCommand);
 
 		return PAPIService.itemCheckInPost(checkInItemCommand.getItemBarcode())
 			.map(itemCheckInResult -> "OK");

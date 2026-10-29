@@ -671,7 +671,7 @@ class ApplicationServicesClient {
 						.build())
 					.build();
 
-				log.info("create item workflow request: {}", body);
+				log.debug("create item workflow request: {}", body);
 				return request.body(body);
 			}), itemBarcode);
 	}
@@ -1066,7 +1066,7 @@ class ApplicationServicesClient {
 	Mono<WorkflowResponse> checkoutItemToPatron(String itemBarcode, String patronBarcode,
 		boolean bypassPatronBlocks) {
 
-		log.info("checkoutItemToPatron item {} patron {} bypassPatronBlocks {}",
+		log.debug("checkoutItemToPatron item {} patron {} bypassPatronBlocks {}",
 			itemBarcode, patronBarcode, bypassPatronBlocks);
 
 		final var path = createPath("workflow");
@@ -1239,7 +1239,7 @@ class ApplicationServicesClient {
 
 	private Mono<ILLRequestInfo> createTransferRequest(Mono<MutableHttpRequest<WorkflowRequest>> workflowReq) {
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class))
-			.doOnSuccess(r -> log.info("Got transfer request response {}", r))
+			.doOnSuccess(r -> log.debug("Got transfer request response {}", r))
 			.doOnError(e -> log.info("Error response for transferring ILL request", e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
 			.flatMap(response -> handlePolarisWorkflow(response, BriefItemEntry, Continue))
