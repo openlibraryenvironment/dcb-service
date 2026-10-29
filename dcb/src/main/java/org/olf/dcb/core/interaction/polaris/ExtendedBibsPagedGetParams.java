@@ -22,6 +22,9 @@ public class ExtendedBibsPagedGetParams {
   private Integer nrecs;
   private Integer recordsInLastPage;
 	private Instant highestDateUpdatedSeen;
+	// When this id walk began, by DCB's clock. A record edited behind the cursor during the walk is
+	// older than the highest date seen, so the next watermark must not pass this.
+	private Instant walkStartedAt;
   private final String cpType="POLARIS";
   private String hostCode;
 

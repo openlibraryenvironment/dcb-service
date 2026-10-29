@@ -240,6 +240,36 @@ class PolarisHarvestChunkTests {
 	}
 
 	/**
+	 * A bib edited behind the cursor while a walk runs carries a date older than the newest one the
+	 * walk saw. A watermark taken from the newest date alone skips it for good (audit H-2).
+	 */
+	@Test
+	void deltaWatermarkDoesNotPassTheStartOfTheWalk() {
+		// Arrange - one bib in the window was modified after the walk began
+		final var beforeWalk = Instant.now();
+		final var startingCheckpoint = deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 0);
+
+		mockPolarisFixture.mockGetUpdatedBibs(0, updatedBibsResponse(10, 20, 30));
+		mockPolarisFixture.mockGetBibsById("10,20,30", """
+			{ "PAPIErrorCode": 0, "ErrorMessage": null, "GetBibsByIDRows": [%s] }"""
+			.formatted(String.join(",", row(10), row(20),
+				rowModifiedAt(30, beforeWalk.plus(Duration.ofHours(1)).toEpochMilli()))));
+		mockPolarisFixture.mockGetUpdatedBibs(30, updatedBibsResponse());
+
+		// Act
+		final var first = singleValueFrom(client.getChunk(Optional.of(startingCheckpoint)));
+		final var second = singleValueFrom(client.getChunk(Optional.of(first.getCheckpoint())));
+
+		// Assert
+		assertThat(second.isLastChunk(), is(true));
+
+		final var checkpoint = checkpointOf(second);
+		assertThat("The watermark must not pass the moment the walk began",
+			checkpoint.getStartdatemodified().isBefore(beforeWalk), is(true));
+		assertThat("The next walk starts its own clock", checkpoint.getWalkStartedAt(), is(nullValue()));
+	}
+
+	/**
 	 * Synch_BibsByIDGet accepts at most 50 ids. The pre-MR behaviour was .take(50), which silently
 	 * discarded every id beyond the first 50 in a window - the original DCB-2191 data loss.
 	 */
@@ -565,6 +595,16 @@ class PolarisHarvestChunkTests {
 		return IntStream.of(bibIds)
 			.mapToObj(PolarisHarvestChunkTests::row)
 			.collect(joining(","));
+	}
+
+	private static String rowModifiedAt(int bibId, long modifiedEpochMillis) {
+		return """
+			{ "BibliographicRecordID": %d, "IsDisplayInPAC": true,
+			  "CreationDate": "/Date(%d+0000)/",
+			  "FirstAvailableDate": "/Date(%d+0000)/",
+			  "ModificationDate": "/Date(%d+0000)/",
+			  "BibliographicRecordXML": "<marc:collection/>" }"""
+			.formatted(bibId, MOD_BASE, MOD_BASE, modifiedEpochMillis);
 	}
 
 	private static String row(int bibId) {

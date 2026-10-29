@@ -1,0 +1,34 @@
+= Harvesting a Polaris catalogue
+:description: How DCB's PAPI harvest walks a Polaris catalogue, where it resumes, and what it does not pick up.
+
+By default DCB harvests a Polaris catalogue through PAPI. (A Host LMS can be switched to OAI-PMH
+instead; see the Polaris notes for that.)
+
+== Full harvest, then changes
+
+The first harvest walks every bib by id. After that, each run asks Polaris for the bibs modified
+since a watermark, and walks those ids in pages. A run that stops part-way resumes from the last
+id it reached.
+
+== The watermark
+
+When a walk finishes, DCB sets the next watermark to the earlier of:
+
+* the newest modification date it saw in the walk, and
+* the moment the walk began, by DCB's clock,
+
+less `harvest-watermark-overlap-minutes` (default 15). The overlap is re-harvested on every run,
+so keep it small.
+
+Taking the start of the walk matters for a long walk. A bib edited while the walk runs, but behind
+the walk's cursor, carries a date older than the newest date the walk saw. Before this release
+the watermark could pass it, and the edit was never harvested.
+
+Whether Polaris reports modification dates in UTC or in the server's local time has not been
+checked against a Polaris server. Because the watermark can only move earlier, not later, a
+difference costs extra re-harvesting rather than lost edits.
+
+== Not picked up
+
+* *Deleted bibs.* The PAPI harvest does not ask Polaris for deletions, so a bib deleted in Polaris
+stays in DCB. The OAI-PMH harvest, with the vanished-bib sweep, is the way to remove them.

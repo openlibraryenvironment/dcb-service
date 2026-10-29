@@ -2185,6 +2185,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				final BibsPagedGetParams apiParams = mergeApiParameters(optParams);
 				final Instant now = Instant.now();
 
+				if (extParams.getWalkStartedAt() == null) {
+					extParams.setWalkStartedAt(now);
+				}
+
 				log.info("Polaris get bibs page from {} with params {}",lms.getName(),apiParams);
 
 				return Mono.just( apiParams )
@@ -2333,10 +2337,16 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												lms.getCode(), startDateModified, highestSeen, jsonArr.size());
 										}
 
+										final Instant walkStartedAt = extParams.getWalkStartedAt();
+										final Instant watermark = walkStartedAt != null && walkStartedAt.isBefore(highestSeen)
+											? walkStartedAt
+											: highestSeen;
+
 										extParams.setStartdatemodified(
-											highestSeen.minus(polarisConfig.getHarvestWatermarkOverlap()));
+											watermark.minus(polarisConfig.getHarvestWatermarkOverlap()));
 									}
 
+									extParams.setWalkStartedAt(null);
 									extParams.setLastId(Integer.valueOf(0));
                   extParams.setPagesInCurrentCheckpoint(Integer.valueOf(0));
                   extParams.setCheckpointDate(Instant.now());
