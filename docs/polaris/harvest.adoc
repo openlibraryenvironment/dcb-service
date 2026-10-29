@@ -28,6 +28,13 @@ Whether Polaris reports modification dates in UTC or in the server's local time 
 checked against a Polaris server. Because the watermark can only move earlier, not later, a
 difference costs extra re-harvesting rather than lost edits.
 
+== When a row cannot be read
+
+If DCB cannot read a bib from a harvested page, it logs `POLARIS_HARVEST_UNSTAGED` with the bib id
+and raises the alarm `ILS.<host LMS code>.POLARIS_HARVEST_UNSTAGED`, which lists up to 100 bib
+ids. The walk moves past the row, so the bib is not harvested again until it changes in Polaris.
+Run the reconcile (`POST /admin/sourceImport/<code>/reconcile`) once the cause is fixed.
+
 == Not picked up
 
 * *Deleted bibs.* The PAPI harvest does not ask Polaris for deletions, so a bib deleted in Polaris

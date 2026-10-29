@@ -87,12 +87,14 @@ import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.AlarmsService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
 import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
@@ -217,6 +219,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	
 	private final R2dbcOperations r2dbcOperations;
 	private final PolarisTokenCache tokenCache;
+	private final AlarmsService alarmsService;
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms,
@@ -225,7 +228,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
 									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
 									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService,
-									 ConsortiumService consortiumService, PolarisTokenCache tokenCache) {
+									 ConsortiumService consortiumService, PolarisTokenCache tokenCache, AlarmsService alarmsService) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -238,6 +241,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
 		this.tokenCache = tokenCache;
+		this.alarmsService = alarmsService;
 		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig, tokenCache);
 		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms, consortiumService, tokenCache);
 		this.itemMapper = itemMapper;
@@ -1458,6 +1462,28 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return checkHoldStatus(value);
 	}
 
+	// The walk moves past a row it could not read, so a bib skipped here is not harvested again
+	// until it changes. The alarm keeps up to 100 bib ids per Host LMS for an operator.
+	private void recordUnstagedBib(JsonNode rawJson, Throwable error) {
+		final var bibId = Optional.ofNullable(rawJson.get("BibliographicRecordID"))
+			.map(JsonNode::coerceStringValue)
+			.orElse("unknown");
+
+		log.error("POLARIS_HARVEST_UNSTAGED :: Host: {} bib {} could not be read from the harvested page", lms.getCode(), bibId, error);
+
+		final var alarmCode = "ILS." + lms.getCode() + ".POLARIS_HARVEST_UNSTAGED";
+
+		alarmsService.raiseAccumulating(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.expires(Instant.now().plus(Duration.ofDays(5)))
+				.build(),
+			"unstagedBibs", bibId)
+			.subscribe(
+				ignored -> { },
+				alarmError -> log.warn("Unable to record unstaged Polaris bib against {}", alarmCode, alarmError));
+	}
+
 	private Mono<BibliographicRecord> getBib(String localBibId) {
 		return ApplicationServices.getBibliographicRecordByID(localBibId);
 	}
@@ -2204,7 +2230,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
             if ( bibsPaged.get("PAPIErrorCode") != null ) // THIS CAN BE A POSITIVE VALUE AND NOT MEAN AN ERROR
               log.info("PAPIErrorCode: {}",bibsPaged.get("PAPIErrorCode").getValue());
-						log.info("Bibs paged {}", bibsPaged.toString());
+						log.trace("Bibs paged {}", bibsPaged);
 
 
             if ( bibsPaged.get("ErrorMessage") != null )
@@ -2303,13 +2329,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												log.debug("{} extParams.setHighestDateUpdatedSeen({})",lms.getCode(), modification_instant);
 										  }
 
-					  			} catch (Throwable t) {  				
-					  				if (log.isDebugEnabled()) {
-					    				log.error( "Error creating SourceRecord from JSON '{}' \ncause: {}", rawJson, t);
-					  				} else {
-					  					log.error( "Error creating SourceRecord from JSON", t );
-					  				}
-					  			}
+					  			} catch (Throwable t) {
+											recordUnstagedBib(rawJson, t);
+										}
 								});
 
 								if ( isLastChunk ) {

@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static java.util.stream.Collectors.joining;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
+import org.olf.dcb.storage.AlarmRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
@@ -36,6 +39,7 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 /**
@@ -70,6 +74,8 @@ class PolarisHarvestChunkTests {
 
 	@Inject
 	private TestResourceLoaderProvider testResourceLoaderProvider;
+	@Inject
+	private AlarmRepository alarmRepository;
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -237,6 +243,27 @@ class PolarisHarvestChunkTests {
 		assertThat("The id cursor must reset, otherwise the harvest stays wedged",
 			checkpoint.getLastId(), is(0));
 		assertThat(checkpoint.getStartdatemodified(), is(notNullValue()));
+	}
+
+	@Test
+	void aRowThatCannotBeReadRaisesAnAlarmNamingTheBib() {
+		// Arrange - bib 40 arrives without the modification date the walk reads
+		mockPolarisFixture.mockGetPagedBibs(0, """
+			{ "PAPIErrorCode": 0, "ErrorMessage": null, "LastID": 90, "GetBibsPagedRows": [%s] }"""
+			.formatted(String.join(",", row(10), """
+				{ "BibliographicRecordID": 40, "IsDisplayInPAC": true,
+				  "BibliographicRecordXML": "<marc:collection/>" }""")));
+
+		// Act
+		singleValueFrom(client.getChunk(Optional.empty()));
+
+		// Assert
+		final var alarmCode = "ILS." + HOST_LMS_CODE + ".POLARIS_HARVEST_UNSTAGED";
+		await().atMost(2, TimeUnit.SECONDS).until(() -> Mono.from(alarmRepository.findByCode(alarmCode))
+			.blockOptional().isPresent());
+
+		final var alarm = Mono.from(alarmRepository.findByCode(alarmCode)).block();
+		assertThat(alarm.getAlarmDetails().get("unstagedBibs"), is(List.of("40")));
 	}
 
 	/**
