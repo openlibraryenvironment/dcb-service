@@ -96,6 +96,8 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.Bib;
@@ -103,6 +105,7 @@ import org.olf.dcb.core.interaction.CancelHoldRequestParameters;
 import org.olf.dcb.core.interaction.CheckoutItemCommand;
 import org.olf.dcb.core.interaction.CreateItemCommand;
 import org.olf.dcb.core.interaction.DeleteCommand;
+import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.interaction.HostLmsRequest;
@@ -138,6 +141,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.storage.AlarmRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import org.olf.dcb.test.TestResourceLoaderProvider;
@@ -174,6 +178,8 @@ class PolarisLmsClientTests {
 	private ReferenceValueMappingFixture referenceValueMappingFixture;
 	@Inject
 	private AgencyFixture agencyFixture;
+	@Inject
+	private AlarmRepository alarmRepository;
 
 	private MockPolarisFixture mockPolarisFixture;
 
@@ -1558,6 +1564,41 @@ class PolarisLmsClientTests {
 			hasHomeLibraryCode(organisationId),
 			isNotBlocked()
 		));
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = CanonicalItemState.class, names = {"RECEIVED", "COMPLETED"})
+	void shouldDoNothingForItemStatesPolarisCheckInAlreadyHandles(CanonicalItemState state) {
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var itemId = generateNumericLocalId();
+		final var response = singleValueFrom(client.updateItemStatus(
+			HostLmsItem.builder().localId(convertIntegerToString(itemId)).build(), state));
+
+		// Assert
+		assertThat(response, is("OK"));
+		mockPolarisFixture.verifyItemNeverRead(itemId);
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = CanonicalItemState.class, names = {"OFFSITE", "MISSING", "ONHOLDSHELF"})
+	void shouldAnswerAndRaiseAnAlarmForItemStatesPolarisCannotSet(CanonicalItemState state) {
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var itemId = generateNumericLocalId();
+		final var response = singleValueFrom(client.updateItemStatus(
+			HostLmsItem.builder().localId(convertIntegerToString(itemId)).build(), state));
+
+		// Assert - the request carries on; an operator sees the alarm
+		assertThat(response, is("OK"));
+		mockPolarisFixture.verifyItemNeverRead(itemId);
+
+		final var alarmCode = "ILS." + CATALOGUING_HOST_LMS_CODE + ".POLARIS_UNSUPPORTED_ITEM_STATE";
+		final var alarm = singleValueFrom(alarmRepository.findByCode(alarmCode));
+		assertThat(alarm, is(notNullValue()));
+		assertThat(String.valueOf(alarm.getAlarmDetails().get("itemStates")), containsString(state.name()));
 	}
 
 	@Test

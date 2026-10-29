@@ -11,3 +11,4 @@ cross-repository links.
 * xref:finalisation.adoc[Clean-up when a request finishes]
 * xref:harvest.adoc[Harvesting a Polaris catalogue]
 * xref:tracking-failures.adoc[When DCB cannot read the lender's hold]
+* xref:item-states.adoc[Item states DCB asks Polaris to set]

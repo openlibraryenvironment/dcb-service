@@ -1075,16 +1075,38 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
-		log.warn("Attempting to update an item status.");
-
 		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
-		
+
+		// No default branch, on purpose: a state added to CanonicalItemState does not compile until
+		// it is handled here, so it can never reach a Polaris library unhandled.
 		return switch (crs) {
 			case AVAILABLE -> updateItemToAvailable(itemId).thenReturn("OK");
 			case TRANSIT -> updateItemToPickupTransit(itemId).thenReturn("OK");
-			default -> Mono.just("OK").doOnSuccess(ok ->
-				log.error("CanonicalItemState: '{}' cannot be updated.", crs));
+			// Sent in every workflow; Polaris's own check-in already did what these mean
+			case RECEIVED, COMPLETED -> Mono.just("OK")
+				.doOnSuccess(ok -> log.debug("Polaris has nothing to do for item state {}", crs));
+			// DCB sends none of these to Polaris today. Failing would stop the request, so answer as
+			// before and raise an alarm instead.
+			case OFFSITE, MISSING, ONHOLDSHELF -> raiseUnsupportedItemStateAlarm(crs).thenReturn("OK");
 		};
+	}
+
+	private Mono<Void> raiseUnsupportedItemStateAlarm(CanonicalItemState crs) {
+		final var alarmCode = "ILS." + getHostLmsCode() + ".POLARIS_UNSUPPORTED_ITEM_STATE";
+
+		log.warn("POLARIS_UNSUPPORTED_ITEM_STATE :: Host: {} was asked to set item state {}, which it cannot",
+			getHostLmsCode(), crs);
+
+		return alarmsService.raiseAccumulating(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.expires(Instant.now().plus(Duration.ofDays(5)))
+				.build(),
+			"itemStates", crs.name())
+			.onErrorResume(error -> {
+				log.warn("Unable to record unsupported Polaris item state against {}", alarmCode, error);
+				return Mono.empty();
+			});
 	}
 
 	private Mono<Void> updateItemToAvailable(String itemId) {

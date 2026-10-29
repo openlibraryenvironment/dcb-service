@@ -559,6 +559,10 @@ public class MockPolarisFixture {
 		mockServer.verifyNever(commonRequests.post(paths.workflow()).withBody(subString(fragment)));
 	}
 
+	public void verifyItemNeverRead(Integer itemId) {
+		mockServer.verifyNever(commonRequests.get(paths.getItem(itemId)));
+	}
+
 	public void verifyNoItemCheckout(String patronBarcode) {
 		mockServer.verifyNever(commonRequests.post(paths.patronItemCheckOut(patronBarcode)));
 	}
