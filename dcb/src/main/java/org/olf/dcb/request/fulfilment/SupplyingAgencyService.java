@@ -30,6 +30,8 @@ import org.zalando.problem.ThrowableProblem;
 import io.micronaut.context.BeanProvider;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.serde.annotation.Serdeable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -152,14 +154,17 @@ public class SupplyingAgencyService {
 			.flatMap(client -> {
 				switch (operation) {
 					case DELETE:
-						final var virtualIdentity = getValueOrNull(context, RequestWorkflowContext::getPatronVirtualIdentity);
-						final var virtualLocalId = virtualIdentity.getLocalId();
+						// The context of a cancellation can carry no virtual identity
+						final var virtualLocalId = getValueOrNull(context,
+							RequestWorkflowContext::getPatronVirtualIdentity, PatronIdentity::getLocalId);
 						log.debug("Deleting hold - Supplier patron ID {} and virtual local ID{}", supplierPatronId, virtualLocalId);
 						return client.deleteHold(DeleteCommand.builder()
 							.requestId(localRequestId)
 							// If the original supplier patron ID is not available (Polaris), use the virtual patron's local ID to make sure we delete the hold.
 							.patronId(supplierPatronId ==  null || supplierPatronId.isBlank() ? virtualLocalId : supplierPatronId)
-							.build())	.flatMap(deleteResult -> {
+							.build())
+							.onErrorResume(SupplyingAgencyService::isNotFound, notFound -> Mono.just(ALREADY_DELETED))
+							.flatMap(deleteResult -> {
 							// There are different success variations that we need to handle for some LMS
 							// i.e. if we've not been able to delete the hold but we successfully cancelled it instead, that's worth noting
 							// Polaris is the primary example: it doesn't always let us delete the hold and then it stops us deleting the item
@@ -171,6 +176,11 @@ public class SupplyingAgencyService {
 							}
 							else if ("OK_CLOSED".equals(deleteResult)) {
 									message = "Delete supplier hold request: mod-dcb transaction also closed";
+							} else if (ALREADY_DELETED.equals(deleteResult)) {
+								// Usually filled already: the lender's system removes a hold once its item is checked out
+								message = "Delete supplier hold : Already deleted";
+							} else if ("ERROR".equals(deleteResult)) {
+								message = "Delete supplier hold : Failed";
 							} else {
 								// For the standard "OK" for systems where we don't need to have the fallback.
 								// This is the most common outcome.
@@ -201,6 +211,17 @@ public class SupplyingAgencyService {
 			// Genuine error we didn't account for
 			.onErrorResume(logAndReturnErrorString(operation.failureMessage, context))
 			.thenReturn(context);
+	}
+
+	private static final String ALREADY_DELETED = "ALREADY_DELETED";
+
+	private static boolean isNotFound(Throwable error) {
+		if (error instanceof HttpClientResponseException responseException) {
+			return responseException.getStatus() == HttpStatus.NOT_FOUND;
+		}
+
+		return error instanceof ThrowableProblem problem
+			&& Integer.valueOf(404).equals(problem.getParameters().get("responseStatusCode"));
 	}
 
 	public Mono<RequestWorkflowContext> cleanUp(RequestWorkflowContext context) {

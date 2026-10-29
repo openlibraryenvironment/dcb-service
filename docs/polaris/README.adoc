@@ -8,3 +8,4 @@ cross-repository links.
 * xref:virtual-records.adoc[Virtual bibs and items in Polaris]
 * xref:what-is-lent.adoc[Which Polaris items DCB offers to other libraries]
 * xref:load-and-connections.adoc[Load on a Polaris server]
+* xref:finalisation.adoc[Clean-up when a request finishes]
