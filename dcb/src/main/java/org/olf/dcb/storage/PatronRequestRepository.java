@@ -61,6 +61,10 @@ public interface PatronRequestRepository {
 
 
 
+	// Bounded by idx_pr_patron: one patron's requests
+	@Query(value = "SELECT count(*) FROM patron_request WHERE patron_id = :patronId AND id <> :excludingRequestId AND status_code <> 'FINALISED'", nativeQuery = true)
+	Publisher<Long> countOpenRequestsForPatronExcluding(UUID patronId, UUID excludingRequestId);
+
 	@Query(value = "SELECT p.* from patron_request p  where p.status_code in ( select code from status_code where model = 'DCBRequest' and tracked = true )", nativeQuery = true)
 	Publisher<PatronRequest> findProgressibleDCBRequests();
 

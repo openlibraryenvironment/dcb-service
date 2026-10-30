@@ -15,11 +15,13 @@ public class CleanupService {
 	private final SupplyingAgencyService supplyingAgencyService;
 	private final BorrowingAgencyService borrowingAgencyService;
 	private final PickupAgencyService pickupAgencyService;
+	private final VirtualPatronRetirement virtualPatronRetirement;
 
 	public Mono<RequestWorkflowContext> cleanup(RequestWorkflowContext ctx) {
 		return Mono.just(ctx)
 			.flatMap(supplyingAgencyService::cleanUp)
 			.flatMap(borrowingAgencyService::cleanUp)
-			.flatMap(pickupAgencyService::cleanUp);
+			.flatMap(pickupAgencyService::cleanUp)
+			.flatMap(virtualPatronRetirement::retireIfIdle);
 	}
 }

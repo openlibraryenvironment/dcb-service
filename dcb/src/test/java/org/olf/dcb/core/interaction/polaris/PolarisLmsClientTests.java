@@ -541,6 +541,26 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldExpireAVirtualPatronItRetires() {
+		// Arrange
+		final var patronId = generateNumericLocalId();
+		final var barcode = "DCB-" + generateBarcode();
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, barcode);
+		mockPolarisFixture.mockUpdatePatronDates(barcode, 0);
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		final var result = singleValueFrom(client.retireVirtualPatron(
+			PatronIdentity.builder().localId(convertIntegerToString(patronId)).build()));
+
+		// Assert
+		assertThat(result, is("EXPIRED"));
+		mockPolarisFixture.verifyUpdatePatronDatesContains(barcode,
+			java.time.LocalDate.now(java.time.ZoneOffset.UTC).minusDays(1).toString());
+	}
+
+	@Test
 	void shouldUseTheVirtualPatronDcbUsedLastWhenSeveralMatch() {
 		// Arrange
 		final var homeBarcode = generateBarcode();

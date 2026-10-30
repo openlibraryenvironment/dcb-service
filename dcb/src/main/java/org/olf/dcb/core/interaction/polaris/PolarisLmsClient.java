@@ -22,6 +22,8 @@ import static services.k_int.utils.StringUtils.stringEquals;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.time.Duration;
+import java.time.ZoneOffset;
+import java.time.LocalDate;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -1967,6 +1969,26 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// workflow PUT continue delete
 		// ERROR PolarisWorkflowException
 		return ApplicationServices.deleteBibliographicRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
+	}
+
+	// Polaris cannot delete a patron, so an idle virtual patron is expired instead. Its expiry is
+	// pushed out again when DCB next finds it, and an expired registration is a block the lender
+	// checkout overrides.
+	@Override
+	public Mono<String> retireVirtualPatron(PatronIdentity virtualIdentity) {
+		final var localId = getValueOrNull(virtualIdentity, PatronIdentity::getLocalId);
+
+		if (localId == null) {
+			return Mono.empty();
+		}
+
+		final var yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).toString();
+
+		return ApplicationServices.getPatronBarcode(localId)
+			.flatMap(barcode -> PAPIService.patronRegistrationUpdateDates(barcode, yesterday, null))
+			.flatMap(updated -> TRUE.equals(updated)
+				? Mono.just("EXPIRED")
+				: Mono.error(new IllegalStateException("Polaris refused to expire virtual patron " + localId)));
 	}
 
   public Mono<String> deletePatron(String id) {
