@@ -18,7 +18,6 @@ import java.util.function.Function;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.olf.dcb.indexing.SharedIndexBackendInfo;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.slf4j.LoggerFactory;
 
@@ -99,7 +98,7 @@ class ElasticsearchRefreshErrorTests {
 		TestService(ElasticsearchAsyncClient client) {
 			super(new SharedIndexConfiguration(INDEX, Optional.empty(), Optional.empty(),
 				Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()),
-				client, null, null, null, new SharedIndexBackendInfo());
+				client, null, null, null);
 		}
 
 		@Override
