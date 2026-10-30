@@ -13,8 +13,6 @@ import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.indexing.bulk.IndexOperation;
 import org.reactivestreams.Publisher;
 
-import com.github.javaparser.utils.Log;
-
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.PropertySource.Origin;
 import io.micronaut.context.env.PropertySource.PropertyConvention;
