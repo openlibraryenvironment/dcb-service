@@ -1,6 +1,7 @@
 package org.olf.dcb.indexing.elasticsearch;
 
 import java.io.InputStream;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -13,7 +14,6 @@ import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
-import org.olf.dcb.indexing.SharedIndexBackendInfo;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
@@ -23,10 +23,12 @@ import org.slf4j.LoggerFactory;
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.elasticsearch._types.AcknowledgedResponse;
+import co.elastic.clients.elasticsearch._types.ElasticsearchVersionInfo;
 import co.elastic.clients.elasticsearch._types.Time;
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.InfoResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
 import co.elastic.clients.elasticsearch.indices.DeleteIndexResponse;
@@ -35,11 +37,11 @@ import co.elastic.clients.elasticsearch.indices.IndexSettings;
 import co.elastic.clients.elasticsearch.indices.IndexState;
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest;
 import co.elastic.clients.elasticsearch.indices.PutMappingResponse;
-import co.elastic.clients.json.JsonData;
 import co.elastic.clients.json.JsonpMapper;
 import co.elastic.clients.transport.endpoints.BooleanResponse;
 import co.elastic.clients.util.ObjectBuilder;
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Singleton;
@@ -55,6 +57,8 @@ import services.k_int.micronaut.PublisherTransformationService;
 @Requires(bean = SharedIndexConfiguration.class)
 @Singleton
 public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
+	private final Object SYNC_LOCK = new Object();
+	private static final String DISTRIBUTION_NAME = "elasticsearch";
 
 	private final Logger log = LoggerFactory.getLogger(ElasticsearchSharedIndexService.class);
 	
@@ -64,14 +68,11 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	private final String indexName; 
 	private final int indexVersion; 
 	private final int numberOfReplicas;
-	
-	private final SharedIndexBackendInfo backendInfo;
 
-	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs, SharedIndexBackendInfo backendInfo) {
+	public ElasticsearchSharedIndexService(SharedIndexConfiguration conf, ElasticsearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
 		super(recordClusteringService, pubs, conf);
 		this.client = client;
 		this.conversionService = conversionService;
-		this.backendInfo = backendInfo;
 		this.indexName = conf.name();
 		this.numberOfReplicas = conf.effectiveNumberOfReplicas();
 		if (conf.version().isEmpty()) {
@@ -84,26 +85,55 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	@PostConstruct
 	void init() {
 		log.info("Using Elasticearch Indexing service");
-		reportBackendVersion();
-	}
-
-	// See OpenSearchSharedIndexService.reportBackendVersion. Especially relevant here:
-	// an Elasticsearch 9 client cannot talk to an 8.x server at all, so knowing the server
-	// version without needing cluster credentials is what makes that diagnosable.
-	private void reportBackendVersion() {
-		client.info()
-			.whenComplete((info, error) -> {
-				if (error != null) {
-					log.warn("Could not determine the Elasticsearch server version", error);
-					return;
-				}
-
-				backendInfo.record("elasticsearch", info.version().number());
-
-				log.info("Shared index backend: elasticsearch {}", info.version().number());
-			});
+		
+		// Prewarm
+		getVersionInfo()
+			.subscribe();
 	}
 	
+	private Mono<ElasticsearchVersionInfo> _versionInfoCache;
+	@SuppressWarnings("unused")
+	private Mono<ElasticsearchVersionInfo> getVersionInfo() {
+		
+		if (_versionInfoCache != null) return _versionInfoCache;
+		synchronized (SYNC_LOCK) {
+			
+			if (_versionInfoCache != null) return _versionInfoCache;
+			
+			try {
+				_versionInfoCache = Mono.fromFuture(client.info())
+					.cache(
+						// Cache the value forever	
+						_val -> Duration.ofMillis(Long.MAX_VALUE),
+						// Errors are not cached but retried.
+						e -> Duration.ZERO,
+						// Cache empty forever
+						() -> Duration.ofMillis(Long.MAX_VALUE))
+					.map(InfoResponse::version)
+					.doOnNext(version -> log.info("Shared index backend: {} {}", DISTRIBUTION_NAME, version.number()))
+					.doOnError(error -> log.warn("Could not fetch version info from Elasticsearch", error));
+				
+				return _versionInfoCache;
+			} catch (Exception e) {
+				log.warn("Could not fetch info from Elasticsearch", e);
+				return Mono.error(e);
+			}
+		}
+	}
+	
+	@Override
+	public @NonNull Publisher<String> getBackendDistribution() {
+		return Mono.just(DISTRIBUTION_NAME);
+	}
+	
+	@Override
+	public @NonNull Publisher<String> getBackendVersion() {
+		return getVersionInfo()
+			.map(ElasticsearchVersionInfo::number)
+			.doOnError(e -> log.warn("Could not determine the Elasticsearch server version", e));
+	}
+	
+	@SuppressWarnings("unused")
 	@Override
 	public Mono<Void> deleteAll() {
 		return Mono.from( deleteIndex() )
@@ -123,6 +153,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			.then();
 	}
 	
+	@SuppressWarnings("unused")
 	private Mono<Void> updateMappings() {
 		return createUpdateIndexMappings()
 			.doOnNext(resp -> {
@@ -418,6 +449,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	}
 	
 	
+	@SuppressWarnings("unused")
 	private Mono<Boolean> disableRefresh() {
 		
 		return getIndexSettings()
@@ -434,6 +466,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 	
 	// TODO: Review retry/reconciliation of failed refresh changes separately. These independent
 	// subscriptions must consume errors so connection failures do not reach Hooks.onErrorDropped.
+	@SuppressWarnings("unused")
 	@Override
 	protected void rateThresholdClosedHook() {
 		restoreRefresh().subscribe(
@@ -441,6 +474,7 @@ public class ElasticsearchSharedIndexService extends BulkSharedIndexService {
 			error -> log.warn("Unable to restore refresh in Elasticsearch for index {}; refresh may remain disabled", indexName, error));
 	}
 	
+	@SuppressWarnings("unused")
 	@Override
 	protected void rateThresholdOpenHook() {
 		disableRefresh().subscribe(

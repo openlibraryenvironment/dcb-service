@@ -1,6 +1,13 @@
 package org.olf.dcb.graphql;
 
-import com.hazelcast.internal.ascii.rest.HttpBadRequestException;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import org.olf.dcb.core.model.DataAgency;
+import org.olf.dcb.storage.AgencyRepository;
+
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
@@ -8,14 +15,7 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
-import org.olf.dcb.core.model.DataAgency;
-import org.olf.dcb.storage.AgencyRepository;
 import reactor.core.publisher.Mono;
-
-import java.util.Collection;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 
 @Singleton
@@ -54,7 +54,7 @@ public class UpdateConsortialMaxLoansDataFetcher implements DataFetcher<Completa
 			Object maxLoansInput = input_map.get("maxLoans");
 
 			if (maxLoansInput == null ) {
-				throw new HttpBadRequestException("You must provide an integer value for max loans");
+				throw new HttpStatusException(HttpStatus.BAD_REQUEST, "You must provide an integer value for max loans");
 			}
 			final int maxLoans;
 			try {

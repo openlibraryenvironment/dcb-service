@@ -1,6 +1,7 @@
 package org.olf.dcb.indexing.opensearch;
 
 import java.io.InputStream;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -13,17 +14,19 @@ import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.core.error.DcbError;
 import org.olf.dcb.core.error.DcbException;
-import org.olf.dcb.indexing.SharedIndexBackendInfo;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.bulk.BulkSharedIndexService;
 import org.olf.dcb.indexing.model.ClusterRecordIndexDoc;
+import org.opensearch.client.json.JsonData;
 import org.opensearch.client.json.JsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchAsyncClient;
 import org.opensearch.client.opensearch._types.AcknowledgedResponseBase;
+import org.opensearch.client.opensearch._types.OpenSearchVersionInfo;
 import org.opensearch.client.opensearch._types.Time;
 import org.opensearch.client.opensearch._types.mapping.TypeMapping;
 import org.opensearch.client.opensearch.core.BulkRequest;
 import org.opensearch.client.opensearch.core.BulkResponse;
+import org.opensearch.client.opensearch.core.InfoResponse;
 import org.opensearch.client.opensearch.core.bulk.BulkResponseItem;
 import org.opensearch.client.opensearch.indices.CreateIndexResponse;
 import org.opensearch.client.opensearch.indices.DeleteIndexResponse;
@@ -38,8 +41,8 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.opensearch.client.json.JsonData;
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Order;
 import io.micronaut.core.convert.ConversionService;
 import jakarta.annotation.PostConstruct;
@@ -57,6 +60,7 @@ import services.k_int.micronaut.PublisherTransformationService;
 @Requires(bean = SharedIndexConfiguration.class)
 @Singleton
 public class OpenSearchSharedIndexService extends BulkSharedIndexService {
+	private final Object SYNC_LOCK = new Object();
 	
 	static final int OS_INDEXER_PRIORITY = 1;
 
@@ -68,14 +72,11 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	private final String indexName;
 	private final int indexVersion; 
 	private final int numberOfReplicas;
-	
-	private final SharedIndexBackendInfo backendInfo;
 
-	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs, SharedIndexBackendInfo backendInfo) {
+	public OpenSearchSharedIndexService(SharedIndexConfiguration conf, OpenSearchAsyncClient client, ConversionService conversionService, RecordClusteringService recordClusteringService, PublisherTransformationService pubs) {
 		super(recordClusteringService, pubs, conf);
 		this.client = client;
 		this.conversionService = conversionService;
-		this.backendInfo = backendInfo;
 		this.indexName = conf.name();
 		this.numberOfReplicas = conf.effectiveNumberOfReplicas();
 		if (conf.version().isEmpty()) {
@@ -88,33 +89,57 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	@PostConstruct
 	void init() {
 		log.info("Using Opensearch Indexing service");
-		reportBackendVersion();
+		
+		// Prewarm
+		getVersionInfo()
+			.subscribe();
+	}
+	
+	private Mono<OpenSearchVersionInfo> _versionInfoCache;
+	@SuppressWarnings("unused")
+	private Mono<OpenSearchVersionInfo> getVersionInfo() {
+		
+		if (_versionInfoCache != null) return _versionInfoCache;
+		synchronized (SYNC_LOCK) {
+			
+			if (_versionInfoCache != null) return _versionInfoCache;
+			
+			try {
+				_versionInfoCache = Mono.fromFuture(client.info())
+					.cache(
+						// Cache the value forever	
+						_val -> Duration.ofMillis(Long.MAX_VALUE),
+						// Errors are not cached but retried.
+						e -> Duration.ZERO,
+						// Cache empty forever
+						() -> Duration.ofMillis(Long.MAX_VALUE))
+					.map(InfoResponse::version)
+					.doOnNext(version -> log.info("Shared index backend: {} {}", version.distribution(), version.number()))
+					.doOnError(error -> log.warn("Could not fetch version info from OpenSearch", error));
+				
+				return _versionInfoCache;
+			} catch (Exception e) {
+				log.warn("Could not fetch info from OpenSearch", e);
+				return Mono.error(e);
+			}
+		}
+	}
+	
+	@Override
+	public @NonNull Publisher<String> getBackendVersion() {
+		return getVersionInfo()
+			.map(OpenSearchVersionInfo::number)
+			.doOnError(e -> log.warn("Could not determine the OpenSearch server version", e));
+	}
+	
+	@Override
+	public @NonNull Publisher<String> getBackendDistribution() {
+		return getVersionInfo()
+			.map(OpenSearchVersionInfo::distribution)
+			.doOnError(e -> log.warn("Could not determine the OpenSearch server version", e));
 	}
 
-	// Report which server we are actually talking to. Client/server compatibility is a
-	// recurring upgrade hazard, and establishing a deployment's backend version otherwise
-	// requires credentials for that cluster. Best-effort: a failure here must never stop
-	// the service starting, so it only downgrades to a warning.
-	private void reportBackendVersion() {
-		try {
-			client.info()
-				.whenComplete((info, error) -> {
-					if (error != null) {
-						log.warn("Could not determine the OpenSearch server version", error);
-						return;
-					}
-
-					final var version = info.version();
-					backendInfo.record(version.distribution(), version.number());
-
-					log.info("Shared index backend: {} {}", version.distribution(), version.number());
-				});
-		}
-		catch (Exception e) {
-			log.warn("Could not determine the OpenSearch server version", e);
-		}
-	}
-
+	@SuppressWarnings("unused")
 	@Override
 	public Mono<Void> deleteAll() {
 		return Mono.from( deleteIndex() )
@@ -163,6 +188,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			.then();
 	}
 	
+	@SuppressWarnings("unused")
 	private Mono<Void> updateMappings() {
 		return createUpdateIndexMappings()
 			.doOnNext(resp -> {
@@ -429,6 +455,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 		return "-1".equals( time.time() );
 	}
 	
+	@SuppressWarnings("unused")
 	private Mono<Boolean> disableRefresh() {
 		
 		log.info("Attempting to disable OpenSearch refresh interval");
@@ -446,6 +473,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 	
 	// TODO: Review retry/reconciliation of failed refresh changes separately. These independent
 	// subscriptions must consume errors so connection failures do not reach Hooks.onErrorDropped.
+	@SuppressWarnings("unused")
 	@Override
 	protected void rateThresholdClosedHook() {
 		restoreRefresh().subscribe(
@@ -453,6 +481,7 @@ public class OpenSearchSharedIndexService extends BulkSharedIndexService {
 			error -> log.warn("Unable to restore refresh in OpenSearch for index {}; refresh may remain disabled", indexName, error));
 	}
 	
+	@SuppressWarnings("unused")
 	@Override
 	protected void rateThresholdOpenHook() {
 		disableRefresh().subscribe(

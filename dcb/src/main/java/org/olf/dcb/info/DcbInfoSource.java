@@ -6,7 +6,6 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.olf.dcb.core.AppConfig;
-import org.olf.dcb.indexing.SharedIndexBackendInfo;
 import org.olf.dcb.ingest.IngestSource;
 import org.olf.dcb.ingest.IngestSourcesProvider;
 import org.reactivestreams.Publisher;
@@ -33,15 +32,13 @@ public class DcbInfoSource implements InfoSource {
 	private final IngestSourcesProvider[] ingestSourcesProviders;
 	private final AppConfig appConfig;
 	private final HazelcastInstance hazelcastInstance;
-	private final SharedIndexBackendInfo sharedIndexBackendInfo;
 
 	public DcbInfoSource(IngestSourcesProvider[] ingestSourcesProviders, AppConfig appConfig,
-			HazelcastInstance hazelcastInstance, SharedIndexBackendInfo sharedIndexBackendInfo) {
+			HazelcastInstance hazelcastInstance) {
 
 		this.ingestSourcesProviders = ingestSourcesProviders;
 		this.appConfig = appConfig;
 		this.hazelcastInstance = hazelcastInstance;
-		this.sharedIndexBackendInfo = sharedIndexBackendInfo;
 	}
 
 	/**
@@ -51,8 +48,7 @@ public class DcbInfoSource implements InfoSource {
 	 */
 	@Override
 	public Publisher<PropertySource> getSource() {
-		return Flux.concat(getIngestSourceProperties(), getAppConfigProperties(), getDCBNodes(),
-					getSharedIndexBackendProperties())
+		return Flux.concat(getIngestSourceProperties(), getAppConfigProperties(), getDCBNodes())
 				.reduceWith(HashMap<String, Object>::new, (combined, single) -> {
 					combined.putAll(single);
 					return combined;
@@ -82,27 +78,6 @@ public class DcbInfoSource implements InfoSource {
 	private Mono<Map<String, ?>> getAppConfigProperties() {
 		Map<String, Object> props = new HashMap<>();
 		props.put("dcb.sheduled-tasks.enabled", appConfig.getScheduledTasks().isEnabled());
-		return Mono.just(props);
-	}
-
-	/**
-	 * Which search backend the shared index is talking to, recorded at startup by whichever
-	 * index service is active. Reported so the server version can be established from a
-	 * running deployment without needing credentials for the cluster itself -- client and
-	 * server version compatibility is a recurring upgrade hazard.
-	 *
-	 * <p>Absent when no shared index is configured, or when the backend could not be
-	 * reached at startup.
-	 */
-	private Mono<Map<String, ?>> getSharedIndexBackendProperties() {
-		Map<String, Object> props = new HashMap<>();
-
-		sharedIndexBackendInfo.getDistribution()
-			.ifPresent(distribution -> props.put("dcb.index.backend.distribution", distribution));
-
-		sharedIndexBackendInfo.getVersion()
-			.ifPresent(version -> props.put("dcb.index.backend.version", version));
-
 		return Mono.just(props);
 	}
 
