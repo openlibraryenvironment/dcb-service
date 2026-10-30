@@ -86,12 +86,10 @@ public interface CoreBibliographicMetadata {
 	static final String MD_LARGE_PRINT = "largePrint";
 
 	@Nullable
-	@Transient
 	public default String getDerivedType() {
 		return getMetadataValue(MD_DERIVED_TYPE, String.class);
 	}
 
-	@Transient
 	public default CoreBibliographicMetadata setDerivedType(String derivedType) {
 		return setMetadataValue(MD_DERIVED_TYPE, derivedType);
 	}
@@ -126,7 +124,6 @@ public interface CoreBibliographicMetadata {
 		return setMetadataValue(MD_RECORD_STATUS, recordStatus);
 	}
 
-	@Transient
 	public default CoreBibliographicMetadata setTitle(String title) {
 		return setMetadataValue(MD_TITLE, title);
 	}
