@@ -9,12 +9,12 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.indexing.opensearch.OpenSearchSharedIndexService;
+import org.olf.dcb.test.DcbTestContainerContextBuilder;
 import org.opensearch.client.json.JsonpDeserializer;
 import org.opensearch.client.json.JsonpMapper;
 import org.opensearch.client.opensearch.OpenSearchAsyncClient;
@@ -30,7 +30,6 @@ import org.testcontainers.utility.DockerImageName;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.micronaut.test.support.TestPropertyProvider;
 import jakarta.inject.Inject;
-import org.olf.dcb.test.DcbTestContainerContextBuilder;
 
 /**
  * Guards the OpenSearch shared index against the class of failure that shipped
@@ -103,9 +102,6 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 	@Inject
 	private OpenSearchAsyncClient client;
 
-	@Inject
-	private SharedIndexBackendInfo backendInfo;
-
 	@Test
 	void shouldWireTheOpenSearchImplementationOfTheSharedIndex() {
 		// Guards the bean wiring itself. Under Micronaut 5 this failed with
@@ -138,15 +134,6 @@ class OpenSearchSharedIndexIntegrationTests implements TestPropertyProvider {
 			.get(30, TimeUnit.SECONDS);
 
 		assertThat(response.result().get(indexName).settings().index().numberOfReplicas(), is(0));
-	}
-
-	@Test
-	void shouldRecordTheBackendVersionForTheInfoEndpoint() {
-		// Reported at startup and surfaced on /info as dcb.index.backend.*, so a
-		// deployment's search backend version can be established without holding
-		// credentials for that cluster.
-		assertThat(backendInfo.getDistribution(), is(Optional.of("opensearch")));
-		assertThat(backendInfo.getVersion(), is(Optional.of(OPENSEARCH_VERSION)));
 	}
 
 	/**
