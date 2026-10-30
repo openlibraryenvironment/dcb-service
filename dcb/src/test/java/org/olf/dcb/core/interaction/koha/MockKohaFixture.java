@@ -280,6 +280,11 @@ public class MockKohaFixture {
 		return commonRequests.post("/api/v1/biblios").withHeader("x-confirm-not-duplicate", "1");
 	}
 
+	/** The one virtual bib creation Koha received, with the content type it was sent as. */
+	public HttpRequest bibCreationSent() {
+		return onlyRequestSent(createBibRequest());
+	}
+
 	/** The virtual item's state as the request progresses: the latest answer replaces the last. */
 	public void replaceItemCirculation(String biblioId, String itemId, KohaItem... items) {
 		mockServer.replaceMock(itemCirculationRequest(biblioId, itemId), okJson(items));
@@ -552,6 +557,14 @@ public class MockKohaFixture {
 	}
 
 	private Map<String, Object> onlyBodySent(HttpRequest request) {
+		try {
+			return JSON.readValue(onlyRequestSent(request).getBodyAsString(), new TypeReference<>() {});
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	private HttpRequest onlyRequestSent(HttpRequest request) {
 		final var recorded = client.retrieveRecordedRequests(request);
 
 		if (recorded.length != 1) {
@@ -559,11 +572,7 @@ public class MockKohaFixture {
 				.formatted(request.getMethod(), request.getPath(), recorded.length));
 		}
 
-		try {
-			return JSON.readValue(recorded[0].getBodyAsString(), new TypeReference<>() {});
-		} catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
+		return recorded[0];
 	}
 
 	private static String itemPath(String biblioId, String itemId) {

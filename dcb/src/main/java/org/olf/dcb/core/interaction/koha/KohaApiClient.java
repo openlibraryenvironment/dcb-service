@@ -171,10 +171,10 @@ public interface KohaApiClient {
 	 * Koha answers {"id": biblionumber}, and refuses a record matching one it holds unless
 	 * x-confirm-not-duplicate is sent, which a virtual copy of a title always would.
 	 */
-	default Mono<KohaCreatedBiblio> createBibRecord(String bibXml) {
-		// Note: Koha explicitly requires the 'application/marcxml+xml' content type for XML payloads
-		return post("/api/v1/biblios", bibXml, KohaCreatedBiblio.class, Collections.emptyMap(),
-			Map.of("x-confirm-not-duplicate", "1"), "application/marcxml+xml");
+	default Mono<KohaCreatedBiblio> createBibRecord(String marcInJson) {
+		// Koha picks the MARC parser from the content type, and answers 406 to any it does not list
+		return post("/api/v1/biblios", marcInJson, KohaCreatedBiblio.class, Collections.emptyMap(),
+			Map.of("x-confirm-not-duplicate", "1"), KohaVirtualBib.MARC_IN_JSON);
 	}
 
 	/**

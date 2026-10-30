@@ -601,14 +601,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
-		log.debug("Koha: Creating virtual bib record for title: {}", bib.getTitle());
+		log.debug("Koha: Creating virtual bib record for title: {}", getValueOrNull(bib, Bib::getTitle));
 
-		final var author = (bib.getAuthor() != null) ? bib.getAuthor() : "";
-		final var title = (bib.getTitle() != null) ? bib.getTitle() : "DCB Virtual Record";
-
-		final String kohaBibXml = KohaMarcXmlGenerator.createBibXml(title, author);
-
-		return client.createBibRecord(kohaBibXml)
+		return Mono.fromCallable(() -> KohaVirtualBib.marcInJson(bib))
+			.flatMap(client::createBibRecord)
 			.mapNotNull(KohaCreatedBiblio::id)
 			.map(String::valueOf)
 			.switchIfEmpty(Mono.error(new IllegalStateException(
