@@ -1591,11 +1591,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		final var description = itemGetRow.getCircStatus();
 
-		return fetchItemStatusObjectBy(SearchType.DESCRIPTION, description)
-			.map(status -> {
-				itemGetRow.setCircStatusID(status.getItemStatusID());
-				itemGetRow.setCircStatusName(status.getName());
-				itemGetRow.setCircStatusBanner(status.getBannerText());
+		// A status missing from the library's list leaves this item UNKNOWN, not the whole bib failed
+		return fetchItemStatusesFromApi()
+			.map(statuses -> {
+				statuses.stream()
+					.filter(status -> stringEquals(description, status.getDescription()))
+					.findFirst()
+					.ifPresentOrElse(status -> {
+						itemGetRow.setCircStatusID(status.getItemStatusID());
+						itemGetRow.setCircStatusName(status.getName());
+						itemGetRow.setCircStatusBanner(status.getBannerText());
+					}, () -> log.warn("Item {} at {} has status \"{}\", which is not in its item status list: its status is unknown",
+						itemGetRow.getItemRecordID(), getHostLmsCode(), description));
+
 				return itemGetRow;
 			});
 	}

@@ -14,6 +14,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
@@ -112,6 +113,7 @@ import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
 import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.model.ItemStatusCode;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -412,6 +414,40 @@ class PolarisLmsClientTests {
 			hasSourceHostLmsCode(CIRCULATING_HOST_LMS_CODE),
 			hasOwningContext(CIRCULATING_HOST_LMS_CODE)
 		));
+	}
+
+	@Test
+	void anItemWithAStatusMissingFromTheLibrarysListIsUnknownAndTheOthersAreRead() {
+		final var bibId = generateNumericLocalId();
+		final var knownItemId = generateNumericLocalId();
+		final var unknownItemId = generateNumericLocalId();
+
+		mockPolarisFixture.mockGetItemsForBib(bibId, List.of(
+			ItemGetRow.builder()
+				.ItemRecordID(knownItemId)
+				.BibliographicRecordID(bibId)
+				.Barcode(generateBarcode())
+				.MaterialType("Book")
+				.IsDisplayInPAC(true)
+				.CircStatus(checkedOutCirculationStatus())
+				.build(),
+			ItemGetRow.builder()
+				.ItemRecordID(unknownItemId)
+				.BibliographicRecordID(bibId)
+				.Barcode(generateBarcode())
+				.MaterialType("Book")
+				.IsDisplayInPAC(true)
+				.CircStatus("A status added after DCB read the list")
+				.build()));
+
+		mockPolarisFixture.mockGetMaterialTypes(List.of(bookMaterialType()));
+		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
+
+		final var items = getItems(bibId, CIRCULATING_HOST_LMS_CODE);
+
+		assertThat(items, containsInAnyOrder(
+			allOf(ItemMatchers.hasLocalId(knownItemId), hasStatus(CHECKED_OUT)),
+			allOf(ItemMatchers.hasLocalId(unknownItemId), hasStatus(ItemStatusCode.UNKNOWN))));
 	}
 
 	@Test

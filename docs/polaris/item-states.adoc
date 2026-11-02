@@ -18,3 +18,10 @@ a catch-all, so the build fails until the new one is handled.
 
 Before this release, every state Polaris does not set was logged as an ERROR, about 8,300 times
 at MOBIUS between August and October 2026, although nothing was wrong.
+
+== A status DCB does not know
+
+DCB reads each library's list of item statuses from Polaris. An item whose status is not on that
+list, for example one added in Polaris since DCB last read it, is shown as unknown, and DCB does
+not offer it. The bib's other items are read as usual. DCB logs a warning naming the item and the
+status. Before this release, one such item stopped DCB reading any item on the bib.
