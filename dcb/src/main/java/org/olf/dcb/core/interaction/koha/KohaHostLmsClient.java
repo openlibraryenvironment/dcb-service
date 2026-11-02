@@ -13,6 +13,7 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.*;
 
 
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
@@ -49,6 +50,7 @@ import java.util.stream.Stream;
 import static io.micrometer.common.util.StringUtils.isBlank;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
@@ -140,6 +142,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private final ObjectRulesService objectRulesService;
 	private final RulesetCacheInvalidator cacheInvalidator;
 	private final HostLmsService hostLmsService;
+	private final ConsortiumService consortiumService;
 	private final KohaClientConfig config;
 	// Null unless ncip-checkin-fallback is on with its address and token
 	private final NcipAdaptor ncipCheckIn;
@@ -189,7 +192,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		ObjectRulesService objectRulesService,
 		RulesetCacheInvalidator cacheInvalidator,
-		HostLmsService hostLmsService) {
+		HostLmsService hostLmsService,
+		ConsortiumService consortiumService) {
 		this.hostLms = hostLms;
 		this.client = kohaClientFactory.createClientFor(hostLms);
 		this.referenceValueMappingService = referenceValueMappingService;
@@ -198,6 +202,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		this.objectRulesService = objectRulesService;
 		this.cacheInvalidator = cacheInvalidator;
 		this.hostLmsService = hostLmsService;
+		this.consortiumService = consortiumService;
 		// Built here rather than injected, as Alma does. KohaClientConfig has no bean
 		// definition and its only constructor takes the HostLms, so it could never have
 		// been satisfied as an injection point.
@@ -278,11 +283,19 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// For creating a virtual patron
 		log.info("Creating a virtual patron in {}", getHostLmsCode());
 
-		// Extract names
-		String firstName = (patron.getLocalNames() != null && !patron.getLocalNames().isEmpty())
-			? patron.getLocalNames().get(0) : DEFAULT_FIRST_NAME;
-		String lastName = (patron.getLocalNames() != null && patron.getLocalNames().size() > 1)
-			? patron.getLocalNames().get(patron.getLocalNames().size() - 1) : DEFAULT_LAST_NAME;
+		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_VISIBLE)
+			.map(namesVisible -> virtualPatron(patron, namesVisible))
+			.flatMap(client::createPatron)
+			.map(returnedPatron -> String.valueOf(returnedPatron.getPatronId()))
+			.doOnSuccess(id -> log.info("Created Koha patron with ID: {}", id));
+	}
+
+	// The borrower's names only when the consortium has made them visible, as Sierra, FOLIO and Alma do
+	private KohaPatron virtualPatron(Patron patron, boolean namesVisible) {
+		final List<String> names = namesVisible && patron.getLocalNames() != null
+			? patron.getLocalNames() : List.of();
+		String firstName = !names.isEmpty() ? names.get(0) : DEFAULT_FIRST_NAME;
+		String lastName = names.size() > 1 ? names.get(names.size() - 1) : DEFAULT_LAST_NAME;
 
 		// Koha POST /api/v1/patrons strictly requires surname, library_id, and category_id.
 		// A virtual patron stands for a borrower outside this Koha, which is precisely
@@ -298,7 +311,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// cardnumber; userid takes 75. The virtual patron has no card: a card number would let
 		// BASIC/BARCODE+NAME sign in as it. The home barcode goes in othernames instead, which the
 		// staff patron search reads, so a pickup desk finds the patron by the card they carry
-		final var kohaPatron = KohaPatron.builder()
+		return KohaPatron.builder()
 			.userid(patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()
 				? patron.getUniqueIds().get(0) : null)
 			.surname(lastName)
@@ -308,10 +321,6 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.libraryId(libraryId)
 			.categoryId(categoryId)
 			.build();
-
-		return client.createPatron(kohaPatron)
-			.map(returnedPatron -> String.valueOf(returnedPatron.getPatronId()))
-			.doOnSuccess(id -> log.info("Created Koha patron with ID: {}", id));
 	}
 
 	private static String firstBarcode(Patron patron) {

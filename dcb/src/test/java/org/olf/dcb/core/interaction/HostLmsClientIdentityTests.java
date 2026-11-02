@@ -202,7 +202,7 @@ class HostLmsClientIdentityTests {
 				mock(MaterialTypeToItemTypeMappingService.class),
 				mock(LocationToAgencyMappingService.class),
 				mock(ObjectRulesService.class), new RulesetCacheInvalidator(),
-				mock(HostLmsService.class));
+				mock(HostLmsService.class), mock(ConsortiumService.class));
 		}
 	}
 
