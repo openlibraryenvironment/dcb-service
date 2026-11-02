@@ -189,8 +189,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
-	//  No longer needed as DCB_BORROWING_FLOW is the same as the default behaviour
-	//	private static final String DCB_BORROWING_FLOW = "DCB";
 	private static final String ILL_BORROWING_FLOW = "ILL";
 
 	// Synch_BibsByIDGet accepts at most 50 ids per call.
@@ -830,9 +828,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.cacheInvalidateWhen( cacheInvalidator::getInvalidator );
 	}
 
-	// bib suppression not supported in Polaris
-//	private final Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
-
 	private Mono<Optional<ObjectRuleset>> _lmsItemSuppressionRuleset = null;
 	private synchronized Mono<Optional<ObjectRuleset>> getLmsItemSuppressionRuleset() {
 
@@ -1002,50 +997,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			// If we get nothing fall back to the original count
 			.defaultIfEmpty(currentCount);
 	}
-
-//	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount) {
-//
-//		// prevent NPEs
-//		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
-//		if (localId == null) return Mono.just(currentCount);
-//
-//		// Convert localId to Integer for the reservation request
-//		Integer itemId = Integer.valueOf(localId);
-//
-//		return ApplicationServices.getReservationsForItem(itemId)
-//			.map(response -> {
-//				// If there's a valid response with reservation data
-//				if (response != null && response.getReservations() != null) {
-//					// Count the number of reservations for this item
-//					int externalHoldCount = response.getReservations().size();
-//					return externalHoldCount;
-//
-////					if (externalHoldCount > 0)
-////					{
-////						return externalHoldCount;
-////
-////					}
-////					else {
-////						// There is a situation where the reservation data is not present, but the hold count is not zero
-////						// In this situation, we should use the total count as a fallback
-////						if (response.getTotalCount() != null && response.getTotalCount() > 0)
-////						{
-////							return response.getTotalCount();
-////
-////						}
-////						else
-////						{
-////							// If the total count is not present or is zero, fall back to original count
-////							return currentCount;
-////						}
-////					}
-//				}
-//				// Fall back to the original count if no reservation data or total count is available
-//				return currentCount;
-//			})
-//			// Handle getReservationsForItem returning empty
-//			.defaultIfEmpty(currentCount);
-//	}
 
 	private Mono<String> parseLocalItemId(String localItemId) {
 		if (localItemId == null) {
@@ -2238,14 +2189,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public @NonNull String getClientId() {
-		
-//		return Optional.ofNullable(this.applicationServicesOverrideURL())
-//			.map( uri -> uri.resolve("/") )
-//			.map( ovr -> "%s:%s".formatted(this.defaultBaseUrl.resolve("/").toString(), ovr.toString()) )
-//			.orElseGet(this.defaultBaseUrl.resolve("/")::toString);
-		
-		// Probably don't need both.
-		
 		// Uri "toString" behaviour will sometimes return the string provided at initialization.
 		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
 		// will force the toString method to construct a new string representation, meaning it's more comparable.
@@ -2306,7 +2249,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			final Optional<BibsPagedGetParams> optParams = optExtParams.isPresent() ? Optional.of(optExtParams.get().toBibsPagedGetParams()) : Optional.empty();
 
 
-				// Instant highestDateUpdatedSeen = optExtParams.isPresent() ? optExtParams.get().getHighestDateUpdatedSeen() : null;
 				
 				final BibsPagedGetParams apiParams = mergeApiParameters(optParams);
 				final Instant now = Instant.now();
@@ -2420,7 +2362,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												.build());
 
 											Instant modification_instant = convertMSJsonDate(rawJson.get("ModificationDate").getStringValue());
-											// log.info("Record modification date : {}",modification_instant);
 
 											if ( ( modification_instant != null ) &&
                            ( ( extParams.getHighestDateUpdatedSeen() == null ) ||
