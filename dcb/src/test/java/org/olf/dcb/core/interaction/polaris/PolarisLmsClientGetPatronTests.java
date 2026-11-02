@@ -223,6 +223,35 @@ class PolarisLmsClientGetPatronTests {
 	}
 
 	@Test
+	void shouldFailWhenCirculationBlocksEndpointReturnsGeneralFailure() {
+		// Read as "not blocked" before: a -1 carries no CanPatronCirculate
+		final var localId = "2769364";
+		final var barcode = "096285232";
+		final var patronCodeId = "3";
+
+		mockPolarisFixture.mockGetPatron(localId,
+			PatronData.builder()
+				.patronID((parseInt(localId)))
+				.patronCodeID(parseInt(patronCodeId))
+				.barcode(barcode)
+				.organizationID(39)
+				.build());
+
+		mockPolarisFixture.mockGetPatronCirculationBlocks(barcode,
+			PatronCirculationBlocksResult.builder()
+				.papiErrorCode(-1)
+				.errorMessage("General Failure")
+				.build());
+
+		definePatronTypeMapping(patronCodeId, "UNDERGRADUATE");
+
+		final var problem = assertThrows(CannotGetPatronBlocksProblem.class,
+			() -> getPatron(localId));
+
+		assertThat(problem, hasMessage("Circulation blocks endpoint returned error code [-1] with message: General Failure"));
+	}
+
+	@Test
 	void shouldFailWhenLocalPatronTypeCannotBeMappedToCanonical() {
 		// Arrange
 		final var localId = "1255193";

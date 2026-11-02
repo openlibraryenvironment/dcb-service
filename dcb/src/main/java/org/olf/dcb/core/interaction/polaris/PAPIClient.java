@@ -280,6 +280,7 @@ public class PAPIClient {
 	// PAPI's answer when the patron's blocks stop a checkout. The documented code; PatronBlockFlags
 	// on the result says which blocks, as a bitmask whose values PAPI does not document.
 	static final int PATRON_BLOCKED_ERROR_CODE = -6101;
+	static final int GENERAL_FAILURE = -1;
 	static final String PAPI_ERROR_CODE_PARAMETER = "papiErrorCode";
 
 	static boolean isPatronBlockRefusal(Throwable error) {
@@ -526,8 +527,23 @@ public class PAPIClient {
 			.flatMap(authFilter::ensureStaffAuth)
 			.delayElement(Duration.ofSeconds(findDelay)),
 			Argument.of(PatronSearchResult.class))
-			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
+			.flatMap(result -> isGeneralFailure(result)
+				? Mono.just(result)
+				: checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
 			.map(checkForUniquePatronResult(path, ccl));
+	}
+
+	// Read as "no match" since DCB-1004, and not yet seen against a real Polaris: a search that
+	// fails this way creates a new virtual patron. See docs/polaris/papi-errors.adoc.
+	private static boolean isGeneralFailure(PapiResult result) {
+		if (getValue(result, PapiResult::getPapiErrorCode, 0) != GENERAL_FAILURE) {
+			return false;
+		}
+
+		log.info("PAPIService returned 'General Failure' for the virtual patron search, read as no match: {}",
+			getValueOrNull(result, PapiResult::getErrorMessage));
+
+		return true;
 	}
 
 	private Function<PatronSearchResult, PatronSearchRow> checkForUniquePatronResult(String path, String ccl) {
@@ -620,16 +636,6 @@ public class PAPIClient {
 		// ref: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1210888
 		// 0 = Success
 		if (errorCode < 0) {
-			// we assume (-1, general failure) translates to no results found
-			final var generalFailureCode = -1;
-
-			if (errorCode == generalFailureCode) {
-				log.info("PAPIService returned 'General Failure' for the virtual patron search: {}, {}",
-					errorCode, errorMessage);
-
-				return Mono.just(result);
-			}
-
 			log.error("PAPIService returned error code: {}, with message: '{}'", errorCode, errorMessage);
 
 			return Mono.error(toThrowableMapper.apply(errorCode, errorMessage));

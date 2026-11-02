@@ -1,0 +1,27 @@
+= When Polaris's PAPI answers with an error
+:description: How DCB reads the error codes in a PAPI answer, and the one it still reads as "no match".
+
+Polaris's PAPI answers most failures with HTTP 200 and a negative `PAPIErrorCode` in the body. A
+positive code is a count of rows; 0 is success.
+
+DCB treats every negative code as a failure, with one exception below.
+
+== Patron blocks
+
+When DCB reads a patron's circulation blocks and PAPI answers -1 ("General failure"), DCB now
+fails the patron lookup. Before this release DCB read the -1 as "not blocked", so a patron PAPI
+could not check was let through.
+
+If a Polaris answers -1 for every blocks check, its patrons cannot place requests until the
+cause is fixed. The error names the code and PAPI's message.
+
+== The virtual patron search
+
+When DCB searches for its virtual patron for a borrower and PAPI answers -1, DCB still reads the
+answer as "no match" and creates a virtual patron. This has been the behaviour since 2024 and has
+not yet been checked against a real Polaris. If a -1 there means the search failed rather than
+found nothing, a library can end up with more than one virtual patron for one borrower; DCB then
+uses the one it used last (see xref:virtual-records.adoc[Virtual bibs and items in Polaris]).
+
+To be confirmed on a Polaris training server: what PAPI's patron search answers when nothing
+matches.

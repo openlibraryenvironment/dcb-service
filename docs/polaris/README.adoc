@@ -14,3 +14,4 @@ cross-repository links.
 * xref:item-states.adoc[Item states DCB asks Polaris to set]
 * xref:location-codes.adoc[How DCB reads a Polaris item's location]
 * xref:placing-holds.adoc[Placing a hold at a Polaris lender]
+* xref:papi-errors.adoc[When Polaris's PAPI answers with an error]

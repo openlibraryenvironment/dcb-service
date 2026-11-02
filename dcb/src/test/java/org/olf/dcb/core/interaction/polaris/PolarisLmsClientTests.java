@@ -111,6 +111,7 @@ import org.olf.dcb.core.interaction.DeleteCommand;
 import org.olf.dcb.core.interaction.HostLmsClient.CanonicalItemState;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
@@ -808,6 +809,31 @@ class PolarisLmsClientTests {
 			hasMessage("Unable to retrieve patron blocks from polaris: Internal Server Error"),
 			hasProperty("type", is(ERR0210))
 		));
+	}
+
+	@Test
+	void shouldReadGeneralFailureFromVirtualPatronSearchAsNoMatch() {
+		final var barcode = generateBarcode();
+
+		mockPolarisFixture.mockPatronSearchPapiError(barcode, -1, "General Failure");
+
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var patron = org.olf.dcb.core.model.Patron.builder()
+			.id(randomUUID())
+			.patronIdentities(List.of(
+				PatronIdentity.builder()
+					.localId(generateNumericLocalIdAsString())
+					.localBarcode(barcodeAsSerialisedList(barcode))
+					.resolvedAgency(DataAgency.builder()
+						.code("known-agency")
+						.build())
+					.homeIdentity(true)
+					.build()
+			))
+			.build();
+
+		assertThrows(VirtualPatronNotFound.class, () -> singleValueFrom(client.findVirtualPatron(patron)));
 	}
 
 	@Test
