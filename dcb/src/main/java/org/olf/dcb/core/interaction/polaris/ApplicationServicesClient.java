@@ -34,6 +34,7 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -108,9 +109,7 @@ class ApplicationServicesClient {
 			.zipWith(getLocalRequestBody(holdRequestParameters, activationDateUTC, noteWithActivationDateUTC))
 			.map(function(ApplicationServicesClient::addBodyToRequest)),
 			Argument.of(WorkflowResponse.class))
-			.flatMap(resp -> replyIfPromptMatches(resp, ExceededTotalRequestLimit, Continue))
-			.flatMap(resp -> replyIfPromptMatches(resp, PromoteItemRequestToBib, Continue))
-			.flatMap(resp -> replyIfPromptMatches(resp, DuplicateHoldRequests, Continue))
+			.flatMap(resp -> answerPrompts(resp, HOLD_PROMPT_ANSWERS, MAX_PROMPTS_ANSWERED))
 			.map(this::validateWorkflowResponse)
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
@@ -118,6 +117,28 @@ class ApplicationServicesClient {
 				activationDateUTC,
 				noteWithActivationDateUTC,
 				holdRequestParameters));
+	}
+
+	// Polaris asks these one at a time, in whatever order it meets them. A prompt not listed is not
+	// answered, and validateWorkflowResponse refuses it, naming the prompt.
+	private static final Map<Integer, Integer> HOLD_PROMPT_ANSWERS = Map.of(
+		ExceededTotalRequestLimit, Continue,
+		PromoteItemRequestToBib, Continue,
+		DuplicateHoldRequests, Continue);
+	private static final int MAX_PROMPTS_ANSWERED = 5;
+
+	private Mono<WorkflowResponse> answerPrompts(WorkflowResponse response, Map<Integer, Integer> answers,
+		int remaining) {
+
+		final var promptId = getValueOrNull(response, WorkflowResponse::getPrompt, Prompt::getWorkflowPromptID);
+		final var answer = promptId == null ? null : answers.get(promptId);
+
+		if (!InputRequired.equals(response.getWorkflowStatus()) || answer == null || remaining == 0) {
+			return Mono.just(response);
+		}
+
+		return handlePolarisWorkflow(response, promptId, answer)
+			.flatMap(next -> answerPrompts(next, answers, remaining - 1));
 	}
 
 	private Mono<WorkflowResponse> replyIfPromptMatches(WorkflowResponse response, Integer promptID, Integer promptResult) {
@@ -175,7 +196,9 @@ class ApplicationServicesClient {
 
 			throw Problem.builder()
 				.withType(ERR0210)
-				.withTitle("Failed to handle Polaris.ApplicationServices API workflow")
+				.withTitle(RequestLimitReached.equals(promptId)
+					? "The lending library's Polaris refused the hold: the virtual patron has reached its request limit for this material type"
+					: "Failed to handle Polaris.ApplicationServices API workflow")
 				.withDetail(title)
 				.with("Message", message)
 				.with("Information messages", informationalMessages)
@@ -1917,6 +1940,9 @@ class ApplicationServicesClient {
 		public static final Integer ConfirmBibRecordDelete = 79;
 		public static final Integer LastCopyOrRecordOptions = 82;
 		public static final Integer PromoteItemRequestToBib = 88;
+		// "Patron has exceeded request limit for the title ... Do you want to place this request?"
+		// The lender's own limit: not overridden.
+		public static final Integer RequestLimitReached = 100;
 
 		@JsonProperty("WorkflowPromptID")
 		private Integer WorkflowPromptID;

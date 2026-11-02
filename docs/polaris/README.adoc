@@ -13,3 +13,4 @@ cross-repository links.
 * xref:tracking-failures.adoc[When DCB cannot read the lender's hold]
 * xref:item-states.adoc[Item states DCB asks Polaris to set]
 * xref:location-codes.adoc[How DCB reads a Polaris item's location]
+* xref:placing-holds.adoc[Placing a hold at a Polaris lender]

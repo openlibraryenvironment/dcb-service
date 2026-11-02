@@ -1,0 +1,28 @@
+= Placing a hold at a Polaris lender
+:description: The Polaris workflow prompts DCB answers when it places a hold, and the ones it refuses.
+
+DCB places a hold at a Polaris lender through the Application Services hold request workflow.
+Polaris may stop the workflow to ask a question (a prompt), one at a time and in whatever order it
+meets them. DCB answers these, up to five in one placement:
+
+[cols="1,3,1",options="header"]
+|===
+| Prompt | Polaris asks | DCB answers
+
+| 68 | The patron has exceeded the total request limit | Continue
+| 77 | The patron already has a hold for this title | Continue
+| 88 | Promote the item-level request to a title-level one | Continue
+|===
+
+Any other prompt is not answered, and the placement fails with the prompt's id and Polaris's
+message in the request's audit.
+
+Prompt 100, "Patron has exceeded request limit for the title", is the lending library's own limit
+on requests per material type (50 at SLCL, for example). DCB does not override it. The request's
+audit says "The lending library's Polaris refused the hold: the virtual patron has reached its
+request limit for this material type". The library can raise the limit for the patron code DCB's
+virtual patrons use, or leave it.
+
+After placing the hold, DCB reads the patron's holds to find it, waiting
+`hold-fetching-delay` seconds (default 5) between reads, up to `hold-fetching-max-retry` times
+(default 10).

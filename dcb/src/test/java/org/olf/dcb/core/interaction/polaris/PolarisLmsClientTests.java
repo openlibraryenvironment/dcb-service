@@ -31,7 +31,10 @@ import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Inf
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmBibRecordDelete;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ConfirmItemRecordDelete;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.LastCopyOrRecordOptions;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.DuplicateHoldRequests;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.ExceededTotalRequestLimit;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.NoDisplayInPAC;
+import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.Prompt.RequestLimitReached;
 import static org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.WorkflowResponse.InputRequired;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_PATRON_ADDRESS_CHECK_FALLBACK_YEARS;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.VIRTUAL_PATRON_ADDRESS_CHECK_YEARS;
@@ -939,6 +942,86 @@ class PolarisLmsClientTests {
 			hasRequestedItemId(localItemId),
 			hasRequestedItemBarcode(localItemBarcode)
 		));
+	}
+
+	@Test
+	void shouldAnswerHoldPromptsInWhateverOrderPolarisAsksThem() {
+		// Arrange - Polaris asks the duplicate-hold prompt before the request-limit one
+		final var localItemId = generateNumericLocalId();
+		final var localItemBarcode = generateBarcode();
+		final var bibId = generateNumericLocalId();
+
+		mockGetItem(localItemId, localItemBarcode, bibId);
+		mockGetBibId(bibId);
+
+		final var workflowRequestId = randomUUID().toString();
+		mockPolarisFixture.mockStartWorkflow(holdPrompt(workflowRequestId, DuplicateHoldRequests));
+		mockPolarisFixture.mockContinueWorkflow(workflowRequestId, holdPrompt(workflowRequestId, ExceededTotalRequestLimit));
+		mockPolarisFixture.mockContinueWorkflow(workflowRequestId, holdPlacedSuccessfully());
+
+		final var patronId = generateNumericLocalId();
+		final var localHoldId = generateNumericLocalId();
+		final var matchingNote = "DCB Testing prompt order";
+
+		mockPolarisFixture.mockListPatronLocalHolds(patronId, SysHoldRequest.builder()
+			.sysHoldRequestID(localHoldId)
+			.bibliographicRecordID(bibId)
+			.pacDisplayNotes(matchingNote)
+			.build());
+		mockPolarisFixture.mockGetHold(localHoldId, libraryHold(localItemId, localItemBarcode, inProcessingHoldStatus()));
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var localRequest = singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+			PlaceHoldRequestParameters.builder()
+				.localPatronId(convertIntegerToString(patronId))
+				.localItemId(convertIntegerToString(localItemId))
+				.pickupLocationCode(generateNumericLocalIdAsString())
+				.note(matchingNote)
+				.patronRequestId(randomUUID().toString())
+				.build()));
+
+		// Assert
+		assertThat(localRequest, hasLocalId(localHoldId));
+	}
+
+	@Test
+	void shouldNameTheLendersRequestLimitWhenPolarisRefusesAHoldForIt() {
+		// Arrange
+		final var localItemId = generateNumericLocalId();
+		final var bibId = generateNumericLocalId();
+
+		mockGetItem(localItemId, generateBarcode(), bibId);
+		mockGetBibId(bibId);
+		mockPolarisFixture.mockStartWorkflow(holdPrompt(randomUUID().toString(), RequestLimitReached));
+
+		// Act
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localPatronId(generateNumericLocalIdAsString())
+					.localItemId(convertIntegerToString(localItemId))
+					.pickupLocationCode(generateNumericLocalIdAsString())
+					.note("DCB Testing request limit")
+					.patronRequestId(randomUUID().toString())
+					.build())));
+
+		// Assert
+		assertThat(problem.getTitle(), containsString("request limit for this material type"));
+	}
+
+	private static WorkflowResponse holdPrompt(String workflowRequestId, Integer promptId) {
+		return WorkflowResponse.builder()
+			.workflowRequestGuid(workflowRequestId)
+			.workflowStatus(InputRequired)
+			.prompt(Prompt.builder()
+				.WorkflowPromptID(promptId)
+				.title("Place hold request")
+				.build())
+			.build();
 	}
 
 	@Test
