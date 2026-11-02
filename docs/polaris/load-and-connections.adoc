@@ -18,6 +18,9 @@ unchanged.
 
 * Item enrichment for one bib works on at most 4 items at a time. Each item can take several calls.
 * The Polaris staff token is cached, so most calls do not sign in again.
+* Each library's item statuses and material types are read at most once an hour, not once for
+every bib DCB looks up. A status added in Polaris within the hour reads as unknown for its items
+until DCB reads the list again; the bib's other items are not affected.
 
 == Not limited yet
 

@@ -187,6 +187,8 @@ class PolarisLmsClientTests {
 	private AgencyFixture agencyFixture;
 	@Inject
 	private AlarmRepository alarmRepository;
+	@Inject
+	private PolarisReferenceDataCache referenceDataCache;
 
 	private MockPolarisFixture mockPolarisFixture;
 
@@ -226,6 +228,10 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockAppServicesStaffAuthentication();
 
 		referenceValueMappingFixture.deleteAll();
+
+		// Tests mock different status lists for the same hosts
+		List.of(CATALOGUING_HOST_LMS_CODE, CIRCULATING_HOST_LMS_CODE, ILL_FLOW_HOST_LMS_CODE,
+			NO_CHECKOUT_OVERRIDE_HOST_LMS_CODE).forEach(referenceDataCache::invalidate);
 	}
 
 	@Test
@@ -469,6 +475,8 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
 
 		final var items = getItems(bibId, CIRCULATING_HOST_LMS_CODE);
+		// A second client for the same library, as the next availability check builds
+		getItems(bibId, CIRCULATING_HOST_LMS_CODE);
 
 		assertThat(items, hasSize(itemRows.size()));
 		mockPolarisFixture.verifyGetItemStatuses(

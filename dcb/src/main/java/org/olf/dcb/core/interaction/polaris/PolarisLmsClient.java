@@ -167,8 +167,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final PolarisItemMapper itemMapper;
 	private final PAPIClient PAPIService;
 	private final ApplicationServicesClient ApplicationServices;
-	private Mono<List<ApplicationServicesClient.MaterialType>> materialTypes;
-	private Mono<List<PolarisItemStatus>> itemStatuses;
 	// NB: PolarisConfig must be bound with Jackson, NOT Micronaut's ObjectMapper, even
 	// though it is @Serdeable. PolarisConfig.baseUrl is declared as Object, and Micronaut
 	// Serde 3 silently binds null into Object-typed bean properties -- every Polaris test
@@ -224,6 +222,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	
 	private final R2dbcOperations r2dbcOperations;
 	private final PolarisTokenCache tokenCache;
+	private final PolarisReferenceDataCache referenceDataCache;
 	private final AlarmsService alarmsService;
 
 	@Creator
@@ -233,7 +232,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
 									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
 									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService,
-									 ConsortiumService consortiumService, PolarisTokenCache tokenCache, AlarmsService alarmsService) {
+									 ConsortiumService consortiumService, PolarisTokenCache tokenCache,
+									 PolarisReferenceDataCache referenceDataCache, AlarmsService alarmsService) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -246,6 +246,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
 		this.tokenCache = tokenCache;
+		this.referenceDataCache = referenceDataCache;
 		this.alarmsService = alarmsService;
 		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig, tokenCache);
 		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms, consortiumService, tokenCache);
@@ -1634,37 +1635,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<List<PolarisItemStatus>> fetchItemStatusesFromApi() {
-		synchronized (this) {
-			if (itemStatuses == null) {
-				log.info("Fetching item statuses...");
-				itemStatuses = ApplicationServices.listItemStatuses()
-					.doOnError(error -> clearItemStatuses())
-					.cache();
-			}
-
-			return itemStatuses;
-		}
+		return referenceDataCache.get(getHostLmsCode(), PolarisReferenceDataCache.Kind.ITEM_STATUSES,
+			() -> ApplicationServices.listItemStatuses()
+				.doOnSubscribe(subscription -> log.info("Fetching item statuses for {}", getHostLmsCode())));
 	}
 
 	private Mono<List<ApplicationServicesClient.MaterialType>> fetchMaterialTypesFromApi() {
-		synchronized (this) {
-			if (materialTypes == null) {
-				log.info("Fetching material types...");
-				materialTypes = ApplicationServices.listMaterialTypes()
-					.doOnError(error -> clearMaterialTypes())
-					.cache();
-			}
-
-			return materialTypes;
-		}
-	}
-
-	private synchronized void clearItemStatuses() {
-		itemStatuses = null;
-	}
-
-	private synchronized void clearMaterialTypes() {
-		materialTypes = null;
+		return referenceDataCache.get(getHostLmsCode(), PolarisReferenceDataCache.Kind.MATERIAL_TYPES,
+			() -> ApplicationServices.listMaterialTypes()
+				.doOnSubscribe(subscription -> log.info("Fetching material types for {}", getHostLmsCode())));
 	}
 
 	/**
