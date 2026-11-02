@@ -82,6 +82,17 @@ public class PolarisConfig {
 	 */
 	@JsonProperty("token-cache-ttl-seconds")
 	private Integer tokenCacheTtlSeconds;
+	/**
+	 * Seconds this Polaris has to send a whole response, harvest pages included. Absent, the only
+	 * limit is PolarisClientConfig's read timeout, shared by every Polaris, which this cannot raise.
+	 */
+	@JsonProperty("response-timeout-seconds")
+	private Integer responseTimeoutSeconds;
+	public Optional<Duration> getResponseTimeout() {
+		return Optional.ofNullable(responseTimeoutSeconds)
+			.filter(seconds -> seconds > 0)
+			.map(Duration::ofSeconds);
+	}
 	@JsonProperty("papi")
 	private PapiConfig papi;
 	@JsonProperty("services")

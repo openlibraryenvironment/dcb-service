@@ -168,6 +168,12 @@ public class MockPolarisFixture {
 			PAPIClient.ApiResult.builder().papiErrorCode(0).version(version).build());
 	}
 
+	public void mockPapiApiVersionAnsweringAfter(String version, int milliseconds) {
+		mockServer.mockGet(paths.publicPapiService("/api"),
+			okJson(PAPIClient.ApiResult.builder().papiErrorCode(0).version(version).build())
+				.withDelay(org.mockserver.model.Delay.milliseconds(milliseconds)));
+	}
+
 	public void mockPatronAuthentication(PatronAuthToken responseBody) {
 		mockServer.mockPost(paths.publicPapiService("/authenticator/patron"), responseBody);
 	}

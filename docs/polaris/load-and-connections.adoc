@@ -22,6 +22,23 @@ unchanged.
 every bib DCB looks up. A status added in Polaris within the hour reads as unknown for its items
 until DCB reads the list again; the bib's other items are not affected.
 
+== Response timeout
+
+DCB waits up to 120 seconds for any Polaris to send data. That limit is shared by every Polaris
+library and cannot be raised per library.
+
+A library can set a shorter limit for its own Polaris with `response-timeout-seconds` in its Host
+LMS configuration. It limits the whole response, so set it longer than a harvest page takes:
+
+[source,json]
+----
+"response-timeout-seconds": 30
+----
+
+A request that runs out of time fails as if Polaris had not answered. Use it where a library's
+server stops answering rather than refusing, so DCB gives up sooner and does not hold
+connections for two minutes.
+
 == Not limited yet
 
 * Live availability can still ask many Polaris bibs at once, with no limit per library.

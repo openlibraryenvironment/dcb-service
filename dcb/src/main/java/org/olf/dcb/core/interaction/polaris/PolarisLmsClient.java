@@ -1688,6 +1688,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return doExchange(requestMono, returnClass, useGenericHttpClientResponseExceptionHandler, TRUE);
 	}
 
+	private <T> Mono<T> withResponseTimeout(Mono<T> response) {
+		return polarisConfig.getResponseTimeout()
+			.map(response::timeout)
+			.orElse(response);
+	}
+
 	private <T> Mono<HttpResponse<T>> doExchange(Mono<? extends MutableHttpRequest<?>> requestMono, Class<T> returnClass,
 		Boolean useGenericHttpClientResponseExceptionHandler, Boolean reauthenticateOn401) {
 
@@ -1697,7 +1703,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 			return requestMono
 				.doOnNext(sent::set)
-				.flatMap(request -> Mono.from(client.exchange(request, returnClass)))
+				.flatMap(request -> withResponseTimeout(Mono.from(client.exchange(request, returnClass))))
 				.transform(send -> TRUE.equals(reauthenticateOn401)
 					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
 				.doOnError(error -> logRequestFailure(sent.get(), error))
@@ -1755,7 +1761,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 			return requestMono
 				.doOnNext(sent::set)
-				.flatMap(request -> Mono.<T>from(client.retrieve(request, responseBodyType)))
+				.flatMap(request -> withResponseTimeout(Mono.<T>from(client.retrieve(request, responseBodyType))))
 				.transform(send -> TRUE.equals(reauthenticateOn401)
 					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
 				.doOnError(error -> logRequestFailure(sent.get(), error))
