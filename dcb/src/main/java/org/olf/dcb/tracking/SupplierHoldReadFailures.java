@@ -85,6 +85,32 @@ public class SupplierHoldReadFailures {
 			.thenReturn(sr.setLocalReadFailingSince(null));
 	}
 
+	/**
+	 * How long to wait before polling a request again. While its lender's hold cannot be read, poll no
+	 * more often than every 5 minutes, then no more often than the failures have lasted, up to an
+	 * hour; a status whose own interval is longer keeps it.
+	 */
+	public static Duration pollInterval(Duration normal, SupplierRequest sr, Instant now) {
+		final var failingSince = getValueOrNull(sr, SupplierRequest::getLocalReadFailingSince);
+
+		if (failingSince == null) {
+			return normal;
+		}
+
+		final var backOff = clamp(Duration.between(failingSince, now), FIRST_BACK_OFF, MAX_BACK_OFF);
+
+		return backOff.compareTo(normal) > 0 ? backOff : normal;
+	}
+
+	static final Duration FIRST_BACK_OFF = Duration.ofMinutes(5);
+	static final Duration MAX_BACK_OFF = Duration.ofHours(1);
+
+	private static Duration clamp(Duration value, Duration min, Duration max) {
+		if (value.compareTo(min) < 0) return min;
+		if (value.compareTo(max) > 0) return max;
+		return value;
+	}
+
 	static String classify(Throwable error) {
 		final var status = statusOf(error);
 

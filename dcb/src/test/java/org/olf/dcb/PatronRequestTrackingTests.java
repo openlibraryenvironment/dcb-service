@@ -171,6 +171,33 @@ public class PatronRequestTrackingTests {
 		assertThat(auditEntriesStartingWith(patronRequest, "Tracking : Supplier hold read again"), is(1L));
 	}
 
+	@Test
+	void aRequestWhoseSupplierHoldCannotBeReadIsPolledLessOften() {
+		// Without a status timestamp the workflow fails before it schedules the next poll
+		final var patronRequest = createPatronRequest(
+			request -> request.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY).currentStatusTimestamp(Instant.now()));
+
+		final var localRequestId = "11602";
+		final var localItemId = "84356402";
+
+		createSupplierRequest(patronRequest,
+			request -> request
+				.localId(localRequestId)
+				.localItemId(localItemId)
+				.statusCode(PLACED)
+				.localStatus("PLACED"));
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId, exampleSierraItem(localItemId));
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, response().withStatusCode(500));
+
+		final var trackedAt = Instant.now();
+		trackingFixture.trackRequest(patronRequest);
+
+		// This status is normally polled again after a second
+		assertThat(patronRequestsFixture.findById(patronRequest.getId()).getNextScheduledPoll()
+			.isAfter(trackedAt.plus(Duration.ofMinutes(4))), is(true));
+	}
+
 	private long auditEntriesStartingWith(PatronRequest patronRequest, String message) {
 		return patronRequestsFixture.findAuditEntries(patronRequest).stream()
 			.filter(audit -> audit.getBriefDescription() != null

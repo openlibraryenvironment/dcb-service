@@ -20,6 +20,11 @@ and records "Tracking : Supplier hold read again", with how long reads failed.
 
 GraphQL exposes the field as `SupplierRequest.localReadFailingSince`.
 
+While reads are failing, DCB polls the request less often, so an outage at one library is not
+retried every few seconds: no more often than every 5 minutes at first, then no more often than
+the failures have lasted, up to once an hour. A status DCB already polls less often keeps its own
+interval. Polling returns to normal after the next successful read.
+
 == Before this release
 
 A failed read set the lender's hold status to `ERROR`, and the next good read set the real status

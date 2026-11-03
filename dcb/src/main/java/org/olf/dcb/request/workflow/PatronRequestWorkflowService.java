@@ -20,6 +20,7 @@ import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
 import org.olf.dcb.request.lifecycle.tracking.RequestTrackingPolicy;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.tracking.SupplierHoldReadFailures;
 import org.olf.dcb.tracking.TrackingHelpers;
 import org.reactivestreams.Publisher;
 import org.slf4j.MDC;
@@ -314,7 +315,8 @@ public class PatronRequestWorkflowService {
 				.map(ctx::setPatronRequest);
 		}
 
-		final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus());
+		final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus())
+			.map(normal -> SupplierHoldReadFailures.pollInterval(normal, ctx.getSupplierRequest(), Instant.now()));
 
 		Instant next_poll = null;
 
