@@ -2,6 +2,8 @@
 .*
 !.git*
 !.editorconfig
+dcb/src/main/resources/git.properties
+
 src/groovy
 *keystore*
 build/
