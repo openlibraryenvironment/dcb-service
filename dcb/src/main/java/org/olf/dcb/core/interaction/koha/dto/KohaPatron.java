@@ -29,6 +29,10 @@ public class KohaPatron {
 	@JsonProperty("firstname")
 	private String firstname;
 
+	// Koha's othernames: searched by the staff patron search, never used to sign in
+	@JsonProperty("other_name")
+	private String otherName;
+
 	@JsonProperty("email")
 	private String email;
 

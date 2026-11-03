@@ -2,6 +2,9 @@ package org.olf.dcb.core.interaction.koha;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
+import static org.olf.dcb.core.interaction.koha.KohaVirtualBibTests.marcInJson;
+import static org.olf.dcb.core.interaction.koha.KohaVirtualBibTests.subfield;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,23 @@ class KohaCreateVirtualBibTests {
 		koha.mockCreateBib(4001);
 
 		assertThat(client.createBib(bib()).block(), is("4001"));
+	}
+
+	@Test
+	void shouldSendTheVirtualBibAsMarcInJson() {
+		koha.mockCreateBib(4001);
+
+		client.createBib(Bib.builder().title("Tom & Jerry <vol. 1>").author("Hanna, William")
+			.typeOfRecord("g").build()).block();
+
+		final var sent = koha.bibCreationSent();
+		assertThat(sent.getFirstHeader("Content-Type"), startsWith("application/marc-in-json"));
+
+		final var record = marcInJson(sent.getBodyAsString());
+		assertThat(record.getLeader().getTypeOfRecord(), is('g'));
+		assertThat(subfield(record, "245", 'a'), is("Tom & Jerry <vol. 1>"));
+		assertThat(subfield(record, "100", 'a'), is("Hanna, William"));
+		assertThat(subfield(record, "942", 'n'), is("1"));
 	}
 
 	@Test

@@ -13,6 +13,7 @@ import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.model.*;
 
 
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.events.RulesetCacheInvalidator;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
@@ -36,6 +37,7 @@ import java.util.Date;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.Objects;
@@ -48,6 +50,7 @@ import java.util.stream.Stream;
 import static io.micrometer.common.util.StringUtils.isBlank;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
+import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import static services.k_int.utils.ReactorUtils.raiseError;
 
@@ -89,10 +92,12 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * <h2>Lending</h2>
  * <p>A supplier request is one virtual patron at the sharing branch, one item-level hold for it
  * on the real item with the sharing branch as pickup and {@code x-koha-override: any}, and later
- * one checkout. Koha answers that checkout with a 412 because the item is in transit for a hold;
- * {@code checkOutItemToPatron} confirms TRANSFERRED, RESERVED and RESERVE_WAITING and raises any
- * other confirmation or blocker as a problem naming it. The checkout fills the hold, which then
- * reads as MISSING, so cleanup does not try to delete it. Cleanup deletes the hold, the item and
+ * one checkout. Koha asks staff to confirm lending a copy held for someone else (RESERVED,
+ * RESERVE_WAITING, TRANSFERRED, PROCESSING), never for the patron the hold is for, so DCB confirms
+ * nothing: {@code checkOutItemToPatron} raises any confirmation or blocker as a problem naming it,
+ * except the answers that mean the copy is already on loan to this patron, which is what was
+ * asked. The checkout fills the hold, which then reads as MISSING, so cleanup does not try to
+ * delete it. Cleanup deletes the hold, the item and
  * then the bib, the order Koha's 409 rules need; a 404 on any of the three counts as deleted.
  *
  * <h2>Check-in</h2>
@@ -118,8 +123,8 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * offer copies it cannot see are hidden.
  *
  * <h2>Bounds and gaps</h2>
- * <p>Items are read {@code ITEMS_PAGE_SIZE} a page up to {@code MAX_ITEMS_PER_BIBLIO} a bib, with
- * {@code ITEM_ENRICHMENT_CONCURRENCY} hold reads at a time; vocabularies are cut at
+ * <p>Items are read {@code ITEMS_PAGE_SIZE} a page up to {@code MAX_ITEMS_PER_BIBLIO} a bib, and
+ * their holds in one read of up to {@code HOLDS_PAGE_SIZE}; vocabularies are cut at
  * {@code ConfigurationReport.MAX_VOCABULARY_ENTRIES}; the token is one per Host LMS per expiry.
  * {@code supplierPreflight} and {@code checkRequestOptions} are not implemented, and check-in
  * over SIP2 is not available.
@@ -137,6 +142,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 	private final ObjectRulesService objectRulesService;
 	private final RulesetCacheInvalidator cacheInvalidator;
 	private final HostLmsService hostLmsService;
+	private final ConsortiumService consortiumService;
 	private final KohaClientConfig config;
 	// Null unless ncip-checkin-fallback is on with its address and token
 	private final NcipAdaptor ncipCheckIn;
@@ -156,16 +162,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 		"BASIC/BARCODE+PASSWORD", "BASIC/BARCODE+PIN", "BASIC/BARCODE+NAME");
 
 
-	/**
-	 * How many items getItems enriches at once.
-	 * <p>
-	 * mapKohaItemToDcbItem issues a getActiveHoldsForItem per item, so an unbounded
-	 * flatMap turns one availability check into one API call per holding. A title
-	 * held at sixty branches of a shared Koha is then sixty concurrent calls to a
-	 * single server, per check, per user - and co-tenancy is exactly what makes the
-	 * holding count large while the server count stays at one.
-	 */
+	// Each item's agency and item type are mapping lookups in DCB's own database
 	private static final int ITEM_ENRICHMENT_CONCURRENCY = 4;
+
+	// Enough to tell a free copy from one with a queue; a fuller page counts as a queue on every copy
+	private static final int HOLDS_PAGE_SIZE = 100;
 
 	// Koha's list answers RESTdefaultPageSize rows (20 by default) unless asked for a page
 	// size; a title on a shared Koha has more copies than that. The cap bounds one check.
@@ -191,7 +192,8 @@ public class KohaHostLmsClient implements HostLmsClient {
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		ObjectRulesService objectRulesService,
 		RulesetCacheInvalidator cacheInvalidator,
-		HostLmsService hostLmsService) {
+		HostLmsService hostLmsService,
+		ConsortiumService consortiumService) {
 		this.hostLms = hostLms;
 		this.client = kohaClientFactory.createClientFor(hostLms);
 		this.referenceValueMappingService = referenceValueMappingService;
@@ -200,6 +202,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 		this.objectRulesService = objectRulesService;
 		this.cacheInvalidator = cacheInvalidator;
 		this.hostLmsService = hostLmsService;
+		this.consortiumService = consortiumService;
 		// Built here rather than injected, as Alma does. KohaClientConfig has no bean
 		// definition and its only constructor takes the HostLms, so it could never have
 		// been satisfied as an injection point.
@@ -280,11 +283,19 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// For creating a virtual patron
 		log.info("Creating a virtual patron in {}", getHostLmsCode());
 
-		// Extract names
-		String firstName = (patron.getLocalNames() != null && !patron.getLocalNames().isEmpty())
-			? patron.getLocalNames().get(0) : DEFAULT_FIRST_NAME;
-		String lastName = (patron.getLocalNames() != null && patron.getLocalNames().size() > 1)
-			? patron.getLocalNames().get(patron.getLocalNames().size() - 1) : DEFAULT_LAST_NAME;
+		return consortiumService.isEnabled(VIRTUAL_PATRON_NAMES_VISIBLE)
+			.map(namesVisible -> virtualPatron(patron, namesVisible))
+			.flatMap(client::createPatron)
+			.map(returnedPatron -> String.valueOf(returnedPatron.getPatronId()))
+			.doOnSuccess(id -> log.info("Created Koha patron with ID: {}", id));
+	}
+
+	// The borrower's names only when the consortium has made them visible, as Sierra, FOLIO and Alma do
+	private KohaPatron virtualPatron(Patron patron, boolean namesVisible) {
+		final List<String> names = namesVisible && patron.getLocalNames() != null
+			? patron.getLocalNames() : List.of();
+		String firstName = !names.isEmpty() ? names.get(0) : DEFAULT_FIRST_NAME;
+		String lastName = names.size() > 1 ? names.get(names.size() - 1) : DEFAULT_LAST_NAME;
 
 		// Koha POST /api/v1/patrons strictly requires surname, library_id, and category_id.
 		// A virtual patron stands for a borrower outside this Koha, which is precisely
@@ -297,20 +308,26 @@ public class KohaHostLmsClient implements HostLmsClient {
 			? patron.getLocalPatronType() : config.getVirtualPatronCategory();
 
 		// The unique id is the borrower's id and agency code, which overruns Koha's 32-character
-		// cardnumber; userid takes 75. The virtual patron has no card
-		final var kohaPatron = KohaPatron.builder()
+		// cardnumber; userid takes 75. The virtual patron has no card: a card number would let
+		// BASIC/BARCODE+NAME sign in as it. The home barcode goes in othernames instead, which the
+		// staff patron search reads, so a pickup desk finds the patron by the card they carry
+		return KohaPatron.builder()
 			.userid(patron.getUniqueIds() != null && !patron.getUniqueIds().isEmpty()
 				? patron.getUniqueIds().get(0) : null)
 			.surname(lastName)
 			.firstname(firstName)
+			.otherName(firstBarcode(patron))
 			.email(config.getVirtualPatronEmail())
 			.libraryId(libraryId)
 			.categoryId(categoryId)
 			.build();
+	}
 
-		return client.createPatron(kohaPatron)
-			.map(returnedPatron -> String.valueOf(returnedPatron.getPatronId()))
-			.doOnSuccess(id -> log.info("Created Koha patron with ID: {}", id));
+	private static String firstBarcode(Patron patron) {
+		return Optional.ofNullable(patron.getLocalBarcodes()).orElse(List.of()).stream()
+			.filter(barcode -> !isBlank(barcode))
+			.findFirst()
+			.orElse(null);
 	}
 
 	@Override
@@ -593,14 +610,10 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 	@Override
 	public Mono<String> createBib(Bib bib) {
-		log.debug("Koha: Creating virtual bib record for title: {}", bib.getTitle());
+		log.debug("Koha: Creating virtual bib record for title: {}", getValueOrNull(bib, Bib::getTitle));
 
-		final var author = (bib.getAuthor() != null) ? bib.getAuthor() : "";
-		final var title = (bib.getTitle() != null) ? bib.getTitle() : "DCB Virtual Record";
-
-		final String kohaBibXml = KohaMarcXmlGenerator.createBibXml(title, author);
-
-		return client.createBibRecord(kohaBibXml)
+		return Mono.fromCallable(() -> KohaVirtualBib.marcInJson(bib))
+			.flatMap(client::createBibRecord)
 			.mapNotNull(KohaCreatedBiblio::id)
 			.map(String::valueOf)
 			.switchIfEmpty(Mono.error(new IllegalStateException(
@@ -784,16 +797,56 @@ public class KohaHostLmsClient implements HostLmsClient {
 		// Resolved once per call rather than per item. The accessor caches, so per item
 		// would also be cheap, but the ruleset cannot change midway through one bib's
 		// items and reading it once says so.
-		return Mono.zip(getLmsItemSuppressionRuleset(), opacVisibleItemIds(bibId))
-			.flatMap(rulesAndVisible -> allItemsForBiblio(bibId)
-				.flatMap(kohaItem -> mapKohaItemToDcbItem(kohaItem, rulesAndVisible.getT1(), rulesAndVisible.getT2()),
-					ITEM_ENRICHMENT_CONCURRENCY)
+		return Mono.zip(getLmsItemSuppressionRuleset(), opacVisibleItemIds(bibId), activeHolds(bibId))
+			.flatMap(found -> allItemsForBiblio(bibId)
+				.map(kohaItem -> mapKohaItemToDcbItem(kohaItem, found.getT1(), found.getT2(), found.getT3()))
 				.flatMap(item -> locationToAgencyMappingService.enrichItemAgencyFromLocation(item, getHostLmsCode()),
 					ITEM_ENRICHMENT_CONCURRENCY)
 				.flatMap(materialTypeToItemTypeMappingService::enrichItemWithMappedItemType,
 					ITEM_ENRICHMENT_CONCURRENCY)
-				.onErrorContinue((throwable, item) -> log.warn("Mapping error for Koha item {}: {}", item, throwable.getMessage()))
 				.collectList());
+	}
+
+	/**
+	 * One read for the title, not one per copy. Koha's patrons mostly hold titles, and a
+	 * title-level hold can be filled by any copy, so every copy carries it; a read per copy by
+	 * item_id never saw them. A failed read fails the check: a copy cannot be shown free of
+	 * holds that were not read.
+	 */
+	private Mono<BiblioHolds> activeHolds(String bibId) {
+		return client.getActiveHoldsForBiblio(bibId, HOLDS_PAGE_SIZE)
+			.map(BiblioHolds::of)
+			.defaultIfEmpty(BiblioHolds.NONE)
+			.onErrorMap(this::holdsUnreadable);
+	}
+
+	private ThrowableProblem holdsUnreadable(Throwable error) {
+		log.error("Koha at {} would not say which copies have holds", getHostLmsCode(), error);
+
+		return Problem.builder()
+			.withTitle("Koha would not say which copies have holds")
+			.withStatus(Status.BAD_GATEWAY)
+			.withDetail("The holds read at %s failed: %s".formatted(getHostLmsCode(), kohaErrorMessage(error)))
+			.with("remedy", "Listing holds needs the same reserveforothers: place_holds permission as placing them; check the API patron still has it")
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	record BiblioHolds(Map<Long, Integer> perItem, int onTitle) {
+		static final BiblioHolds NONE = new BiblioHolds(Map.of(), 0);
+
+		static BiblioHolds of(KohaHoldResponse[] holds) {
+			final var perItem = Arrays.stream(holds)
+				.filter(hold -> hold.getItemId() != null)
+				.collect(Collectors.toUnmodifiableMap(KohaHoldResponse::getItemId, hold -> 1, Integer::sum));
+			final var onTitle = (int) Arrays.stream(holds).filter(hold -> hold.getItemId() == null).count();
+
+			return new BiblioHolds(perItem, holds.length < HOLDS_PAGE_SIZE ? onTitle : onTitle + 1);
+		}
+
+		int countFor(Long itemId) {
+			return perItem.getOrDefault(itemId, 0) + onTitle;
+		}
 	}
 
 	private Flux<KohaItem> allItemsForBiblio(String bibId) {
@@ -942,6 +995,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		log.info("Koha: Creating virtual item for bibId: {}, barcode: {}", bibId, barcode);
 
+		final String virtualBarcode = virtualItemBarcodeFor(barcode);
+
+		if (virtualBarcode.length() > KohaClientConfig.MAX_BARCODE_LENGTH) {
+			return Mono.error(barcodeTooLong(virtualBarcode));
+		}
+
 		final String targetLibraryCode = virtualItemLibraryFor(cic);
 //		final Integer virtualNotForLoanStatus = -1; // We might need to make this configurable
 
@@ -950,7 +1009,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.flatMap(itemType -> {
 
 				KohaItem virtualItem = KohaItem.builder()
-					.externalId(barcode) // Maps to Koha's barcode field
+					.externalId(virtualBarcode) // Maps to Koha's barcode field
 					.itemTypeId(itemType)
 					.homeLibraryId(targetLibraryCode)
 					.holdingLibraryId(targetLibraryCode)
@@ -959,12 +1018,13 @@ public class KohaHostLmsClient implements HostLmsClient {
 //					.notForLoanStatus(virtualNotForLoanStatus) // This could also make it so that virtual items are NOT requestable by local patrons.
 					// But we need to check it won't break checkouts (or that we can override) Override can be done via confirmation token so one to experiment with
 					.callnumber(DCB_VIRTUAL_ITEM_CALL_NUMBER)
-					.internalNotes("Virtual item = created by DCB")
-					.publicNotes("Virtual item = created by DCB")
+					.internalNotes(virtualItemNote(cic))
+					.publicNotes(virtualItemNote(cic))
 					.build();
 
 				// POST /api/v1/biblios/{biblio_id}/items
-				return client.createItem(bibId, virtualItem);
+				return client.createItem(bibId, virtualItem)
+					.onErrorMap(KohaHostLmsClient::isConflict, conflict -> duplicateBarcode(virtualBarcode));
 			})
 			.map(this::mapKohaItemToHostLmsItem)
 			.doOnSuccess(item -> log.info("Successfully created Koha virtual item: {}", item.getLocalId()))
@@ -987,6 +1047,55 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 * serving one library and wrong for one serving sixty - every library's incoming
 	 * loans would otherwise materialise at whichever branch was configured.
 	 */
+	@Override
+	public String virtualItemBarcodeFor(String supplierBarcode) {
+		final var prefix = config.getVirtualItemBarcodePrefix();
+
+		return prefix == null || supplierBarcode == null ? supplierBarcode : prefix + supplierBarcode;
+	}
+
+	// Koha answers 409 "Duplicate barcode." to a second item with the same barcode
+	private ThrowableProblem duplicateBarcode(String virtualBarcode) {
+		final var remedy = config.getVirtualItemBarcodePrefix() == null
+			? "Another item in this Koha already has the lender's barcode. If it is a DCB virtual item a finished request left behind, delete it; otherwise set virtual-item-barcode-prefix so DCB's virtual items cannot share a real item's barcode"
+			: "A DCB virtual item with this barcode is still in this Koha: an earlier request for the same copy has not finished, or left it behind. Delete it if no open request needs it";
+
+		return Problem.builder()
+			.withTitle("Koha already has an item with this barcode")
+			.withStatus(Status.CONFLICT)
+			.withDetail("Koha at %s refused the virtual item with barcode %s as a duplicate"
+				.formatted(getHostLmsCode(), virtualBarcode))
+			.with("remedy", remedy)
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	private ThrowableProblem barcodeTooLong(String virtualBarcode) {
+		return Problem.builder()
+			.withTitle("The virtual item's barcode is too long for Koha")
+			.withStatus(Status.BAD_REQUEST)
+			.withDetail("Barcode %s is %d characters; Koha at %s holds at most %d"
+				.formatted(virtualBarcode, virtualBarcode.length(), getHostLmsCode(), KohaClientConfig.MAX_BARCODE_LENGTH))
+			.with("remedy", config.getVirtualItemBarcodePrefix() == null
+				? "The lender's barcode does not fit a Koha item; this copy cannot be borrowed into this Koha"
+				: "Shorten virtual-item-barcode-prefix")
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
+	}
+
+	private static boolean isConflict(Throwable error) {
+		return statusOf(error) == HttpStatus.CONFLICT.getCode();
+	}
+
+	// The lending agency's code: what staff need to send the copy back once the loan ends
+	private static String virtualItemNote(CreateItemCommand cic) {
+		final var lender = getValueOrNull(cic, CreateItemCommand::getLocationCode);
+
+		return isBlank(lender)
+			? "Virtual item = created by DCB"
+			: "Virtual item = created by DCB. Return to " + lender;
+	}
+
 	private String virtualItemLibraryFor(CreateItemCommand cic) {
 		final var patronHomeLocation = getValueOrNull(cic, CreateItemCommand::getPatronHomeLocation);
 
@@ -1032,74 +1141,67 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.build());
 	}
 
-	private Mono<Item> mapKohaItemToDcbItem(KohaItem kohaItem,
-		Optional<ObjectRuleset> itemSuppressionRules, Optional<Set<Long>> opacVisible) {
+	private Item mapKohaItemToDcbItem(KohaItem kohaItem, Optional<ObjectRuleset> itemSuppressionRules,
+		Optional<Set<Long>> opacVisible, BiblioHolds holds) {
+
 		final String itemId = String.valueOf(kohaItem.getItemId());
 		final String bibId = String.valueOf(kohaItem.getBiblioId());
+		final int activeHoldCount = holds.countFor(kohaItem.getItemId());
 
-		// First we need the active holds.
-		return client.getActiveHoldsForItem(itemId)
-			.map(holds -> holds != null ? holds.length : 0)
-			.onErrorResume(e -> {
-				log.warn("Failed to fetch active holds for Koha item {}: {}", itemId, e.getMessage());
-				return Mono.just(0);
-			})
-			.map(activeHoldCount -> {
-				ItemStatusCode dcbStatusCode = deriveItemStatus(kohaItem);
-				Boolean isRequestable = ItemStatusCode.AVAILABLE.equals(dcbStatusCode); // CHECK THAT THIS IS THE SAME THING IN KOHA
+		ItemStatusCode dcbStatusCode = deriveItemStatus(kohaItem);
+		Boolean isRequestable = ItemStatusCode.AVAILABLE.equals(dcbStatusCode); // CHECK THAT THIS IS THE SAME THING IN KOHA
 
 
-				final Instant dueDate = kohaItem.getCheckout() == null
-					? null
-					: DueDates.parse(kohaItem.getCheckout().getDueDate());
+		final Instant dueDate = kohaItem.getCheckout() == null
+			? null
+			: DueDates.parse(kohaItem.getCheckout().getDueDate());
 
-				// Koha's "location" is a shelving classifier - REF, STACKS, JUV - and every
-				// branch on a shared server uses the same set of them, so it can never
-				// identify which library owns an item. The branch is home_library_id, with
-				// holding_library_id as the fallback for an item currently away from home.
-				// See Item, which documents the two as distinct concepts.
-				final var owningBranch = kohaItem.getHomeLibraryId() != null
-					? kohaItem.getHomeLibraryId()
-					: kohaItem.getHoldingLibraryId();
+		// Koha's "location" is a shelving classifier - REF, STACKS, JUV - and every
+		// branch on a shared server uses the same set of them, so it can never
+		// identify which library owns an item. The branch is home_library_id, with
+		// holding_library_id as the fallback for an item currently away from home.
+		// See Item, which documents the two as distinct concepts.
+		final var owningBranch = kohaItem.getHomeLibraryId() != null
+			? kohaItem.getHomeLibraryId()
+			: kohaItem.getHoldingLibraryId();
 
-				Location derivedLocation = owningBranch != null
-					? Location.builder()
-					.code(owningBranch)
-					.name(owningBranch)
-					.build()
-					: null;
+		Location derivedLocation = owningBranch != null
+			? Location.builder()
+			.code(owningBranch)
+			.name(owningBranch)
+			.build()
+			: null;
 
-				// Withdrawn is native and unconditional; everything else is the operator's
-				// ruleset. The not_for_loan_status 42 convention that used to be hardcoded
-				// here now lives in the koha-item-default ruleset, so a library that uses a
-				// different value can say so in config instead of asking for a release.
-				Boolean isSuppressed = deriveItemSuppressedFlag(kohaItem, itemSuppressionRules, opacVisible);
+		// Withdrawn is native and unconditional; everything else is the operator's
+		// ruleset. The not_for_loan_status 42 convention that used to be hardcoded
+		// here now lives in the koha-item-default ruleset, so a library that uses a
+		// different value can say so in config instead of asking for a release.
+		Boolean isSuppressed = deriveItemSuppressedFlag(kohaItem, itemSuppressionRules, opacVisible);
 
-				return Item.builder()
-					.localId(itemId)
-					.status(new ItemStatus(dcbStatusCode))
-					.dueDate(dueDate)
-					.location(derivedLocation)
-					.shelvingLocation(kohaItem.getLocation())
-					.barcode(kohaItem.getExternalId())
-					.callNumber(kohaItem.getCallnumber())
-					.isRequestable(isRequestable)
-					.holdCount(activeHoldCount) // Uses active holds, not the historical hold_count tally
-					.localBibId(bibId)
-					.localItemType(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
-					.localItemTypeCode(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
-					.suppressed(isSuppressed)
-					.rawVolumeStatement(kohaItem.getSerialIssueNumber())
-					.parsedVolumeStatement(VolumeDesignation.normalise(kohaItem.getSerialIssueNumber()))
-					// The system the item came from, as opposed to owningContext, which is
-					// overwritten with the agency's Host LMS once the location resolves. When
-					// the location does not resolve there is no agency and so no owning
-					// context, and this is then the only record of where the item came from -
-					// which is exactly the case an operator has to diagnose on a shared system.
-					.sourceHostLmsCode(getHostLmsCode())
-					.owningContext(getHostLms().getCode())
-					.build();
-			});
+		return Item.builder()
+			.localId(itemId)
+			.status(new ItemStatus(dcbStatusCode))
+			.dueDate(dueDate)
+			.location(derivedLocation)
+			.shelvingLocation(kohaItem.getLocation())
+			.barcode(kohaItem.getExternalId())
+			.callNumber(kohaItem.getCallnumber())
+			.isRequestable(isRequestable)
+			.holdCount(activeHoldCount) // Uses active holds, not the historical hold_count tally
+			.localBibId(bibId)
+			.localItemType(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
+			.localItemTypeCode(kohaItem.getEffectiveItemTypeId() != null ? kohaItem.getEffectiveItemTypeId() : kohaItem.getItemTypeId())
+			.suppressed(isSuppressed)
+			.rawVolumeStatement(kohaItem.getSerialIssueNumber())
+			.parsedVolumeStatement(VolumeDesignation.normalise(kohaItem.getSerialIssueNumber()))
+			// The system the item came from, as opposed to owningContext, which is
+			// overwritten with the agency's Host LMS once the location resolves. When
+			// the location does not resolve there is no agency and so no owning
+			// context, and this is then the only record of where the item came from -
+			// which is exactly the case an operator has to diagnose on a shared system.
+			.sourceHostLmsCode(getHostLmsCode())
+			.owningContext(getHostLms().getCode())
+			.build();
 	}
 
 
@@ -1460,23 +1562,19 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		return client.checkoutItem(request)
 			.onErrorResume(KohaHostLmsClient::needsConfirmation,
-				needsConfirmation -> confirmCheckout(request, patronId, itemId))
+				needsConfirmation -> explainUnconfirmedCheckout(patronId, itemId))
 			.thenReturn("OK")
 			.doOnError(e -> log.error("Koha checkout of item {} to patron {} failed: {}",
 				itemId, patronId, e.getMessage()));
 	}
 
-	/**
-	 * The confirmations Koha asks staff for that a consortium loan always answers yes to:
-	 * the item is in transit to, reserved for, or waiting at the sharing branch for the very
-	 * patron it is being lent to. Any other confirmation, and any blocker, is a refusal.
-	 */
-	private static final Set<String> ACCEPTED_CHECKOUT_CONFIRMATIONS = Set.of(
-		"TRANSFERRED", "RESERVED", "RESERVE_WAITING");
+	// Koha sets these only when the copy is already on loan to this same patron (C4::Circulation's
+	// CanBookBeIssued), which is the outcome a retried checkout asked for
+	private static final Set<String> ALREADY_LENT_TO_THIS_PATRON = Set.of(
+		"RENEW_ISSUE", "NO_MORE_RENEWALS", "NO_RENEWAL_FOR_ONSITE_CHECKOUTS");
 
-	// Koha answers 412 when staff would be asked to confirm; the availability read says what,
-	// and issues the token the confirmed checkout carries
-	private Mono<KohaCheckout> confirmCheckout(KohaCheckoutRequest request, String patronId, String itemId) {
+	// Koha answers 412 when staff would be asked to confirm; the availability read says why
+	private Mono<KohaCheckout> explainUnconfirmedCheckout(String patronId, String itemId) {
 		if (isBlank(itemId)) {
 			return Mono.error(Problem.builder()
 				.withTitle("Koha wants the checkout confirmed")
@@ -1488,27 +1586,28 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		return client.getCheckoutAvailability(patronId, itemId)
 			.flatMap(availability -> {
-				final var blockers = keysOf(availability.getBlockers());
+				final var blockers = reasonCodes(availability.getBlockers());
+				final var confirms = reasonCodes(availability.getConfirms());
 
-				if (!blockers.isEmpty()) {
-					return Mono.error(checkoutRefused("Koha refused the checkout", patronId, itemId,
-						"blocked", blockers));
+				if (Stream.concat(blockers.stream(), confirms.stream()).anyMatch(ALREADY_LENT_TO_THIS_PATRON::contains)) {
+					log.info("Koha item {} is already on loan to patron {} in {}", itemId, patronId, getHostLmsCode());
+
+					return Mono.<KohaCheckout>empty();
 				}
 
-				final var confirms = keysOf(availability.getConfirms());
-				final var unaccepted = confirms.stream()
-					.filter(confirm -> !ACCEPTED_CHECKOUT_CONFIRMATIONS.contains(confirm))
-					.toList();
-
-				if (!unaccepted.isEmpty() || isBlank(availability.getConfirmationToken())) {
-					return Mono.error(checkoutRefused("Koha wants a confirmation DCB does not give",
-						patronId, itemId, "confirmations", unaccepted.isEmpty() ? confirms : unaccepted));
-				}
-
-				log.info("Koha: confirming checkout of item {} to patron {} over {}", itemId, patronId, confirms);
-
-				return client.checkoutItem(request, availability.getConfirmationToken());
+				return Mono.error(blockers.isEmpty()
+					? checkoutRefused("Koha wants a confirmation DCB does not give", patronId, itemId, "confirmations", confirms)
+					: checkoutRefused("Koha refused the checkout", patronId, itemId, "blocked", blockers));
 			});
+	}
+
+	// Koha's reasons are upper case; the lower-case keys beside them describe another patron
+	// (resfirstname, rescardnumber and the rest) and go no further than this
+	private static List<String> reasonCodes(Map<String, Object> answers) {
+		return keysOf(answers).stream()
+			.filter(key -> key.equals(key.toUpperCase(Locale.ROOT)))
+			.sorted()
+			.toList();
 	}
 
 	private ThrowableProblem checkoutRefused(String title, String patronId, String itemId,
@@ -1598,12 +1697,12 @@ public class KohaHostLmsClient implements HostLmsClient {
 					: "Check the item in by hand in Koha"));
 	}
 
-	// The command carries the lender's barcode, which the virtual item was created with
+	// The command carries the lender's barcode, which the virtual item was created from
 	private Mono<String> virtualItemBarcode(String itemId, CheckInItemCommand command) {
 		final var barcode = getValueOrNull(command, CheckInItemCommand::getItemBarcode);
 
 		return !isBlank(barcode)
-			? Mono.just(barcode)
+			? Mono.just(virtualItemBarcodeFor(barcode))
 			: client.getItem(itemId).mapNotNull(KohaItem::getExternalId);
 	}
 
@@ -1987,7 +2086,7 @@ public class KohaHostLmsClient implements HostLmsClient {
 
 		return Mono.zip(biblioIdFor(localRequest.getBibId(), itemId), itemType)
 			.flatMap(found -> client.updateItem(found.getT1(), itemId, KohaItem.builder()
-				.externalId(barcode)
+				.externalId(virtualItemBarcodeFor(barcode))
 				.itemTypeId(found.getT2().orElse(null))
 				.build()))
 			.thenReturn(localRequest);
