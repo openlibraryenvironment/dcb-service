@@ -178,6 +178,41 @@ class PolarisItemMapperTests {
 	}
 
 	@Test
+	void shouldNotLendAnItemPolarisSaysIsNotLoanableOutsideTheSystem() {
+		// Arrange
+		final var locationName = "Mapped Location";
+		final var config = locationToPolicyMapConfig(Map.of(locationName, GENERAL.name()));
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation(locationName)
+			.Holdable(true)
+			.NonCirculating(false)
+			.LoanableOutsideSystem(false)
+			.build(), config);
+
+		// Assert
+		assertThat(item, hasDerivedLoanPolicy(NO_LEND));
+	}
+
+	@Test
+	void shouldLendAnItemPolarisSaysIsLoanableOutsideTheSystem() {
+		// Arrange
+		final var locationName = "Mapped Location";
+		final var config = locationToPolicyMapConfig(Map.of(locationName, GENERAL.name()));
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation(locationName)
+			.Holdable(true)
+			.LoanableOutsideSystem(true)
+			.build(), config);
+
+		// Assert
+		assertThat(item, hasDerivedLoanPolicy(GENERAL));
+	}
+
+	@Test
 	void shouldNotLendAnItemPolarisSaysIsNonCirculating() {
 		// Arrange
 		final var config = locationToPolicyMapConfig(Map.of());

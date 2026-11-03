@@ -1103,6 +1103,8 @@ public class PAPIClient {
 		private String ModificationDate;
 		@JsonProperty("NonCirculating")
 		private Boolean NonCirculating;
+		@JsonProperty("LoanableOutsideSystem")
+		private Boolean LoanableOutsideSystem;
 	}
 
 	@Builder

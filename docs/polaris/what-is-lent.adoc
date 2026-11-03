@@ -4,12 +4,6 @@
 DCB reads each item through the PAPI item list for its bib. Several things can stop it offering
 an item to other libraries.
 
-== What Polaris cannot tell DCB
-
-The item record's *Loanable outside system* checkbox is not in the PAPI item data, so DCB cannot
-read it. An item with the box unticked is offered like any other. Use one of the settings below
-for items a library never lends outside its own system.
-
 == Flags DCB reads from the item
 
 [cols="1,3",options="header"]
@@ -19,6 +13,12 @@ for items a library never lends outside its own system.
 | *Display in PAC* off
 | The item is suppressed: it is not shown or offered.
 
+| *Loanable outside system* off
+| The item is given the loan policy `NO_LEND` and is not offered. This is the flag for items a
+library lends to its own patrons but not to other libraries. PAPI sends it as
+`LoanableOutsideSystem` in the item list for a bib (seen on Polaris 8.1). If a Polaris version
+leaves it out, the item is offered and only the settings below keep it back.
+
 | *Holdable* off
 | The item is given the loan policy `NO_LEND` and is not offered. Polaris would refuse DCB's hold anyway.
 
@@ -26,8 +26,8 @@ for items a library never lends outside its own system.
 | The item is given the loan policy `NO_LEND` and is not offered.
 |===
 
-Ask libraries not to use *Holdable* or *Non-circulating* just to keep an item out of DCB: both
-also stop the library's own patrons borrowing it.
+Ask libraries to use *Loanable outside system*, not *Holdable* or *Non-circulating*, to keep an
+item out of DCB: the other two also stop the library's own patrons borrowing it.
 
 == Host LMS settings
 

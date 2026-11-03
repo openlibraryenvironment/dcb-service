@@ -133,9 +133,13 @@ public class PolarisItemMapper {
 			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
 	}
 
-	// PAPI does not publish "Loanable outside system"; these are the two flags it does send that
-	// say an item cannot be lent. Either one wins over the shelf location policy map.
+	// Any one of these flags wins over the shelf location policy map. An absent flag is not a refusal.
 	private static boolean isNeverLent(ItemGetRow itemGetRow, List<String> decisionLogEntries) {
+		if (FALSE.equals(itemGetRow.getLoanableOutsideSystem())) {
+			decisionLogEntries.add("LoanPolicy NO_LEND because the item is not loanable outside the system");
+			return true;
+		}
+
 		if (FALSE.equals(itemGetRow.getHoldable())) {
 			decisionLogEntries.add("LoanPolicy NO_LEND because the item is not holdable");
 			return true;
