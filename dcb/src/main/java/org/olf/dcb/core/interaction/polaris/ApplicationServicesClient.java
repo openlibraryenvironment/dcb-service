@@ -1965,7 +1965,8 @@ class ApplicationServicesClient {
 		private String browseTitle;
 		@JsonProperty("ConstituentFlag")
 		private Boolean constituentFlag;
-		@JsonProperty("DisplayInPAC")
+		// A bib read spells it DisplayInPac, unlike the create body (Polaris 8.1 training server, 2 Nov 2026)
+		@JsonProperty("DisplayInPac")
 		private Boolean displayInPAC;
 		@JsonProperty("HostFlag")
 		private Boolean hostFlag;

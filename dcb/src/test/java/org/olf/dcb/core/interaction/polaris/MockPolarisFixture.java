@@ -438,10 +438,7 @@ public class MockPolarisFixture {
 
 	public void mockCreateBib(Integer bibId) {
 		mockServer.replaceMock(createBibRequest(), bibId);
-		mockGetBib(bibId, BibliographicRecord.builder()
-			.bibliographicRecordID(bibId)
-			.displayInPAC(false)
-			.build());
+		mockGetBibAsPolarisSendsIt(bibId, false);
 	}
 
 	/**
@@ -449,10 +446,16 @@ public class MockPolarisFixture {
 	 */
 	public void mockCreateBibResolvingOntoDisplayedBib(Integer bibId) {
 		mockServer.replaceMock(createBibRequest(), bibId);
-		mockGetBib(bibId, BibliographicRecord.builder()
-			.bibliographicRecordID(bibId)
-			.displayInPAC(true)
-			.build());
+		mockGetBibAsPolarisSendsIt(bibId, true);
+	}
+
+	// Raw JSON, not a serialised BibliographicRecord: a round trip through the model would hide a
+	// wrongly spelt property
+	private void mockGetBibAsPolarisSendsIt(Integer bibId, boolean displayInPac) {
+		mockServer.mockGet(paths.getBib(bibId), response()
+			.withStatusCode(200)
+			.withBody(json("""
+				{ "BibliographicRecordID": %d, "DisplayInPac": %b }""".formatted(bibId, displayInPac))));
 	}
 
 	public void verifyCreateBibBodyContains(String fragment) {
