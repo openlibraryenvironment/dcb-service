@@ -246,7 +246,9 @@ public class PAPIClient {
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE)),
 			Argument.of(PatronCirculationBlocksResult.class))
-			.flatMap(result -> checkForPAPIErrorCode(result, CannotGetPatronBlocksProblem::new));
+			.flatMap(result -> checkForPAPIErrorCode(result, CannotGetPatronBlocksProblem::new))
+			.filter(result -> result.getCanPatronCirculate() != null)
+			.switchIfEmpty(Mono.error(CannotGetPatronBlocksProblem::withoutCanPatronCirculate));
 	}
 
 	/**

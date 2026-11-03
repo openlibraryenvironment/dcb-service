@@ -157,8 +157,7 @@ class PolarisLmsClientGetPatronTests {
 	}
 
 	@Test
-	void shouldDefaultToNotBlocked() {
-		// Arrange
+	void shouldFailWhenCirculationBlocksDoNotSayWhetherThePatronCanCirculate() {
 		final var localId = "8264569";
 		final var barcode = "936525732";
 		final var organisationId = "39";
@@ -176,14 +175,10 @@ class PolarisLmsClientGetPatronTests {
 
 		definePatronTypeMapping(patronCodeId, "UNDERGRADUATE");
 
-		// Act
-		final var patron = getPatron(localId);
+		final var problem = assertThrows(CannotGetPatronBlocksProblem.class,
+			() -> getPatron(localId));
 
-		// Assert
-		assertThat(patron, allOf(
-			notNullValue(),
-			isNotBlocked()
-		));
+		assertThat(problem, hasMessage("Circulation blocks endpoint did not say whether the patron can circulate"));
 	}
 
 	@Test

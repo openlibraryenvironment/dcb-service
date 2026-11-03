@@ -15,6 +15,10 @@ could not check was let through.
 If a Polaris answers -1 for every blocks check, its patrons cannot place requests until the
 cause is fixed. The error names the code and PAPI's message.
 
+An answer without `CanPatronCirculate` also fails the lookup. Before this release DCB read it as
+"not blocked". The Polaris 8.1 training server sent the field on every answer seen, including the
+answer for a patron it could not find.
+
 == The virtual patron search
 
 When DCB searches for its virtual patron for a borrower, PAPI answers a search with no match with

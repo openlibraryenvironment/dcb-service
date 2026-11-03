@@ -1308,10 +1308,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private static Patron isBlocked(Patron patron, PatronCirculationBlocksResult blocks) {
-		final var canCirculate = getValue(blocks,
-			PatronCirculationBlocksResult::getCanPatronCirculate, true);
-
-		return patron.setIsBlocked(!canCirculate);
+		return patron.setIsBlocked(!TRUE.equals(blocks.getCanPatronCirculate()));
 	}
 
 	@Override
