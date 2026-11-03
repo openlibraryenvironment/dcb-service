@@ -527,23 +527,21 @@ public class PAPIClient {
 			.flatMap(authFilter::ensureStaffAuth)
 			.delayElement(Duration.ofSeconds(findDelay)),
 			Argument.of(PatronSearchResult.class))
-			.flatMap(result -> isGeneralFailure(result)
+			.flatMap(result -> isNoMatch(result)
 				? Mono.just(result)
 				: checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
 			.map(checkForUniquePatronResult(path, ccl));
 	}
 
-	// Read as "no match" since DCB-1004, and not yet seen against a real Polaris: a search that
-	// fails this way creates a new virtual patron. See docs/polaris/papi-errors.adoc.
-	private static boolean isGeneralFailure(PapiResult result) {
-		if (getValue(result, PapiResult::getPapiErrorCode, 0) != GENERAL_FAILURE) {
-			return false;
-		}
+	// A search with no match answers -1 with an empty ErrorMessage and no rows (Polaris 8.1, 2 Nov
+	// 2026). Any other -1 fails the search: read as no match, it would create a second virtual patron.
+	private static boolean isNoMatch(PatronSearchResult result) {
+		final var message = getValueOrNull(result, PapiResult::getErrorMessage);
+		final var rows = getValueOrNull(result, PatronSearchResult::getPatronSearchRows);
 
-		log.info("PAPIService returned 'General Failure' for the virtual patron search, read as no match: {}",
-			getValueOrNull(result, PapiResult::getErrorMessage));
-
-		return true;
+		return getValue(result, PapiResult::getPapiErrorCode, 0) == GENERAL_FAILURE
+			&& (message == null || message.isBlank())
+			&& (rows == null || rows.isEmpty());
 	}
 
 	private Function<PatronSearchResult, PatronSearchRow> checkForUniquePatronResult(String path, String ccl) {

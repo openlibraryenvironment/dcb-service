@@ -856,14 +856,33 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void shouldReadGeneralFailureFromVirtualPatronSearchAsNoMatch() {
+	void shouldReadPolarisNoMatchAnswerFromVirtualPatronSearchAsNoMatch() {
+		final var barcode = generateBarcode();
+
+		mockPolarisFixture.mockPatronSearchPapiError(barcode, -1, "");
+
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		assertThrows(VirtualPatronNotFound.class,
+			() -> singleValueFrom(client.findVirtualPatron(borrowerWithHomeBarcode(barcode))));
+	}
+
+	@Test
+	void shouldFailVirtualPatronSearchWhenPolarisReportsAGeneralFailure() {
 		final var barcode = generateBarcode();
 
 		mockPolarisFixture.mockPatronSearchPapiError(barcode, -1, "General Failure");
 
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var patron = org.olf.dcb.core.model.Patron.builder()
+		final var exception = assertThrows(FindVirtualPatronException.class,
+			() -> singleValueFrom(client.findVirtualPatron(borrowerWithHomeBarcode(barcode))));
+
+		assertThat(exception, hasMessage("PAPIService returned [-1], with message: General Failure"));
+	}
+
+	private static org.olf.dcb.core.model.Patron borrowerWithHomeBarcode(String barcode) {
+		return org.olf.dcb.core.model.Patron.builder()
 			.id(randomUUID())
 			.patronIdentities(List.of(
 				PatronIdentity.builder()
@@ -876,8 +895,6 @@ class PolarisLmsClientTests {
 					.build()
 			))
 			.build();
-
-		assertThrows(VirtualPatronNotFound.class, () -> singleValueFrom(client.findVirtualPatron(patron)));
 	}
 
 	@Test
