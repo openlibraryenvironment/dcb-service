@@ -711,8 +711,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			case "Pending", "Active",
 				// Edge case that the item has been put in transit by staff
 				// before DCB had a chance to confirm the supplier request
-				"Shipped" -> HostLmsRequest.HOLD_CONFIRMED;
-			case "Held" -> HostLmsRequest.HOLD_READY;
+				"Shipped",
+				// An item found for the hold; Polaris moves it on to Shipped within hours
+				"Located" -> HostLmsRequest.HOLD_CONFIRMED;
+			// Unclaimed: the hold-shelf period has passed but the item is still there, and patrons do
+			// still collect (39 of 442 in MOBIUS production, Aug to Oct 2026). Polaris cancels it later.
+			case "Held", "Unclaimed" -> HostLmsRequest.HOLD_READY;
 			case "Missing" -> HostLmsRequest.HOLD_MISSING;
 			default -> status;
 		};

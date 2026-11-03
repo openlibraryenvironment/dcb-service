@@ -1579,6 +1579,32 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldDetectRequestIsConfirmedWhenPolarisHasLocatedTheItem() {
+		final var localHoldId = generateNumericLocalId();
+
+		mockPolarisFixture.mockGetHold(localHoldId,
+			libraryHold(generateNumericLocalId(), generateBarcode(), "Located"));
+
+		assertThat(getRequest(localHoldId), allOf(
+			hasStatus(HOLD_CONFIRMED),
+			hasRawStatus("Located")
+		));
+	}
+
+	@Test
+	void shouldDetectRequestIsStillReadyForPickupWhenPolarisMarksItUnclaimed() {
+		final var localHoldId = generateNumericLocalId();
+
+		mockPolarisFixture.mockGetHold(localHoldId,
+			libraryHold(generateNumericLocalId(), generateBarcode(), "Unclaimed"));
+
+		assertThat(getRequest(localHoldId), allOf(
+			hasStatus(HOLD_READY),
+			hasRawStatus("Unclaimed")
+		));
+	}
+
+	@Test
 	void shouldBeAbleToCreateVirtualPatron() {
 		// Arrange
 		final var patronId = generateNumericLocalId();
