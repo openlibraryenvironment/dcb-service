@@ -9,17 +9,19 @@ import io.micronaut.core.annotation.Nullable;
  * A record rather than a bare String because Reactor cannot carry null through a Mono, and
  * an empty Mono is far too easy to read as "denied" at a call site - which would fail open.
  * A null libraryCode means "no narrowing", and only a consortium-level caller ever gets one.
+ * agencyCodes narrows further, to requests whose patron or supplying library is one of them;
+ * null means every library on those systems. docs/insights-per-agency.md.
  */
-public record StatsScope(@Nullable String libraryCode) {
+public record StatsScope(@Nullable String libraryCode, @Nullable String agencyCodes) {
 
-	private static final StatsScope UNSCOPED = new StatsScope(null);
+	private static final StatsScope UNSCOPED = new StatsScope(null, null);
 
 	public static StatsScope unscoped() {
 		return UNSCOPED;
 	}
 
 	public static StatsScope of(String libraryCode) {
-		return new StatsScope(libraryCode);
+		return new StatsScope(libraryCode, null);
 	}
 
 	/**
@@ -29,7 +31,7 @@ public record StatsScope(@Nullable String libraryCode) {
 	 * same path with no second query shape to keep in step.
 	 */
 	public static StatsScope of(java.util.Collection<String> libraryCodes) {
-		return new StatsScope(String.join(",", libraryCodes));
+		return new StatsScope(String.join(",", libraryCodes), null);
 	}
 
 	public boolean isUnscoped() {

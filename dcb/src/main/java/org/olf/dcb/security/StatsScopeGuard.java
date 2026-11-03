@@ -52,6 +52,48 @@ public class StatsScopeGuard {
 		this.agencyService = agencyService;
 	}
 
+	/** At most this many agencies in one request: one person administers a handful, not hundreds. */
+	public static final int MAX_REQUESTED_AGENCIES = 50;
+
+	/**
+	 * The scope for libraries rather than whole systems: requests whose patron, or whose
+	 * supplying library, is one of the requested agencies. A library caller may ask only for its
+	 * own; the agencies' own systems become the library filter, so they take precedence over any
+	 * requestedLibraryCode. Without agencies, as {@link #resolve(Authentication, String)}.
+	 */
+	public Mono<StatsScope> resolve(@Nullable Authentication authentication,
+		@Nullable String requestedLibraryCode, @Nullable String requestedAgencyCodes) {
+
+		if (requestedAgencyCodes == null || requestedAgencyCodes.isBlank()) {
+			return resolve(authentication, requestedLibraryCode);
+		}
+
+		final var agencies = requestedCodes(requestedAgencyCodes);
+
+		if (agencies.size() > MAX_REQUESTED_AGENCIES
+			|| agencies.stream().anyMatch(code -> code.isBlank() || code.length() > 32)) {
+
+			return Mono.error(new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"requestedAgencyCodes names at most " + MAX_REQUESTED_AGENCIES + " agency codes."));
+		}
+
+		final var scope = scopeOf(authentication);
+
+		if (scope.requiresNarrowing()) {
+			if (scope.isIncoherent()) {
+				return refuse("caller holds a library role but the token carries no " + AgencyClaims.CODE + " claim");
+			}
+			if (!scope.agencyCodes().containsAll(agencies)) {
+				return refuse("caller scoped to " + scope.agencyCodes() + " asked for agencies " + agencies);
+			}
+		}
+
+		return ownHostLmsCodes(agencies)
+			.flatMap(systems -> systems.isEmpty()
+				? refuse("no agency in " + agencies + " resolves to a Host LMS")
+				: Mono.just(new StatsScope(String.join(",", systems), String.join(",", agencies))));
+	}
+
 	/**
 	 * The library filter to apply, given who is asking and what they asked for.
 	 *

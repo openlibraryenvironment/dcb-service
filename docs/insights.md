@@ -36,6 +36,9 @@ shares only `TimeBucket` with Insights.
 
 ---
 
+For one library on a shared system rather than its whole Host LMS, `requestedAgencyCodes`:
+[insights-per-agency.md](insights-per-agency.md).
+
 ## Part 1 — What Insights is for
 
 DCB knows a great deal that nobody could previously ask it. Every patron request carries its

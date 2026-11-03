@@ -67,6 +67,48 @@ class StatsScopeGuardTests {
 	}
 
 	@Test
+	void aLibrarianMayNarrowToTheirOwnAgenciesAndTheirSystemsBecomeTheFilter() {
+		final var scope = singleValueFrom(statsScopeGuard.resolve(librarian("AG_A", "AG_B"), null, "AG_B"));
+
+		assertThat(scope.agencyCodes(), equalTo("AG_B"));
+		assertThat(scope.libraryCode(), equalTo("LIB_B"));
+	}
+
+	@Test
+	void aLibrarianAskingForAnotherLibrarysAgencyIsRefused() {
+		final var refusal = assertThrows(HttpStatusException.class, () -> singleValueFrom(
+			statsScopeGuard.resolve(librarian("AG_A"), null, "AG_A,AG_C")));
+
+		assertThat(refusal.getStatus().getCode(), equalTo(403));
+	}
+
+	@Test
+	void theAgenciesDecideTheSystemsWhateverLibraryCodeWasSent() {
+		final var scope = singleValueFrom(statsScopeGuard.resolve(consortiumAdmin(), "LIB_A", "AG_C"));
+
+		assertThat(scope.libraryCode(), equalTo("LIB_C"));
+		assertThat(scope.agencyCodes(), equalTo("AG_C"));
+	}
+
+	@Test
+	void tooManyOrBlankAgenciesAreABadRequest() {
+		final var tooMany = String.join(",", java.util.Collections.nCopies(StatsScopeGuard.MAX_REQUESTED_AGENCIES + 1, "AG_A"));
+
+		assertThat(assertThrows(HttpStatusException.class, () -> singleValueFrom(
+			statsScopeGuard.resolve(consortiumAdmin(), null, tooMany))).getStatus().getCode(), equalTo(400));
+		assertThat(assertThrows(HttpStatusException.class, () -> singleValueFrom(
+			statsScopeGuard.resolve(consortiumAdmin(), null, "AG_A,"))).getStatus().getCode(), equalTo(400));
+	}
+
+	@Test
+	void noAgenciesIsTheSystemScopeAsBefore() {
+		final var scope = singleValueFrom(statsScopeGuard.resolve(librarian("AG_A"), null, null));
+
+		assertThat(scope.libraryCode(), equalTo("LIB_A"));
+		assertThat(scope.agencyCodes(), nullValue());
+	}
+
+	@Test
 	void aLibrarianMayAskForTheWholeSetTheyAdminister() {
 		final var scope = singleValueFrom(
 			statsScopeGuard.resolve(librarian("AG_A", "AG_B"), "LIB_A,LIB_B"));

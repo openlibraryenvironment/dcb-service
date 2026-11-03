@@ -51,7 +51,7 @@ class LendingAnalysisServiceTests {
 		supply("LEND_A", rare, 2);
 		supply("LEND_B", elsewhere, 6);
 
-		final var analysis = lendingAnalysis.mostLent("LEND_A", null, null).block(Duration.ofMinutes(1));
+		final var analysis = lendingAnalysis.mostLent("LEND_A", null, null, null).block(Duration.ofMinutes(1));
 
 		assertThat(analysis.groups().stream().map(LentTitleStat::clusterId).toList(), contains(popular));
 		assertThat(analysis.groups().getFirst().requestCount(), is(5L));
@@ -63,7 +63,7 @@ class LendingAnalysisServiceTests {
 	void formatsBelowTheMinimumAreFoldedToo() {
 		supply("LEND_C", liveCluster("Only three"), 3);
 
-		final var analysis = lendingAnalysis.byFormat("LEND_C", null, null).block(Duration.ofMinutes(1));
+		final var analysis = lendingAnalysis.byFormat("LEND_C", null, null, null).block(Duration.ofMinutes(1));
 
 		assertThat(analysis.groups(), hasSize(0));
 		assertThat(analysis.other(), is(3L));

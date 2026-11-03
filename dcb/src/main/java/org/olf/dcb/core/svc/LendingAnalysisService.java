@@ -54,35 +54,37 @@ public class LendingAnalysisService {
 		this.requests = requests;
 		this.clock = clock;
 		this.ttl = ttl;
-		// Keyed by Host LMS codes and window: one entry per library and date range asked for
+		// Keyed by Host LMS codes, agencies and window: one entry per scope and date range asked for
 		this.titles = Caffeine.newBuilder().maximumSize(MAX_CACHED).expireAfterWrite(ttl).build();
 		this.formats = Caffeine.newBuilder().maximumSize(MAX_CACHED).expireAfterWrite(ttl).build();
 	}
 
-	public Mono<LendingAnalysis<LentTitleStat>> mostLent(String libraryCode, @Nullable Instant startDate,
-		@Nullable Instant endDate) {
+	public Mono<LendingAnalysis<LentTitleStat>> mostLent(String libraryCode, @Nullable String agencyCodes,
+		@Nullable Instant startDate, @Nullable Instant endDate) {
 
 		final var window = Window.of(startDate, endDate, clock.instant());
 
-		return titles.get(window.key(libraryCode), key -> analyse(libraryCode, window,
-			Flux.from(requests.findMostLentTitles(libraryCode, window.start(), window.end(), MINIMUM_GROUP, MAX_TITLES)),
+		return titles.get(window.key(libraryCode + "|" + agencyCodes), key -> analyse(libraryCode, agencyCodes, window,
+			Flux.from(requests.findMostLentTitles(libraryCode, agencyCodes, window.start(), window.end(), MINIMUM_GROUP,
+				MAX_TITLES)),
 			LentTitleStat::requestCount));
 	}
 
-	public Mono<LendingAnalysis<LendingFormatStat>> byFormat(String libraryCode, @Nullable Instant startDate,
-		@Nullable Instant endDate) {
+	public Mono<LendingAnalysis<LendingFormatStat>> byFormat(String libraryCode, @Nullable String agencyCodes,
+		@Nullable Instant startDate, @Nullable Instant endDate) {
 
 		final var window = Window.of(startDate, endDate, clock.instant());
 
-		return formats.get(window.key(libraryCode), key -> analyse(libraryCode, window,
-			Flux.from(requests.findLendingByFormat(libraryCode, window.start(), window.end(), MINIMUM_GROUP)),
+		return formats.get(window.key(libraryCode + "|" + agencyCodes), key -> analyse(libraryCode, agencyCodes, window,
+			Flux.from(requests.findLendingByFormat(libraryCode, agencyCodes, window.start(), window.end(), MINIMUM_GROUP)),
 			LendingFormatStat::requestCount));
 	}
 
-	private <T> Mono<LendingAnalysis<T>> analyse(String libraryCode, Window window, Flux<T> groups,
-		Function<T, Long> countOf) {
+	private <T> Mono<LendingAnalysis<T>> analyse(String libraryCode, @Nullable String agencyCodes, Window window,
+		Flux<T> groups, Function<T, Long> countOf) {
 
-		final Mono<Long> total = Mono.from(requests.countRequestsSuppliedBy(libraryCode, window.start(), window.end()))
+		final Mono<Long> total = Mono.from(requests.countRequestsSuppliedBy(libraryCode, agencyCodes, window.start(),
+				window.end()))
 			.defaultIfEmpty(0L);
 
 		// As CollectionAnalysisService shares its queries: callers share one read, a failure is not kept
