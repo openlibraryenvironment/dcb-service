@@ -162,7 +162,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	// This is the minimum we should know to place a hold in Alma (V1)
 	private record MinimumAlmaHold(String localPatronId, String localItemId, String pickupLibraryCode,
 		String pickupDeskCode, String comment, String dcbRequestId, String localBibId,
-		String localItemBarcode) {}
+		String localHoldingId, String localItemBarcode) {}
 
 	private record Pickup(String libraryCode, String deskCode) {}
 
@@ -173,7 +173,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				? new Pickup(resolveLibraryFromLocationRecord(hold), null) : supplierPickup(hold))
 			.flatMap(pickup -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), pickup.libraryCode(), pickup.deskCode(), p.getNote(),
-				p.getPatronRequestId(), p.getLocalBibId(), p.getLocalItemBarcode())))
+				p.getPatronRequestId(), p.getLocalBibId(), p.getLocalHoldingId(), p.getLocalItemBarcode())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtSupplyingAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -185,7 +185,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				? getDcbSharingLibraryCode() : resolveLibraryFromLocationRecord(hold))
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), lib, null, p.getNote(), p.getPatronRequestId(),
-				p.getLocalBibId(), p.getLocalItemBarcode())))
+				p.getLocalBibId(), p.getLocalHoldingId(), p.getLocalItemBarcode())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtBorrowingAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -196,7 +196,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(this::resolveLibraryFromLocationRecord)
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), lib, null, p.getNote(), p.getPatronRequestId(),
-				p.getLocalBibId(), p.getLocalItemBarcode())))
+				p.getLocalBibId(), p.getLocalHoldingId(), p.getLocalItemBarcode())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtPickupAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -207,7 +207,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.map(this::resolveLibraryFromLocationRecord)
 			.flatMap(lib -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), lib, null, p.getNote(), p.getPatronRequestId(),
-				p.getLocalBibId(), p.getLocalItemBarcode())))
+				p.getLocalBibId(), p.getLocalHoldingId(), p.getLocalItemBarcode())))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtLocalAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -307,8 +307,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	/**
 	 * 401129 is a fulfilment-rules answer, not an availability one: Alma found the item and
-	 * refused it. The body names neither of the two things that decide it - the pickup library
-	 * and the patron's user group - so Alma is asked which it was.
+	 * refused it. The body names neither of the things that decide it - the pickup library, and
+	 * the Request rules the item location's fulfilment unit gives the patron's user group - so
+	 * Alma is asked which it was.
 	 */
 	private static boolean isNoItemCanFulfil(Throwable error) {
 		return error instanceof AlmaApiException almaError
@@ -317,8 +318,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 	// Two extra calls, only after a refusal. A failure to diagnose never replaces the refusal
 	private Mono<AlmaRequestResponse> explainNoItemCanFulfil(MinimumAlmaHold hold, Throwable refusal) {
-		final var query = new RequestOptionsQuery(hold.localPatronId(), hold.localBibId(), null,
-			hold.localItemId(), hold.localItemBarcode());
+		final var query = new RequestOptionsQuery(hold.localPatronId(), hold.localBibId(),
+			hold.localHoldingId(), hold.localItemId(), hold.localItemBarcode());
 
 		return Mono.defer(() -> checkRequestOptions(query))
 			.onErrorResume(error -> Mono.just(RequestOptionsReport.failed(getHostLmsCode(), error.getMessage())))
@@ -329,26 +330,31 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		RequestOptionsReport options, Throwable cause) {
 
 		final var library = hold.pickupLibraryCode();
-		final var refused = "Alma refused a hold on item %s for pickup at library '%s' (401129). "
-			.formatted(hold.localItemId(), library);
+		final var item = hold.localItemId();
 
+		// Diagnosis first: the request's error message and an audit's brief description are cut at 256
 		// Alma's answer takes no pickup location, so an offered hold points at the destination
 		if (options.offersHold()) {
-			return new AlmaHostLmsClientException(refused + ("Alma offers this patron a hold on this "
-				+ "item, so the refusal is the pickup library: check that '%s' is a pickup location for "
-				+ "the item's fulfilment unit and not a resource sharing library.").formatted(library), cause);
+			return new AlmaHostLmsClientException(("Alma offers this patron a hold on item %s, so the "
+				+ "refusal is the pickup library: check that '%s' is a pickup location for the item's "
+				+ "fulfilment unit and not a resource sharing library (401129).").formatted(item, library), cause);
 		}
 
+		// Measured on a sandbox: the same user group was offered a hold in one library's "Stacks"
+		// and nothing in another's, so the item's location is the first suspect, not the group
 		if (options.refusesHold()) {
-			return new AlmaHostLmsClientException(refused + ("Alma offers this patron no hold on this "
-				+ "item (offered: %s), so the patron's user group has no Request term of use for it.")
-				.formatted(options.requestTypes().isEmpty() ? "nothing" : String.join(", ", options.requestTypes())),
-				cause);
+			return new AlmaHostLmsClientException(("Alma offers this patron no hold on item %s (offered: "
+				+ "%s), so the fulfilment unit of the item's location has no Request rule for the patron's "
+				+ "user group. For an item DCB created, use a virtual-item-location-code whose unit has one. "
+				+ "Alma refused the hold for pickup at library '%s' (401129).").formatted(item,
+					options.requestTypes().isEmpty() ? "nothing" : String.join(", ", options.requestTypes()),
+					library), cause);
 		}
 
-		return new AlmaHostLmsClientException(refused + ("Check that '%s' is a pickup location for the "
-			+ "item's fulfilment unit, and that the patron's user group has a Request term of use. "
-			+ "Alma could not be asked which: %s").formatted(library, options.detail()), cause);
+		return new AlmaHostLmsClientException(("Alma could not say why it refused a hold on item %s for "
+			+ "pickup at library '%s' (401129): %s. Check that '%s' is a pickup location for the item's "
+			+ "fulfilment unit, and that the unit gives the patron's user group a Request term of use.")
+			.formatted(item, library, options.detail(), library), cause);
 	}
 
 	@Override
