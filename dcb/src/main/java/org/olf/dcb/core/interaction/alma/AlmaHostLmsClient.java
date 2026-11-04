@@ -765,20 +765,33 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	@Override
 	public Mono<Patron> getPatronByLocalId(String localPatronId) {
 		return client.getUserDetails(localPatronId)
-			.map(this::almaUserToPatron);
+			.map(this::almaUserToPatron)
+			.flatMap(this::enrichWithCanonicalPatronType);
 	}
 
 	@Override
 	public Mono<Patron> getPatronByIdentifier(String id) {
 		return client.getUserDetails(id)
 			.map(this::almaUserToPatron)
+			.flatMap(this::enrichWithCanonicalPatronType)
 			.onErrorResume(AlmaHostLmsClient::isVirtualPatronNotFoundError, error -> Mono.empty());
 	}
 
 	@Override
 	public Mono<Patron> getPatronByUsername(String localUsername) {
 		return client.getUserDetails(localUsername)
-			.map(this::almaUserToPatron);
+			.map(this::almaUserToPatron)
+			.flatMap(this::enrichWithCanonicalPatronType);
+	}
+
+	// Eligibility is read from the canonical type, so a patron returned without one passes it.
+	// As the other adapters do, a user group with no mapping leaves the patron as read, and the
+	// request fails later with the mapping named, rather than refusing sign-in
+	private Mono<Patron> enrichWithCanonicalPatronType(Patron patron) {
+		return findCanonicalPatronType(patron.getLocalPatronType(), patron.getFirstLocalId())
+			.onErrorResume(NoPatronTypeMappingFoundException.class, unmapped -> Mono.empty())
+			.map(patron::setCanonicalPatronType)
+			.defaultIfEmpty(patron);
 	}
 
 	@Override
@@ -1115,6 +1128,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.filter(Boolean::booleanValue)
 			.flatMap(accepted -> client.getUserDetails(barcode))
 			.map(this::almaUserToPatron)
+			.flatMap(this::enrichWithCanonicalPatronType)
 			.onErrorResume(AlmaHostLmsClient::isCredentialRejection, error -> Mono.empty());
 	}
 
