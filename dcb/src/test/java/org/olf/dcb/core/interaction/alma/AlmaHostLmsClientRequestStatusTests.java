@@ -49,7 +49,7 @@ class AlmaHostLmsClientRequestStatusTests {
 	}
 
 	@ParameterizedTest
-	@CsvSource({"NOT_STARTED,CONFIRMED", "IN_PROCESS,CONFIRMED", "ON_HOLD_SHELF,READY"})
+	@CsvSource({"NOT_STARTED,CONFIRMED", "IN_PROCESS,CONFIRMED", "ON_HOLD_SHELF,READY", "HISTORY,MISSING"})
 	void shouldMapAlmaUserRequestStatus(String almaStatus, String expectedStatus) {
 		whenRequestHasStatus(almaStatus);
 

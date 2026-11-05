@@ -1317,9 +1317,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				|| almaError.getStatusCode() == 404);
 	}
 
-	// rest_user_request.xsd lists NOT_STARTED, IN_PROCESS and ON_HOLD_SHELF, but a fulfilled request
-	// read by id answers HISTORY (sandbox, 2026-11-04). HISTORY passes through: it arrives in the
-	// same poll as the loan, and MISSING would start a cancellation.
+	// A fulfilled or cancelled request read by id answers HISTORY, with nothing to tell them apart
+	// (sandbox, 2026-11-05). As MISSING it is the hold-gone signal the other adapters give, and
+	// HandleCancelledRequestItemOut leaves a loaned item to HandleBorrowerItemLoaned.
 	private String checkHoldStatus(String status) {
 		if (status == null) {
 			return null;
@@ -1328,7 +1328,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return switch (status) {
 			case "NOT_STARTED", "IN_PROCESS" -> HostLmsRequest.HOLD_CONFIRMED;
 			case "ON_HOLD_SHELF" -> HostLmsRequest.HOLD_READY;
-			case HostLmsRequest.HOLD_MISSING -> HostLmsRequest.HOLD_MISSING;
+			case "HISTORY", HostLmsRequest.HOLD_MISSING -> HostLmsRequest.HOLD_MISSING;
 			default -> status;
 		};
 	}
