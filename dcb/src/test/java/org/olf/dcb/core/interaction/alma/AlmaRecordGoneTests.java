@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.ConsortiumService;
+import org.olf.dcb.core.interaction.DeleteCommand;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
@@ -35,9 +36,10 @@ import services.k_int.interaction.alma.types.error.AlmaErrorResponse;
 /**
  * What the adapter says about a request or an item Alma no longer holds.
  * <p>
- * A cancelled Alma request leaves the patron's active list, so asking for it fails. Reported
- * as an error, the cancellation transitions - which watch for MISSING or CANCELLED - could
- * never fire, and cleanup could not tell an item already removed from one it failed to delete.
+ * Alma answers a request id it no longer holds with 401694, and a barcode it does not know with
+ * 401689. Reported as errors, the cancellation transitions - which watch for MISSING or
+ * CANCELLED - could never fire, cleanup could not tell a record already gone from one it failed
+ * to delete, and a barcode lookup could not say "no such item".
  */
 @TestInstance(PER_CLASS)
 class AlmaRecordGoneTests {
@@ -86,6 +88,54 @@ class AlmaRecordGoneTests {
 
 		assertThat("An unexplained failure must not read as a cancelled hold",
 			request.getLocalId(), is("raised"));
+	}
+
+	@Test
+	void shouldTreatCancellingARequestAlmaHasClosedAsDone() {
+		// Measured on a sandbox: at FINALISED the fulfilled request read HISTORY, and its DELETE
+		// answered this
+		when(almaApi.cancelUserRequest("patron-1", "request-1", null))
+			.thenReturn(Mono.error(almaError(400, "401694", "Request not found")));
+
+		final var result = client.deleteHold(DeleteCommand.builder()
+			.patronId("patron-1")
+			.requestId("request-1")
+			.build()).block();
+
+		assertThat(result, is("Request not found in Alma"));
+	}
+
+	@Test
+	void shouldStillRaiseWhenCancellingFailsForAnotherReason() {
+		when(almaApi.cancelUserRequest("patron-1", "request-1", null))
+			.thenReturn(Mono.error(almaError(400, "401652", "General Error")));
+
+		final var result = client.deleteHold(DeleteCommand.builder()
+			.patronId("patron-1")
+			.requestId("request-1")
+			.build()).onErrorReturn("raised").block();
+
+		assertThat("A hold that may still be open must not be audited as deleted", result, is("raised"));
+	}
+
+	@Test
+	void shouldReportNoItemForABarcodeAlmaDoesNotKnow() {
+		when(almaApi.retrieveItemBarcodeOnly("barcode-1"))
+			.thenReturn(Mono.error(almaError(400, "401689", "No items found for barcode barcode-1.")));
+
+		// Empty is what the virtual-item barcode check and walk-up's ITEM_NOT_FOUND refusal expect
+		assertThat(client.getItemByBarcode("barcode-1").block(), is(nullValue()));
+	}
+
+	@Test
+	void shouldStillRaiseWhenABarcodeLookupFailsForAnotherReason() {
+		when(almaApi.retrieveItemBarcodeOnly("barcode-1"))
+			.thenReturn(Mono.error(almaError(400, "401652", "General Error")));
+
+		final var item = client.getItemByBarcode("barcode-1")
+			.onErrorReturn(HostLmsItem.builder().localId("raised").build()).block();
+
+		assertThat("An unexplained failure must not read as no such item", item.getLocalId(), is("raised"));
 	}
 
 	@Test

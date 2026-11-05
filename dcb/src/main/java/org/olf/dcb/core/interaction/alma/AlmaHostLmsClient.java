@@ -1300,10 +1300,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 	}
 
 	/**
-	 * A cancelled or fulfilled Alma request leaves the user's active list, so asking for it by id
-	 * fails rather than answering with a cancelled status. Both cancellation transitions watch for
-	 * MISSING or CANCELLED, and Alma produced neither - so a cancellation made in Alma reached
-	 * nothing and the request ran on to the 56-day tracking cut-off.
+	 * Alma answers a request id it no longer holds with 401694. Both cancellation transitions watch
+	 * for MISSING or CANCELLED, so reported as an error such a request reached neither and ran on
+	 * to the 56-day tracking cut-off.
 	 */
 	private static AlmaRequestResponse requestNoLongerInAlma(String localRequestId) {
 		return AlmaRequestResponse.builder()
@@ -1318,7 +1317,9 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				|| almaError.getStatusCode() == 404);
 	}
 
-	// A user request's request_status is only ever NOT_STARTED, IN_PROCESS or ON_HOLD_SHELF (rest_user_request.xsd)
+	// rest_user_request.xsd lists NOT_STARTED, IN_PROCESS and ON_HOLD_SHELF, but a fulfilled request
+	// read by id answers HISTORY (sandbox, 2026-11-04). HISTORY passes through: it arrives in the
+	// same poll as the loan, and MISSING would start a cancellation.
 	private String checkHoldStatus(String status) {
 		if (status == null) {
 			return null;
@@ -1583,7 +1584,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		log.debug("deleteHold({},{})", userId, requestId);
 
-		return client.cancelUserRequest(userId, requestId, config.getRequestCancellationReason());
+		return client.cancelUserRequest(userId, requestId, config.getRequestCancellationReason())
+			// A fulfilled request is HISTORY in Alma, and cancelling it answers 401694
+			.onErrorResume(AlmaHostLmsClient::isRequestNotFound,
+				error -> Mono.just("Request not found in Alma"));
 	}
 
   public Mono<String> deletePatron(String id) {
@@ -2192,12 +2196,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 @Override
 public Mono<HostLmsItem> getItemByBarcode(String barcode) {
-	log.debug("Fetching Alma item by barcode: {}", barcode);
-
 	return client.retrieveItemBarcodeOnly(barcode)
 		.flatMap(item -> {
 			if (item == null || item.getItemData() == null) {
-				log.warn("No item found in Alma for barcode: {}", barcode);
+				log.warn("Alma at {} answered a barcode lookup with no item data", getHostLmsCode());
 				return Mono.empty();
 			}
 
@@ -2224,7 +2226,8 @@ public Mono<HostLmsItem> getItemByBarcode(String barcode) {
 					return deriveItemStatusFromProcessType(returnHostLmsItem, item.getItemData());
 				});
 		})
-		.doOnError(e -> log.error("Failed to fetch item by barcode {} from Alma: {}", barcode, e.getMessage()));
+		.onErrorResume(AlmaHostLmsClient::isNoItemForBarcode, error -> Mono.empty())
+		.doOnError(e -> log.error("Failed to look up an item by barcode at {}: {}", getHostLmsCode(), e.getMessage()));
 }
 	private Mono<AlmaUser> checkAndUpdateExpiryIfNeeded(AlmaUser almaUser) {
 		final var patronExpiryDate = parseAlmaExpiryDate(almaUser.getExpirationDate(), almaUser.getPrimary_id());
