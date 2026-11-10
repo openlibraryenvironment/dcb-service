@@ -22,7 +22,7 @@ public enum TrendMeasure {
 	public enum Source {
 		/** Requests moving into a status in the week, so a past week can be counted again at any time. */
 		AUDIT,
-		/** A figure that cannot be rebuilt later, recorded each week by WeeklyMeasureJob (V9_0_022). */
+		/** A figure that cannot be rebuilt later, recorded each week by WeeklyMeasureJob into library_weekly_measure. */
 		STORED
 	}
 

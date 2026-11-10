@@ -17,7 +17,7 @@ import io.micronaut.data.repository.GenericRepository;
 import jakarta.transaction.Transactional;
 
 /**
- * Stored weekly figures (V9_0_022) and the two measures they hold, worked out from DCB's own tables.
+ * Stored weekly figures (library_weekly_measure) and the two measures they hold, worked out from DCB's own tables.
  * Every statement is for one library; the borrowing library is the patron's resolved agency.
  */
 @R2dbcRepository(dialect = Dialect.POSTGRES)

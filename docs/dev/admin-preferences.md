@@ -49,6 +49,6 @@ anywhere in a document.
 
 ## Schema
 
-`V9_0_020__admin_preferences.sql` and `V9_0_021__admin_watched_request.sql`. Both create new
+The `admin_preferences` and `admin_watched_request` migrations create new
 tables only. `admin_watched_request` has no foreign key onto `patron_request`, so the migration
 takes no lock on it; the daily sweep removes watches whose request has gone.

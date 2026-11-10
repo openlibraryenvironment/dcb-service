@@ -55,7 +55,7 @@ a past week's figure does not change as its requests move on.
 The first two are counted from the audit trail, so any past week can be counted again. The last
 two cannot: a count of items on the shelf is true only at the moment it is taken. So
 `WeeklyMeasureJob` records them every Monday at 01:30 UTC, for the week just ended, in
-`library_weekly_measure` (V9_0_022). It reads DCB's own tables only: two queries a library, two
+`library_weekly_measure`. It reads DCB's own tables only: two queries a library, two
 libraries at a time. Rewriting a week replaces it, so two instances running together do no harm.
 Figures are kept 52 weeks.
 

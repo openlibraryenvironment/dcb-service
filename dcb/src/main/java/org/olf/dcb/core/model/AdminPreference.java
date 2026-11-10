@@ -17,7 +17,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-/** One member of staff's preferences, under an opaque key: V9_0_020. */
+/** One member of staff's preferences, under an opaque key. */
 @Data
 @Serdeable
 @Builder
