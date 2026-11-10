@@ -258,6 +258,9 @@ dcb:
     # with a token issued to one of them is staff's. At least one is required: the duplicate-request
     # check is turned off by preflight-checks.duplicate-requests.enabled, not by an empty list.
     staff-client-ids: dcb-admin,dcb-admin-for-libraries
+    # Every retry reads and checks out a copy in the lender's own system
+    lender-checkout-retry:
+      per-caller-per-minute: 10
 
   insights:
     enabled: true

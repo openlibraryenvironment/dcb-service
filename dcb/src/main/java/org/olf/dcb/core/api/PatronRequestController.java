@@ -33,6 +33,7 @@ import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.fulfilment.WalkUpRequestCommand;
 import org.olf.dcb.request.workflow.ConfirmItemReturnedService;
+import org.olf.dcb.request.workflow.LenderCheckoutRetryRefused;
 import org.olf.dcb.request.workflow.RetryLenderCheckoutService;
 import org.olf.dcb.request.workflow.ManualCleanupService;
 import org.olf.dcb.security.PatronRequestAccessGuard;
@@ -172,7 +173,7 @@ public class PatronRequestController {
 		log.info("Retry lender checkout for patron request {}", patronRequestId);
 
 		return retryLenderCheckoutService.retry(patronRequestId,
-				CallerScope.from(authentication.getRoles(), authentication.getAttributes()))
+				CallerScope.from(authentication.getRoles(), authentication.getAttributes()), authentication.getName())
 			.doOnError(error -> log.warn("Retrying the lender checkout of patron request {} refused or failed: {}",
 				patronRequestId, error.getMessage()));
 	}
@@ -332,6 +333,13 @@ public class PatronRequestController {
 		// Staff enrichment: errorMessage is retained here because a librarian can act
 		// on it. The patron-facing path deliberately drops it.
 		return rawRequests.map(PatronStatusMapper::enrichForStaff);
+	}
+
+	@Error
+	public HttpResponse<Map<String, String>> onRetryRefused(LenderCheckoutRetryRefused refusal) {
+		return HttpResponse.<Map<String, String>>status(HttpStatus.TOO_MANY_REQUESTS)
+			.header("Retry-After", String.valueOf(refusal.getRetryAfter().toSeconds()))
+			.body(Map.of("code", refusal.getCode(), "message", refusal.getMessage()));
 	}
 
 	@Error

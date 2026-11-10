@@ -95,7 +95,8 @@ class RetryLenderCheckoutServiceTests {
 			hostLmsService, auditService);
 
 		service = new RetryLenderCheckoutService(patronRequestService, contextHelper, hostLmsService,
-			handleBorrowerItemLoaned, auditService, auditRepository, patronRequestRepository);
+			handleBorrowerItemLoaned, auditService, auditRepository, patronRequestRepository,
+			new LenderCheckoutRetryLimiter(100));
 	}
 
 	@Test
@@ -103,7 +104,7 @@ class RetryLenderCheckoutServiceTests {
 		lenderCopyIs("TRANSIT");
 		when(lender.checkOutItemToPatron(any())).thenReturn(Mono.just("OK"));
 
-		final var result = service.retry(patronRequest.getId(), consortium()).block();
+		final var result = service.retry(patronRequest.getId(), consortium(), "consortium-staff").block();
 
 		assertThat(result, is(RetryLenderCheckoutService.RETRIED));
 		assertThat(patronRequest.getNeedsAttention(), is(false));
@@ -115,7 +116,7 @@ class RetryLenderCheckoutServiceTests {
 		// A second checkout to the same virtual patron would renew the loan
 		lenderCopyIs(HostLmsItem.ITEM_LOANED);
 
-		final var result = service.retry(patronRequest.getId(), consortium()).block();
+		final var result = service.retry(patronRequest.getId(), consortium(), "consortium-staff").block();
 
 		assertThat(result, is(RetryLenderCheckoutService.ALREADY_OUT));
 		verify(lender, never()).checkOutItemToPatron(any());
@@ -126,7 +127,7 @@ class RetryLenderCheckoutServiceTests {
 		lenderCopyIs("TRANSIT");
 		when(lender.checkOutItemToPatron(any())).thenReturn(Mono.error(new IllegalStateException("Patron block")));
 
-		assertThrows(ThrowableProblem.class, () -> service.retry(patronRequest.getId(), consortium()).block());
+		assertThrows(ThrowableProblem.class, () -> service.retry(patronRequest.getId(), consortium(), "consortium-staff").block());
 
 		assertThat(patronRequest.getNeedsAttention(), is(true));
 		verify(auditService).addAuditEntry(eq(patronRequest), eq(RetryLenderCheckoutService.RETRY_FAILED), anyMap());
@@ -139,7 +140,7 @@ class RetryLenderCheckoutServiceTests {
 		when(auditRepository.findAllByPatronRequest(patronRequest)).thenReturn(Flux.just(
 			PatronRequestAudit.builder().briefDescription("Patron checkout failed : refused").build()));
 
-		service.retry(patronRequest.getId(), consortium()).block();
+		service.retry(patronRequest.getId(), consortium(), "consortium-staff").block();
 
 		assertThat(patronRequest.getNeedsAttention(), is(true));
 	}
