@@ -49,6 +49,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.CannotFindSelectedBibException;
 import org.olf.dcb.request.resolution.CannotFindClusterRecordException;
+import org.olf.dcb.request.workflow.PatronRequestStateTransition;
 import org.olf.dcb.request.workflow.PatronRequestWorkflowService;
 import org.olf.dcb.request.workflow.PlacePatronRequestAtBorrowingAgencyStateTransition;
 import org.olf.dcb.test.AgencyFixture;
@@ -115,6 +116,8 @@ class PlaceRequestAtBorrowingAgencyTests {
 	private RequestWorkflowContextHelper requestWorkflowContextHelper;
 	@Inject
 	private PatronRequestWorkflowService patronRequestWorkflowService;
+	@Inject
+	private PatronRequestService patronRequestService;
 
 	@Inject
 	private PlacePatronRequestAtBorrowingAgencyStateTransition placePatronRequestAtBorrowingAgencyStateTransition;
@@ -405,6 +408,37 @@ class PlaceRequestAtBorrowingAgencyTests {
 
 		assertThat("recorded, so a rollback moves on to the next supplier instead of placing the borrower hold again",
 			supplierRequestsFixture.findFor(patronRequest).getLocalStatus(), is(HOLD_MISSING));
+	}
+
+	@Test
+	void shouldNotPlaceTheBorrowerHoldAgainWhenRolledBackAfterTheSupplierHoldWasCancelled() {
+		// Arrange
+		final var supplierHoldId = "8475815";
+
+		final var patronRequest = requestWhoseBorrowerHoldFails("972325", supplierHoldId);
+
+		sierraPatronsAPIFixture.mockDeleteHold(supplierHoldId);
+		sierraPatronsAPIFixture.mockGetHoldByIdOnceThenNotFound(supplierHoldId, supplierHold(supplierHoldId));
+
+		// Through the workflow, whose failure audit saves CONFIRMED as the status a rollback returns to
+		assertThrows(ThrowableProblem.class, () -> singleValueFrom(patronRequestWorkflowService.progressUsing(
+			patronRequest, placePatronRequestAtBorrowingAgencyStateTransition)));
+
+		// Act
+		singleValueFrom(patronRequestService.initialiseRollback(patronRequest.getId()));
+
+		// Assert
+		final var rolledBack = patronRequestsFixture.findById(patronRequest.getId());
+
+		assertThat(rolledBack.getStatus(), is(CONFIRMED));
+
+		final var ctx = singleValueFrom(requestWorkflowContextHelper.fromPatronRequest(rolledBack));
+
+		assertThat("the supplier hold is gone, so there is nothing for a borrower hold to fill",
+			placePatronRequestAtBorrowingAgencyStateTransition.isApplicableFor(ctx), is(false));
+
+		assertThat("the engine must move on from the cancelled supplier hold",
+			firstApplicableTransitionFor(ctx), is("HandleSupplierRequestCancelled"));
 	}
 
 	@Test
@@ -721,6 +755,13 @@ class PlaceRequestAtBorrowingAgencyTests {
 				hasToStatus(ERROR)
 			)
 		));
+	}
+
+	private String firstApplicableTransitionFor(RequestWorkflowContext ctx) {
+		return patronRequestWorkflowService.getPossibleStateTransitionsFor(ctx)
+			.map(PatronRequestStateTransition::getName)
+			.findFirst()
+			.orElse("None");
 	}
 
 	private PatronRequest placeRequestAtBorrowingAgency(PatronRequest patronRequest) {
