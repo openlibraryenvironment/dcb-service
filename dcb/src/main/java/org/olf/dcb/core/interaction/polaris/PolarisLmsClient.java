@@ -100,6 +100,7 @@ import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.AlarmsService;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
 import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
@@ -194,6 +195,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	// Synch_BibsByIDGet accepts at most 50 ids per call.
 	private static final int BIBS_BY_ID_LIMIT = 50;
 	private static final int ITEM_ENRICHMENT_CONCURRENCY = 4;
+	// What a copy checked in at a branch reads when Polaris sends it on rather than shelving it
+	private static final Set<String> ROUTED_ON_CHECK_IN = Set.of(HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_ON_HOLDSHELF);
 
 	// Polaris creates a new blocking note rather than replacing one when the note id is 1
 	private static final Integer CREATE_NEW_BLOCKING_NOTE = 1;
@@ -2876,6 +2879,21 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public boolean canSeeVirtualItemsByBarcode() {
 		return true;
+	}
+
+	/**
+	 * Polaris sends a copy checked in at any branch straight on to a hold it can fill, so a lent copy coming
+	 * home to a title with a queue reads in transit, or held, and never available. Checking the copy out to the
+	 * virtual patron filled DCB's own hold, which Polaris then no longer finds. So a routed copy whose hold is
+	 * gone has been checked in; one whose hold remains was never checked out, and is still on its outbound trip.
+	 */
+	@Override
+	public boolean showsCheckInAtSupplier(SupplierRequest supplierRequest) {
+		final var itemStatus = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemStatus);
+
+		return HostLmsClient.super.showsCheckInAtSupplier(supplierRequest)
+			|| (itemStatus != null && ROUTED_ON_CHECK_IN.contains(itemStatus)
+				&& HostLmsRequest.HOLD_MISSING.equals(getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus)));
 	}
 
 	public Mono<HostLmsItem> getItemByBarcode(String barcode) {

@@ -13,6 +13,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.interops.ConfigType;
 
 import io.micronaut.core.annotation.NonNull;
@@ -309,6 +310,28 @@ public interface HostLmsClient
 	 */
 	default boolean canReportItemReturnedAfterHoldTerminated() {
 		return true;
+	}
+
+	/**
+	 * On the return leg of a loan, does what DCB last read of the supplier's copy and hold show that the copy
+	 * has been checked in at the supplier? The request completes as supplied when it does.
+	 * <p>
+	 * By default only a copy back on the shelf (available, or received) or a hold the supplier reports
+	 * closed counts. A system that answers yes to anything more must be sure the copy cannot read that way
+	 * while it is still on its way home: FOLIO, for one, reports a copy its borrower has checked in as in
+	 * transit.
+	 */
+	default boolean showsCheckInAtSupplier(SupplierRequest supplierRequest) {
+		return isBackOnShelfOrClosed(supplierRequest);
+	}
+
+	/** The default answer to {@link #showsCheckInAtSupplier}, also used where no client could be built. */
+	static boolean isBackOnShelfOrClosed(SupplierRequest supplierRequest) {
+		final var itemStatus = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemStatus);
+
+		return HostLmsItem.ITEM_AVAILABLE.equals(itemStatus)
+			|| HostLmsItem.ITEM_RECEIVED.equals(itemStatus)
+			|| "CLOSED".equals(getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus));
 	}
 
 	/**
