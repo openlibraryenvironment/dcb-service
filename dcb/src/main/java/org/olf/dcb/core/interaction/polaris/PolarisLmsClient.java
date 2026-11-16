@@ -715,7 +715,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				// An item found for the hold; Polaris moves it on to Shipped within hours
 				"Located" -> HostLmsRequest.HOLD_CONFIRMED;
 			// Unclaimed: the hold-shelf period has passed but the item is still there, and patrons do
-			// still collect (39 of 442 in MOBIUS production, Aug to Oct 2026). Polaris cancels it later.
+			// still collect (39 of 442 in one consortium's production, Aug to Oct 2026). Polaris cancels it later.
 			case "Held", "Unclaimed" -> HostLmsRequest.HOLD_READY;
 			case "Missing" -> HostLmsRequest.HOLD_MISSING;
 			default -> status;

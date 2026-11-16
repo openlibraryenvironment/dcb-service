@@ -28,7 +28,7 @@ interval. Polling returns to normal after the next successful read.
 == Before this release
 
 A failed read set the lender's hold status to `ERROR`, and the next good read set the real status
-back. At MOBIUS between August and October 2026 that happened 4,300 times on 1,878 requests, and
+back. In one consortium between August and October 2026 that happened 4,300 times on 1,878 requests, and
 99% came back with the same status. A request whose last read failed kept showing `ERROR`.
 
 Holds already showing `ERROR` when this release is installed keep it until DCB next reads them

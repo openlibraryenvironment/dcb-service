@@ -43,5 +43,5 @@ connections for two minutes.
 
 * Live availability can still ask many Polaris bibs at once, with no limit per library.
 * Bulk work (the harvest, availability sweeps) shares the clients with patron sign-in.
-* Nothing moves heavy jobs out of a library's overnight maintenance window. At MOBIUS, 98.9% of
+* Nothing moves heavy jobs out of a library's overnight maintenance window. In one consortium, 98.9% of
 read timeouts to Polaris between August and October 2026 fell between 19:00 and 08:00 Central.

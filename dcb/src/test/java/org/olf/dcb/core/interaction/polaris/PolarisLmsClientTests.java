@@ -2113,7 +2113,7 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockGetPatronBarcode(patronId, patronBarcode);
 		mockPolarisFixture.mockGetItemBarcode(itemId, itemBarcode);
 
-		// Nothing stored on the patron, as at Altoona, yet Polaris refuses the PAPI checkout
+		// Nothing stored on the patron, as seen in production, yet Polaris refuses the PAPI checkout
 		mockPolarisFixture.mockGetPatronBlocksSummary(patronId);
 		mockPolarisFixture.mockItemCheckout(patronBarcode, patronBlockedCheckout(itemId));
 		mockPolarisFixture.mockGetPatronCirculationBlocks(patronBarcode,
@@ -2224,7 +2224,7 @@ class PolarisLmsClientTests {
 	}
 
 	private static ItemOperationResult patronBlockedCheckout(Integer itemId) {
-		// What Altoona's Polaris answered on 64 refused checkouts between Aug and Oct 2026
+		// What a production Polaris answered on 64 refused checkouts between Aug and Oct 2026
 		return ItemOperationResult.builder()
 			.itemRecordID(convertIntegerToString(itemId))
 			.papiErrorCode(-6101)

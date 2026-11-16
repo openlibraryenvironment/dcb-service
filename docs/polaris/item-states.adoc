@@ -17,7 +17,7 @@ A state added to DCB later cannot reach Polaris unhandled: the adapter lists eve
 a catch-all, so the build fails until the new one is handled.
 
 Before this release, every state Polaris does not set was logged as an ERROR, about 8,300 times
-at MOBIUS between August and October 2026, although nothing was wrong.
+in one consortium between August and October 2026, although nothing was wrong.
 
 == A status DCB does not know
 

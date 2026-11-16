@@ -18,7 +18,7 @@ Any other prompt is not answered, and the placement fails with the prompt's id a
 message in the request's audit.
 
 Prompt 100, "Patron has exceeded request limit for the title", is the lending library's own limit
-on requests per material type (50 at SLCL, for example). DCB does not override it. The request's
+on requests per material type (50 at one library, for example). DCB does not override it. The request's
 audit says "The lending library's Polaris refused the hold: the virtual patron has reached its
 request limit for this material type". The library can raise the limit for the patron code DCB's
 virtual patrons use, or leave it.
