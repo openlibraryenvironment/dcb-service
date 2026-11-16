@@ -45,7 +45,8 @@ public class AnnouncementsDataFetcher implements DataFetcher<CompletableFuture<L
 		GraphQLRoles.require(env, "announcements", GraphQLRoles.ADMINISTRATIVE);
 
 		final var scopeType = scopeLevel(env.getArgument("scopeType"));
-		final var scopeId = UUID.fromString(String.valueOf(env.getArgument("scopeId")));
+		// Typed: String.valueOf(env.getArgument(..)) resolves to valueOf(char[]) and throws ClassCastException
+		final var scopeId = UUID.fromString(env.<String>getArgument("scopeId"));
 
 		// Reading is gated by the same rule as writing. An administrator who may not publish
 		// for a library has no business reading its unpublished notices either, and the two
