@@ -76,6 +76,9 @@ public class BibController {
 			.collectMultimap(ProcessAuditLogEntry::getProcessType);
 	}
 
+	// Wider than the class: DCB Admin explains a cluster to the consortium staff who can
+	// already open it. The audit log above stays ADMINISTRATOR-only.
+	@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})
 	@Transactional( readOnly = true )
 	@Get("/{id}/matchpoints")
 	public Flux<? super MatchPoint> matchPoints( UUID id ) {
