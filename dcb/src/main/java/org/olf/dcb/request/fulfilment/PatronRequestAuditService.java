@@ -33,6 +33,8 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Singleton
 public class PatronRequestAuditService {
+	private static final int BRIEF_DESCRIPTION_LENGTH = 254;
+
 	private final PatronRequestAuditRepository patronRequestAuditRepository;
 	private final PatronRequestRepository patronRequestRepository;
 
@@ -60,8 +62,7 @@ public class PatronRequestAuditService {
 	 * @param from the status the patron request was in
 	 * @param to the status the patron request is now in
 	 * @param message the message for the audit
-	 * @param auditData the initial data to include in the audit. This may be augmented
-	 *                   so if provided, MUST be a mutable map
+	 * @param auditData the initial data to include in the audit; copied, never changed
 	 * @return a publisher containing the audit entry
 	 */
 	public Mono<PatronRequestAudit> addAuditEntry(PatronRequest patronRequest,
@@ -74,15 +75,15 @@ public class PatronRequestAuditService {
 			.fromStatus(from)
 			.toStatus(to);
 
-		if (auditData.isPresent()) { // use the existing map to add metrics
-			log.debug("Adding metrics to existing audit data");
-			builder.auditData( updateAuditData(auditData.get(), patronRequest) );
-		} else { // use a new map to add metrics
-			log.debug("Adding metrics to audit data");
-			builder.auditData( updateAuditData(new HashMap<>(), patronRequest) );
-		}
+		// A copy: callers pass Map.of(...), which cannot take the metrics added here
+		final var data = updateAuditData(new HashMap<>(auditData.orElseGet(Map::of)), patronRequest);
 
-		message.ifPresent(value -> builder.briefDescription(truncate(value, 254)));
+		// brief_description is varchar(256); past that, only the audit data keeps the whole message
+		message.filter(value -> value.length() > BRIEF_DESCRIPTION_LENGTH)
+			.ifPresent(value -> data.put("fullMessage", value));
+
+		builder.auditData(data);
+		message.ifPresent(value -> builder.briefDescription(truncate(value, BRIEF_DESCRIPTION_LENGTH)));
 
 		return buildAndSaveAuditMessage(builder.build());
 	}

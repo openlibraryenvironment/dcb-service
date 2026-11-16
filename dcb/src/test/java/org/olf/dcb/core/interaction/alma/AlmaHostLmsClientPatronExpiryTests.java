@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -47,10 +48,14 @@ class AlmaHostLmsClientPatronExpiryTests {
 		final var clientFactory = mock(AlmaClientFactory.class);
 		when(clientFactory.createClientFor(hostLms)).thenReturn(almaApi);
 
+		final var mappings = mock(ReferenceValueMappingService.class);
+		when(mappings.findMapping(anyString(), anyString(), anyString(), anyString(), anyString()))
+			.thenReturn(Mono.empty());
+
 		sut = new AlmaHostLmsClient(
 			hostLms,
 			clientFactory,
-			mock(ReferenceValueMappingService.class),
+			mappings,
 			mock(MaterialTypeToItemTypeMappingService.class),
 			mock(LocationToAgencyMappingService.class),
 			mock(ConsortiumService.class));
