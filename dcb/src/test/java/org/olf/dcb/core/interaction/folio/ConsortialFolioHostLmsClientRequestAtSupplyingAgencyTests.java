@@ -2,6 +2,7 @@ package org.olf.dcb.core.interaction.folio;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -31,6 +32,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
 import org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Library;
@@ -166,6 +168,52 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 			hasDetail("Something went wrong"),
 			hasResponseStatusCode(422)
 		));
+	}
+
+	@Test
+	void shouldExplainARequestPolicyRefusalAndHowToFixIt() {
+		// Arrange: mod-dcb wraps mod-circulation's refusal as text, as a FOLIO 7 tenant answers
+		mockFolioFixture.mockCreateTransaction(response()
+			.withStatusCode(422)
+			.withBody(json(ConsortialFolioHostLmsClient.ValidationError.builder()
+				.errors(List.of(ConsortialFolioHostLmsClient.ValidationError.Error.builder()
+					.message("[422 Unprocessable Entity] during [POST] to [http://circulation/requests] "
+						+ "[CirculationClient#createRequest(CirculationRequest)]: [{\n  \"errors\" : [ {\n"
+						+ "    \"message\" : \"Hold requests are not allowed for this patron and item combination\",\n"
+						+ "    \"parameters\" : [ {\n      \"key\" : \"requestType\",\n      \"value\" : \"Hold\"\n    } ],\n"
+						+ "    \"code\" : \"REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION\"\n  } ]\n}]")
+					.type("-1")
+					.code("VALIDATION_ERROR")
+					.build()))
+				.build())));
+
+		final var pickupAgency = definePickupAgency();
+
+		// Act
+		final var client = hostLmsFixture.createClient(SUPPLYING_HOST_LMS_CODE);
+
+		final var problem = assertThrows(SupplierRefusedRequestProblem.class,
+			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
+				PlaceHoldRequestParameters.builder()
+					.localItemId(randomUUID().toString())
+					.localItemBarcode("6736583")
+					.localPatronId(randomUUID().toString())
+					.localPatronBarcode("8847474")
+					.localPatronType("DCB patrons")
+					.pickupAgency(pickupAgency)
+					.build())));
+
+		// Assert
+		assertThat(problem, allOf(
+			hasTitle(("%s's request policy does not allow a Hold request for patron group \"DCB patrons\" "
+				+ "on this item").formatted(SUPPLYING_HOST_LMS_CODE)),
+			hasProperty("detail", containsString("REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION")),
+			hasResponseStatusCode(422)
+		));
+
+		assertThat(problem.getHowToFix(), is(("In %s's FOLIO circulation rules, allow Hold requests "
+			+ "(FOLIO asks for a Hold once a copy is paged or on loan) in the request policy for patron group "
+			+ "\"DCB patrons\" and this item").formatted(SUPPLYING_HOST_LMS_CODE)));
 	}
 
 	@Test

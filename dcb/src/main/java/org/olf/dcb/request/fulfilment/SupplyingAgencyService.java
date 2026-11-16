@@ -361,15 +361,18 @@ public class SupplyingAgencyService {
 					.build()));
 	}
 
-	private static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
+	static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
 		Throwable error, PatronRequest patronRequest, PatronIdentity patronIdentityAtSupplier,
 		SupplierRequest supplierRequest) {
 
+		final var title = error instanceof SupplierRefusedRequestProblem refusal
+			? refusal.getReason()
+			: "Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
+				" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode();
+
 		var builder = Problem.builder()
 			.withType(ERR0010)
-			.withTitle(
-				"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
-					" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
+			.withTitle(title)
 			.withDetail(error.getMessage())
 			.with("supplier-dcbPatronId", patronIdentityAtSupplier.getLocalId())
 			.with("supplier-dcbLocalItemId", supplierRequest.getLocalItemId())
@@ -384,6 +387,10 @@ public class SupplyingAgencyService {
 			if (isNotEmpty(underlyingProblem.getParameters())) {
 				underlyingProblem.getParameters().forEach(builder::with);
 			}
+		}
+
+		if (error instanceof SupplierRefusedRequestProblem refusal) {
+			builder.with("howToFix", refusal.getHowToFix());
 		}
 
 		return builder.build();
