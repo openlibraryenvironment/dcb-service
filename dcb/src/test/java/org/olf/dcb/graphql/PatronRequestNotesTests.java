@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.dataloader.DataLoaderRegistry;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -349,17 +350,23 @@ class PatronRequestNotesTests {
 	@Test
 	void theNotesResolverChecksInvolvementItselfWhenHandedARequest() throws Exception {
 		addNote(LIBRARY_ADMIN, List.of("NOTES_B"), "Private to the parties", null);
+		execute(TAG, Map.of("id", requestId.toString(), "tag", "DAMAGED"), LIBRARY_ADMIN, List.of("NOTES_B"));
 
+		final var dataLoaders = new DataLoaderRegistry();
 		final var env = DataFetchingEnvironmentImpl.newDataFetchingEnvironment()
 			.source(PatronRequest.builder().id(requestId).build())
 			.arguments(Map.of())
 			.graphQLContext(GraphQLContext.of(Map.<Object, Object>of(
 				"roles", LIBRARY_ADMIN, AGENCY_CODES, List.of("NOTES_X"))))
+			.dataLoaderRegistry(dataLoaders)
 			.build();
 
 		final Page<PatronRequestNote> page = noteDataFetchers.notesOfPatronRequest().get(env).get();
 		assertThat(page.getContent(), is(empty()));
-		assertThat(noteDataFetchers.tagsOfPatronRequest().get(env).get(), is(empty()));
+
+		final var tags = noteDataFetchers.tagsOfPatronRequest().get(env);
+		dataLoaders.dispatchAll();
+		assertThat(tags.get(), is(empty()));
 		assertThat(noteDataFetchers.involvedAgencyCodesOfPatronRequest().get(env).get(), is(empty()));
 	}
 

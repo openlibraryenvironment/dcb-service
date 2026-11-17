@@ -61,6 +61,26 @@ DCB refuses any other value. A tag without a colour is shown in the app's defaul
 starting tags have colours: `DAMAGED` `error`, `MISSING_PIECES` `warning`, `PATRON_CONTACTED`
 `info`, `RETURN_DISPUTED` `secondary` and `SLOW_TO_SHIP` `primary`.
 
+## Searching
+
+The `patronRequests` query takes two fields that read notes and tags. Both combine with `AND`,
+`OR`, `NOT` and every other field, and both stay inside the caller's scope: a library finds only
+requests it is involved in, which are exactly the requests whose notes and tags it can already
+read.
+
+- `tagCode:DAMAGED` finds requests carrying the tag, whoever applied it. A request tagged by
+  several libraries is listed once. The value must be a tag code: 2 to 32 capital letters, digits
+  or underscores, starting with a letter. For example `(tagCode:DAMAGED OR tagCode:SLOW_TO_SHIP)`,
+  or `*:* AND NOT (tagCode:DAMAGED)` for requests without it.
+- `noteText:"returned with water damage"` finds requests with a note containing the text,
+  ignoring case. Quote a phrase, and escape `"` and `\` inside the quotes with a backslash; a
+  single word needs no quotes. `%`, `_` and `\` match themselves. Retracted notes never match.
+  The text must be at least 3 characters once trimmed: note text has no index, so every search
+  reads every live note, and the minimum stops a one-letter search from matching nearly all of
+  them.
+
+Wildcards (`*`, `?`) are not supported in either field.
+
 ## Limits
 
 - A note is plain text of up to 2,000 characters. It is shown as text, never as markup.

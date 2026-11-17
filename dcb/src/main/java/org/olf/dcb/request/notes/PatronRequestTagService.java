@@ -3,6 +3,7 @@ package org.olf.dcb.request.notes;
 import static org.olf.dcb.core.model.RequestNoteAuthorKind.CONSORTIUM;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,7 @@ import reactor.core.publisher.Mono;
 public class PatronRequestTagService {
 	public static final int MAX_VOCABULARY_SIZE = 100;
 
-	private static final Pattern TAG_CODE = Pattern.compile("[A-Z][A-Z0-9_]{1,31}");
+	static final Pattern TAG_CODE =Pattern.compile("[A-Z][A-Z0-9_]{1,31}");
 
 	/** Theme palette names, matched exactly; ck_request_tag_colour holds the same list. */
 	public static final List<String> TAG_COLOURS =
@@ -53,10 +54,26 @@ public class PatronRequestTagService {
 	}
 
 	public Mono<List<PatronRequestTagSummary>> tagsOf(UUID patronRequestId) {
+		return tagsOfEach(List.of(patronRequestId))
+			.map(tags -> tags.getOrDefault(patronRequestId, List.of()));
+	}
+
+	/**
+	 * The tags of each request, from one tags query and one vocabulary query however many requests
+	 * are asked for. A request with no tags is absent from the map.
+	 */
+	public Mono<Map<UUID, List<PatronRequestTagSummary>>> tagsOfEach(Collection<UUID> patronRequestIds) {
+		if (patronRequestIds.isEmpty()) {
+			return Mono.just(Map.of());
+		}
+
 		return Mono.zip(
-				Flux.from(tagRepository.findByPatronRequestId(patronRequestId)).collectList(),
+				Flux.from(tagRepository.findByPatronRequestIdIn(patronRequestIds))
+					.collectMultimap(PatronRequestTag::getPatronRequestId),
 				Flux.from(vocabulary.listOrderByLabel()).collectMap(RequestTag::getCode, Function.identity()))
-			.map(applied -> summarise(applied.getT1(), applied.getT2()));
+			.map(applied -> applied.getT1().entrySet().stream()
+				.collect(Collectors.toMap(Map.Entry::getKey,
+					request -> summarise(List.copyOf(request.getValue()), applied.getT2()))));
 	}
 
 	public Mono<List<PatronRequestTagSummary>> tag(UUID patronRequestId, String tagCode,

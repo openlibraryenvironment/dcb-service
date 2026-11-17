@@ -244,6 +244,8 @@ public class GraphQLFactory {
 		log.debug("returning {}", graphQLSchema.toString());
 
 		// Return the GraphQL bean.
-		return GraphQL.newGraphQL(graphQLSchema).build();
+		return GraphQL.newGraphQL(graphQLSchema)
+			.instrumentation(new PerExecutionDataLoaderRegistry())
+			.build();
 	}
 }

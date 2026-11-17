@@ -2,9 +2,15 @@ package org.olf.dcb.graphql;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import org.dataloader.DataLoader;
+import org.dataloader.DataLoaderFactory;
+import org.dataloader.DataLoaderOptions;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestNote;
 import org.olf.dcb.core.model.RequestTag;
@@ -31,6 +37,14 @@ import reactor.core.publisher.Mono;
  */
 @Singleton
 public class PatronRequestNoteDataFetchers {
+	static final String TAGS_LOADER = "PatronRequest.tags";
+
+	/**
+	 * Caps the request ids in one tags statement, because patronRequests does not cap its page size.
+	 * A page of up to this many requests costs one batch.
+	 */
+	static final int TAGS_BATCH_SIZE = 500;
+
 	private final PatronRequestNoteService noteService;
 	private final PatronRequestTagService tagService;
 	private final RequestNoteAccess access;
@@ -151,12 +165,27 @@ public class PatronRequestNoteDataFetchers {
 
 			final PatronRequest request = env.getSource();
 
-			return access.canRead(request.getId(), callerOf(env))
-				.flatMap(allowed -> allowed
-					? tagService.tagsOf(request.getId())
-					: Mono.just(List.<PatronRequestTagSummary>of()))
-				.toFuture();
+			return tagsLoader(env).load(request.getId());
 		};
+	}
+
+	// The registry belongs to one execution, so the caller captured here is the caller of every load
+	private DataLoader<UUID, List<PatronRequestTagSummary>> tagsLoader(DataFetchingEnvironment env) {
+		final var caller = callerOf(env);
+
+		return env.getDataLoaderRegistry().computeIfAbsent(TAGS_LOADER, name ->
+			DataLoaderFactory.<UUID, List<PatronRequestTagSummary>>newMappedDataLoader(
+				ids -> tagsReadableBy(ids, caller).toFuture(),
+				DataLoaderOptions.newOptions().setMaxBatchSize(TAGS_BATCH_SIZE).build()));
+	}
+
+	private Mono<Map<UUID, List<PatronRequestTagSummary>>> tagsReadableBy(Set<UUID> ids,
+		RequestNoteCaller caller) {
+
+		return access.readableAmong(ids, caller)
+			.flatMap(tagService::tagsOfEach)
+			.map(tags -> ids.stream().collect(Collectors.toMap(Function.identity(),
+				id -> tags.getOrDefault(id, List.of()))));
 	}
 
 	public DataFetcher<CompletableFuture<List<String>>> involvedAgencyCodesOfPatronRequest() {

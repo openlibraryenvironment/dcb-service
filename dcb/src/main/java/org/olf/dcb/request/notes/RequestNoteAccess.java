@@ -1,12 +1,18 @@
 package org.olf.dcb.request.notes;
 
+import java.util.Collection;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.olf.dcb.core.model.PatronRequest;
+import org.olf.dcb.security.RequestInvolvement;
 import org.olf.dcb.storage.PatronRequestRepository;
+import org.olf.dcb.storage.postgres.PostgresPatronRequestRepository;
 
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.repository.jpa.criteria.QuerySpecification;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
@@ -20,9 +26,13 @@ import reactor.core.publisher.Mono;
 @Singleton
 public class RequestNoteAccess {
 	private final PatronRequestRepository patronRequestRepository;
+	private final PostgresPatronRequestRepository patronRequestQueries;
 
-	public RequestNoteAccess(PatronRequestRepository patronRequestRepository) {
+	public RequestNoteAccess(PatronRequestRepository patronRequestRepository,
+		PostgresPatronRequestRepository patronRequestQueries) {
+
 		this.patronRequestRepository = patronRequestRepository;
+		this.patronRequestQueries = patronRequestQueries;
 	}
 
 	public Mono<Set<String>> involvedAgencyCodes(UUID patronRequestId) {
@@ -37,6 +47,27 @@ public class RequestNoteAccess {
 
 		return involvedAgencyCodes(patronRequestId)
 			.map(involved -> caller.agencyCodes().stream().anyMatch(involved::contains));
+	}
+
+	/**
+	 * Which of these requests the caller may read, by the same rule as {@link #canRead}: no query for
+	 * consortium staff, and one for a library however many requests are asked about.
+	 */
+	public Mono<Set<UUID>> readableAmong(Collection<UUID> patronRequestIds, RequestNoteCaller caller) {
+		if (caller.consortium()) {
+			return Mono.just(Set.copyOf(patronRequestIds));
+		}
+
+		if (patronRequestIds.isEmpty()) {
+			return Mono.just(Set.of());
+		}
+
+		final QuerySpecification<PatronRequest> among =
+			(root, query, criteriaBuilder) -> root.get("id").in(patronRequestIds);
+
+		return Flux.from(patronRequestQueries.findAll(among.and(RequestInvolvement.involving(caller.agencyCodes()))))
+			.map(PatronRequest::getId)
+			.collect(Collectors.toSet());
 	}
 
 	/**
