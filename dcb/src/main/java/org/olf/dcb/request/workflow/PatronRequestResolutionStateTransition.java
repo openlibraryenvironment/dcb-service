@@ -120,7 +120,8 @@ public class PatronRequestResolutionStateTransition implements PatronRequestStat
 		return noValidItemExplanation.faultsBehind(resolution.getExcludedItems())
 			.flatMap(faults -> Boolean.TRUE.equals(patronRequest.getIsManuallySelectedItem()) && !faults.isEmpty()
 				? Mono.error(new SupplierCannotSupplyException(faults.get(0).supplierHostLmsCode(), faults.get(0).preflight()))
-				: noValidItemExplanation.explain(patronRequest.resolveToNoItemsSelectable(), faults))
+				: noValidItemExplanation.explain(patronRequest.resolveToNoItemsSelectable(),
+					NoValidItemExplanation.withNotLent(faults, noValidItemExplanation.notLentBy(resolution.getExcludedItems()))))
 			.flatMap(patronRequestService::updatePatronRequest)
 			.then();
 	}
