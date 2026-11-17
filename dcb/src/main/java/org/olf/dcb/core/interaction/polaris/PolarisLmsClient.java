@@ -734,18 +734,46 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	// Polaris can answer a create with the id of a bib it already had. A holdable virtual item on
-	// a bib the PAC displays joins that bib's local hold queue and traps for the next local hold,
-	// so only a record hidden from the PAC is accepted. DisplayInPAC missing is not accepted.
+	// a bib the PAC displays joins that bib's local hold queue and traps for the next local hold, so
+	// a bib Polaris reports displayed is refused. A read that says nothing refuses nothing: it is
+	// reported, and the request goes on as it did before the read-back existed
 	private Mono<Integer> confirmHiddenVirtualBib(Integer bibId) {
 		return ApplicationServices.getBibliographicRecordByID(String.valueOf(bibId))
-			.filter(record -> FALSE.equals(record.getDisplayInPAC()))
-			.map(record -> bibId)
-			.switchIfEmpty(Mono.defer(() -> Mono.error(Problem.builder()
-				.withTitle("Polaris did not create a hidden virtual bib")
-				.withDetail("Bib %d at %s is displayed in the PAC, or could not be read back, so no virtual item was attached to it"
-					.formatted(bibId, getHostLmsCode()))
-				.with("localBibId", bibId)
-				.build())));
+			.map(record -> Optional.ofNullable(record.getDisplayInPAC()))
+			.defaultIfEmpty(Optional.empty())
+			.onErrorResume(error -> {
+				log.warn("Could not read virtual bib {} back from {}: {}", bibId, getHostLmsCode(), error.toString());
+				return Mono.just(Optional.empty());
+			})
+			.flatMap(displayInPac -> {
+				if (displayInPac.isEmpty()) {
+					return raiseUnconfirmedVirtualBibAlarm(bibId).thenReturn(bibId);
+				}
+
+				return FALSE.equals(displayInPac.get())
+					? Mono.just(bibId)
+					: Mono.error(Problem.builder()
+						.withTitle("Polaris did not create a hidden virtual bib")
+						.withDetail("Bib %d at %s is displayed in the PAC, so no virtual item was attached to it"
+							.formatted(bibId, getHostLmsCode()))
+						.with("localBibId", bibId)
+						.build());
+			});
+	}
+
+	private Mono<Void> raiseUnconfirmedVirtualBibAlarm(Integer bibId) {
+		final var alarmCode = "ILS." + getHostLmsCode() + ".POLARIS_VIRTUAL_BIB_UNCONFIRMED";
+
+		return alarmsService.raiseAccumulating(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.expires(Instant.now().plus(Duration.ofDays(5)))
+				.build(),
+			"bibIds", String.valueOf(bibId))
+			.onErrorResume(error -> {
+				log.warn("Unable to record {} for bib {}", alarmCode, bibId, error);
+				return Mono.empty();
+			});
 	}
 
 	@Override
@@ -902,25 +930,27 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 
+	// For availability an unreadable hold is not counted: a timeout must not hide a copy from resolution
 	private Mono<Item> enrichWithCombinedNumberOfHoldsOnItem(Item item) {
 		String localId = item.getLocalId();
 		Integer currentHoldCount = item.getHoldCount();
 		String barcode = item.getBarcode();
 
-		return enrichHoldCount(localId, currentHoldCount, barcode)
+		return enrichHoldCount(localId, currentHoldCount, barcode, false)
 			.map(updatedHoldCount -> {
 				item.setHoldCount(updatedHoldCount);
 				return item;
 			});
 	}
 
+	// For renewal an unreadable hold counts: wrongly refusing a renewal can be put right,
+	// renewing over another patron's hold cannot
 	private Mono<HostLmsItem> enrichWithCombinedNumberOfHoldsOnItem(HostLmsItem item) {
 		String localId = item.getLocalId();
 		Integer currentHoldCount = item.getHoldCount();
 		String barcode = item.getBarcode();
 
-
-		return enrichHoldCount(localId, currentHoldCount, barcode)
+		return enrichHoldCount(localId, currentHoldCount, barcode, true)
 			.map(updatedHoldCount -> {
 				item.setHoldCount(updatedHoldCount);
 				return item;
@@ -931,7 +961,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 // Make calls to get any holds on the item, or on the title
 	 */
 
-	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount, String itemBarcode) {
+	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount, String itemBarcode,
+		boolean unreadableHoldCounts) {
 		// prevent NPEs
 		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
 		if (localId == null) return Mono.just(currentCount);
@@ -990,10 +1021,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						}
 						return false;
 					})
-					// A hold that cannot be read counts: wrongly refusing a renewal can be put right,
-					// renewing over another patron's hold cannot
-					.defaultIfEmpty(true)
-					.onErrorReturn(true);
+					.defaultIfEmpty(unreadableHoldCounts)
+					.onErrorReturn(unreadableHoldCounts);
 			})
 			.filter(Boolean::booleanValue)
 			.count()
@@ -1052,6 +1081,25 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			// before and raise an alarm instead.
 			case OFFSITE, MISSING, ONHOLDSHELF -> raiseUnsupportedItemStateAlarm(crs).thenReturn("OK");
 		};
+	}
+
+	// A virtual patron search answered -1 in a way only seen as "no match" on one Polaris
+	Mono<Void> raiseUnconfirmedNoMatchAlarm(String answer) {
+		final var alarmCode = "ILS." + getHostLmsCode() + ".POLARIS_UNCONFIRMED_NO_MATCH";
+
+		log.warn("POLARIS_UNCONFIRMED_NO_MATCH :: Host: {} answered a virtual patron search with -1: {}",
+			getHostLmsCode(), answer);
+
+		return alarmsService.raiseAccumulating(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.expires(Instant.now().plus(Duration.ofDays(5)))
+				.build(),
+			"answers", answer)
+			.onErrorResume(error -> {
+				log.warn("Unable to record {}", alarmCode, error);
+				return Mono.empty();
+			});
 	}
 
 	private Mono<Void> raiseUnsupportedItemStateAlarm(CanonicalItemState crs) {
@@ -2478,6 +2526,11 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return Mono.just(List.of());
 		}
 
+		if (startId == 0 && extParams.getDeletionsFailedAt() != null
+			&& extParams.getDeletionsFailedAt().isAfter(now.minus(DELETIONS_INTERVAL))) {
+			return Mono.just(List.of());
+		}
+
 		final String sinceParam = since.truncatedTo(ChronoUnit.MILLIS).toString();
 
 		return deletedBibPage(sinceParam, startId)
@@ -2503,11 +2556,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				log.info("POLARIS_HARVEST_DELETIONS :: Host: {} {} bib(s) deleted since {}{}", lms.getCode(),
 					deletedIds.size(), sinceParam, capped ? ", more to read next run" : "");
 
+				extParams.setDeletionsFailedAt(null);
+
 				return deletedIds.stream().map(id -> deletedBibRow(id, now)).toList();
 			})
 			.onErrorResume(error -> {
-				log.warn("POLARIS_HARVEST_DELETIONS :: Host: {} could not read deleted bibs since {}; will retry",
-					lms.getCode(), sinceParam, error);
+				log.warn("POLARIS_HARVEST_DELETIONS :: Host: {} could not read deleted bibs since {}; will retry in {}",
+					lms.getCode(), sinceParam, DELETIONS_INTERVAL, error);
+				extParams.setDeletionsFailedAt(now);
 				return Mono.just(List.of());
 			});
 	}

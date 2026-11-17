@@ -449,6 +449,21 @@ public class MockPolarisFixture {
 		mockGetBibAsPolarisSendsIt(bibId, true);
 	}
 
+	/** The read-back answers without saying whether the PAC displays the bib. */
+	public void mockCreateBibWithReadBackSilentOnDisplay(Integer bibId) {
+		mockServer.replaceMock(createBibRequest(), bibId);
+		mockServer.mockGet(paths.getBib(bibId), response()
+			.withStatusCode(200)
+			.withBody(json("""
+				{ "BibliographicRecordID": %d }""".formatted(bibId))));
+	}
+
+	/** The read-back itself fails. */
+	public void mockCreateBibWithReadBackFailing(Integer bibId) {
+		mockServer.replaceMock(createBibRequest(), bibId);
+		mockServer.mockGet(paths.getBib(bibId), response().withStatusCode(500));
+	}
+
 	// Raw JSON, not a serialised BibliographicRecord: a round trip through the model would hide a
 	// wrongly spelt property
 	private void mockGetBibAsPolarisSendsIt(Integer bibId, boolean displayInPac) {

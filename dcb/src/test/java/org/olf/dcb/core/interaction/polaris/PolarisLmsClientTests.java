@@ -868,17 +868,21 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void shouldFailVirtualPatronSearchWhenPolarisReportsAGeneralFailure() {
+	void shouldReadAGeneralFailureFromTheVirtualPatronSearchAsNoMatchAndRaiseAnAlarm() {
 		final var barcode = generateBarcode();
 
 		mockPolarisFixture.mockPatronSearchPapiError(barcode, -1, "General Failure");
 
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
 
-		final var exception = assertThrows(FindVirtualPatronException.class,
+		// No match, as before: refusing every -1 would stop new virtual patrons on a server that words it otherwise
+		assertThrows(VirtualPatronNotFound.class,
 			() -> singleValueFrom(client.findVirtualPatron(borrowerWithHomeBarcode(barcode))));
 
-		assertThat(exception, hasMessage("PAPIService returned [-1], with message: General Failure"));
+		final var alarm = singleValueFrom(alarmRepository.findByCode(
+			"ILS." + CATALOGUING_HOST_LMS_CODE + ".POLARIS_UNCONFIRMED_NO_MATCH"));
+		assertThat(alarm, is(notNullValue()));
+		assertThat(String.valueOf(alarm.getAlarmDetails().get("answers")), containsString("General Failure"));
 	}
 
 	private static org.olf.dcb.core.model.Patron borrowerWithHomeBarcode(String barcode) {
@@ -2418,6 +2422,42 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldKeepABibWhoseReadBackDoesNotSayWhetherThePacDisplaysItAndRaiseAnAlarm() {
+		final var bibId = generateNumericLocalId();
+
+		mockPolarisFixture.mockCreateBibWithReadBackSilentOnDisplay(bibId);
+
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		// A missing answer is not evidence of a displayed bib, so the request goes on
+		final var receivedBibId = singleValueFrom(client.createBib(Bib.builder().title("title").build()));
+
+		assertThat(receivedBibId, is(convertIntegerToString(bibId)));
+		assertUnconfirmedVirtualBibAlarmNames(bibId);
+	}
+
+	@Test
+	void shouldKeepABibWhoseReadBackFailsAndRaiseAnAlarm() {
+		final var bibId = generateNumericLocalId();
+
+		mockPolarisFixture.mockCreateBibWithReadBackFailing(bibId);
+
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+
+		final var receivedBibId = singleValueFrom(client.createBib(Bib.builder().title("title").build()));
+
+		assertThat(receivedBibId, is(convertIntegerToString(bibId)));
+		assertUnconfirmedVirtualBibAlarmNames(bibId);
+	}
+
+	private void assertUnconfirmedVirtualBibAlarmNames(Integer bibId) {
+		final var alarm = singleValueFrom(alarmRepository.findByCode(
+			"ILS." + CATALOGUING_HOST_LMS_CODE + ".POLARIS_VIRTUAL_BIB_UNCONFIRMED"));
+		assertThat(alarm, is(notNullValue()));
+		assertThat(String.valueOf(alarm.getAlarmDetails().get("bibIds")), containsString(String.valueOf(bibId)));
+	}
+
+	@Test
 	void shouldCreateBibWithBookMaterialTypeWhenSourceTypeIsUnknown() {
 		// Arrange
 		final var bibId = generateNumericLocalId();
@@ -2637,6 +2677,41 @@ class PolarisLmsClientTests {
 
 		// Assert - counted, so a renewal over a possible hold is refused
 		assertThat(localItem.getHoldCount(), is(1));
+	}
+
+	@Test
+	void shouldNotCountAHoldWhoseDetailCannotBeReadWhenReadingAvailability() {
+		// Arrange - the same unreadable hold, met while working out what can be lent
+		defineItemTypeRangeMapping();
+
+		final var bibId = generateNumericLocalId();
+		final var itemId = generateNumericLocalId();
+		final var holdId = generateNumericLocalId();
+
+		mockPolarisFixture.mockGetItemsForBib(bibId, List.of(
+			ItemGetRow.builder()
+				.ItemRecordID(itemId)
+				.BibliographicRecordID(bibId)
+				.Barcode(generateBarcode())
+				.MaterialType("Book")
+				.IsDisplayInPAC(true)
+				.CircStatus(checkedOutCirculationStatus())
+				.DueDate(formatDueDate(generateDueDate(7)))
+				.LocationID(15)
+				.build()));
+		mockPolarisFixture.mockGetMaterialTypes(List.of(bookMaterialType()));
+		mockPolarisFixture.mockGetItemStatuses(List.of(checkedOutStatus()));
+		mockPolarisFixture.mockGetItemHolds(itemId, """
+			{ "TotalCount": 1, "Offset": 0, "Reservations": [ { "SysHoldRequestID": %d, "SysHoldStatusID": 3 } ] }"""
+			.formatted(holdId));
+		mockPolarisFixture.mockGetHoldServerError(holdId);
+
+		// Act
+		final var items = getItems(bibId, CATALOGUING_HOST_LMS_CODE);
+
+		// Assert - a timeout must not make the copy look held and drop it from resolution
+		assertThat(items, hasSize(1));
+		assertThat(items.get(0), hasZeroHoldCount());
 	}
 
 	@Test

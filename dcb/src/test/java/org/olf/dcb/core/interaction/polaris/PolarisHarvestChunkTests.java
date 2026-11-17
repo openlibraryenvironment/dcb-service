@@ -282,6 +282,23 @@ class PolarisHarvestChunkTests {
 		assertThat(last.isLastChunk(), is(true));
 		assertThat(last.getData(), hasSize(0));
 		assertThat(checkpointOf(last).getDeletedSince(), is(nullValue()));
+		assertThat(checkpointOf(last).getDeletionsFailedAt(), is(notNullValue()));
+	}
+
+	@Test
+	void aFailedReadOfDeletionsIsNotRepeatedOnEveryRun() {
+		// Arrange - a server that refuses the deletions read refuses it every time
+		mockPolarisFixture.mockGetUpdatedBibs(0, updatedBibsResponse());
+		mockPolarisFixture.mockGetDeletedBibsServerError();
+
+		// Act - the next run follows straight on, as a two-minute harvest would
+		final var first = singleValueFrom(client.getChunk(Optional.of(deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 0))));
+		final var failedAt = checkpointOf(first).getDeletionsFailedAt();
+		final var second = singleValueFrom(client.getChunk(Optional.of(first.getCheckpoint())));
+
+		// Assert - not asked again: a second failure would have moved the time
+		assertThat(failedAt, is(notNullValue()));
+		assertThat(checkpointOf(second).getDeletionsFailedAt(), is(failedAt));
 	}
 
 	@Test

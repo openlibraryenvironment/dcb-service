@@ -529,21 +529,30 @@ public class PAPIClient {
 			.flatMap(authFilter::ensureStaffAuth)
 			.delayElement(Duration.ofSeconds(findDelay)),
 			Argument.of(PatronSearchResult.class))
-			.flatMap(result -> isNoMatch(result)
-				? Mono.just(result)
+			.flatMap(result -> isGeneralFailure(result)
+				? observeGeneralFailure(result).thenReturn(result)
 				: checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
 			.map(checkForUniquePatronResult(path, ccl));
 	}
 
-	// A search with no match answers -1 with an empty ErrorMessage and no rows (Polaris 8.1, 2 Nov
-	// 2026). Any other -1 fails the search: read as no match, it would create a second virtual patron.
-	private static boolean isNoMatch(PatronSearchResult result) {
+	private static boolean isGeneralFailure(PatronSearchResult result) {
+		return getValue(result, PapiResult::getPapiErrorCode, 0) == GENERAL_FAILURE;
+	}
+
+	// Every -1 reads as no match, as before. Only an empty -1 with no rows is known to mean that (Polaris
+	// 8.1, 2 Nov 2026); any other is reported, so a server that fails searches can be told from one that
+	// words "no match" differently before a -1 is ever refused
+	private Mono<Void> observeGeneralFailure(PatronSearchResult result) {
 		final var message = getValueOrNull(result, PapiResult::getErrorMessage);
 		final var rows = getValueOrNull(result, PatronSearchResult::getPatronSearchRows);
 
-		return getValue(result, PapiResult::getPapiErrorCode, 0) == GENERAL_FAILURE
-			&& (message == null || message.isBlank())
-			&& (rows == null || rows.isEmpty());
+		if ((message == null || message.isBlank()) && (rows == null || rows.isEmpty())) {
+			return Mono.empty();
+		}
+
+		return client.raiseUnconfirmedNoMatchAlarm(message == null || message.isBlank()
+			? "(no message, " + rows.size() + " rows)"
+			: message);
 	}
 
 	private Function<PatronSearchResult, PatronSearchRow> checkForUniquePatronResult(String path, String ccl) {

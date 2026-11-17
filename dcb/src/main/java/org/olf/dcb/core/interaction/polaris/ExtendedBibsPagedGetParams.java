@@ -28,6 +28,8 @@ public class ExtendedBibsPagedGetParams {
 	// Polaris deletions are read on their own watermark and cursor; see PolarisLmsClient.readDeletions
 	private Instant deletedSince;
 	private Integer deletedLastId;
+	// The last failed read of deletions, so a server that refuses them is asked again every 30 minutes, not every walk
+	private Instant deletionsFailedAt;
   private final String cpType="POLARIS";
   private String hostCode;
 
