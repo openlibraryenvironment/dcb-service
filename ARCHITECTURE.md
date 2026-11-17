@@ -86,7 +86,7 @@ extension points, or constraints need more detail than this overview.
   names an entry in `remediation/catalogue.json`, and the workflow's error
   transformer records that entry's summary and next steps on the request. Raise
   the code where the failure is recognised (an adapter, a transition); keep the
-  words in the catalogue. See `docs/operational/remediation-catalogue.md`.
+  words in the catalogue. The developer documentation's "Remediation catalogue" page says how to add an entry.
 
 ## Persistence
 

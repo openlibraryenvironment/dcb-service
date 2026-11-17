@@ -23,8 +23,8 @@ import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * The maintained vocabulary of what to do about a failure DCB can name:
- * docs/operational/remediation-catalogue.md.
+ * The maintained vocabulary of what to do about a failure DCB can name: one entry in
+ * {@code remediation/catalogue.json} for each {@link RemediationCode}.
  */
 @Slf4j
 // Created at startup, so an entry that does not match RemediationCode stops the application

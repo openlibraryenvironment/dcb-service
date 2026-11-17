@@ -16,7 +16,7 @@
       "To retry this request as it is, consortium staff roll it back from ERROR (POST /patrons/requests/<request id>/rollback, or the rollback action in DCB Admin). DCB places it at {hostLms} again, for the same copy, within a few minutes. The refused attempt placed no hold at {hostLms}, so nothing is duplicated.",
       "To place a new request instead, or to let DCB choose another copy, staff at the borrowing library clean this request up first, then place the new one. Until this request is finished, DCB will not choose the same copy for the same borrowing library again."
     ],
-    "docs": "docs/folio_notes.md, \"Request policies for DCB's patron groups\""
+    "docs": "OpenRS DCB technical documentation, \"A supplier that refuses a request\""
   },
   "SIERRA_HOLD_REFUSED_FOR_PATRON_RECORD": {
     "audience": "SUPPLYING_LIBRARY",
