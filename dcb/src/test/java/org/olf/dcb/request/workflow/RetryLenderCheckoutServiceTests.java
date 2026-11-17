@@ -138,7 +138,8 @@ class RetryLenderCheckoutServiceTests {
 
 		try {
 			final var refusal = assertThrows(LenderCheckoutRetryRefused.class,
-				() -> service.retry(patronRequest.getId(), consortium(), "other-staff").block());
+				// Bounded: without the guard this retry would wait for ever on the first one's checkout
+				() -> service.retry(patronRequest.getId(), consortium(), "other-staff").block(java.time.Duration.ofSeconds(10)));
 
 			assertThat(refusal.getCode(), is("RETRY_IN_PROGRESS"));
 		} finally {
