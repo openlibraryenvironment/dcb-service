@@ -1,5 +1,6 @@
 package org.olf.dcb.core.interaction.alma;
 
+import static org.olf.dcb.core.remediation.RemediationCode.ALMA_USER_GROUP_CANNOT_REQUEST;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static io.micrometer.common.util.StringUtils.isBlank;
 import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
@@ -174,6 +175,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.flatMap(pickup -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), pickup.libraryCode(), pickup.deskCode(), p.getNote(),
 				p.getPatronRequestId(), p.getLocalBibId(), p.getLocalItemBarcode())))
+			.onErrorMap(AlmaHostLmsClient::isUserGroupRefusal,
+				error -> userGroupRefusal(p, (AlmaNoItemCanFulfilException) error))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtSupplyingAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -325,7 +328,24 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.flatMap(options -> Mono.error(noItemCanFulfil(hold, options, refusal)));
 	}
 
-	private static AlmaHostLmsClientException noItemCanFulfil(MinimumAlmaHold hold,
+	// Only the lending library can give its user group a Request term of use; a refused pickup library is DCB's configuration
+	private static boolean isUserGroupRefusal(Throwable error) {
+		return error instanceof AlmaNoItemCanFulfilException refusal && refusal.getOptions().refusesHold();
+	}
+
+	private SupplierRefusedRequestProblem userGroupRefusal(PlaceHoldRequestParameters p,
+		AlmaNoItemCanFulfilException refusal) {
+
+		final var offered = refusal.getOptions().requestTypes();
+
+		return new SupplierRefusedRequestProblem(getHostLmsCode(), ALMA_USER_GROUP_CANNOT_REQUEST,
+			Map.of("hostLms", getHostLmsCode(),
+				"userGroup", Objects.requireNonNullElse(p.getLocalPatronType(), "unknown"),
+				"offered", offered.isEmpty() ? "nothing" : String.join(", ", offered)),
+			refusal);
+	}
+
+	private static AlmaNoItemCanFulfilException noItemCanFulfil(MinimumAlmaHold hold,
 		RequestOptionsReport options, Throwable cause) {
 
 		final var library = hold.pickupLibraryCode();
@@ -334,19 +354,19 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		// Alma's answer takes no pickup location, so an offered hold points at the destination
 		if (options.offersHold()) {
-			return new AlmaHostLmsClientException(refused + ("Alma offers this patron a hold on this "
+			return new AlmaNoItemCanFulfilException(options, refused + ("Alma offers this patron a hold on this "
 				+ "item, so the refusal is the pickup library: check that '%s' is a pickup location for "
 				+ "the item's fulfilment unit and not a resource sharing library.").formatted(library), cause);
 		}
 
 		if (options.refusesHold()) {
-			return new AlmaHostLmsClientException(refused + ("Alma offers this patron no hold on this "
+			return new AlmaNoItemCanFulfilException(options, refused + ("Alma offers this patron no hold on this "
 				+ "item (offered: %s), so the patron's user group has no Request term of use for it.")
 				.formatted(options.requestTypes().isEmpty() ? "nothing" : String.join(", ", options.requestTypes())),
 				cause);
 		}
 
-		return new AlmaHostLmsClientException(refused + ("Check that '%s' is a pickup location for the "
+		return new AlmaNoItemCanFulfilException(options, refused + ("Check that '%s' is a pickup location for the "
 			+ "item's fulfilment unit, and that the patron's user group has a Request term of use. "
 			+ "Alma could not be asked which: %s").formatted(library, options.detail()), cause);
 	}

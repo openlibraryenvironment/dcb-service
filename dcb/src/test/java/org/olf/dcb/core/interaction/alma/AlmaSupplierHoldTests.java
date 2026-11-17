@@ -5,6 +5,8 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.olf.dcb.core.remediation.RemediationCode.ALMA_USER_GROUP_CANNOT_REQUEST;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Location;
@@ -88,6 +91,8 @@ class AlmaSupplierHoldTests {
 
 		// Measured on an Alma sandbox: a HOLD offered to this patron on this copy, and the POST
 		// still refused because the pickup library was the Resource Sharing Library
+		assertThat("DCB's own pickup configuration is not the lender's refusal",
+			error, not(instanceOf(SupplierRefusedRequestProblem.class)));
 		assertThat(error.getMessage(), allOf(
 			containsString("Alma offers this patron a hold on this item"),
 			containsString("the refusal is the pickup library"),
@@ -101,6 +106,12 @@ class AlmaSupplierHoldTests {
 
 		final var error = placeSupplierHold("bib-1", "barcode-1");
 
+		// Only the lending library can give its user group a Request term of use
+		assertThat(error, instanceOf(SupplierRefusedRequestProblem.class));
+		final var refusal = (SupplierRefusedRequestProblem) error;
+		assertThat(refusal.remediationCode(), is(ALMA_USER_GROUP_CANNOT_REQUEST));
+		assertThat(refusal.remediationValues(),
+			is(Map.of("hostLms", "ALMA", "userGroup", "DCB-GROUP", "offered", "DIGITIZATION")));
 		assertThat(error.getMessage(), allOf(
 			containsString("no hold on this item (offered: DIGITIZATION)"),
 			containsString("user group has no Request term of use")));
@@ -169,6 +180,7 @@ class AlmaSupplierHoldTests {
 				.localItemId("item-1")
 				.localBibId(localBibId)
 				.localItemBarcode(localItemBarcode)
+				.localPatronType("DCB-GROUP")
 				.pickupLocation(Location.builder().code("PICKUP").localId("PICKUP").build())
 				.activeWorkflow("RET-STD")
 				.patronRequestId("pr-1")

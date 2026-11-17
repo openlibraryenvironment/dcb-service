@@ -5,5 +5,7 @@ package org.olf.dcb.core.remediation;
  * {@code remediation/catalogue.json}, or the application does not start.
  */
 public enum RemediationCode {
-	FOLIO_REQUEST_POLICY_REFUSED
+	FOLIO_REQUEST_POLICY_REFUSED,
+	SIERRA_HOLD_REFUSED_FOR_PATRON_RECORD,
+	ALMA_USER_GROUP_CANNOT_REQUEST
 }

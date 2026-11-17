@@ -9,6 +9,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.core.remediation.RemediationCode.SIERRA_HOLD_REFUSED_FOR_PATRON_RECORD;
 import static org.olf.dcb.test.IdentifierGenerator.generateNumericLocalIdAsString;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
@@ -22,6 +23,7 @@ import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestMethod;
 import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasRequestUrl;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -253,15 +256,19 @@ class SierraHostLmsClientPlaceRequestTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var problem = assertThrows(ThrowableProblem.class,
+		final var problem = assertThrows(SupplierRefusedRequestProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localBibId(localBibId)
 					.localPatronId(localPatronId)
+					.localPatronType("15")
 					.patronRequestId(patronRequestId)
 					.build())));
 
 		// Assert
+		// Only the lending library's staff can clear it, so it is a refusal DCB can route around
+		assertThat(problem.remediationCode(), is(SIERRA_HOLD_REFUSED_FOR_PATRON_RECORD));
+		assertThat(problem.remediationValues(), is(Map.of("hostLms", HOST_LMS_CODE, "patronType", "15")));
 		assertThat(problem.toString(), allOf(
 			containsString("sierra-place-hold-tests XCirc Error: There is a problem with the patron's library record"),
 			// The fault is with the patron, so the diagnostics must describe the patron
