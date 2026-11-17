@@ -197,7 +197,7 @@ class ApplicationServicesClient {
 			throw Problem.builder()
 				.withType(ERR0210)
 				.withTitle(RequestLimitReached.equals(promptId)
-					? "The lending library's Polaris refused the hold: the virtual patron has reached its request limit for this material type"
+					? "Polaris refused the hold: the patron has reached its request limit for this material type, or its patron type may not request it"
 					: "Failed to handle Polaris.ApplicationServices API workflow")
 				.withDetail(title)
 				.with("Message", message)

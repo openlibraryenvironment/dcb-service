@@ -1078,7 +1078,7 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
-	void shouldNameTheLendersRequestLimitWhenPolarisRefusesAHoldForIt() {
+	void shouldNameTheRequestLimitWithoutBlamingEitherSide() {
 		// Arrange
 		final var localItemId = generateNumericLocalId();
 		final var bibId = generateNumericLocalId();
@@ -1101,7 +1101,10 @@ class PolarisLmsClientTests {
 					.build())));
 
 		// Assert
-		assertThat(problem.getTitle(), containsString("request limit for this material type"));
+		// The same workflow places the borrower's hold for the real patron, so the title names
+		// neither library nor the virtual patron
+		assertThat(problem.getTitle(),
+			is("Polaris refused the hold: the patron has reached its request limit for this material type, or its patron type may not request it"));
 	}
 
 	private static WorkflowResponse holdPrompt(String workflowRequestId, Integer promptId) {
