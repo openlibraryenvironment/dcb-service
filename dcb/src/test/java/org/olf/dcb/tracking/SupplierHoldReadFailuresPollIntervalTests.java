@@ -7,6 +7,9 @@ import java.time.Duration;
 import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.SupplierRequest;
 
 class SupplierHoldReadFailuresPollIntervalTests {
@@ -37,11 +40,22 @@ class SupplierHoldReadFailuresPollIntervalTests {
 		assertThat(interval(Duration.ofHours(6), Duration.ofHours(5)), is(Duration.ofHours(6)));
 	}
 
+	@ParameterizedTest
+	@EnumSource(value = PatronRequest.Status.class, names = {"PICKUP_TRANSIT", "READY_FOR_PICKUP", "LOANED", "RETURN_TRANSIT"})
+	void shouldNotSlowARequestOnceTheCopyHasLeftTheLender(PatronRequest.Status status) {
+		// A filled hold often stops reading; the borrower's side must still be seen at the normal rate
+		assertThat(interval(Duration.ofSeconds(1), Duration.ofHours(5), status), is(Duration.ofSeconds(1)));
+	}
+
 	private static Duration interval(Duration normal, Duration failingFor) {
+		return interval(normal, failingFor, PatronRequest.Status.CONFIRMED);
+	}
+
+	private static Duration interval(Duration normal, Duration failingFor, PatronRequest.Status status) {
 		final var supplierRequest = SupplierRequest.builder()
 			.localReadFailingSince(failingFor == null ? null : NOW.minus(failingFor))
 			.build();
 
-		return SupplierHoldReadFailures.pollInterval(normal, supplierRequest, NOW);
+		return SupplierHoldReadFailures.pollInterval(normal, status, supplierRequest, NOW);
 	}
 }

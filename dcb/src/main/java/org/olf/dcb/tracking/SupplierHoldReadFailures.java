@@ -5,6 +5,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Set;
 import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
 
@@ -86,14 +87,18 @@ public class SupplierHoldReadFailures {
 	}
 
 	/**
-	 * How long to wait before polling a request again. While its lender's hold cannot be read, poll no
-	 * more often than every 5 minutes, then no more often than the failures have lasted, up to an
-	 * hour; a status whose own interval is longer keeps it.
+	 * How long to wait before polling a request again. While its lender's hold cannot be read and the
+	 * request still waits on that hold, poll no more often than every 5 minutes, then no more often than
+	 * the failures have lasted, up to an hour; a status whose own interval is longer keeps it. Once the
+	 * copy has left the lender, the borrower's side drives the request and a filled hold that no longer
+	 * reads must not slow it.
 	 */
-	public static Duration pollInterval(Duration normal, SupplierRequest sr, Instant now) {
+	public static Duration pollInterval(Duration normal, PatronRequest.Status status, SupplierRequest sr,
+		Instant now) {
+
 		final var failingSince = getValueOrNull(sr, SupplierRequest::getLocalReadFailingSince);
 
-		if (failingSince == null) {
+		if (failingSince == null || !WAITING_ON_THE_LENDERS_HOLD.contains(status)) {
 			return normal;
 		}
 
@@ -101,6 +106,11 @@ public class SupplierHoldReadFailures {
 
 		return backOff.compareTo(normal) > 0 ? backOff : normal;
 	}
+
+	static final Set<PatronRequest.Status> WAITING_ON_THE_LENDERS_HOLD = Set.of(
+		PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY,
+		PatronRequest.Status.CONFIRMED,
+		PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY);
 
 	static final Duration FIRST_BACK_OFF = Duration.ofMinutes(5);
 	static final Duration MAX_BACK_OFF = Duration.ofHours(1);

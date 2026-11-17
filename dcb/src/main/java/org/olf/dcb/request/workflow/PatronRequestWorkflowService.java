@@ -316,7 +316,8 @@ public class PatronRequestWorkflowService {
 		}
 
 		final var duration = trackingHelpers.getDurationFor(patronRequest.getStatus())
-			.map(normal -> SupplierHoldReadFailures.pollInterval(normal, ctx.getSupplierRequest(), Instant.now()));
+			.map(normal -> SupplierHoldReadFailures.pollInterval(normal, patronRequest.getStatus(),
+				ctx.getSupplierRequest(), Instant.now()));
 
 		Instant next_poll = null;
 
