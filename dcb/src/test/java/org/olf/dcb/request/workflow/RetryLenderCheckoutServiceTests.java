@@ -90,6 +90,7 @@ class RetryLenderCheckoutServiceTests {
 
 		patronRequestRepository = mock(PatronRequestRepository.class);
 		when(patronRequestRepository.saveOrUpdate(any())).thenAnswer(call -> Mono.just(call.getArgument(0)));
+		when(patronRequestRepository.updateNeedsAttention(any(), any())).thenReturn(Mono.empty());
 
 		final var handleBorrowerItemLoaned = new HandleBorrowerItemLoaned(patronRequestRepository,
 			hostLmsService, auditService);
@@ -109,6 +110,40 @@ class RetryLenderCheckoutServiceTests {
 		assertThat(result, is(RetryLenderCheckoutService.RETRIED));
 		assertThat(patronRequest.getNeedsAttention(), is(false));
 		verify(lender).checkOutItemToPatron(any());
+		// The flag alone is written: the request read before the retry may be behind tracking
+		verify(patronRequestRepository).updateNeedsAttention(patronRequest.getId(), false);
+		verify(patronRequestRepository, never()).saveOrUpdate(patronRequest);
+	}
+
+	@Test
+	void theFlagStaysWhenTheExpeditedCheckoutAtTheBorrowerAlsoFailed() {
+		lenderCopyIs("TRANSIT");
+		when(lender.checkOutItemToPatron(any())).thenReturn(Mono.just("OK"));
+		when(auditRepository.findAllByPatronRequest(patronRequest)).thenReturn(Flux.just(
+			PatronRequestAudit.builder().briefDescription("Expedited checkout at borrower failed: refused").build()));
+
+		service.retry(patronRequest.getId(), consortium(), "consortium-staff").block();
+
+		assertThat(patronRequest.getNeedsAttention(), is(true));
+		verify(patronRequestRepository, never()).updateNeedsAttention(any(), any());
+	}
+
+	@Test
+	void aSecondRetryOfTheSameRequestIsRefusedWhileTheFirstIsInProgress() {
+		lenderCopyIs("TRANSIT");
+		// The first retry's checkout has not answered yet
+		when(lender.checkOutItemToPatron(any())).thenReturn(Mono.never());
+
+		final var first = service.retry(patronRequest.getId(), consortium(), "consortium-staff").subscribe();
+
+		try {
+			final var refusal = assertThrows(LenderCheckoutRetryRefused.class,
+				() -> service.retry(patronRequest.getId(), consortium(), "other-staff").block());
+
+			assertThat(refusal.getCode(), is("RETRY_IN_PROGRESS"));
+		} finally {
+			first.dispose();
+		}
 	}
 
 	@Test

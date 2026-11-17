@@ -161,6 +161,10 @@ public interface PatronRequestRepository {
 	@NonNull
 	@SingleResult
 	Publisher<Void> updateIsTooLongAndNeedsAttention(@Id UUID id, Boolean isTooLong, Boolean needsAttention);
+
+	@NonNull
+	@SingleResult
+	Publisher<Void> updateNeedsAttention(@Id UUID id, Boolean needsAttention);
 	
 	@NonNull
 	@SingleResult

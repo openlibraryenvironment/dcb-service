@@ -6,6 +6,7 @@ import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 
 import org.olf.dcb.core.HostLmsService;
@@ -43,8 +44,11 @@ public class RetryLenderCheckoutService {
 	static final String ALREADY_OUT = "Lender checkout retry : Skipped, the lender's copy is already checked out";
 	static final String RETRY_FAILED = "Lender checkout retry : Failed";
 
-	// Other reasons the flag is set; a successful retry leaves it for them
-	private static final String BORROWER_CHECKOUT_FAILED = "Patron checkout failed";
+	// Other reasons the flag is set; a successful lender checkout leaves it for them
+	private static final List<String> OTHER_REASONS_FOR_ATTENTION = List.of(
+		"Patron checkout failed",
+		"Expedited checkout at borrower failed",
+		"NO BARCODE FOR PATRON VIRTUAL IDENTITY");
 
 	private final PatronRequestService patronRequestService;
 	private final RequestWorkflowContextHelper requestWorkflowContextHelper;
@@ -87,8 +91,12 @@ public class RetryLenderCheckoutService {
 			.flatMap(requestWorkflowContextHelper::fromPatronRequest)
 			.map(ctx -> ensureRetryableBy(ctx, caller))
 			.flatMap(this::refuseIfRetriedWithinTheWindow)
-			.flatMap(ctx -> hostLmsService.getClientFor(ctx.getLenderSystemCode())
-				.flatMap(lender -> retryAt(ctx, lender, caller)));
+			.flatMap(ctx -> limiter.tryStart(patronRequestId)
+				? hostLmsService.getClientFor(ctx.getLenderSystemCode())
+					.flatMap(lender -> retryAt(ctx, lender, caller))
+					.doFinally(signal -> limiter.finish(patronRequestId))
+				: Mono.error(new LenderCheckoutRetryRefused("RETRY_IN_PROGRESS",
+					"This request's lender checkout is already being retried.", Duration.ofSeconds(30))));
 	}
 
 	// Checked after access, so a 429 never tells a library about a request it cannot see
@@ -192,13 +200,12 @@ public class RetryLenderCheckoutService {
 
 		return Flux.from(patronRequestAuditRepository.findAllByPatronRequest(patronRequest))
 			.any(audit -> audit.getBriefDescription() != null
-				&& audit.getBriefDescription().startsWith(BORROWER_CHECKOUT_FAILED))
+				&& OTHER_REASONS_FOR_ATTENTION.stream().anyMatch(audit.getBriefDescription()::startsWith))
 			.flatMap(flaggedForMore -> flaggedForMore
 				? Mono.empty()
-				: Mono.defer(() -> {
-					patronRequest.setNeedsAttention(Boolean.FALSE);
-					return Mono.from(patronRequestRepository.saveOrUpdate(patronRequest)).then();
-				}));
+				// The flag alone: the request read before the retry may be behind tracking by now
+				: Mono.from(patronRequestRepository.updateNeedsAttention(patronRequest.getId(), Boolean.FALSE))
+					.then(Mono.fromRunnable(() -> patronRequest.setNeedsAttention(Boolean.FALSE))));
 	}
 
 	private static ThrowableProblem forbidden(UUID patronRequestId) {

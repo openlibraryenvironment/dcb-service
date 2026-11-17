@@ -1,6 +1,7 @@
 package org.olf.dcb.request.workflow;
 
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -33,5 +34,20 @@ public class LenderCheckoutRetryLimiter {
 
 	public boolean tryAcquireForCaller(String caller) {
 		return callers.get(caller, key -> new AtomicInteger()).incrementAndGet() <= perCaller;
+	}
+
+	// Retries in progress on this instance: the audit that spaces retries is written only once one ends.
+	// Expiry frees a request whose retry never finished
+	private final Cache<UUID, Boolean> inProgress = Caffeine.newBuilder()
+		.maximumSize(10_000)
+		.expireAfterWrite(Duration.ofMinutes(2))
+		.build();
+
+	public boolean tryStart(UUID patronRequestId) {
+		return inProgress.asMap().putIfAbsent(patronRequestId, Boolean.TRUE) == null;
+	}
+
+	public void finish(UUID patronRequestId) {
+		inProgress.invalidate(patronRequestId);
 	}
 }
