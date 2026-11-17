@@ -5,7 +5,10 @@ import static io.micronaut.http.HttpMethod.POST;
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static org.olf.dcb.core.interaction.polaris.PolarisTokenCache.TokenKind.APPLICATION_SERVICES;
 
+import java.time.Duration;
 import java.util.Base64;
+
+import org.olf.dcb.core.interaction.PingFailure;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -19,9 +22,18 @@ import lombok.Data;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
+import reactor.util.retry.RetryBackoffSpec;
 
 @Slf4j
 class ApplicationServicesAuthFilter {
+	// Signing in changes nothing at Polaris, so a sign-in that never got an answer is safe to send
+	// once more. The calls behind it, a hold or a checkout, are never retried this way.
+	private static final RetryBackoffSpec ONE_MORE_SIGN_IN_IF_UNANSWERED = Retry.backoff(1, Duration.ofSeconds(2))
+		// The problem raised for an unanswered call keeps no cause, only a marker that classify reads
+		.filter(error -> PingFailure.UNREACHABLE.equals(PingFailure.classify(error)))
+		.onRetryExhaustedThrow((spec, signal) -> signal.failure());
+
 	private final PolarisLmsClient client;
 	private final PolarisConfig polarisConfig;
 	private final PolarisTokenCache tokenCache;
@@ -67,7 +79,8 @@ class ApplicationServicesAuthFilter {
 			.map(this::staffAuthorization)
 			// empty body needs to be passed to make successful call
 			.map(request -> request.body(""))
-			.flatMap(request -> client.exchangeWithoutAuthRetry(request, AuthToken.class, Boolean.TRUE))
+			.flatMap(request -> client.exchangeWithoutAuthRetry(request, AuthToken.class, Boolean.TRUE)
+				.retryWhen(ONE_MORE_SIGN_IN_IF_UNANSWERED))
 			.flatMap(response -> Mono.justOrEmpty(response.getBody()));
 	}
 

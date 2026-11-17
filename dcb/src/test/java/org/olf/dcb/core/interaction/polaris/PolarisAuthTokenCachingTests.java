@@ -158,6 +158,42 @@ class PolarisAuthTokenCachingTests {
 		mockPolarisFixture.verifyAppServicesStaffAuthentication(once());
 	}
 
+	@Test
+	void shouldSignInOnceMoreWhenTheFirstSignInIsNotAnswered() {
+		final var hostLmsCode = "polaris-sign-in-timeout-once";
+
+		createPolarisHostLms(hostLmsCode, "900", 1);
+
+		mockServerClient.reset();
+		// Registered first so it wins for the first sign-in only
+		mockPolarisFixture.mockAppServicesStaffAuthenticationAnsweringAfterOnce(2000);
+		mockPolarisFixture.mockAppServicesStaffAuthentication();
+		mockPolarisFixture.mockGetHoldRequestDefaults(5);
+
+		callPolaris(hostLmsCode);
+
+		mockPolarisFixture.verifyAppServicesStaffAuthentication(exactly(2));
+	}
+
+	@Test
+	void shouldSignInOnlyOnceMoreWhenPolarisNeverAnswers() {
+		final var hostLmsCode = "polaris-sign-in-timeout-always";
+
+		createPolarisHostLms(hostLmsCode, "900", 1);
+
+		mockServerClient.reset();
+		mockPolarisFixture.mockAppServicesStaffAuthenticationAlwaysAnsweringAfter(2000);
+		mockPolarisFixture.mockGetHoldRequestDefaults(5);
+
+		final var client = (PolarisLmsClient) hostLmsFixture.createClient(hostLmsCode);
+
+		// The method's own fallback: the sign-in failed, so the defaults were never asked for
+		assertThat(singleValueFrom(client.applicationServices().getHoldRequestDefaults()), is(999));
+
+		mockPolarisFixture.verifyAppServicesStaffAuthentication(exactly(2));
+		mockPolarisFixture.verifyGetHoldRequestDefaults(exactly(0));
+	}
+
 	// ping() also checks the PAPI key and reads the PAPI version; neither touches staff auth
 	private void mockPapi() {
 		mockPolarisFixture.mockPapiApiKeyAccepted();
@@ -187,11 +223,20 @@ class PolarisAuthTokenCachingTests {
 	}
 
 	private void createPolarisHostLms(String hostLmsCode, String tokenCacheTtlSeconds) {
+		createPolarisHostLms(hostLmsCode, Map.of("token-cache-ttl-seconds", tokenCacheTtlSeconds));
+	}
+
+	private void createPolarisHostLms(String hostLmsCode, String tokenCacheTtlSeconds, int responseTimeoutSeconds) {
+		createPolarisHostLms(hostLmsCode, Map.of("token-cache-ttl-seconds", tokenCacheTtlSeconds,
+			"response-timeout-seconds", responseTimeoutSeconds));
+	}
+
+	private void createPolarisHostLms(String hostLmsCode, Map<String, Object> config) {
 		final var key = "polaris-token-caching-key";
 		final var secret = "polaris-token-caching-secret";
 
 		hostLmsFixture.createPolarisHostLms(hostLmsCode, key, secret, BASE_URL, "TEST",
-			key, secret, null, 73, Map.of("token-cache-ttl-seconds", tokenCacheTtlSeconds));
+			key, secret, null, 73, config);
 	}
 
 	/**

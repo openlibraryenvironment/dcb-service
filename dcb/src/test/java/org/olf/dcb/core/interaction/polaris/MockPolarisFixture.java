@@ -144,6 +144,25 @@ public class MockPolarisFixture {
 			response().withStatusCode(401), Times.once());
 	}
 
+	/** Answers the next staff sign-in too late, then as usual. Register before mockAppServicesStaffAuthentication. */
+	public void mockAppServicesStaffAuthenticationAnsweringAfterOnce(int milliseconds) {
+		mockServer.mock(commonRequests.post(paths.baseApplicationServices("/authentication/staffuser")),
+			appServicesStaffToken().withDelay(org.mockserver.model.Delay.milliseconds(milliseconds)), Times.once());
+	}
+
+	public void mockAppServicesStaffAuthenticationAlwaysAnsweringAfter(int milliseconds) {
+		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
+			appServicesStaffToken().withDelay(org.mockserver.model.Delay.milliseconds(milliseconds)));
+	}
+
+	private org.mockserver.model.HttpResponse appServicesStaffToken() {
+		return okJson(ApplicationServicesAuthFilter.AuthToken.builder()
+			.accessToken("fzB8NAopx8CEwSQI5HqpMCTQrjWm1e1x")
+			.accessSecret("C5UnM8pmim1hfZRQ")
+			.authExpDate(futureAuthExpDate())
+			.build());
+	}
+
 	public void mockAppServicesStaffAuthentication() {
 		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
 			// Values taken from previously hard coded responses
