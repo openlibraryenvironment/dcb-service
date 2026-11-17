@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static org.olf.dcb.core.model.DerivedLoanPolicy.LOCAL_ONLY;
+import org.olf.dcb.core.model.DerivedLoanPolicy;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -52,6 +54,8 @@ class PolarisItemMapperTests {
 	private static final String HOST_LMS_CODE = "polaris-item-mapper-host-lms";
 	private static final String DEFAULT_AGENCY_CODE = "default-agency";
 
+	@Inject
+	private io.micrometer.core.instrument.MeterRegistry meterRegistry;
 	@Inject
 	private PolarisItemMapper mapper;
 
@@ -177,11 +181,12 @@ class PolarisItemMapperTests {
 		assertThat(item, hasDerivedLoanPolicy(NO_LEND));
 	}
 
-	@Test
-	void shouldNotLendAnItemPolarisSaysIsNotLoanableOutsideTheSystem() {
+	@ParameterizedTest
+	@ValueSource(strings = {"GENERAL", "SHORT_LOAN"})
+	void shouldLendAnItemPolarisSaysIsNotLoanableOutsideTheSystemOnlyWithinIt(String shelfPolicy) {
 		// Arrange
 		final var locationName = "Mapped Location";
-		final var config = locationToPolicyMapConfig(Map.of(locationName, GENERAL.name()));
+		final var config = locationToPolicyMapConfig(Map.of(locationName, shelfPolicy));
 
 		// Act
 		final var item = mapItem(ItemGetRow.builder()
@@ -191,8 +196,26 @@ class PolarisItemMapperTests {
 			.LoanableOutsideSystem(false)
 			.build(), config);
 
+		// Assert - the library's own patrons still borrow it; other libraries do not
+		assertThat(item, hasDerivedLoanPolicy(LOCAL_ONLY));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"NO_LEND", "REFERENCE_ONLY"})
+	void shouldKeepAStricterShelfPolicyForAnItemNotLoanableOutsideTheSystem(String shelfPolicy) {
+		// Arrange
+		final var locationName = "Mapped Location";
+		final var config = locationToPolicyMapConfig(Map.of(locationName, shelfPolicy));
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation(locationName)
+			.Holdable(true)
+			.LoanableOutsideSystem(false)
+			.build(), config);
+
 		// Assert
-		assertThat(item, hasDerivedLoanPolicy(NO_LEND));
+		assertThat(item, hasDerivedLoanPolicy(DerivedLoanPolicy.valueOf(shelfPolicy)));
 	}
 
 	@Test
@@ -210,6 +233,26 @@ class PolarisItemMapperTests {
 
 		// Assert
 		assertThat(item, hasDerivedLoanPolicy(GENERAL));
+	}
+
+	@Test
+	void shouldCountACopyNotLentByLibraryPolicyAndReason() {
+		final var before = notLentCount("NO_LEND", "not_holdable");
+
+		mapItem(ItemGetRow.builder()
+			.ShelfLocation("Unmapped Location")
+			.Holdable(false)
+			.build(), locationToPolicyMapConfig(Map.of()));
+
+		assertThat(notLentCount("NO_LEND", "not_holdable"), is(before + 1));
+	}
+
+	private double notLentCount(String policy, String reason) {
+		final var counter = meterRegistry.find(PolarisItemMapper.NOT_LENT_METRIC)
+			.tags("lms", HOST_LMS_CODE, "policy", policy, "reason", reason)
+			.counter();
+
+		return counter == null ? 0 : counter.count();
 	}
 
 	@Test

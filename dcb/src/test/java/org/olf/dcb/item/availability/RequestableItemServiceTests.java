@@ -58,6 +58,23 @@ class RequestableItemServiceTests {
 		assertThat(isRequestable(item), is(false));
 	}
 
+	@Test
+	void aLocalOnlyItemIsRequestableWithinItsSystem() {
+		final var item = createItem("id", AVAILABLE, "BOOK");
+		item.setDerivedLoanPolicy(DerivedLoanPolicy.LOCAL_ONLY);
+
+		assertThat(singleValueFrom(requestableItemService.isRequestableWithinItsSystem(item)), is(true));
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = DerivedLoanPolicy.class, names = {"NO_LEND", "REFERENCE_ONLY"})
+	void anItemNeverLentIsNotRequestableWithinItsSystemEither(DerivedLoanPolicy policy) {
+		final var item = createItem("id", AVAILABLE, "BOOK");
+		item.setDerivedLoanPolicy(policy);
+
+		assertThat(singleValueFrom(requestableItemService.isRequestableWithinItsSystem(item)), is(false));
+	}
+
 	@ParameterizedTest
 	@EnumSource(value = DerivedLoanPolicy.class, names = {"GENERAL", "SHORT_LOAN", "UNKNOWN"})
 	void itemWithALendablePolicyShouldBeRequestable(DerivedLoanPolicy policy) {

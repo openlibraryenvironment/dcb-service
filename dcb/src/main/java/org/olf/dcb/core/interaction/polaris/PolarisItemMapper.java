@@ -3,7 +3,9 @@ package org.olf.dcb.core.interaction.polaris;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.GENERAL;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.LOCAL_ONLY;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.NO_LEND;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.REFERENCE_ONLY;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
 import static org.olf.dcb.core.model.ItemStatusCode.UNAVAILABLE;
@@ -42,6 +44,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.json.tree.JsonNode;
 import jakarta.inject.Singleton;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import services.k_int.utils.UUIDUtils;
@@ -54,18 +57,43 @@ public class PolarisItemMapper {
 	private final LocationToAgencyMappingService locationToAgencyMappingService;
 	private final AgencyService agencyService;
 	private final AlarmsService alarmsService;
+	private final MeterRegistry meterRegistry;
+
+	static final String NOT_LENT_METRIC = "dcb.polaris.items.not.lent";
 
 	PolarisItemMapper(NumericItemTypeMapper itemTypeMapper,
 		ConversionService conversionService,
 		LocationToAgencyMappingService locationToAgencyMappingService,
 		AgencyService agencyService,
-		AlarmsService alarmsService) {
+		AlarmsService alarmsService,
+		MeterRegistry meterRegistry) {
 
 		this.itemTypeMapper = itemTypeMapper;
 		this.conversionService = conversionService;
 		this.locationToAgencyMappingService = locationToAgencyMappingService;
 		this.agencyService = agencyService;
 		this.alarmsService = alarmsService;
+		this.meterRegistry = meterRegistry;
+	}
+
+	// Tags from fixed vocabularies: the Host LMS codes configured here, the policy enum, and the four reasons
+	private void countNotLent(String hostLmsCode, DerivedLoanPolicy policy, List<String> decisionLogEntries) {
+		if (policy != NO_LEND && policy != LOCAL_ONLY && policy != REFERENCE_ONLY) {
+			return;
+		}
+
+		final var decision = decisionLogEntries.stream()
+			.filter(entry -> entry.startsWith("LoanPolicy "))
+			.reduce((first, last) -> last)
+			.orElse("");
+
+		final var reason = decision.contains("not holdable") ? "not_holdable"
+			: decision.contains("non-circulating") ? "non_circulating"
+			: decision.contains("not loanable outside the system") ? "not_loanable_outside_system"
+			: "shelf_location_policy";
+
+		meterRegistry.counter(NOT_LENT_METRIC, "lms", String.valueOf(hostLmsCode),
+			"policy", policy.name(), "reason", reason).increment();
 	}
 
 	/**
@@ -98,8 +126,10 @@ public class PolarisItemMapper {
 
 				final var derivedLoanPolicy = isNeverLent(itemGetRow, decisionLogEntries)
 					? NO_LEND
-					: deriveLoanPolicy(hostLmsCode, shelvingLocation,
-						polarisConfig.getShelfLocationPolicyMap(), decisionLogEntries);
+					: keptInsideTheSystem(itemGetRow, deriveLoanPolicy(hostLmsCode, shelvingLocation,
+						polarisConfig.getShelfLocationPolicyMap(), decisionLogEntries), decisionLogEntries);
+
+				countNotLent(hostLmsCode, derivedLoanPolicy, decisionLogEntries);
 
 				return org.olf.dcb.core.model.Item.builder()
 					.localId(localId)
@@ -133,13 +163,8 @@ public class PolarisItemMapper {
 			.doOnSuccess(item -> log.debug("Mapped polaris item: {}", item));
 	}
 
-	// Any one of these flags wins over the shelf location policy map. An absent flag is not a refusal.
+	// Either flag wins over the shelf location policy map. An absent flag is not a refusal.
 	private static boolean isNeverLent(ItemGetRow itemGetRow, List<String> decisionLogEntries) {
-		if (FALSE.equals(itemGetRow.getLoanableOutsideSystem())) {
-			decisionLogEntries.add("LoanPolicy NO_LEND because the item is not loanable outside the system");
-			return true;
-		}
-
 		if (FALSE.equals(itemGetRow.getHoldable())) {
 			decisionLogEntries.add("LoanPolicy NO_LEND because the item is not holdable");
 			return true;
@@ -151,6 +176,20 @@ public class PolarisItemMapper {
 		}
 
 		return false;
+	}
+
+	// Not loanable outside the system is lent to the system's own patrons only. A stricter policy from
+	// the shelf location map stands; an absent flag changes nothing
+	private static DerivedLoanPolicy keptInsideTheSystem(ItemGetRow itemGetRow, DerivedLoanPolicy policy,
+		List<String> decisionLogEntries) {
+
+		if (!FALSE.equals(itemGetRow.getLoanableOutsideSystem())
+			|| policy == NO_LEND || policy == REFERENCE_ONLY || policy == LOCAL_ONLY) {
+			return policy;
+		}
+
+		decisionLogEntries.add("LoanPolicy LOCAL_ONLY because the item is not loanable outside the system");
+		return LOCAL_ONLY;
 	}
 
 	private DerivedLoanPolicy deriveLoanPolicy(String hostLmsCode, String shelvingLocation,
