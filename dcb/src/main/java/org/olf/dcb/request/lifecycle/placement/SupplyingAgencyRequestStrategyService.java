@@ -1,8 +1,10 @@
 package org.olf.dcb.request.lifecycle.placement;
 
+import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLVE_SUPPLIER_REFUSALS;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import io.micronaut.context.annotation.Prototype;
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.interaction.SupplierPreflight;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
@@ -23,19 +25,22 @@ public class SupplyingAgencyRequestStrategyService {
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final SupplierPlacementGate supplierPlacementGate;
 	private final RemediationCatalogue remediationCatalogue;
+	private final ConsortiumService consortiumService;
 
 	public SupplyingAgencyRequestStrategyService(
 		SupplyingAgencyRequestStrategyResolver strategyResolver,
 		SupplyingAgencyRequestProjector projector,
 		SupplierRequestRepository supplierRequestRepository,
 		SupplierPlacementGate supplierPlacementGate,
-		RemediationCatalogue remediationCatalogue) {
+		RemediationCatalogue remediationCatalogue,
+		ConsortiumService consortiumService) {
 
 		this.strategyResolver = strategyResolver;
 		this.projector = projector;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplierPlacementGate = supplierPlacementGate;
 		this.remediationCatalogue = remediationCatalogue;
+		this.consortiumService = consortiumService;
 	}
 
 	// The gate runs ahead of every strategy, and a refusal never reaches the projector, which records a placement
@@ -45,11 +50,19 @@ public class SupplyingAgencyRequestStrategyService {
 				? supplierPlacementGate.refuse(context, preflight)
 				: supplierPlacementGate.warnIfUnreachable(context, preflight).flatMap(this::placeWithStrategy))
 			// A refusal that happened, not a preflight guess, so DCB_REQUESTS_SUPPLIER_PREFLIGHT_ENABLED does not apply
-			.onErrorResume(SupplierRefusedRequestProblem.class, refusal -> isChosenCopy(context)
-				// A copy staff chose is not swapped for another: the refusal ends the request, with its remediation
-				? Mono.error(refusal)
-				: supplierPlacementGate.refuse(context,
-					cannotSupply(remediationCatalogue.render(refusal.remediationCode(), refusal.remediationValues()))));
+			.onErrorResume(SupplierRefusedRequestProblem.class, refusal -> refusalEndsInError(context)
+				.flatMap(endsInError -> endsInError
+					? Mono.<RequestWorkflowContext>error(refusal)
+					: supplierPlacementGate.refuse(context,
+						cannotSupply(remediationCatalogue.render(refusal.remediationCode(), refusal.remediationValues())))));
+	}
+
+	// A copy staff chose is never swapped for another. Otherwise the consortium decides, and without
+	// its decision a refusal ends in ERROR, as it did before the setting existed
+	private Mono<Boolean> refusalEndsInError(RequestWorkflowContext context) {
+		return isChosenCopy(context)
+			? Mono.just(true)
+			: consortiumService.isEnabled(RE_RESOLVE_SUPPLIER_REFUSALS).map(reResolve -> !reResolve);
 	}
 
 	private static boolean isChosenCopy(RequestWorkflowContext context) {

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.remediation.RemediationCatalogue;
@@ -189,7 +190,8 @@ class NcipDualDeclarativeAgencySpikeTests {
 			new SupplyingAgencyRequestProjector(),
 			supplierRequestRepository,
 			admitAll,
-			mock(RemediationCatalogue.class));
+			mock(RemediationCatalogue.class),
+			mock(ConsortiumService.class));
 	}
 
 	private static BorrowingAgencyRequestStrategyService borrowingPlacementService(

@@ -5,6 +5,7 @@ import static org.olf.dcb.core.model.FunctionalSettingType.DENY_LIBRARY_MAPPING_
 import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.PICKUP_ANYWHERE;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
+import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLVE_SUPPLIER_REFUSALS;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENEWAL;
 import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_POLARIS;
@@ -102,6 +103,7 @@ public class ConsortiumFixture {
 		enableSetting(consortium, OWN_LIBRARY_BORROWING);
 		enableSetting(consortium, PICKUP_ANYWHERE);
 		enableSetting(consortium, RE_RESOLUTION);
+		enableSetting(consortium, RE_RESOLVE_SUPPLIER_REFUSALS);
 		enableSetting(consortium, SELECT_UNAVAILABLE_ITEMS);
 		enableSetting(consortium, TRIGGER_SUPPLIER_RENEWAL);
 		enableSetting(consortium, DENY_LIBRARY_MAPPING_EDIT);
