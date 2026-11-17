@@ -55,9 +55,33 @@ class PatronRequestApiClient {
 	}
 
 	HttpResponse<PlacedPatronRequest> placePatronRequest(PlacePatronRequestCommand command) {
+		return place("/patrons/requests/place", command);
+	}
+
+	/** Staff lending a copy on site to a patron of another library: RET-EXP. */
+	HttpResponse<PlacedPatronRequest> placeExpeditedCheckout(UUID bibClusterId,
+		String localId, String pickupLocationCode, String localSystemCode,
+		String homeLibraryCode) {
+
+		return place("/patrons/requests/place/expeditedCheckout", PlacePatronRequestCommand.builder()
+			.requestor(Requestor.builder()
+				.localId(localId)
+				.localSystemCode(localSystemCode)
+				.homeLibraryCode(homeLibraryCode)
+				.build())
+			.citation(Citation.builder()
+				.bibClusterId(bibClusterId)
+				.build())
+			.pickupLocation(PickupLocation.builder()
+				.code(pickupLocationCode)
+				.build())
+			.build());
+	}
+
+	private HttpResponse<PlacedPatronRequest> place(String path, PlacePatronRequestCommand command) {
 		final var blockingClient = httpClient.toBlocking();
 
-		final var request = HttpRequest.POST("/patrons/requests/place", command)
+		final var request = HttpRequest.POST(path, command)
 			.bearerAuth(accessToken);
 
 		try {

@@ -8,9 +8,10 @@ import java.util.Map;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.api.serde.PatronAccount;
 import org.olf.dcb.core.interaction.LocalPatronAccount;
-import org.olf.dcb.security.discovery.DiscoveryServiceProperties;
+import org.olf.dcb.security.discovery.DiscoveryConfig;
 import org.olf.dcb.security.discovery.PatronAssertionVerifier;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
@@ -41,14 +42,15 @@ import reactor.core.publisher.Mono;
 @Slf4j
 // Assertion verification is synchronous and may refresh trusted JWKS over bounded HTTP.
 @ExecuteOn(TaskExecutors.BLOCKING)
+@Requires(property = DiscoveryConfig.ENABLED, value = "true")
 public class DiscoveryPatronAccountController {
 
 	private final PatronAssertionVerifier assertionVerifier;
 	private final HostLmsService hostLmsService;
-	private final DiscoveryServiceProperties properties;
+	private final DiscoveryConfig properties;
 
 	public DiscoveryPatronAccountController(PatronAssertionVerifier assertionVerifier,
-		HostLmsService hostLmsService, DiscoveryServiceProperties properties) {
+		HostLmsService hostLmsService, DiscoveryConfig properties) {
 
 		this.assertionVerifier = assertionVerifier;
 		this.hostLmsService = hostLmsService;

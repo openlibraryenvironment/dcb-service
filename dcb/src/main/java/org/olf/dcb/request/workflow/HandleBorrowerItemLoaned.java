@@ -129,7 +129,8 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 						rwc.getWorkflowMessages().add(message);
 					})
 					.onErrorResume(error -> {
-						log.error("Problem checking out item {} to vpatron {}", home_item_barcode, patron_barcodes, error);
+						log.error("Problem checking out item {} to the virtual patron at {}", home_item_barcode,
+							rwc.getLenderSystemCode(), error);
 
 						var auditData = new HashMap<String, Object>();
 						auditData.put("virtual-patron-barcode", Arrays.toString(patron_barcodes));
@@ -220,6 +221,9 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 		return hostLmsService.getClientFor(rwc.getPatronSystemCode())
 			.flatMap(hostLmsClient -> hostLmsClient.checkOutItemToPatron(command))
+			// The virtual item is lent now. Its last tracked status may say available, which
+			// HandleBorrowerRequestReturnTransit would read as returned in this same pass
+			.doOnNext(ok -> rwc.getPatronRequest().setLocalItemStatus(HostLmsItem.ITEM_LOANED))
 			.map(ok -> logSuccessfulCheckout(rwc, command.getItemId(), command.getPatronBarcode()))
 			.onErrorResume(error -> handleCheckoutError(error, rwc, command.getItemId(), command.getPatronBarcode()));
 	}
@@ -261,7 +265,8 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 
 	private Mono<RequestWorkflowContext> handleCheckoutError(Throwable error, RequestWorkflowContext rwc,
 		String localItemId, String patronBarcode) {
-		log.error("Problem checking out item {} to home patron {}", localItemId, patronBarcode, error);
+		log.error("Problem checking out item {} to the home patron at {}", localItemId,
+			rwc.getPatronSystemCode(), error);
 
 		var auditData = new HashMap<String, Object>();
 		auditData.put("patron-barcode", patronBarcode);
@@ -279,8 +284,8 @@ public class HandleBorrowerItemLoaned implements PatronRequestStateTransition {
 	}
 
 	private Mono<RequestWorkflowContext> handleMissingPatronBarcode(RequestWorkflowContext rwc) {
-		log.error("NO BARCODE FOR PATRON HOME IDENTITY. UNABLE TO CHECK OUT {}",
-			rwc.getPatronHomeIdentity().getLocalBarcode());
+		log.error("NO BARCODE FOR PATRON HOME IDENTITY. UNABLE TO CHECK OUT for request {}",
+			rwc.getPatronRequest().getId());
 
 		return patronRequestAuditService.addErrorAuditEntry(
 				rwc.getPatronRequest(),

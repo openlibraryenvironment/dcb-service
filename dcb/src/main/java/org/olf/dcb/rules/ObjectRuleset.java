@@ -140,8 +140,10 @@ public class ObjectRuleset implements Predicate<AnnotatedObject> {
 		
 		private static final Pattern REGEX_DOT = Pattern.compile("\\.");
 
+		// propertyValueNoneOf is false for an absent property, as propertyValueAnyOf is, so
+		// negated it reads "absent or one of these"
 		public static enum Operation {
-			propertyPresent, propertyValueAnyOf
+			propertyPresent, propertyValueAnyOf, propertyValueNoneOf
 		}
 		
 		private Operation operation; // Operation Type.
@@ -172,7 +174,7 @@ public class ObjectRuleset implements Predicate<AnnotatedObject> {
 			var val = resolvePropertyPath( t, property, String.class, objectMapper);
 			if (operation == Operation.propertyPresent) return val.isPresent();
 			
-			// propertyValueAnyOf...
+			// propertyValueAnyOf and propertyValueNoneOf...
 			
 			// Quick return if the property does not exist
 			if (val.isEmpty()) {
@@ -197,7 +199,7 @@ public class ObjectRuleset implements Predicate<AnnotatedObject> {
 				log.trace("Testing property [{}] of [{}] with value [{}] for value equalling any of [{}] returned [{}]", property, t, strValue, values, matches);
 			}
 			
-			return matches;
+			return operation == Operation.propertyValueNoneOf ? !matches : matches;
 		}
 		
 		private static <T> Optional<T> resolvePropertyPath(Object t, String path, Class<T> type, ObjectMapper objectMapper) {

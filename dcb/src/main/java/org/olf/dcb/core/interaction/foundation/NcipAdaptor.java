@@ -5,6 +5,7 @@ import io.micronaut.context.annotation.Prototype;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.interaction.*;
 import org.olf.dcb.core.interaction.foundation.commands.FoundationCreateItemCommand;
@@ -15,38 +16,74 @@ import reactor.core.publisher.Mono;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.zalando.problem.Problem;
+import org.zalando.problem.Status;
+import org.zalando.problem.ThrowableProblem;
 
 @Slf4j
 @Prototype
 public class NcipAdaptor implements ProtocolAdaptor {
 
 
+	/** The problem parameter carrying the responder's NCIP ProblemType. */
+	public static final String PROBLEM_TYPE = "problemType";
+
+	private static final String DEFAULT_FROM_AGENCY = "DCB-CENTRAL";
+	private static final String DEFAULT_APP_PROFILE = "EZBORROW";
+
+	// A namespace prefix is legal NCIP; matching the bare tag read a prefixed Problem as success
+	private static final Pattern PROBLEM = Pattern.compile("<(?:[\\w.-]+:)?Problem[\\s>]");
+
 	private final HttpClient client;
-	private final String endpoint;
+	private final NcipEndpoint endpoint;
 	private final String fromAgency;
 	private final String toAgency;
 	private final String appProfile;
-	private final HostLms lms;
+	private final String hostLmsCode;
 
 	public NcipAdaptor(@Parameter("hostLms") HostLms lms, HttpClient client) {
-		this.client = client;
-		this.lms = lms;
-		Map<String, Object> config = lms.getClientConfig();
-		Map<String, Object> ncipConfig = (Map<String, Object>) config.getOrDefault("ncip", Map.of());
+		this(client, configuredEndpoint(lms), lms.getCode(), ncipConfig(lms));
+	}
 
-		// Endpoint unifies with the declarative side's key (capabilities.imperative.ncip-endpoint-url),
-		// falling back to the legacy ncip.endpoint sub-config.
+	/**
+	 * An adaptor for one responder named outright, for an adapter that speaks NCIP for a single
+	 * operation alongside its own API.
+	 */
+	public static NcipAdaptor forEndpoint(HttpClient client, NcipEndpoint endpoint, String hostLmsCode) {
+		return new NcipAdaptor(client, endpoint, hostLmsCode, Map.of());
+	}
+
+	private NcipAdaptor(HttpClient client, NcipEndpoint endpoint, String hostLmsCode,
+		Map<String, Object> ncipConfig) {
+
+		this.client = client;
+		this.endpoint = endpoint;
+		this.hostLmsCode = hostLmsCode;
+		this.fromAgency = (String) ncipConfig.getOrDefault("fromAgency", DEFAULT_FROM_AGENCY);
+		this.toAgency = (String) ncipConfig.getOrDefault("toAgency", hostLmsCode);
+		this.appProfile = (String) ncipConfig.getOrDefault("appProfileType", DEFAULT_APP_PROFILE);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Map<String, Object> ncipConfig(HostLms lms) {
+		return (Map<String, Object>) lms.getClientConfig().getOrDefault("ncip", Map.of());
+	}
+
+	// Endpoint unifies with the declarative side's key (capabilities.imperative.ncip-endpoint-url),
+	// falling back to the legacy ncip.endpoint sub-config.
+	private static NcipEndpoint configuredEndpoint(HostLms lms) {
 		final var unifiedEndpoint = ImperativeCapabilityConfig.setting(lms, "ncip-endpoint-url");
-		this.endpoint = unifiedEndpoint != null
+
+		return new NcipEndpoint(unifiedEndpoint != null
 			? unifiedEndpoint.toString()
-			: (String) ncipConfig.getOrDefault("endpoint", "");
-		// Default agency IDs if not provided in config
-		this.fromAgency = (String) ncipConfig.getOrDefault("fromAgency", "DCB-CENTRAL");
-		this.toAgency = (String) ncipConfig.getOrDefault("toAgency", lms.getCode());
-		this.appProfile = (String) ncipConfig.getOrDefault("appProfileType", "EZBORROW");
+			: (String) ncipConfig(lms).getOrDefault("endpoint", ""), null);
 	}
 
 	// ========================================================================
@@ -59,9 +96,9 @@ public class NcipAdaptor implements ProtocolAdaptor {
 
 		// Construct optional elements
 		String callNumberXml = command.getCallNumber() != null
-			? "<CallNumber>" + command.getCallNumber() + "</CallNumber>" : "";
+			? "<CallNumber>" + escapeXml(command.getCallNumber()) + "</CallNumber>" : "";
 		String isbnXml = command.getIsbn() != null
-			? "<BibliographicItemIdentifier><BibliographicItemIdentifierCode Scheme=\"http://www.niso.org/ncip/v1_0/schemes/bibliographicitemidentifiercode/bibliographicitemidentifiercode.scm\">ISBN</BibliographicItemIdentifierCode><BibliographicItemIdentifierValue>" + command.getIsbn() + "</BibliographicItemIdentifierValue></BibliographicItemIdentifier>" : "";
+			? "<BibliographicItemIdentifier><BibliographicItemIdentifierCode Scheme=\"http://www.niso.org/ncip/v1_0/schemes/bibliographicitemidentifiercode/bibliographicitemidentifiercode.scm\">ISBN</BibliographicItemIdentifierCode><BibliographicItemIdentifierValue>" + escapeXml(command.getIsbn()) + "</BibliographicItemIdentifierValue></BibliographicItemIdentifier>" : "";
 
 		String content = """
             <RequestId>
@@ -86,14 +123,14 @@ public class NcipAdaptor implements ProtocolAdaptor {
             </ItemOptionalFields>
             <PickupLocation>%s</PickupLocation>
             """.formatted(
-			command.getPatronRequestId(),     // RequestId
-			command.getPatronId(),            // UserId (Borrower)
-			command.getBarcode(),             // ItemId (The temporary barcode)
+			escapeXml(command.getPatronRequestId()), // RequestId
+			escapeXml(command.getPatronId()),        // UserId (Borrower)
+			escapeXml(command.getBarcode()),         // ItemId (The temporary barcode)
 			escapeXml(command.getAuthor()),   // Author
 			escapeXml(command.getTitle()),    // Title
 			isbnXml,                          // ISBN (Optional)
 			callNumberXml,                    // CallNumber (Optional)
-			command.getLocationCode()         // PickupLocation
+			escapeXml(command.getLocationCode())     // PickupLocation
 		);
 
 		return send(NcipProtocol.ACCEPT_ITEM, content).map(response ->
@@ -117,7 +154,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
             <UserElementType Scheme="http://www.niso.org/ncip/v1_0/schemes/userelementtype/userelementtype.scm">Name Information</UserElementType>
             <UserElementType Scheme="http://www.niso.org/ncip/v1_0/schemes/userelementtype/userelementtype.scm">User Address Information</UserElementType>
             <UserElementType Scheme="http://www.niso.org/ncip/v1_0/schemes/userelementtype/userelementtype.scm">User Privilege</UserElementType>
-            """.formatted(localId);
+            """.formatted(escapeXml(localId));
 
 		return send(NcipProtocol.LOOKUP_USER, content).map(response -> {
 			// Basic regex parsing (Production should use a real XML parser)
@@ -127,7 +164,8 @@ public class NcipAdaptor implements ProtocolAdaptor {
 
 			return Patron.builder()
 				.localId(List.of(localId))
-				.localNames(List.of(firstName + " " + lastName))
+				// An absent name part was written out as "null"
+				.localNames(List.of(Stream.of(firstName, lastName).filter(Objects::nonNull).collect(Collectors.joining(" "))))
 				.localHomeLibraryCode(agencyId)
 				.build();
 		});
@@ -135,7 +173,8 @@ public class NcipAdaptor implements ProtocolAdaptor {
 
 	@Override
 	public Mono<Patron> findPatronByBarcode(String barcode) {
-		return null;
+		// Not supported over NCIP here; null broke any caller that subscribed
+		return Mono.empty();
 	}
 
 	// ========================================================================
@@ -166,10 +205,10 @@ public class NcipAdaptor implements ProtocolAdaptor {
             </UserOptionalFields>
             """.formatted(
 			// Use the first local ID or generate one if strictly creating new
-			patron.getLocalId().stream().findFirst().orElse(UUID.randomUUID().toString()),
+			escapeXml(patron.getLocalId().stream().findFirst().orElse(UUID.randomUUID().toString())),
 			escapeXml(patron.getLocalNames().stream().findFirst().orElse("Unknown").split(" ")[0]),
 			escapeXml("User"), // Placeholder for surname parsing logic
-			patron.getLocalPatronType() // Profile/P-Type
+			escapeXml(patron.getLocalPatronType()) // Profile/P-Type
 		);
 
 		return send(NcipProtocol.CREATE_USER, content).map(response -> {
@@ -190,7 +229,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
             <ItemElementType>Bibliographic Description</ItemElementType>
             <ItemElementType>Circulation Status</ItemElementType>
             <ItemElementType>Location</ItemElementType>
-            """.formatted(localItemId);
+            """.formatted(escapeXml(localItemId));
 
 		return send(NcipProtocol.LOOKUP_ITEM, content).map(response -> {
 			String status = extractTagValue(response, "CirculationStatusValue");
@@ -222,9 +261,9 @@ public class NcipAdaptor implements ProtocolAdaptor {
                 <RequestIdentifierValue>%s</RequestIdentifierValue>
             </RequestId>
             """.formatted(
-			command.getPatronBarcode(),
-			command.getItemBarcode(),
-			command.getLocalRequestId()
+			escapeXml(command.getPatronBarcode()),
+			escapeXml(command.getItemBarcode()),
+			escapeXml(command.getLocalRequestId())
 		);
 
 		return send(NcipProtocol.CHECK_OUT_ITEM, content).map(response -> {
@@ -242,7 +281,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
             <ItemId>
                 <ItemIdentifierValue>%s</ItemIdentifierValue>
             </ItemId>
-            """.formatted(itemBarcode);
+            """.formatted(escapeXml(itemBarcode));
 
 		return send(NcipProtocol.CHECK_IN_ITEM, content).map(response -> "OK");
 	}
@@ -255,9 +294,9 @@ public class NcipAdaptor implements ProtocolAdaptor {
 		// RequestItem can target a Bibliographic Record OR a specific Item [cite: 86]
 		String targetIdXml;
 		if (params.getLocalItemId() != null) {
-			targetIdXml = "<ItemId><ItemIdentifierValue>" + params.getLocalItemId() + "</ItemIdentifierValue></ItemId>";
+			targetIdXml = "<ItemId><ItemIdentifierValue>" + escapeXml(params.getLocalItemId()) + "</ItemIdentifierValue></ItemId>";
 		} else {
-			targetIdXml = "<BibliographicId><BibliographicRecordId><BibliographicRecordIdentifier>" + params.getLocalBibId() + "</BibliographicRecordIdentifier></BibliographicRecordId></BibliographicId>";
+			targetIdXml = "<BibliographicId><BibliographicRecordId><BibliographicRecordIdentifier>" + escapeXml(params.getLocalBibId()) + "</BibliographicRecordIdentifier></BibliographicRecordId></BibliographicId>";
 		}
 
 		String content = """
@@ -269,9 +308,9 @@ public class NcipAdaptor implements ProtocolAdaptor {
             <RequestScopeType Scheme="http://www.niso.org/ncip/v1_0/schemes/requestscopetype/requestscopetype.scm">Bibliographic Item</RequestScopeType>
             <PickupLocation>%s</PickupLocation>
             """.formatted(
-			params.getLocalPatronId(),
+			escapeXml(params.getLocalPatronId()),
 			targetIdXml,
-			params.getPickupLocationCode()
+			escapeXml(params.getPickupLocationCode())
 		);
 
 		return send(NcipProtocol.REQUEST_ITEM, content).map(response -> {
@@ -288,17 +327,29 @@ public class NcipAdaptor implements ProtocolAdaptor {
 	// ========================================================================
 
 	private Mono<String> send(String serviceName, String innerContent) {
-		String xmlBody = buildNcipPayload(serviceName, innerContent);
-
-		return Mono.from(client.retrieve(
-			HttpRequest.POST(endpoint, xmlBody).contentType(MediaType.TEXT_XML)
-		)).map(response -> {
-			if (response.contains("<Problem>")) {
-				String problemDetail = extractTagValue(response, "ProblemDetail");
-				throw new RuntimeException("NCIP " + serviceName + " Failed: " + problemDetail);
+		return sendRaw(serviceName, innerContent).map(response -> {
+			if (PROBLEM.matcher(response).find()) {
+				throw refused(serviceName, extractTagValue(response, "ProblemType"),
+					extractTagValue(response, "ProblemDetail"));
 			}
+
+			// Anything but the service's own response, such as a proxy's login page answered
+			// with 200, is not a success
+			if (!Pattern.compile("<(?:[\\w.-]+:)?" + serviceName + "Response[\\s>/]").matcher(response).find()) {
+				throw refused(serviceName, "Unexpected response", "The responder did not answer " + serviceName);
+			}
+
 			return response;
 		});
+	}
+
+	private static ThrowableProblem refused(String serviceName, String problemType, String problemDetail) {
+		return Problem.builder()
+			.withTitle("NCIP " + serviceName + " refused")
+			.withStatus(Status.BAD_GATEWAY)
+			.withDetail(Objects.toString(problemDetail, "No detail given"))
+			.with(PROBLEM_TYPE, Objects.toString(problemType, "unknown"))
+			.build();
 	}
 
 	private String buildNcipPayload(String serviceName, String innerContent) {
@@ -320,21 +371,24 @@ public class NcipAdaptor implements ProtocolAdaptor {
                     %s
                 </%s>
             </NCIPMessage>
-            """.formatted(serviceName, fromAgency, toAgency, appProfile, innerContent, serviceName);
+            """.formatted(serviceName, escapeXml(fromAgency), escapeXml(toAgency), escapeXml(appProfile),
+				innerContent, serviceName);
 	}
 
-	private String escapeXml(String input) {
-		if (input == null) return "";
-		return input.replace("&", "&amp;")
+	private static String escapeXml(Object value) {
+		if (value == null) return "";
+		return String.valueOf(value).replace("&", "&amp;")
 			.replace("<", "&lt;")
 			.replace(">", "&gt;")
 			.replace("\"", "&quot;")
 			.replace("'", "&apos;");
 	}
 
-	// Quick regex helper to avoid heavy XML parsing deps in this snippet
-	private String extractTagValue(String xml, String tagName) {
-		Pattern pattern = Pattern.compile("<" + tagName + ".*?>(.*?)</" + tagName + ">", Pattern.DOTALL);
+	// Quick regex helper to avoid heavy XML parsing deps in this snippet; tolerates a namespace
+	// prefix and attributes, and no longer matches a longer tag that starts with the name
+	private static String extractTagValue(String xml, String tagName) {
+		Pattern pattern = Pattern.compile("<(?:[\\w.-]+:)?" + tagName + "(?:\\s[^>]*)?>(.*?)</(?:[\\w.-]+:)?" + tagName + ">",
+			Pattern.DOTALL);
 		Matcher matcher = pattern.matcher(xml);
 		return matcher.find() ? matcher.group(1).trim() : null;
 	}
@@ -371,7 +425,9 @@ public class NcipAdaptor implements ProtocolAdaptor {
 				return response.contains("LookupVersionResponse") || response.contains("Problem");
 			})
 			.onErrorResume(e -> {
-				log.warn("NCIP Ping failed for {}: {}", lms.getCode(), e.getMessage());
+				// The type and status only: a client error's message can carry the request address
+				log.warn("NCIP Ping failed for {}: {}", hostLmsCode, e instanceof HttpClientResponseException response
+					? "HTTP " + response.getStatus().getCode() : e.getClass().getSimpleName());
 				return Mono.just(false);
 			});
 	}
@@ -382,13 +438,13 @@ public class NcipAdaptor implements ProtocolAdaptor {
 	 * returns a default set of expected services.
 	 */
 	public Mono<List<String>> getSupportedProtocols() {
-		String content = "<AgencyId>" + toAgency + "</AgencyId>";
+		String content = "<AgencyId>" + escapeXml(toAgency) + "</AgencyId>";
 
 		return sendRaw(NcipProtocol.LOOKUP_AGENCY, content)
 			.map(this::parseServicesFromLookupAgency)
 			.flatMap(services -> {
 				if (services.isEmpty()) {
-					log.info("LookupAgency returned no services for {}. Assuming default profile.", lms.getCode());
+					log.info("LookupAgency returned no services for {}. Assuming default profile.", hostLmsCode);
 					// Fallback: If the system is alive (which we know from isAvailable),
 					// but LookupAgency is empty, assume standard ILL services are supported.
 					return Mono.just(List.of(
@@ -402,7 +458,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
 				return Mono.just(services);
 			})
 			.onErrorResume(e -> {
-				log.warn("LookupAgency failed for {}. Returning empty capability list.", lms.getCode());
+				log.warn("LookupAgency failed for {}. Returning empty capability list.", hostLmsCode);
 				return Mono.just(List.of());
 			});
 	}
@@ -410,7 +466,7 @@ public class NcipAdaptor implements ProtocolAdaptor {
 	private Mono<String> sendRaw(String serviceName, String content) {
 		String xmlBody = buildNcipPayload(serviceName, content);
 		return Mono.from(client.retrieve(
-			HttpRequest.POST(endpoint, xmlBody).contentType(MediaType.TEXT_XML)
+			HttpRequest.POST(endpoint.requestUri(), xmlBody).contentType(MediaType.TEXT_XML)
 		));
 	}
 

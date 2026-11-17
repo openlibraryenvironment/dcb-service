@@ -29,6 +29,10 @@ public class KohaPatron {
 	@JsonProperty("firstname")
 	private String firstname;
 
+	// Koha's othernames: searched by the staff patron search, never used to sign in
+	@JsonProperty("other_name")
+	private String otherName;
+
 	@JsonProperty("email")
 	private String email;
 
@@ -64,6 +68,17 @@ public class KohaPatron {
 
 	@JsonProperty("privacy")
 	private Integer privacy;
+
+	// Read-only in Koha's patron schema, which refuses unknown and read-only properties on a PUT.
+	// WRITE_ONLY is Jackson's name for "set from Koha, never sent back"
+	@JsonProperty(value = "expired", access = JsonProperty.Access.WRITE_ONLY)
+	private Boolean expired;
+
+	@JsonProperty(value = "restricted", access = JsonProperty.Access.WRITE_ONLY)
+	private Boolean restricted;
+
+	@JsonProperty("patron_card_lost")
+	private Boolean patronCardLost;
 
 	@JsonProperty("extended_attributes")
 	private List<KohaPatronAttribute> extendedAttributes;

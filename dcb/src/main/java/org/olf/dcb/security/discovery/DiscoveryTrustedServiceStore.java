@@ -16,8 +16,11 @@ import com.k_int.peerauth.store.TrustedPeerStore;
 import org.olf.dcb.security.AdminUiAccessPolicy;
 
 import io.micronaut.context.annotation.Context;
+import io.micronaut.context.annotation.Requires;
+import io.micronaut.context.env.Environment;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.security.authentication.Authentication;
+import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -34,46 +37,64 @@ import lombok.extern.slf4j.Slf4j;
  * {@link PatronAssertionVerifier}.
  */
 @Slf4j
-// Created at startup, not on first use: a duplicate issuer or malformed trust JSON must
-// stop the application starting, not fail the first patron call after a green rollout.
+// Created at startup, not on first use: a duplicate issuer or malformed trust JSON must stop the
+// application starting, not fail the first patron call after a green rollout
 @Context
+@Requires(property = DiscoveryConfig.ENABLED, value = "true")
 public class DiscoveryTrustedServiceStore implements TrustedPeerStore {
+	static final String YAML_LIST = DiscoveryConfig.ROOT + ".trusted-services";
 
 	private final Map<String, TrustedPeer> peersByIssuer;
-	private final Map<String, DiscoveryServiceProperties.TrustedService> servicesById;
-	private final Map<String, DiscoveryServiceProperties.TrustedService> servicesByClientId;
+	private final Map<String, DiscoveryTrustedService> servicesById;
+	private final Map<String, DiscoveryTrustedService> servicesByClientId;
 
-	public DiscoveryTrustedServiceStore(DiscoveryServiceProperties properties) {
-		properties.getTrustedServices().forEach(DiscoveryTrustedServiceStore::requireComplete);
+	@Inject
+	public DiscoveryTrustedServiceStore(DiscoveryConfig config, Environment environment) {
+		this(config, environment.containsProperty(YAML_LIST));
+	}
 
-		final var usable = properties.getTrustedServices();
+	DiscoveryTrustedServiceStore(DiscoveryConfig config, boolean yamlListPresent) {
+		// A YAML list was documented once and bound nothing; refuse it rather than ignore it again
+		if (yamlListPresent) {
+			throw new IllegalStateException(YAML_LIST + " is not read. Give the trusted services as one JSON "
+				+ "array in " + DiscoveryTrustedServices.PROPERTY + " (DCB_DISCOVERY_TRUSTED_SERVICES_JSON)");
+		}
+
+		requirePositive("max-assertion-lifetime", config.getMaxAssertionLifetime());
+		requirePositive("loan-lookup-timeout", config.getLoanLookupTimeout());
+		requirePositive("account-lookup-timeout", config.getAccountLookupTimeout());
+		requirePositive("patron-resolve-timeout", config.getPatronResolveTimeout());
+
+		final var usable = DiscoveryTrustedServices.parse(config.getTrustedServicesJson());
+
+		usable.forEach(DiscoveryTrustedServiceStore::requireComplete);
 
 		this.servicesById = usable.stream().collect(Collectors.toUnmodifiableMap(
-			DiscoveryServiceProperties.TrustedService::getServiceId, service -> service,
+			DiscoveryTrustedService::serviceId, service -> service,
 			(first, duplicate) -> {
 				throw new IllegalStateException(
-					"Duplicate discovery service id in dcb.discovery.trusted-services: "
-						+ first.getServiceId());
+					"Duplicate discovery service id in " + DiscoveryTrustedServices.PROPERTY + ": "
+						+ first.serviceId());
 			}));
 
 		// One client acting as two services could spend assertions either one signed.
 		this.servicesByClientId = usable.stream().collect(Collectors.toUnmodifiableMap(
-			DiscoveryServiceProperties.TrustedService::getClientId, service -> service,
+			DiscoveryTrustedService::effectiveClientId, service -> service,
 			(first, duplicate) -> {
 				throw new IllegalStateException(
-					"Duplicate discovery service client-id in dcb.discovery.trusted-services: "
-						+ first.getClientId());
+					"Duplicate discovery service client-id in " + DiscoveryTrustedServices.PROPERTY + ": "
+						+ first.effectiveClientId());
 			}));
 
 		this.peersByIssuer = usable.stream()
 			.collect(Collectors.toUnmodifiableMap(
-				DiscoveryServiceProperties.TrustedService::getIssuer,
-				service -> toTrustedPeer(service, properties.getAudience()),
+				DiscoveryTrustedService::issuer,
+				service -> toTrustedPeer(service, config.getAudience()),
 				(first, duplicate) -> {
 					// Two services claiming one issuer means one can mint the other's
 					// assertions. Refuse to start rather than pick a winner.
 					throw new IllegalStateException(
-						"Duplicate discovery service issuer in dcb.discovery.trusted-services: "
+						"Duplicate discovery service issuer in " + DiscoveryTrustedServices.PROPERTY + ": "
 							+ first.issuer());
 				}));
 
@@ -81,25 +102,28 @@ public class DiscoveryTrustedServiceStore implements TrustedPeerStore {
 			peersByIssuer.size(), peersByIssuer.values().stream().map(TrustedPeer::peerId).toList());
 	}
 
-	private static void requireComplete(DiscoveryServiceProperties.TrustedService service) {
-		final var complete = service.getServiceId() != null && !service.getServiceId().isBlank()
-			&& service.getIssuer() != null && !service.getIssuer().isBlank()
-			&& (service.getJwksUri() != null || service.getJwks() != null);
-
-		if (!complete) {
-			throw new IllegalStateException("Incomplete dcb.discovery.trusted-services entry (serviceId="
-				+ service.getServiceId() + "): serviceId, issuer and one of jwksUri/jwks are all required");
+	private static void requirePositive(String setting, Duration value) {
+		if (value.isZero() || value.isNegative()) {
+			throw new IllegalStateException(DiscoveryConfig.ROOT + "." + setting + " must be positive: " + value);
 		}
 	}
 
-	public Optional<DiscoveryServiceProperties.TrustedService> findByServiceId(String serviceId) {
+	private static void requireComplete(DiscoveryTrustedService service) {
+		final var complete = service.serviceId() != null && service.issuer() != null
+			&& (service.jwksUri() != null || service.jwks() != null);
+
+		if (!complete) {
+			throw new IllegalStateException("Incomplete " + DiscoveryTrustedServices.PROPERTY + " entry (service-id="
+				+ service.serviceId() + "): service-id, issuer and one of jwks-uri/jwks are all required");
+		}
+	}
+
+	public Optional<DiscoveryTrustedService> findByServiceId(String serviceId) {
 		return Optional.ofNullable(serviceId).map(servicesById::get);
 	}
 
 	/** The service whose OIDC client obtained the caller's bearer, if any. */
-	public Optional<DiscoveryServiceProperties.TrustedService> findByCaller(
-		@Nullable Authentication caller) {
-
+	public Optional<DiscoveryTrustedService> findByCaller(@Nullable Authentication caller) {
 		return Optional.ofNullable(caller)
 			.map(authentication -> authentication.getAttributes().get(AdminUiAccessPolicy.AUTHORIZED_PARTY))
 			.filter(String.class::isInstance)
@@ -107,19 +131,17 @@ public class DiscoveryTrustedServiceStore implements TrustedPeerStore {
 			.map(servicesByClientId::get);
 	}
 
-	private static TrustedPeer toTrustedPeer(DiscoveryServiceProperties.TrustedService service,
-		String audience) {
-
+	private static TrustedPeer toTrustedPeer(DiscoveryTrustedService service, String audience) {
 		return new TrustedPeer(
-			service.getServiceId(),
-			service.getIssuer(),
-			service.getJwksUri(),
+			service.serviceId(),
+			service.issuer(),
+			service.jwksUri(),
 			Set.of(audience),
 			// The assertion's `sub` is the discovery service itself. See the class comment.
-			Set.of(service.getServiceId()),
+			Set.of(service.serviceId()),
 			PeerStatus.ACTIVE,
 			Duration.ofMinutes(15),
-			service.getJwks() != null ? Map.of("jwks", service.getJwks()) : Map.of());
+			service.jwks() != null ? Map.of("jwks", service.jwks()) : Map.of());
 	}
 
 	@Override

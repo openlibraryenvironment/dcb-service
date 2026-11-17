@@ -23,7 +23,7 @@ import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.api.serde.PatronLoan;
 import org.olf.dcb.core.api.serde.PatronLoanProjection;
 import org.olf.dcb.core.interaction.HostLmsClient;
-import org.olf.dcb.security.discovery.DiscoveryServiceProperties;
+import org.olf.dcb.security.discovery.DiscoveryConfig;
 import org.olf.dcb.security.discovery.PatronAssertion;
 import org.olf.dcb.security.discovery.PatronAssertionVerifier;
 import org.olf.dcb.storage.PatronRequestRepository;
@@ -48,11 +48,12 @@ class DiscoveryPatronLoansControllerTests {
 		final var verifier = mock(PatronAssertionVerifier.class);
 		when(verifier.verify(any())).thenReturn(new PatronAssertion("home-lms", "patron-1", "service"));
 
-		final var properties = new DiscoveryServiceProperties();
-		properties.setLoanLookupTimeout(Duration.ofMillis(200));
-		properties.setLoanLookupConcurrency(1);
+		final var config = mock(DiscoveryConfig.class);
+		when(config.getLoanLookupTimeout()).thenReturn(Duration.ofMillis(200));
+		when(config.getLoanLookupConcurrency()).thenReturn(1);
+		when(config.getMaxLoans()).thenReturn(25);
 
-		controller = new DiscoveryPatronLoansController(repository, verifier, hostLmsService, properties);
+		controller = new DiscoveryPatronLoansController(repository, verifier, hostLmsService, config);
 	}
 
 	@Test

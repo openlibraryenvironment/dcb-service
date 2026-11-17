@@ -301,6 +301,35 @@ class PolarisHarvestChunkTests {
 	 * silently freeze the cursor.
 	 */
 	@Test
+	void aPageThatPolarisFailsIsRetriedInTheSameRun() {
+		// Arrange - PAPIErrorCode -1 once, then the same request succeeds
+		mockPolarisFixture.mockGetPagedBibsFailingOnce(0, pagedBibsResponse(30, 10, 20));
+
+		// Act
+		final var chunk = singleValueFrom(client.getChunk(Optional.empty()));
+
+		// Assert
+		assertThat(remoteIds(chunk), contains("10", "20"));
+		assertThat(checkpointOf(chunk).getLastId(), is(30));
+		mockPolarisFixture.verifyGetPagedBibsCalledTimes(0, exactly(2));
+	}
+
+	@Test
+	void aPageThatPolarisKeepsFailingErrorsTheRunAndDoesNotEndTheHarvest() {
+		// Arrange - a failed page that also carries an empty rows array, which would otherwise read
+		// as the end of the catalogue and reset the cursor
+		mockPolarisFixture.mockGetPagedBibs(0, """
+			{ "PAPIErrorCode": -1, "ErrorMessage": "An unhandled exception occurred", "LastID": 0, "GetBibsPagedRows": [] }""");
+
+		// Act / Assert
+		final var error = org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+			() -> singleValueFrom(client.getChunk(Optional.empty())));
+
+		assertThat(error.getMessage(), org.hamcrest.Matchers.containsString("PAPIErrorCode -1"));
+		mockPolarisFixture.verifyGetPagedBibsCalledTimes(0, exactly(3));
+	}
+
+	@Test
 	void malformedPageErrorsRatherThanSilentlyEndingTheRun() {
 		// Arrange - neither GetBibsPagedRows nor GetBibsByIDRows present
 		mockPolarisFixture.mockGetPagedBibs(0, "{ \"PAPIErrorCode\": 0, \"LastID\": 10 }");

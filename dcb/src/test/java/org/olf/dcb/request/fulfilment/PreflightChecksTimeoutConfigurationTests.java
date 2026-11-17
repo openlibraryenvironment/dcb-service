@@ -1,6 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -10,6 +11,11 @@ import java.time.Duration;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Context;
@@ -46,6 +52,24 @@ class PreflightChecksTimeoutConfigurationTests {
 	void aTimeoutThatIsNotPositiveRefusesToStart() {
 		assertThrows(IllegalStateException.class,
 			() -> timeoutWith(Map.of("DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT", "PT0S")));
+	}
+
+	@Test
+	void saysAtStartupWhenItUsesTheDefaultAndOnlyThen() {
+		final var logger = (Logger) LoggerFactory.getLogger(PreflightChecksTimeout.class);
+		final var logs = new ListAppender<ILoggingEvent>();
+		logs.start();
+		logger.addAppender(logs);
+
+		try {
+			timeoutWith(Map.of());
+			timeoutWith(Map.of("DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT", "PT90S"));
+		} finally {
+			logger.detachAppender(logs);
+		}
+
+		assertThat(logs.list.stream().map(ILoggingEvent::getFormattedMessage).toList(), contains(
+			"Using default preflight check timeout value of PT55S: dcb.requests.preflight-checks.timeout is not set"));
 	}
 
 	@Test

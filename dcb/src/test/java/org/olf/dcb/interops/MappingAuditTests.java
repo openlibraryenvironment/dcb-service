@@ -26,6 +26,7 @@ import org.olf.dcb.core.interaction.MappingVocabulary;
 import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.HostLmsPingService;
+import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 
 import reactor.core.publisher.Flux;
@@ -184,7 +185,7 @@ class MappingAuditTests {
 		when(hostLmsService.getClientFor(HOST_LMS)).thenReturn(Mono.just(client));
 
 		return new InteropTestService(hostLmsService, mock(BibRecordService.class), repository,
-			mock(HostLmsPingService.class))
+			mock(HostLmsPingService.class), mock(LocationRepository.class))
 			.auditMappings(HOST_LMS)
 			.block();
 	}

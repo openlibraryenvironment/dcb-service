@@ -13,6 +13,7 @@ import java.util.ArrayList;
 
 import org.olf.dcb.core.interaction.polaris.PolarisConfig;
 import org.olf.dcb.core.model.DerivedLoanPolicy;
+import org.olf.dcb.core.interaction.koha.KohaClientConfig;
 
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpStatus;
@@ -321,8 +322,31 @@ public class HostLmsConfigValidator {
 		// that no code path ever read. Alma keeps its own key - that one is used.
 		checkPresent(config, "virtual-item-library-code", missing);
 
+		// The NCIP check-in fallback is all or nothing: on, it needs its address and its token
+		if ("true".equalsIgnoreCase(String.valueOf(config.get("ncip-checkin-fallback")).trim())) {
+			checkPresent(config, "ncip-checkin-url", missing);
+			checkPresent(config, "ncip-checkin-token", missing);
+		}
+
 		throwIfMissing("Koha", missing);
 		validateVirtualPatronEmail("Koha", config);
+		validateKohaBarcodePrefix(config);
+	}
+
+	// Set, it must leave room in Koha's 20-character barcode for the lender's own
+	private void validateKohaBarcodePrefix(Map<String, Object> config) {
+		if (!config.containsKey("virtual-item-barcode-prefix")) {
+			return;
+		}
+
+		final var prefix = config.get("virtual-item-barcode-prefix");
+		if (!(prefix instanceof String text) || text.isBlank()
+			|| text.trim().length() >= KohaClientConfig.MAX_BARCODE_LENGTH) {
+
+			throw new HttpStatusException(HttpStatus.BAD_REQUEST,
+				"Koha 'virtual-item-barcode-prefix' must be text of 1 to %d characters, or left out."
+					.formatted(KohaClientConfig.MAX_BARCODE_LENGTH - 1));
+		}
 	}
 
 	private void validateVirtualPatronEmail(String system, Map<String, Object> config) {

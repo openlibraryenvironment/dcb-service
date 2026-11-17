@@ -172,6 +172,8 @@ public class RulesetTests {
 		"not-suppressed-explicitly,true",
 		"suppressed-with-999-t,true",
 		"hidden-from-everyone,false",
+		"hidden-by-a-truthy-no,false",
+		"hidden-by-a-truthy-2,false",
 		"local-only,false",
 		"local-only-yes,false",
 		"both-flags-set,false"})
@@ -200,6 +202,8 @@ public class RulesetTests {
 		"not-suppressed-explicitly,true",
 		"suppressed-with-999-t,true",
 		"hidden-from-everyone,false",
+		"hidden-by-a-truthy-no,false",
+		"hidden-by-a-truthy-2,false",
 		"local-only,false",
 		"local-only-yes,false",
 		"both-flags-set,false"})
@@ -240,6 +244,28 @@ public class RulesetTests {
 
 		assertEquals(false, ruleset.test(new AnnotatedObject(item, new ArrayList<>())),
 			"not_for_loan_status 42 means local only, so the item must not be contributed");
+	}
+
+	@Test
+	void kohaItemDefaultSuppressesTheLocalOnlyRestrictedValue() {
+		final var ruleset = ruleService.findByName("koha-item-default").block();
+		assertNotNull(ruleset);
+
+		// A copy the library lends but does not share: restricted, not not_for_loan
+		final var item = KohaItem.builder().itemId(3L).restrictedStatus(42).build();
+
+		assertEquals(false, ruleset.test(new AnnotatedObject(item, new ArrayList<>())),
+			"restricted 42 means lent locally, not shared, so the item must not be contributed");
+	}
+
+	@Test
+	void kohaItemDefaultContributesOtherRestrictedValues() {
+		final var ruleset = ruleService.findByName("koha-item-default").block();
+		assertNotNull(ruleset);
+
+		final var item = KohaItem.builder().itemId(4L).restrictedStatus(1).build();
+
+		assertEquals(true, ruleset.test(new AnnotatedObject(item, new ArrayList<>())));
 	}
 
 	@Test

@@ -3,8 +3,6 @@ package org.olf.dcb.core.interaction.polaris;
 import static org.olf.dcb.core.Constants.UUIDs.NAMESPACE_DCB;
 import static org.olf.dcb.core.interaction.polaris.PolarisConstants.UUID5_PREFIX;
 
-import java.time.Instant;
-import java.util.BitSet;
 import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -31,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import services.k_int.interaction.oaipmh.OaiRecord;
-import services.k_int.interaction.oaipmh.OaiRecord.Header;
 import services.k_int.utils.MapUtils;
 import services.k_int.utils.UUIDUtils;
 
@@ -45,8 +42,6 @@ import services.k_int.utils.UUIDUtils;
 public class PolarisOaiPmhIngestSource extends OaiPmhIngestSource {
 	private static final String CONFIG_OAI_PATH = "oai-path";
 	private static final String DEFAULT_OAI_PATH = "/polaris.oaipmh.dataprovider/polaris/bibliographic";
-
-	private static final int VANISHED_SAMPLE_SIZE = 20;
 
 	// Measured on a 7.7 tenant, identifiers are shaped oai:<host>:polaris:bibliographic/<bib id>, so
 	// the bib id follows the final slash. Splitting on the colon reads "bibliographic/2" as an id.
@@ -111,61 +106,21 @@ public class PolarisOaiPmhIngestSource extends OaiPmhIngestSource {
 			UUID5_PREFIX + ":" + hostLmsCode + ":" + extractRecordId(result));
 	}
 
-	/**
-	 * Costs one ListIdentifiers walk plus one GetRecord per missing bib, one request at a time.
-	 */
 	@Override
 	public Flux<SourceRecord> findMissingRecords(Publisher<String> knownRemoteIds) {
-		return Flux.from(knownRemoteIds)
-			// reduceWith, not reduce: the accumulator must be created per subscription.
-			.reduceWith(BitSet::new, PolarisOaiPmhIngestSource::markBib)
-			.flatMapMany(held -> {
-				final Instant fetchedAt = Instant.now();
-
-				return listAllIdentifiers()
-					.filter(header -> isLive(header) && !contains(held, header.identifier()))
-					.concatMap(header -> getRecord(header.identifier()))
-					.concatMap(record -> sourceRecordFor(record, fetchedAt));
-			});
+		return findMissingByRecordNumber(knownRemoteIds, PolarisOaiPmhIngestSource::bibIdOf);
 	}
 
 	/**
-	 * A bib vanishes when it is held but not listed as live, so one the provider reports as deleted
-	 * vanishes too. Every stored row for it is replaced, the PAPI row as well as the OAI one, so
+	 * Every stored row for a vanished bib is replaced, the PAPI row as well as the OAI one, so
 	 * neither can bring the bib back when it is reprocessed.
 	 */
 	@Override
 	public Mono<VanishedRecords> findVanishedRecords(Publisher<String> liveSourceRecordIds,
 		Publisher<String> storedRemoteIds) {
 
-		return Flux.from(liveSourceRecordIds)
-			.reduceWith(BitSet::new, PolarisOaiPmhIngestSource::markBib)
-			.flatMap(held -> listAllIdentifiers()
-				.filter(PolarisOaiPmhIngestSource::isLive)
-				.map(Header::identifier)
-				.reduceWith(BitSet::new, PolarisOaiPmhIngestSource::markBib)
-				.map(listed -> {
-					final BitSet vanished = (BitSet) held.clone();
-					vanished.andNot(listed);
-
-					final Instant at = Instant.now();
-
-					return new VanishedRecords(held.cardinality(), vanished.cardinality(),
-						vanished.stream().limit(VANISHED_SAMPLE_SIZE).mapToObj(String::valueOf).toList(),
-						Flux.from(storedRemoteIds)
-							.filter(remoteId -> contains(vanished, remoteId))
-							.concatMap(remoteId -> deletedSourceRecord(remoteId, identifierFor(remoteId), at)));
-				}));
-	}
-
-	private static BitSet markBib(BitSet bibs, String id) {
-		bibIdOf(id).ifPresent(bibs::set);
-		return bibs;
-	}
-
-	private static boolean contains(BitSet bibs, String id) {
-		final OptionalInt bibId = bibIdOf(id);
-		return bibId.isPresent() && bibs.get(bibId.getAsInt());
+		return findVanishedByRecordNumber(liveSourceRecordIds, storedRemoteIds,
+			PolarisOaiPmhIngestSource::bibIdOf, PolarisOaiPmhIngestSource::identifierFor);
 	}
 
 	// "oai:<host>:polaris:bibliographic/12345" from the OAI harvest; "12345" from the PAPI harvest or
@@ -178,10 +133,6 @@ public class PolarisOaiPmhIngestSource extends OaiPmhIngestSource {
 		catch (NumberFormatException e) {
 			return OptionalInt.empty();
 		}
-	}
-
-	private static boolean isLive(Header header) {
-		return !"deleted".equalsIgnoreCase(header.status());
 	}
 
 	private static String identifierFor(String remoteId) {

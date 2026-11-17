@@ -3,11 +3,12 @@ package org.olf.dcb.core.api.discovery;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.olf.dcb.security.discovery.DiscoveryServiceProperties;
+import org.olf.dcb.security.discovery.DiscoveryConfig;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 
 /**
@@ -15,10 +16,11 @@ import jakarta.inject.Singleton;
  * that open at a service's first call.
  */
 @Singleton
+@Requires(property = DiscoveryConfig.ENABLED, value = "true")
 public class PatronResolveRateLimiter {
 	static final Duration WINDOW = Duration.ofMinutes(1);
 
-	private final DiscoveryServiceProperties properties;
+	private final DiscoveryConfig properties;
 
 	// Keyed by trusted service id: a handful, from configuration, never caller input
 	private final Cache<String, AtomicInteger> windows = Caffeine.newBuilder()
@@ -26,7 +28,7 @@ public class PatronResolveRateLimiter {
 		.expireAfterWrite(WINDOW)
 		.build();
 
-	public PatronResolveRateLimiter(DiscoveryServiceProperties properties) {
+	public PatronResolveRateLimiter(DiscoveryConfig properties) {
 		this.properties = properties;
 	}
 

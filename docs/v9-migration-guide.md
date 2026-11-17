@@ -1,726 +1,790 @@
-# DCB v9.0.0 — migration guide for hosting providers
+# DCB v9.2.0: upgrade guide for hosting providers migrating from v8
 
-For anyone running DCB from the published image on Kubernetes or AWS ECS/Fargate.
-Covers everything between **v8.71.0** (23 July 2026) and **v9.0.0**.
+This guide is for anyone who runs DCB from the published image on Kubernetes or AWS ECS/Fargate.
+It covers every change between **v8.71.0** (23 July 2026) and **v9.2.0**, including the changes
+released in v9.0.0 and v9.1.0. It is not a guide for upgrading from v9.0.x or v9.1.x.
+
+It describes the `v9.2.0` tag (`005b49a7e`). Every behaviour stated here names the file that
+implements it, under **Source**, so you can check it against the code you deploy. Paths are
+relative to the repository root.
+
+**How to read it**
+
+- **Required** means the upgrade fails, or part of DCB stops working, if you do not do it.
+- **Advised** means the upgrade works without it, but we recommend it.
+- An **instance** is one running copy of DCB: a Kubernetes pod or an ECS task.
+- A **Host LMS** is a library management system that DCB connects to. A **ping** is DCB's check
+  that it can reach a Host LMS and that its credentials work.
+- The **preflight checks** are the checks DCB runs on a request before it places it.
+
+| Section                                                                        | What it covers                                         |
+|--------------------------------------------------------------------------------|--------------------------------------------------------|
+| [1. What you must do](#1-what-you-must-do)                                     | The upgrade, as a checklist                            |
+| [2. Settings and behaviour changes](#2-settings-and-behaviour-changes)         | What to set, and what will behave differently          |
+| [3. Adding a trusted discovery service](#3-adding-a-trusted-discovery-service) | Connecting a discovery service other than EBSCO Locate |
+| [4. Troubleshooting](#4-troubleshooting)                                       | Symptoms, causes and fixes, and how to undo a change   |
+| [Appendix A](#appendix-a-database-migrations-and-rollback)                     | Database migrations and rollback                       |
+| [Appendix B](#appendix-b-every-setting-new-since-v8710)                        | Every setting new since v8.71.0                        |
+| [Appendix C](#appendix-c-roles-and-routes)                                     | Which roles each route needs, and the anonymous routes |
 
 Companion documents, all in this repository:
 
-| Topic | Document |
-|---|---|
-| Micronaut 5 / JDK 25, image bases, Elasticsearch | `docs/micronaut-5-hosting-notes.md` |
-| Branding, the asset store, capacity | `docs/branding.md` |
-| Discovery services and patron assertions | `docs/discovery-service-approach.md` |
-| NCIP peer authentication | `docs/ncip-peer-authentication.md` |
-| Insights endpoints | `docs/insights.md` |
+| Topic                                                    | Document                                      |
+|----------------------------------------------------------|-----------------------------------------------|
+| Micronaut 5 / JDK 25, image bases, Elasticsearch         | `docs/micronaut-5-hosting-notes.md`           |
+| Branding, the asset store, capacity                      | `docs/branding.md`                            |
+| Discovery services: the design, and onboarding one       | `docs/discovery-service-approach.md`          |
+| Discovery services: the contract a vendor builds against | `docs/discovery-service-contract.md`          |
+| NCIP peer authentication                                 | `docs/ncip-peer-authentication.md`            |
+| Insights endpoints                                       | `docs/insights.md`                            |
+| The supplier preflight                                   | `docs/operational/supplier-preflight.md`      |
+| The duplicate-request check                              | `docs/operational/duplicate-request-check.md` |
+| Notes and tags on requests                               | `docs/operational/patron-request-notes.md`    |
+| Request ids in logs                                      | `docs/request-id.md`                          |
+| Cancelled while the item is out                          | `docs/cancellation-handling.md`               |
+| The shared index                                         | `docs/shared-index.md`                        |
 
 ---
 
-## The short version
-
-Five things need a decision before you upgrade. Everything else is either automatic
-or opt-in.
-
-1. **Database migrations are not free this time.** Seven migrations, one of which
-   rewrites every row in `patron_request`, and one of which builds six indexes
-   including a ~107 MB index on `patron_request_audit`. They run at startup. Budget
-   for it. **[§2](#2-database-migrations--the-headline)**
-2. **If improved clustering was not already switched on for you, this release starts a
-   full background re-cluster of your entire catalogue, ten seconds after startup, and
-   keeps going until it is done.** One SQL query tells you whether that applies.
-   **[§3](#3-the-clustering-sweep--check-this-before-you-upgrade)**
-3. **This release is not cleanly reversible.** `V9_0_004` drops six columns from
-   `consortium`. Rolling back to 8.x will not bring them back. **[§8](#8-rollback)**
-4. **`/patrons/requests` is no longer open to any authenticated principal.** It defaulted
-   to `IS_AUTHENTICATED` at v8.71.0; every method now demands an explicit role. Any
-   client credential calling it needs auditing.
-   **[§5](#5-security-changes-that-need-coordination)**
-5. **If you run Elasticsearch, you must already be on 9.x.** Unchanged from the
-   Micronaut 5 notes, restated here because it is still the most common upgrade
-   failure. **[§1](#1-hard-requirements)**
-
-**EBSCO Locate keeps working, and needs nothing done to it.** It uses a service account
-with the `ADMIN` role, and both routes it calls are retained with that role deliberately.
-[§5](#ebsco-locate--deliberately-unaffected-nothing-to-do) has the detail. The new
-`DISCOVERY_SERVICE` model applies to discovery services onboarded from here on, not to
-Locate.
-
-Ignore the `PATRON` role in the changelog — it was added and removed inside this release
-window and never reached a tag, so there is nothing in your realm to change.
-[§5](#about-the-patron-role--it-does-not-affect-you) has the detail.
-
-If you run OpenSearch, are already on improved clustering, and can absorb a
-longer-than-usual first startup, this is a pull-the-new-tag release.
-
----
-
-## 1. Hard requirements
-
-### Elasticsearch must be 9.x
-
-**Only relevant if you run Elasticsearch rather than OpenSearch.** Micronaut 5 brings
-`elasticsearch-java` 9.4.0, and Elastic's clients send a major-version compatibility
-header. A 9.x client cannot talk to an 8.x server:
-
-```
-Accept version must be either version 8 or 7, but found 9
-```
-
-surfacing at startup as a confusing 400 from `[es/indices.exists]`. Upgrade the cluster
-to 9.x first. It also needs the `analysis-icu` plugin, as before.
-
-**OpenSearch needs no change.** Verified against 2.14.0 and 2.19.1. OpenSearch clients
-do not send that header, so the 3.x client is fine against a 2.x server. `analysis-icu`
-is required, as it always has been.
-
-### JDK 25 and Gradle 9 — only if you build from source
-
-The image ships JDK 25; you do not need it on the host. If you build DCB yourself
-rather than pulling the published image, you now need **JDK 25** and **Gradle 9**. JDK
-17 and 21 will not compile it.
-
-Image building goes through the Gradle `dockerBuild` / `dockerBuildNativeBinary` tasks,
-which generate the Dockerfile — as it did at v8.71.0. There is no committed `Dockerfile`
-in either release. See `docs/local-development.md`.
-
-### Image bases
-
-| Image | Base |
-|---|---|
-| JVM (`<repo>:<tag>`) | `eclipse-temurin:25-jre-alpine` (was `21-jre-alpine`) |
-| Native (`<repo>:native-<tag>`) | `cgr.dev/chainguard/wolfi-base` |
-
-The native binary is dynamically linked against glibc, so a musl/Alpine base will not
-run it. This matters if you mirror or allowlist base images, or scan against pinned
-base distributions. **Tag naming is unchanged.**
-
----
-
-## 2. Database migrations — the headline
-
-Seven migrations apply on first startup of v9.0.0.
-
-| Migration | What it does | Cost |
-|---|---|---|
-| `V8_71_001__patron_request_outcome` | Adds `outcome_code` to `patron_request`, then **backfills every historical row** with four UPDATE statements, three of which run correlated subqueries against `patron_request_audit` | **The expensive one.** Scales with your request and audit history |
-| `V8_72_001__dcb_profile_membership` | New `dcb_profile_membership` table + four indexes | Trivial — empty table |
-| `V9_0_001__consortium_branding` | Six nullable columns on `consortium` | Trivial — metadata only, no row rewrite |
-| `V9_0_002__library_branding` | Three nullable columns on `library`, plus `idx_library_agency_id` | Small |
-| `V9_0_003__brand_asset` | New `brand_asset` table (`bytea`, `STORAGE EXTERNAL`) | Trivial — empty table |
-| `V9_0_004__consortium_brand_merge` | Copies two URLs into the new brand columns, writes provenance into `data_change_log`, then **drops six columns** from `consortium` | Small, but **irreversible** |
-| `V9_0_005__analytics_indexes` | Six indexes on `patron_request` and `patron_request_audit` | **Significant.** See below |
-
-### What `V9_0_005` builds
-
-Five indexes on `patron_request`, and one on `patron_request_audit`:
-
-```sql
-CREATE INDEX IF NOT EXISTS pra_audit_date_idx ON patron_request_audit (audit_date);
-```
-
-The migration's own note records the measurement taken during development: at 5M audit
-rows this index builds in about a second and occupies **107 MB**. There was previously
-no index on `audit_date` at all, so this is new disk, not a replacement.
-
-These are plain `CREATE INDEX`, **not `CREATE INDEX CONCURRENTLY`** — Flyway runs each
-migration in a transaction and `CONCURRENTLY` cannot run inside one. They take an
-`ACCESS EXCLUSIVE`-blocking share lock on the table for the duration of the build.
-Writes to `patron_request_audit` wait.
-
-### What this means operationally
-
-Flyway runs **during application startup**, against the JDBC datasource, before the
-service takes traffic. Three consequences:
-
-- **Startup will take longer than you are used to** on the first v9.0.0 boot, and only
-  the first. How much longer depends entirely on the size of your `patron_request` and
-  `patron_request_audit` tables. We have not measured it at production scale, and you
-  should not take a number on trust — **restore a copy of your production database and
-  time the upgrade against it.** That is the only honest answer.
-- **Flyway takes a lock**, so if you roll out multiple replicas at once the first one
-  migrates and the others block until it finishes. That is correct behaviour, but it
-  looks like a hung deployment. Roll out **one replica first**, let it go ready, then
-  scale up.
-- **Your probes must allow for it.** See [§6](#6-kubernetes-specifics) and
-  [§7](#7-aws-ecsfargate-specifics).
-
-### Before you start
-
-Take a backup or a snapshot you can actually restore from. `V9_0_004` drops columns;
-there is no migration that puts them back.
-
-### If you have been running snapshots from `main`
-
-**This applies only to non-production fleets that deploy `main` rather than tags.**
-
-The branding migrations were renamed during development: `V8_73_001`–`V8_73_004` became
-`V9_0_001`–`V9_0_004`. If a database applied the old names, `flyway_schema_history`
-records them, Flyway will treat the `V9_0_*` files as new, and `V9_0_001` will fail:
-
-```
-ERROR: column "brand_logo_url" of relation "consortium" already exists
-```
-
-because the `alter table ... add` statements are not idempotent. Deployments that
-upgraded from the **v8.71.0 tag** are unaffected — the old names never touched them.
-
-If you hit this, the fix is to reconcile `flyway_schema_history` against the shipped
-migrations on that specific database. Ask us rather than improvising; the right repair
-depends on exactly which of the four were applied.
-
----
-
-## 3. The clustering sweep — check this before you upgrade
-
-This is the change most likely to surprise you, because nothing about it appears in the
-migration list. It is a **background workload that starts on its own**, and on a large
-catalogue it is not short.
-
-### What changed
-
-Improved clustering used to sit behind a feature flag. In v9.0.0 it is the only
-implementation — the old path is deleted — and the ingest process version is now
-hard-coded:
-
-```java
-public static int getProcessVersion() {
-    return 5;          // was: featureIsEnabled(IMPROVED_CLUSTERING) ? 5 : 3
-}
-```
-
-`ClusterHousekeepingService` reprocesses any cluster containing a bib below the current
-process version. It was previously gated behind the same feature flag; that gate is now
-removed, so it runs on every deployment.
-
-### Why that matters
-
-If improved clustering was **not** enabled on your deployment, every bib record in your
-database is at process version 3. On first startup of v9.0.0 they all become outdated,
-and the housekeeping task will work through the entire catalogue:
-
-- it starts **10 seconds after startup** (`@Scheduled(initialDelay = "10s")`),
-- takes batches of **2000 clusters**, with a 500 ms pause between batches,
-- and repeats until nothing outdated remains, logging its own rate as it goes:
-
-```
-Processed 2000 clusters with oudated bibs. Total time 0 hours, 3 minute and 12 seconds (rate of 10.42 per second)
-```
-
-At the 20M-record scale DCB is designed for, that is a sustained load on Postgres **and**
-on your search backend — re-clustering changes cluster membership, which flows through to
-index updates.
-
-### Find out whether it applies to you
-
-Run this against your production database **before** you upgrade:
-
-```sql
-SELECT process_version, count(*) FROM bib_record GROUP BY process_version ORDER BY 1;
-```
-
-| Result | What happens on upgrade |
-|---|---|
-| Everything already at `5` | Nothing. The sweep finds no work and stops |
-| Anything at `3` or `NULL` | Those records will be reprocessed, in batches, until done |
-
-The count in the second row is the size of the job. Take it to your own timings rather
-than to an estimate from us.
-
-### If the sweep does apply
-
-- **Expect elevated database and search load** for as long as it runs, on top of normal
-  traffic. Plan the upgrade window accordingly, and prefer a quiet period.
-- **Watch the rate line** in the logs. It reports clusters per second, which combined
-  with the count from the query above gives you a genuine estimate within the first few
-  minutes.
-- **Kubernetes:** the task takes a federated lock, so with working Hazelcast discovery
-  only one pod runs it at a time. That is what you want.
-- **Fargate: this is the one to watch.** Hazelcast's default multicast discovery does not
-  work on AWS, so each task is an isolated single-member cluster and the lock is
-  per-task. **Every running task will run its own sweep concurrently.** If you are on
-  Fargate and the query above shows a large version-3 population, run a **single task**
-  until the sweep completes, then scale out.
-
-There is no configuration switch to defer this. The lever you have is how many instances
-are running when it starts.
-
----
-
-## 4. New configuration
-
-**Nothing in this release is a required new setting.** Every value below has a default
-and DCB starts without any of them. The table marks the ones whose *default* changes
-behaviour, which are the ones to read.
-
-### Branding and uploads
-
-| Variable | Default | Notes |
-|---|---|---|
-| `DCB_BRANDING_ASSETS_STORE` | `database` | **Default changes behaviour.** Brand images upload into Postgres. Set to `none` to remove the upload routes entirely — brand fields then accept absolute CDN URLs only |
-| `DCB_BRANDING_ASSETS_MAX_BYTES` | `2097152` (2 MB) | **Also raises `micronaut.server.multipart.max-file-size` from the framework default of 1 MB**, deliberately, so the two limits governing one upload cannot drift. This applies to location and mapping import too |
-| `DCB_BRANDING_ASSETS_MAX_DIMENSION` | `4096` | Decompression-bomb guard, read from the image header |
-| `DCB_BRANDING_ASSETS_ORPHAN_GRACE_PERIOD` | `24h` | How long an unreferenced upload survives the daily sweep |
-| `DCB_BRANDING_ASSETS_PUBLIC_PATH_PREFIX` | `/discovery/brand-assets/` | Changing this after assets exist orphans every stored URL. Read it; do not tune it |
-
-**Capacity:** with the default store, brand images live in your database and therefore in
-your backups. The ceiling is small and bounded — a handful of images per consortium and
-per library, 2 MB each — but it is database growth where previously there was none. If
-you would rather not carry images in Postgres, `DCB_BRANDING_ASSETS_STORE=none` and use
-a CDN.
-
-`/info` now reports `dcb.branding.assets.store` so DCB Admin can tell "uploads are off
-here" from "that upload failed".
-
-### Insights (the reporting surface)
-
-| Variable | Default | Notes |
-|---|---|---|
-| `DCB_INSIGHTS_ENABLED` | `true` | **On by default.** Endpoints under `/insights`, restricted to `CONSORTIUM_ADMIN` / `LIBRARY_ADMIN` / `ADMINISTRATOR` |
-| `DCB_INSIGHTS_COLLECTION_ANALYSIS_CONCURRENCY` | `1` | Catalogue-wide aggregation over `bib_record`. Raise only with timings in hand |
-| `DCB_INSIGHTS_COLLECTION_ANALYSIS_CACHE_TTL` | `15m` | Every collection figure is stale by at most this |
-| `DCB_INSIGHTS_COLLECTION_ANALYSIS_MAX_WAIT` | `30s` | A queued caller waits this long, then gets **429** |
-
-If administrators report a 429 opening the dashboard cold, that is this working as
-designed — several panels queueing behind a concurrency of 1 — not a fault. Raise
-concurrency only after measuring the aggregation on your own corpus.
-
-### Discovery services
-
-| Variable | Default | Notes |
-|---|---|---|
-| `DCB_DISCOVERY_ENABLED` | `false` | **Fails closed.** An unconfigured deployment behaves as though discovery does not exist |
-| `DCB_DISCOVERY_AUDIENCE` | `dcb` | The audience a patron assertion must name |
-| `DCB_DISCOVERY_MAX_ASSERTION_LIFETIME` | `PT2M` | DCB's own cap, enforced regardless of the issuer's `exp` |
-| `DCB_DISCOVERY_TRUSTED_SERVICES_JSON` | — | Trust anchors. **Malformed JSON fails startup deliberately** |
-
-A list of objects **cannot** be expressed as indexed environment variables — Micronaut
-resolves `DCB_DISCOVERY_TRUSTED_SERVICES_0_SERVICE_ID` to
-`dcb.discovery.trusted-services.0.service-id`, and list binding needs the
-`trusted-services[0].service-id` form. Hence the single JSON variable. On Kubernetes you
-can mount YAML in a ConfigMap instead:
-
-```yaml
-dcb:
-  discovery:
-    trusted-services:
-      - service-id: your-discovery-service
-        issuer: https://discovery.example.org
-        jwks-uri: https://discovery.example.org/.well-known/jwks.json
-```
-
-DCB refuses a call whose bearer was not issued to the entry's Keycloak client. That is the
-`service-id` unless the entry sets `client-id`, so set it where the two differ.
-
-On Fargate, where there is no file to mount, use the JSON form:
-
-```
-DCB_DISCOVERY_TRUSTED_SERVICES_JSON=[{"service-id":"your-discovery-service","issuer":"https://discovery.example.org","jwks-uri":"https://discovery.example.org/.well-known/jwks.json"}]
-```
-
-### Shared index replicas
-
-| Variable | Default | Notes |
-|---|---|---|
-| `DCB_INDEX_NUMBER_OF_REPLICAS` | `1` | **Reconciled at every startup.** DCB now applies this to the existing index, not only at creation |
-
-Read that twice if you manage replica counts yourself. Previously the shipped index
-settings applied at creation and DCB left them alone; now the configured value is
-asserted on every boot, so a count you set by hand will be reset. On a single-node
-cluster the default of `1` leaves the index **yellow** — set
-`DCB_INDEX_NUMBER_OF_REPLICAS=0` there.
-
-### NCIP peer authentication
-
-Off by default (`dcb.peer-auth.enabled`), and only relevant if you run NCIP peer
-traffic between DCB instances or to an ORS Appliance. It carries a **private signing
-key** (`dcb.peer-auth.local-identity.private-jwk`), which is a secret and belongs in
-your secret store, not a ConfigMap or a task definition environment variable. The
-configuration is a nested structure — mount it as YAML rather than trying to express it
-in environment variables. See `docs/ncip-peer-authentication.md`.
-
-### Tracking
-
-`AWAITING_RETURN_TO_SUPPLIER: 1h` has been added to `dcb.polling.durations`, supporting
-requests cancelled by the patron while the item is out. No action needed; noted because
-it is a new state you will see in tracking logs and dashboards.
-### Placement preflight timeout
-
-Every placement now runs its preflight checks under one time limit. A placement still checking
-when it runs out is refused with `PREFLIGHT_CHECKS_TIMED_OUT`, and nothing is saved. Earlier releases
-had no limit: a slow member system held the caller open for as long as it took.
-
-| Variable | Default | Notes |
-|---|---|---|
-| `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT` | `PT55S` | An ISO-8601 duration. 55 seconds when not set. Set but blank, unreadable or not positive, DCB does not start |
-
-**Before you upgrade,** check that the timeout of every caller that places requests, and of your
-ingress, is above this limit. A caller that gives up first shows its own error, and DCB may still
-finish and place the request. The default sits under the 60-second idle or read timeout many load
-balancers and ingress controllers use; one set lower than the limit must be raised above it. If you have not measured how long placements take today, set the
-variable well above it for the first deploy (for example `PT5M`), so nothing is refused that was
-placed before, then lower it once the `dcb.preflight.duration` metric shows what the slowest
-placements take. Each placement also logs one line, `Preflight checks <outcome> in <n> ms`, with
-the borrowing system and each check's time.
-
----
-
-## 5. Security changes that need coordination
-
-### `/patrons/requests` no longer accepts any authenticated principal
-
-This is the change most likely to break an integration, and it is a tightening rather
-than a removal.
-
-At v8.71.0, `PatronRequestController` carried `@Secured(IS_AUTHENTICATED)` as its class
-default. That is not a permission — it is a claim about the whole Keycloak realm — and
-five methods had no override, so they were reachable by **any** principal the realm would
-authenticate:
-
-```
-POST /patrons/requests/place
-POST /patrons/requests/place/expeditedCheckout
-POST /patrons/requests/place/walkup
-POST /patrons/requests/{id}/rollback
-POST /patrons/requests/{id}/update
-```
-
-In v9.0.0 every method carries an explicit role set:
-
-| Endpoint | Roles |
-|---|---|
-| Class default | `CONSORTIUM_ADMIN`, `ADMINISTRATOR`, `LIBRARY_ADMIN`, `INTERNAL_API` |
-| `/place`, `/place/expeditedCheckout`, `/place/walkup`, `/{id}/update` | the above plus `LIBRARY_READ_ONLY` |
-| `/{id}/rollback` | `CONSORTIUM_ADMIN`, `ADMINISTRATOR` only |
-| `/{id}/transition/cleanup` | `CONSORTIUM_ADMIN`, `ADMINISTRATOR`, `LIBRARY_ADMIN` |
-
-**What you need to do:** audit every client credential that calls `/patrons/requests/**`
-and confirm it holds one of the roles above. Service-to-service callers want
-`INTERNAL_API`. A credential that previously worked purely by being a valid realm token
-will now get a 403.
-
-**Nothing was removed.** `GET /patrons/requests` still exists and is still
-`@Secured(ADMINISTRATOR)`, as it was at v8.71.0.
-
-**One narrowing to know about.** `GET /patrons/requests/patrons/{hostLmsCode}/requests`
-was `{CONSORTIUM_ADMIN, ADMINISTRATOR}` at v8.71.0 and is now `ADMINISTRATOR` only. It is
-kept solely as a compatibility alias (see below); the current path is
-`GET /patrons/requests/{hostLmsCode}`, which does admit `CONSORTIUM_ADMIN`. If something
-of yours called the old path with a `CONSORTIUM_ADMIN` credential, point it at the
-current one.
-
-### EBSCO Locate — deliberately unaffected, nothing to do
-
-**If your deployment serves EBSCO Locate, it keeps working across this upgrade and needs
-no change.** That was designed in, not luck.
-
-Locate authenticates with a **service account holding the `ADMIN` role** — the
-pre-existing arrangement, not the new `DISCOVERY_SERVICE` model. It is closed-source and
-outside this workspace, so the compatibility audit that cleared the admin UIs could not
-inspect it, and both routes it calls in production are retained explicitly and marked
-`LEGACY` in the source:
-
-| Route Locate calls | Status in v9.0.0 |
-|---|---|
-| `GET /patrons/requests/patrons/{hostLmsCode}/requests` | Retained as a deprecated alias, `@Secured(ADMINISTRATOR)`. The rename to `GET /patrons/requests/{hostLmsCode}` was cosmetic; aliasing it stops a live integration 404ing |
-| `GET /patrons/requests/{?pageable*}` | Retained, `@Secured(ADMINISTRATOR)`, unchanged from v8.71.0. Self-scopes off `localSystemCode` / `localSystemPatronId` claims on the caller's own token |
-
-Both admit `ADMINISTRATOR` and nothing else, which is what Locate's credential already
-holds. No Keycloak change, no endpoint change, no coordination needed.
-
-This is recorded in the code and in `docs/discovery-service-approach.md` §8 as **the one
-exception, not the rule**. Both routes are marked for deletion once EBSCO has moved to
-the model below, so treat this as a reprieve with a shelf life rather than a supported
-pattern — and do not build anything new on either route.
-
-### Future discovery services — `DISCOVERY_SERVICE` and patron assertions
-
-Any discovery service onboarded from now on uses the new model, and Locate will move to
-it eventually.
-
-`/discovery/**` is new in v9.0.0 and **off by default** (`DCB_DISCOVERY_ENABLED=false`),
-so it costs you nothing until you onboard someone. When you do:
-
-- the discovery **backend** holds a confidential `DISCOVERY_SERVICE` client credential
-  that reaches `/discovery/**` and nothing else — it authenticates the *caller*, never a
-  patron, and must never appear in a `@Secured` on any other controller;
-- the **patron** travels separately as a short-lived signed assertion in the
-  `X-OpenRS-Patron-Assertion` header, which DCB verifies (signature, trusted issuer,
-  audience, subject, expiry, and DCB's own lifetime cap) before enforcing per-patron
-  ownership in SQL on every call;
-- you configure the trust anchors per environment — [§4](#discovery-services) has the
-  ConfigMap and Fargate-JSON forms.
-
-The difference from the Locate arrangement is who decides which patron's data comes back.
-Under `ADMIN`-plus-token-claims the *caller* decides; under an assertion DCB verifies it.
-That is the whole point of the change, and why the Locate routes carry a deletion note.
-
-Vendor-facing integration detail is in `docs/discovery-service-approach.md` §6, which you
-can hand to a discovery supplier directly.
-
-### About the `PATRON` role — it does not affect you
-
-The v9.0.0 changelog and commit log describe a breaking change,
-*"Replace the PATRON role with DISCOVERY_SERVICE"*, and list
-`GET /patrons/requests` and `POST /patrons/requests/{id}/cancel` as removed.
-
-**That is written relative to the development branch, not to v8.71.0.** Checked against
-the tags:
-
-- `RoleNames` at v8.71.0 contains `ADMIN`, `INTERNAL_API`, `CONSORTIUM_ADMIN`,
-  `LIBRARY_ADMIN`, `LIBRARY_READ_ONLY` and `INTEROP_TESTER`. There is no `PATRON`.
-  The role was added and removed inside this release window and never reached a tag.
-- `POST /patrons/requests/{id}/cancel` did not exist at v8.71.0 either.
-
-So if you are upgrading from v8.71.0: there is no `PATRON` role in your realm to retire,
-no integration forwarding patron bearer tokens to migrate, and no endpoint of yours that
-disappeared. The real security change for you is the role tightening above — and Locate,
-which never used `PATRON` either, is unaffected.
-
-### A new anonymous route
-
-`/discovery/brand-assets/{key}` is anonymous by design — patron-facing brand images have
-to render before anyone logs in. Responses carry
-`Cache-Control: public, max-age=31536000, immutable`, which is safe because the key is
-the SHA-256 of the content: a replaced image is a different URL.
-
-Check your ingress, WAF and CDN rules admit it, and let the CDN cache it — every read
-you cache is a `bytea` read you do not make against Postgres.
-
-### Logging
-
-Two leaks were closed: patron credentials are no longer logged during authentication,
-and application event payloads are no longer logged. If your log pipeline had
-redaction rules for either, they are now belt-and-braces rather than load-bearing.
-
----
-
-## 6. Kubernetes specifics
-
-**Startup budget.** The v9.0.0 first boot runs the migrations in [§2](#2-database-migrations--the-headline).
-Use a `startupProbe` with a generous `failureThreshold` so a slow migration does not
-get the pod killed and restarted mid-migration:
+## 1. What you must do
+
+DCB v9.2.0 changes the database the first time it starts. This means:
+
+- **You cannot run v8.71.0 and v9.2.0 at the same time.** Stop every v8.71.0 instance first.
+  `V9_0_004` removes six `consortium` columns that v8.71.0 reads, so placement fails on any old
+  instance that is still running.
+- **You cannot go back to v8.71.0 without restoring the database** from a backup.
+- **The first start takes longer than a normal start.** Nineteen migrations run, and two of them
+  lock the `patron_request` table while they run. How long depends on the size of your database.
+
+Details: [Appendix A](#appendix-a-database-migrations-and-rollback).
+
+### Before upgrade day
+
+- [ ] **Required.** If you use Elasticsearch, upgrade it to 9.x, with the `analysis-icu` plugin.
+  DCB v9.2.0 cannot talk to Elasticsearch 8.x. OpenSearch needs no change. *(Source:
+  `docs/micronaut-5-hosting-notes.md`)*
+- [ ] **Required.** In your task definitions or ConfigMaps, remove every DCB variable whose value is
+  empty. Several of them now stop DCB from starting when empty
+  ([§2.4](#24-blank-values-stop-startup)).
+- [ ] **Advised.** Remove `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_REQUEST_WINDOW`. DCB
+  ignores it and logs a warning ([§2.3](#23-settings-no-longer-read)).
+- [ ] **Required.** Every system that calls DCB's request routes (`/patrons/requests/**`) or
+  `POST /v2/patron/auth/lookup` must send a token with a role. Discovery systems use the lookup to
+  find a patron who signed in somewhere else, for example through SAML. EBSCO Locate's account
+  already has the role it needs, so no change should be needed for it. To be sure, check your
+  access logs: `POST /v2/patron/auth/lookup` requests with no `Authorization` header must be 0
+  ([Appendix C](#ebsco-locate)).
+- [ ] **Required, if libraries use DCB Admin for Libraries.** Library staff accounts must carry their
+  library's DCB agency code in the `code` or `agencyCodes` claim of the **access** token. Without it, DCB Admin for Libraries shows empty
+  lists. Check them with `scripts/check-library-staff-agency-claims.sh`, or by hand in the Keycloak
+  admin console ([§2.6](#checking-library-staff-accounts)).
+- [ ] **Advised.** At your ingress, set the idle timeout longer than 55 seconds, the default
+  `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT`. The usual default of 60 seconds already is. Then a slow
+  placement gets DCB's own refusal, not a timeout from the ingress ([§2.6](#placement)).
+- [ ] **Advised.** At your ingress, accept request bodies of at least 2 MB, so that brand images and
+  mapping files up to DCB's upload limit get through.
+- [ ] **Required.** Give the first start enough time before your platform restarts it
+  ([Kubernetes and ECS](#kubernetes-and-ecs)).
+- [ ] **Advised.** If DCB Admin or DCB Admin for Libraries sign in with client ids other than
+  `dcb-admin` and `dcb-admin-for-libraries`, set `DCB_REQUESTS_STAFF_CLIENT_IDS` to yours.
+- [ ] **Advised, if you run EBSCO Locate.** Test Locate from end to end against v9.2.0 on a test
+  environment, before you upgrade production. **This test is the responsibility of whoever does QA
+  for the hosting provider.** Check each thing Locate uses DCB for: a patron signs in with a library
+  card, and through SAML where libraries use it; live availability shows; a pickup location can be
+  chosen; a request can be placed, and then appears in DCB Admin
+  ([Appendix C](#ebsco-locate)).
+- [ ] **Advised.** If you set `FEATURES_ENABLED=improved-clustering` (the `features.enabled` list),
+  remove it. Improved clustering is now always on, and no code reads a feature flag any more
+  ([§2.3](#23-settings-no-longer-read)).
+- [ ] **Advised.** Run the clustering query in [§2.6](#the-clustering-sweep). If any rows show `3`
+  or `NULL`, expect high database and search load for hours after the upgrade.
+- [ ] **Advised.** If anyone has changed the search index mapping by hand, export it and compare it
+  with `mappings-2.json`. If they conflict, choose a new `DCB_INDEX_NAME`. We expect this step not to be needed, but the check should still be carried out for safety.
+  ([§2.6](#the-shared-index)).
+- [ ] **Advised.** Ask consortium staff to clean up requests in ERROR, and to check stored Polaris
+  Host LMS records ([§2.6](#host-lms-records)).
+- [ ] **Advised.** If no library uses NCIP peering (no OpenRS Appliance libraries), block
+  `POST /ncip/v2_02` at your ingress: its peer authentication defaults to `INSECURE`. If you see
+  abuse, rate-limit the other anonymous routes per client IP
+  ([Appendix C](#anonymous-routes)).
+- [ ] **Advised.** Check free disk space on the database volume and on your backup target.
+  `V9_0_005` adds more than 100 MB of index on a table of 5 million audit rows.
+- [ ] **Advised.** Restore a copy of production and time the upgrade against it. Allow twice that
+  time as the startup limit on upgrade day.
+
+### On upgrade day
+
+- [ ] **Required.** Take a backup, and confirm you can restore it.
+- [ ] **Required.** Stop every v8.71.0 instance ([Kubernetes and ECS](#kubernetes-and-ecs)).
+- [ ] **Required.** Start **one** v9.2.0 instance. If you found a mapping conflict, give it a new
+  `DCB_INDEX_NAME`.
+- [ ] **Advised.** Set `DCB_INDEX_NUMBER_OF_REPLICAS` to the replica count your index has now.
+  Otherwise DCB sets the index to 1 replica ([§2.6](#the-shared-index)).
+- [ ] **Required.** Do not stop or restart DCB while the migrations run.
+- [ ] **Required.** Read the log. Flyway applies `V8_71_001` to `V9_0_017`, then you see
+  `Initialized index` and the search backend line. When it is done,
+  `select version from flyway_schema_history order by installed_rank desc limit 1` returns
+  `9.0.017`.
+- [ ] **Required, only with a new index name.** Call `POST /admin/reindex`. This is only required **if the mappings conflict** - if not, you do not need to do this step.
+- [ ] **Advised.** If you deploy new versions of DCB Admin and DCB Admin for Libraries, deploy them
+  after DCB, not before. For a consortium in the US, set `VITE_LOCALE=en-US` in both. See each
+  app's deployment guide.
+
+### After the upgrade
+
+- [ ] **Advised, on ECS.** If the clustering sweep is running, keep one task until it finishes,
+  because each task runs its own sweep. On Kubernetes with working Hazelcast discovery, one pod runs
+  it, so you can scale up. Then restore your normal startup probe or grace period.
+- [ ] **Advised.** Within a few minutes, every Host LMS has a recorded ping. Ask consortium staff to
+  correct and save any Host LMS whose last ping shows REFUSED or MISCONFIGURED.
+- [ ] **Expected.** If you set `DCB_GLOBAL_NOTIFICATIONS_*`, many alarm webhook posts arrive a few
+  minutes after the first start, as old ping failures clear ([§2.5](#25-behaviour-changes)).
+- [ ] **Advised, for the first days.** Watch for placements refused with
+  `PREFLIGHT_CHECKS_TIMED_OUT`, or `dcb.preflight.duration` with `outcome="timed_out"`. Only if they
+  appear, raise `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT`, and raise the ingress idle timeout above it
+  at the same time ([§2.6](#placement)).
+- [ ] **Advised, once no Host LMS shows REFUSED or MISCONFIGURED and at least 2 weeks have passed.** Set
+  `DCB_REQUESTS_SUPPLIER_PREFLIGHT_ENABLED=true` and restart.
+
+### Kubernetes and ECS
+
+|                              | Kubernetes                                                                                                                                              | AWS ECS/Fargate                                                                                                                                                                                               |
+|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Stop the old version         | `strategy: type: Recreate`, or scale to 0 before you deploy. A `RollingUpdate` keeps v8.71.0 pods running while the migrations remove columns they read | Scale to 0. Deploy one task with `minimumHealthyPercent: 0`, and scale out once it is healthy                                                                                                                 |
+| Allow for the first start    | A `startupProbe`, so a slow migration does not get the pod killed (example below)                                                                       | `healthCheckGracePeriodSeconds` of twice your timed upgrade, for example `1800`                                                                                                                               |
+| Configuration that is a list | Can be a mounted file: `dcb.peer-auth`, or `trusted-services-json`                                                                                      | Cannot mount a file: use `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`                                                                                                                                                |
+| Secrets                      | Kubernetes secrets                                                                                                                                      | The NCIP peer-auth private JWK, `DCB_IDENTITY_PROVIDER_KEYCLOAK_CLIENT_SECRET` and any webhook URL from Secrets Manager or SSM Parameter Store, through `secrets` in the task definition, never `environment` |
+| Locks                        | With working Hazelcast discovery, instances share locks                                                                                                 | DCB's default `hazelcast.yaml` uses multicast discovery, which does not work on AWS, so each task has its own locks. Unchanged from v8.71.0, but it means each task runs its own clustering sweep             |
 
 ```yaml
 startupProbe:
   httpGet: { path: /health, port: 8080 }
   periodSeconds: 10
-  failureThreshold: 180   # 30 minutes; tune from your own timed dry run
+  failureThreshold: 180   # 30 minutes; tune from your own timed upgrade
 livenessProbe:
   httpGet: { path: /health, port: 8080 }
   periodSeconds: 30
 ```
 
-A liveness probe that fires during a migration is the worst outcome available: the pod
-restarts, Flyway retries, and you loop. The startup probe exists precisely to prevent
-that — make sure one is defined, not just liveness and readiness.
+Flyway runs when DCB starts, before it takes traffic, so the probe must allow for the migrations.
 
-**Roll one replica first.** Scale to 1, take the upgrade, let it go ready, then scale
-back up. Flyway's lock will serialise the replicas anyway; doing it deliberately means
-you can see what is happening.
+### Going back to v8.71.0
 
-**Memory.** JDK 25 and Micronaut 5 have somewhat different baseline heap behaviour,
-though we have not observed a material increase. The image still sizes itself from the
-container limit via `-XX:MaxRAMPercentage=80.0`. Review the limit if you are close to it.
+Restore the backup and deploy v8.71.0 with it. Details:
+[Appendix A](#rollback). Many single changes can be undone with a setting and a restart:
+[§4](#undo-a-change-without-a-restore).
 
-**Disk.** `V9_0_005` adds new indexes — over 100 MB on a 5M-row audit table — and the
-brand asset store adds database growth. Check headroom on the volume and on your backup
-target before, not during.
+---
 
-**ConfigMap over environment variables** for `dcb.discovery.trusted-services` and
-`dcb.peer-auth`, both of which are nested structures that do not express cleanly as
-environment variables.
+## 2. Settings and behaviour changes
 
-## 7. AWS ECS/Fargate specifics
+Each variable is the environment form of the `dcb.…` key its source reads, and you can set any of
+them in a mounted configuration file instead. A setting you leave out takes its default. The full
+list is [Appendix B](#appendix-b-every-setting-new-since-v8710).
 
-**Health check grace period.** The task-level equivalent of the startup probe:
+### 2.1 Settings to check on every upgrade
+
+| Variable                                            | Default                             | What to do                                                                                                                                     | Source                                                                                                                                                           |
+|-----------------------------------------------------|-------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT`             | `PT55S`                             | One time limit on all of a placement's checks. v8.71.0 had none. Leave it unset, and raise it only if placements time out ([§2.6](#placement)) | `dcb/src/main/java/org/olf/dcb/request/fulfilment/PreflightChecksTimeout.java`                                                                                   |
+| `DCB_REQUESTS_SUPPLIER_PREFLIGHT_ENABLED`           | `false`                             | Leave off on upgrade day. Turn on after the Host LMS pings are clean                                                                           | `dcb/src/main/java/org/olf/dcb/request/fulfilment/SupplierPreflightService.java`                                                                                 |
+| `DCB_REQUESTS_STAFF_CLIENT_IDS`                     | `dcb-admin,dcb-admin-for-libraries` | Set if your admin apps use other client ids                                                                                                    | `dcb/src/main/java/org/olf/dcb/security/StaffClients.java`                                                                                                       |
+| `DCB_INDEX_NUMBER_OF_REPLICAS`                      | `1`                                 | Set to the replica count you run, if it is not 1. DCB applies it at every start ([§2.6](#the-shared-index))                                    | `dcb/src/main/java/org/olf/dcb/indexing/SharedIndexConfiguration.java`                                                                                           |
+| `DCB_SCHEDULED_TASKS_SKIPPED`                       | unchanged                           | Names now match the declaring class. Tracking is `TrackingScheduler`, so `TrackingServiceV3` no longer skips it                                | `dcb/src/main/java/io/micronaut/scheduling/processor/AppTaskAwareScheduledMethodProcessor.java`; `dcb/src/main/java/org/olf/dcb/tracking/TrackingScheduler.java` |
+| `DCB_JOBS_AVAILABILITY_MAPPED_RECHECK_GRACE_PERIOD` | `P60D`; was `P30D`                  | Nothing, unless you relied on the old default                                                                                                  | `dcb/src/main/java/org/olf/dcb/availability/job/AvailabilityCheckJobConfig.java`                                                                                 |
+| `DCB_JOBS_AVAILABILITY_RECHECK_GRACE_PERIOD`        | `P14D`; was `P7D`                   | Nothing, unless you relied on the old default                                                                                                  | `dcb/src/main/java/org/olf/dcb/availability/job/AvailabilityCheckJobConfig.java`                                                                                 |
+
+### 2.2 Optional features
+
+Each is off, or works as v8.71.0 did, until you configure it.
+
+| Feature                                                  | Switch                                                          | Default         | More                                                              |
+|----------------------------------------------------------|-----------------------------------------------------------------|-----------------|-------------------------------------------------------------------|
+| Discovery services with patron assertions                | `DCB_DISCOVERY_ENABLED`                                         | off             | [§3](#3-adding-a-trusted-discovery-service)                       |
+| DCB Admin role check                                     | `DCB_SECURITY_ADMIN_UI_CLIENT_ID`, `DCB_SECURITY_ADMIN_UI_MODE` | off             | [§2.6](#the-dcb-admin-role-check)                                 |
+| Creating DCB Admin for Libraries accounts from DCB Admin | the four `DCB_IDENTITY_PROVIDER_KEYCLOAK_*`                     | off             | [§2.6](#account-provisioning)                                     |
+| Duplicate-request check                                  | `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ENABLED`      | off             | [§2.6](#placement); `docs/operational/duplicate-request-check.md` |
+| Brand image uploads                                      | `DCB_BRANDING_ASSETS_STORE`                                     | `database` (on) | `docs/branding.md`                                                |
+| Insights                                                 | `DCB_INSIGHTS_ENABLED`                                          | on              | `docs/insights.md`                                                |
+| Tracking v4                                              | `DCB_TRACKING_SERVICE=v4`                                       | off (v3)        | `dcb/src/main/java/org/olf/dcb/tracking/MODULE.md`                |
+| NCIP peering between DCBs                                | `DCB_PEER_AUTH_ENABLED`, `DCB_PEER_AUTH_NCIP_ENABLED`           | off             | `docs/ncip-peer-authentication.md`                                |
+| Locks in one process (single instance only)              | `DCB_FEDERATION_LOCK_PROVIDER=local`                            | Hazelcast       | [Appendix B](#appendix-b-every-setting-new-since-v8710)           |
+| The transaction code from before Micronaut 5             | `DCB_R2DBC_LEGACY_TRANSACTION_OPERATIONS_ENABLED`               | off             | [§4](#undo-a-change-without-a-restore)                            |
+
+### 2.3 Settings no longer read
+
+| Setting                                                                    | Last read by | Now                                                                                             |
+|----------------------------------------------------------------------------|--------------|-------------------------------------------------------------------------------------------------|
+| `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_REQUEST_WINDOW`          | v8.71.0      | Ignored, with a warning at startup. Remove it; `..._ACTIVE_WINDOW` is the limit if you need one |
+| `FEATURES_ENABLED` (`features.enabled`), for example `improved-clustering` | v8.71.0      | Still accepted, but no code reads a feature flag: improved clustering is always on. Remove it   |
+
+Source: `REMOVED_REQUEST_WINDOW` in
+`dcb/src/main/java/org/olf/dcb/request/fulfilment/PreventDuplicateRequestsPreFlightCheck.java`;
+`dcb/src/main/java/services/k_int/features/Features.java` (`@FeatureFlag` is commented out in
+`ClusterHousekeepingService` and `DefaultRecordClusteringService`).
+
+### 2.4 Blank values stop startup
+
+A setting that is present with an empty value, the usual result of a template value nobody filled
+in, stops DCB at startup with a message naming it. A feature that is off is not checked, so a blank
+setting it owns does not stop startup.
+**Remove any of these that you set to an empty value.**
+
+| Setting                                                          | Blank stops startup                                    | Source                                                                                         |
+|------------------------------------------------------------------|--------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT`                          | always; so does an unreadable or non-positive duration | `dcb/src/main/java/org/olf/dcb/request/fulfilment/PreflightChecksTimeout.java`                 |
+| `DCB_REQUESTS_STAFF_CLIENT_IDS`                                  | always; so does a list that names no client            | `dcb/src/main/java/org/olf/dcb/security/StaffClients.java`                                     |
+| `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ACTIVE_WINDOW` | when the duplicate-request check is on                 | `dcb/src/main/java/org/olf/dcb/request/fulfilment/PreventDuplicateRequestsPreFlightCheck.java` |
+| `DCB_SECURITY_ADMIN_UI_CLIENT_ID`                                | always: set, it turns the role check on                | `dcb/src/main/java/org/olf/dcb/security/AdminUiAccessConfig.java`                              |
+| `DCB_IDENTITY_PROVIDER_KEYCLOAK_*`                               | once any of the four is present                        | `dcb/src/main/java/org/olf/dcb/security/provisioning/IdentityProviderConfig.java`              |
+| `DCB_DISCOVERY_AUDIENCE`                                         | when discovery is on                                   | `dcb/src/main/java/org/olf/dcb/security/discovery/DiscoveryConfig.java`                        |
+| `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`                            | when discovery is on                                   | `dcb/src/main/java/org/olf/dcb/security/discovery/DiscoveryTrustedServices.java`               |
+
+The message depends on the setting: `is set but blank`, `must not be blank`, `which is not a
+duration` or `names no client`.
+
+### 2.5 Behaviour changes
+
+| What changes                                                                                                                                                                                                                                                                                                                                                                                                                                 | What you do                                                                                                                                                                                                                                 | Source                                                                                                                                                                                                                       |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| DCB uses `elasticsearch-java` 9.x. Elastic's clients send their major version in a header, so a 9.x client cannot talk to an Elasticsearch 8.x server                                                                                                                                                                                                                                                                                        | Upgrade Elasticsearch. OpenSearch needs no change                                                                                                                                                                                           | `docs/micronaut-5-hosting-notes.md`                                                                                                                                                                                          |
+| The JVM image is based on `eclipse-temurin:25-jre-alpine` (was `21-jre-alpine`). The native image (`<repo>:native-<tag>`) is based on `cgr.dev/chainguard/wolfi-base` and needs glibc, so it will not run on musl/Alpine. Tag names are unchanged                                                                                                                                                                                            | Nothing, unless you rebase the image. To build from source you need JDK 25 and Gradle 9. Images are built by the Gradle `dockerBuild` and `dockerBuildNativeBinary` tasks; there is no committed `Dockerfile` (`docs/local-development.md`) | `dcb/build.gradle` (the docker tasks)                                                                                                                                                                                        |
+| Migrations make the upgrade one-way and not rolling                                                                                                                                                                                                                                                                                                                                                                                          | [§1](#1-what-you-must-do)                                                                                                                                                                                                                   | [Appendix A](#appendix-a-database-migrations-and-rollback)                                                                                                                                                                   |
+| A full re-cluster can start after the upgrade                                                                                                                                                                                                                                                                                                                                                                                                | Run the query before you upgrade                                                                                                                                                                                                            | [§2.6](#the-clustering-sweep)                                                                                                                                                                                                |
+| The index mapping and replica count are applied at every start                                                                                                                                                                                                                                                                                                                                                                               | Set `DCB_INDEX_NUMBER_OF_REPLICAS`                                                                                                                                                                                                          | [§2.6](#the-shared-index)                                                                                                                                                                                                    |
+| More routes need a role, `POST /v2/patron/auth/lookup` among them. The legacy request lookup by barcode matches the whole barcode                                                                                                                                                                                                                                                                                                            | Check every caller                                                                                                                                                                                                                          | [Appendix C](#appendix-c-roles-and-routes)                                                                                                                                                                                   |
+| A `LIBRARY_ADMIN` or `LIBRARY_READ_ONLY` token must carry the library's DCB agency code in `code` or `agencyCodes`, in the access token, not only the ID token. Without it DCB Admin for Libraries shows empty lists and gets 403s                                                                                                                                                                                                           | Check every library staff account before you upgrade ([§2.6](#checking-library-staff-accounts))                                                                                                                                             | `dcb/src/main/java/org/olf/dcb/security/AgencyClaims.java`, `.../CallerScope.java`                                                                                                                                           |
+| A placement has a time limit. One still checking when it runs out is refused with `PREFLIGHT_CHECKS_TIMED_OUT`, and nothing is saved                                                                                                                                                                                                                                                                                                         | [§2.6](#placement)                                                                                                                                                                                                                          | `dcb/src/main/java/org/olf/dcb/request/fulfilment/PreflightChecksTimeout.java`                                                                                                                                               |
+| Pings check credentials, are recorded per Host LMS (`HostLms.lastPing` in GraphQL), raise an alarm only on failure, and run when a Host LMS is saved. Saving a Polaris Host LMS clears its token cache, so a changed password works at once. In v8.71.0 the FOLIO ping sent no key, so this is the first credential check some systems have had                                                                                              | Correct Host LMS records that show REFUSED or MISCONFIGURED                                                                                                                                                                                 | `dcb/src/main/java/org/olf/dcb/core/svc/HostLmsPingService.java`                                                                                                                                                             |
+| Host LMS configuration is checked when it is saved                                                                                                                                                                                                                                                                                                                                                                                           | [§2.6](#host-lms-records)                                                                                                                                                                                                                   | `dcb/src/main/java/org/olf/dcb/graphql/validation/HostLmsConfigValidator.java`                                                                                                                                               |
+| A request in ERROR that DCB created a virtual item for keeps its copy until the request is finalised. DCB does not choose that copy again for a borrowing system that cannot hold two virtual items for one copy                                                                                                                                                                                                                             | Ask consortium staff to clean up requests in ERROR                                                                                                                                                                                          | `dcb/src/main/java/org/olf/dcb/request/resolution/ExcludeCopyPromisedToBorrowerItemFilter.java`; `findSystemsWithRecordedVirtualItemForSupplierCopy` in `dcb/src/main/java/org/olf/dcb/storage/PatronRequestRepository.java` |
+| A new status, `AWAITING_RETURN_TO_SUPPLIER`, polled every hour: a request cancelled after its item shipped waits there until the supplier reports the item back                                                                                                                                                                                                                                                                              | Nothing. To start v8.71.0 again, see [Appendix A](#rollback)                                                                                                                                                                                | `dcb.polling.durations` in `dcb/src/main/resources/application.yml`; `docs/cancellation-handling.md`                                                                                                                         |
+| Alarm webhooks (`DCB_GLOBAL_NOTIFICATIONS_*`) are now sent. In v8.71.0 they never were. Many "deactivated" posts arrive a few minutes after the first start, as old ping failures clear. The target, URL included, is logged at INFO                                                                                                                                                                                                         | Keep the webhook URL in your secret store, and treat the logs as holding it                                                                                                                                                                 | `dcb/src/main/java/org/olf/dcb/core/svc/AlarmsService.java`                                                                                                                                                                  |
+| Every inbound HTTP request gets a request id. Each log line carries it in brackets after the level (empty outside a request), and the response returns it as `X-Request-Id`                                                                                                                                                                                                                                                                  | Update your log parsers                                                                                                                                                                                                                     | `docs/request-id.md`                                                                                                                                                                                                         |
+| Patron and Host LMS credentials are not logged. v8.71.0 logged a failed Polaris call's request headers and body, which on the staff login hold the staff user name and password. The placement parameters, the FOLIO virtual-patron lookup and the borrower-loan error lines do not put a patron barcode in a log line                                                                                                                       | Change the Polaris staff passwords ([§1](#after-the-upgrade)). Some DEBUG lines still carry patron data (the Sierra client logs a whole patron record when it creates a virtual patron), so turn a logger back down after troubleshooting   | `dcb/src/main/resources/logback.xml`; `dcb/src/main/java/org/olf/dcb/core/interaction/PlaceHoldRequestParameters.java`; `dcb/src/main/java/org/olf/dcb/core/interaction/polaris/PolarisLmsClient.java`                       |
+| A file appender writes `logs/dcb-service-logs-<start>.log` inside the container, as well as the console, rolling at 250 MB                                                                                                                                                                                                                                                                                                                   | Make the working directory temporary and size-limited                                                                                                                                                                                       | `dcb/src/main/resources/logback.xml`                                                                                                                                                                                         |
+| Uploads up to `DCB_BRANDING_ASSETS_MAX_BYTES` (2 MB) are accepted; the framework's limit was 1 MB                                                                                                                                                                                                                                                                                                                                            | Allow 2 MB bodies at your ingress                                                                                                                                                                                                           | `dcb/src/main/java/org/olf/dcb/core/branding/BrandAssetProperties.java`; `dcb/src/main/resources/application.yml`                                                                                                            |
+| New things you can monitor: `dcb.preflight.duration` (tag `outcome`) and `dcb.preflight.check.duration` (tag `check`); stalled-harvest detection with `GET /admin/sourceImport/status`, `POST /admin/sourceImport/{hostLmsCode}/reconcile` and `POST /admin/sourceImport/{hostLmsCode}/resetCheckpoint`; the search backend, from `curl -s http://<dcb-host>:8080/info \| jq '.dcb.index.backend'`; `dcb.stats.events` and `dcb.stats.timed` | Nothing to configure                                                                                                                                                                                                                        | `dcb/src/main/java/org/olf/dcb/core/api/AdminController.java`                                                                                                                                                                |
+| `GET /patrons/requests/stats/top-requestors` and `/top-requested-titles` still answer, through a shim over Insights that logs at WARN when called                                                                                                                                                                                                                                                                                            | Nothing                                                                                                                                                                                                                                     | `dcb/src/main/java/org/olf/dcb/core/api/LegacyStatsController.java`                                                                                                                                                          |
+
+Not changed: port 8080; the health, info and Prometheus paths (meters are added, none renamed); the
+image tag scheme; Hazelcast, pinned at 5.4.0; OpenSearch's need for `analysis-icu`; the Keycloak
+roles that exist (what changed is which roles DCB requires).
+
+### 2.6 Details
+
+#### The clustering sweep
+
+**Since v9.0.0.** Improved clustering is the only implementation, and the ingest process version is
+fixed at 5. `ClusterHousekeepingService` reprocesses any cluster containing a bib below the current
+process version. **If improved clustering was already on (`FEATURES_ENABLED=improved-clustering`),
+nothing happens, and you can remove that setting.**
+
+If it was not, every bib is at process version 3, and on first start the housekeeping task works
+through the whole catalogue. It starts 10 seconds after startup, in batches of 2,000 clusters with a
+500 ms pause, and logs its rate:
 
 ```
-healthCheckGracePeriodSeconds: 1800
+Processed 2000 clusters with oudated bibs. Total time 0 hours, 3 minute and 12 seconds (rate of 10.42 per second)
 ```
 
-If the ALB target group starts failing the task before migrations finish, ECS will kill
-and reschedule it — same restart loop as above. Raise the grace period for the upgrade
-deployment; you can lower it again afterwards.
+To know which applies to you, run this against production **before** you upgrade:
 
-**Deploy one task first.** Set `desiredCount: 1` with
-`minimumHealthyPercent: 0` for the upgrade, then scale back. Rolling several tasks at
-once means the others sit blocked on Flyway's lock while their health checks tick.
-
-**JSON in one variable.** Fargate task definitions cannot mount a config file, so use
-`DCB_DISCOVERY_TRUSTED_SERVICES_JSON` rather than indexed variables — see
-[§4](#discovery-services) for why indexed variables cannot work here.
-
-**Secrets.** The NCIP peer-auth private JWK must come from Secrets Manager or SSM
-Parameter Store via `secrets` in the task definition, never `environment`.
-
-**Hazelcast and multicast — unchanged, but worth knowing.** DCB's default
-`hazelcast.yaml` uses multicast discovery, which does not work on AWS. Each task runs as
-an isolated single-member cluster, so federated locks are per-task rather than
-cluster-wide unless you supply your own Hazelcast configuration. This is pre-existing
-behaviour, not new in v9.0.0.
-
-**Task memory.** Same note as Kubernetes: review if you are close to a limit.
-
----
-
-## 8. Rollback
-
-**This release is not cleanly reversible, and that is a change from the Micronaut 5
-release, which was.**
-
-`V9_0_004__consortium_brand_merge` drops six columns from `consortium`:
-`header_image_url`, `header_image_uploader`, `header_image_uploader_email`,
-`about_image_url`, `about_image_uploader`, `about_image_uploader_email`. The two URLs
-are copied into the new brand columns first, and the uploader names and email addresses
-are preserved into `data_change_log` before they go — deliberately, because a member of
-staff's name and email address belongs in a role-checked audit record, not in a column
-any authenticated principal can read.
-
-Rolling the image back to 8.x leaves those columns absent. An 8.x DCB expecting them
-will not work against a v9 schema.
-
-Your rollback path is therefore **restore the database from the backup you took before
-the upgrade, and roll the image back together with it**. Take that backup.
-
-The Elasticsearch caveat from the previous release still applies: if you upgraded ES to
-9.x in order to take this, rolling DCB back to an 8.x-era client will not work against
-the upgraded cluster.
-
----
-
-## 9. New operator surfaces
-
-Worth knowing about; none require configuration.
-
-**Stalled harvest detection.** A source import that produced no chunk used to end
-without saving a checkpoint, indistinguishable from success in the logs, and the only
-recorded remedy was deleting a `job_checkpoint` row by hand. There is now a watchdog on
-a fifteen-minute delay, and three endpoints on `AdminController`:
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /admin/sourceImport/status` | Whether each source is progressing |
-| `POST /admin/sourceImport/{hostLmsCode}/reconcile` | Reconcile records DCB missed |
-| `POST /admin/sourceImport/{hostLmsCode}/resetCheckpoint` | Rewind the cursor |
-
-Escalation stays manual on purpose: auto-firing a full re-harvest across a fleet of
-library systems on a false positive is a self-inflicted denial of service.
-
-**Search backend reporting.** Introduced in the Micronaut 5 release and still the
-quickest way to answer "what are we running against":
-
-```bash
-curl -s http://<dcb-host>:8080/info | jq '.dcb.index.backend'
-# { "distribution": "opensearch", "version": "2.14.0" }
+```sql
+SELECT process_version, count(*) FROM bib_record GROUP BY process_version ORDER BY 1;
 ```
 
-**Clustering.** Now the only implementation, and it re-clusters existing data by itself
-after upgrade — see [§3](#3-the-clustering-sweep--check-this-before-you-upgrade), which
-is the one section not to skim. `POST /admin/reindex`, `POST /admin/dedupe/matchpoints`
-and `POST /admin/validateClusters` remain available for operator-driven rebuilds.
+| Result                    | What happens on upgrade                                    |
+|---------------------------|------------------------------------------------------------|
+| Everything already at `5` | Nothing. The sweep finds no work                           |
+| Anything at `3` or `NULL` | Those records are reprocessed in batches until none remain |
 
-**Metrics — two new meters, and one heap leak closed.** Event counts used to accumulate
-in an in-heap `stat_counters` map that grew without bound and had no reader; on a
-long-running pod that was a slow leak. It is gone, replaced by two Micrometer meters
-tagged by `event` and `context`:
+While it runs, expect raised load on Postgres and on the search backend. With working Hazelcast
+discovery, one instance runs it. On ECS, each task runs its own sweep, so run a single task until it
+finishes. There is no switch to delay it.
 
+Source: `dcb/src/main/java/org/olf/dcb/ingest/IngestService.java` (`getProcessVersion`);
+`dcb/src/main/java/org/olf/dcb/core/clustering/ClusterHousekeepingService.java`.
+
+#### The shared index
+
+- **The mapping only adds fields.** Between v8.71.0 and v9.2.0, `mappings-2.json` adds about thirty
+  field paths for discovery metadata, such as `classification`, `shelfSort`, `alternateScripts`,
+  `relationships`, `carrier-type`, member `availability` and `firstSeen`. No field is removed,
+  renamed or retyped. `settings-2.json` is unchanged. The one new field that names an analyzer
+  (`subjects.fullLabel`, `icu_folding_nopunc`) uses an analyzer v8.71.0's settings already define.
+  `fullSettings-2.json` is new, and used only when DCB creates an index. Source:
+  `dcb/src/main/resources/sharedIndex/mappings-2.json`, `settings-2.json`, `fullSettings-2.json`.
+- **The mapping is sent at every start, and a refusal stops DCB.** DCB waits for the index to
+  accept it. If the index refuses it, DCB does not start: fulfilment, tracking and patron
+  authentication stop with search. Source:
+  `dcb/src/main/java/org/olf/dcb/indexing/SharedIndexLiveUpdater.java`
+  (`sharedIndexService.initialize()`, blocking).
+- **New fields fill on the nightly sync.** `IndexSynch` re-sends every cluster 20 seconds after
+  start and then every 24 hours, so documents gain `firstSeen` and the other Postgres fields on the
+  first pass. MARC discovery metadata is not added to existing bibs: it is written when a record is
+  processed. `shelfSort` also needs a library's `classification_scheme`, which `V9_0_015` adds empty
+  for every library. Source: `dcb/src/main/java/org/olf/dcb/indexing/job/IndexSynch.java`
+  (`@Scheduled(initialDelay = "20s", fixedDelay = "24h")`).
+- **The replica count is applied at every start.** `DCB_INDEX_NUMBER_OF_REPLICAS` (default `1`) is
+  set on the existing index at every start, not only when DCB creates it. v8.71.0 created the index
+  with 1 replica, so an index nobody changed already has 1, and nothing happens. A count changed by
+  hand on the cluster is set back to the setting, so set it to the count you run. DCB changes it
+  with a live settings update, without closing the index. On a single-node cluster, `0` turns a
+  yellow index green. Source: `reconcileNumberOfReplicas()` in
+  `dcb/src/main/java/org/olf/dcb/indexing/opensearch/OpenSearchSharedIndexService.java` and
+  `.../elasticsearch/ElasticsearchSharedIndexService.java`.
+
+#### Placement
+
+- **The time limit.** A placement whose checks take longer than
+  `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT` (55 seconds by default) is refused with
+  `PREFLIGHT_CHECKS_TIMED_OUT`, and nothing is saved. Keep the limit **shorter** than the time your
+  ingress and every system that places requests will wait. If a caller stops waiting first, it
+  shows its own error while DCB may still place the request, and a patron who tries again can end
+  up with two requests. The default is below the 60-second idle timeout that ingresses and load
+  balancers usually have, so leave it unset unless placements time out. Each placement logs one
+  line, `Preflight checks <outcome> in <n> ms`, and `dcb.preflight.duration` is tagged with the
+  same outcome: `passed`, `failed` or `timed_out`. Leaving the setting out logs
+  `Using default preflight check timeout value of PT55S`. Source:
+  `dcb/src/main/java/org/olf/dcb/request/fulfilment/PreflightChecksTimeout.java`;
+  `dcb/src/main/java/org/olf/dcb/request/fulfilment/PatronRequestPreflightChecksService.java`.
+- **The supplier preflight.** When on, DCB skips the copies of a supplier whose setup or last ping
+  says it cannot supply, and the request goes to another library. Leave it off for the first start,
+  and turn it on once no Host LMS shows REFUSED or MISCONFIGURED. Source:
+  `dcb/src/main/java/org/olf/dcb/request/fulfilment/SupplierPreflightService.java`;
+  `docs/operational/supplier-preflight.md`.
+- **The duplicate-request check** (`DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ENABLED`, off by
+  default) now refuses a repeat for as long as the earlier request is active, not for a fixed time.
+  Requests placed through the clients in `DCB_REQUESTS_STAFF_CLIENT_IDS` are recorded as placed by
+  staff, and are not checked. Source:
+  `dcb/src/main/java/org/olf/dcb/request/fulfilment/PreventDuplicateRequestsPreFlightCheck.java`.
+
+#### Host LMS records
+
+Host LMS configuration is checked when it is saved, and this release refuses some values earlier
+releases stored. A stored record that fails the check cannot be edited until those values are
+corrected, because an edit replaces the whole configuration. Check before you upgrade:
+
+- **Polaris:** each required item and service value is present and a whole number;
+  `borrower-lending-flow` is not set (it is no longer supported, and a stored one fails placement);
+  `shelfLocationPolicyMap` values are ones the check accepts (`REFERENCE` is not one;
+  `REFERENCE_ONLY` is).
+- **Polaris:** an empty or unknown `item-agency-resolution-method` now resolves items by shelf
+  location.
+- **FOLIO:** with `record-syntax` or `metadata-prefix` unset, harvesting uses the published defaults.
+
+Source: `dcb/src/main/java/org/olf/dcb/graphql/validation/HostLmsConfigValidator.java`;
+`dcb/src/main/java/org/olf/dcb/core/interaction/polaris/PolarisConfig.java`;
+`dcb/src/main/java/org/olf/dcb/graphql/UpdateHostLmsDataFetcher.java` (`clientConfig`, when sent,
+replaces the stored configuration, as `docs/polaris_notes.md` notes).
+
+#### Checking library staff accounts
+
+DCB limits a `LIBRARY_ADMIN` or `LIBRARY_READ_ONLY` user to their own library by the `code` or
+`agencyCodes` claim in their **access** token. The claim holds one DCB agency code, or a list for
+someone who works for several libraries. A blank value counts as missing. Without it, DCB Admin
+for Libraries shows that user empty lists. The value comes from the user's `code` attribute,
+through a User Attribute mapper in the `profile` client scope, as DCB Admin for Libraries'
+deployment guide sets it up.
+
+**With the script.** [`scripts/check-library-staff-agency-claims.sh`](../scripts/check-library-staff-agency-claims.sh)
+asks Keycloak for the access token each user would receive from DCB Admin for Libraries' client,
+and lists the library staff to fix. It only reads, apart from signing in to the admin API, and
+needs `curl` and `jq`.
+
+```sh
+read -rs KC_ADMIN_PASSWORD && export KC_ADMIN_PASSWORD   # so the password stays out of shell history
+KC_URL=https://keycloak.example.org KC_REALM=<realm> KC_CLIENT_ID=<DCB Admin for Libraries client id> \
+DCB_URL=https://dcb.example.org KC_ADMIN_USER=<administrator> \
+  scripts/check-library-staff-agency-claims.sh
 ```
-dcb.stats.events   (counter)
-dcb.stats.timed    (timer)
+
+Each line it prints is a user to fix, with their username, whether the account is enabled, and the
+problem:
+
+| Problem                                      | What it means                                                                                                 |
+|----------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| `no code or agencyCodes in the access token` | The user has no `code` attribute, or the mapper does not add it to the access token                           |
+| `not a DCB agency: <code>`                   | The value is not the code of any agency in DCB, as `GET /discovery/libraries?includeAll=true` lists them      |
+| `library role only in realm_access.roles`    | The client has no mapper that writes realm roles to a top-level `roles` claim, which is where DCB reads roles |
+
+- Leave out `DCB_URL` to skip the agency check.
+- To sign in with a service account instead of a master-realm administrator, set
+  `KC_ADMIN_CLIENT_ID` and `KC_ADMIN_CLIENT_SECRET` in place of `KC_ADMIN_USER` and
+  `KC_ADMIN_PASSWORD`. Use a confidential client in the realm whose service account has the
+  `realm-management` roles `view-users` and `view-clients`.
+- The script makes one admin call per user, so on a large realm run it at a quiet time.
+- Keycloak 16 and older serve everything under `/auth`: add it to `KC_URL`.
+
+**By hand, in the Keycloak admin console:**
+
+1. **Find the library staff.** Open **Realm roles**, then `LIBRARY_ADMIN`, then **Users in role**.
+   Do the same for `LIBRARY_READ_ONLY`. This list shows only users who were given the role
+   directly. Users who get it from a group are the members of each group whose **Role mapping**
+   includes it.
+2. **See the user's token.** Open **Clients**, then DCB Admin for Libraries' client, then
+   **Client scopes**, then **Evaluate**. Choose the user, and open **Generated access token**.
+3. **Check it.** `roles` must list `LIBRARY_ADMIN` or `LIBRARY_READ_ONLY`, and `code` (or
+   `agencyCodes`) must be the DCB agency code of the user's library.
+
+**To fix a user**, open **Users**, then the user, then **Attributes**. Add `code` with the agency
+code, and save. In Keycloak 24 and later the **Attributes** tab appears only when **Realm settings**
+→ **General** → **Unmanaged attributes** is enabled; otherwise add `code` in **Realm settings** →
+**User profile**. If a user has the attribute and their token still has no `code`, open
+**Client scopes** → `profile` → **Mappers**, and check that the mapper for the `code` attribute has
+**Add to access token** on.
+
+Source: `dcb/src/main/java/org/olf/dcb/security/AgencyClaims.java`;
+`scripts/check-library-staff-agency-claims.sh`.
+
+#### The DCB Admin role check
+
+**Since v9.1.0, off unless configured.** Set `DCB_SECURITY_ADMIN_UI_CLIENT_ID` and DCB refuses a
+token issued to DCB Admin's client unless it carries a consortium role. DCB logs at startup whether
+the check is off, or which mode it is in for which client. Run `DCB_SECURITY_ADMIN_UI_MODE=WARN`
+(the default: it logs what it would refuse) first, and read the log before you set `ENFORCE`.
+
+Source: `dcb/src/main/java/org/olf/dcb/security/AdminUiAccessConfig.java`,
+`.../AdminUiAccessPolicy.java`.
+
+#### Account provisioning
+
+DCB Admin can create DCB Admin for Libraries accounts (since v9.1.0) through an identity provider.
+Only Keycloak is supported, and it is set as one block: the four `DCB_IDENTITY_PROVIDER_KEYCLOAK_*`
+settings. Once any of them is present, all four are required and none may be blank; the secret has
+no default. Leave all four out and provisioning is off; the GraphQL mutations answer that it is not
+configured. **Any other key under `dcb.identity-provider` stops startup** with
+`dcb.identity-provider "<key>" is not supported`.
+
+**We recommend leaving this off until the user interface for it is in place.**
+
+Source: `dcb/src/main/java/org/olf/dcb/security/provisioning/IdentityProviderConfig.java`,
+`.../keycloak/KeycloakConfig.java`, `.../IdentityProviderConfigCheck.java`.
+
+---
+
+## 3. Adding a trusted discovery service
+
+A discovery system reaches DCB by one of two routes. A deployment can serve both at once: they use
+different credentials and different routes, and nothing set for one changes the other.
+
+|              | Legacy route                                                               | New route                                         |
+|--------------|----------------------------------------------------------------------------|---------------------------------------------------|
+| Used by      | EBSCO Locate                                                               | any other discovery service                       |
+| Credential   | a Keycloak service account holding `ADMIN`                                 | a confidential client holding `DISCOVERY_SERVICE` |
+| Which patron | named by the caller in the request                                         | a signed patron assertion, which DCB checks       |
+| Routes       | the staff API: `/patrons/requests/**`, `/v2/patron/auth/lookup` and others | `/discovery/**`                                   |
+| DCB settings | none                                                                       | `DCB_DISCOVERY_*`                                 |
+
+This section is about the new route. EBSCO Locate needs no DCB setting; what changed for it is in
+[Appendix C](#ebsco-locate).
+
+On the new route, the discovery service holds a confidential Keycloak client with the
+`DISCOVERY_SERVICE` role, and sends a signed patron assertion with each call. What the vendor builds
+against is [`docs/discovery-service-contract.md`](discovery-service-contract.md). What you do is in
+[`docs/discovery-service-approach.md`](discovery-service-approach.md) §7. In short:
+
+### Add a service
+
+1. **In Keycloak,** create a confidential client holding the **realm** role `DISCOVERY_SERVICE`, with
+   a mapper that writes realm roles to a top-level `roles` claim. Use the vendor's `service-id` as
+   the client id ([approach §7.1](discovery-service-approach.md#71-part-one-keycloak-environment-independent)).
+2. **From the vendor,** get its `service-id`, `issuer` and `jwks-uri`
+   ([contract §5](discovery-service-contract.md#5-what-the-operator-will-need-from-you)).
+3. **Add one entry** to `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`, and keep the entries that are there.
+   Each `service-id`, `issuer` and client id must be unique, or DCB does not start
+   ([approach §7.2](discovery-service-approach.md#72-part-two-everything-can-be-an-environment-variable)).
+4. **For the first service only,** set `DCB_DISCOVERY_ENABLED=true` and a `DCB_DISCOVERY_AUDIENCE`
+   for this deployment, and give that audience to every vendor
+   ([approach §7.2](discovery-service-approach.md#72-part-two-everything-can-be-an-environment-variable)).
+5. **Allow outbound HTTPS** to the vendor's `jwks-uri` host
+   ([approach §7.6](discovery-service-approach.md#76-part-three-egress-to-the-vendors-jwks-url)).
+6. **Restart, then read the log.** `Discovery patron assertions accepted from N trusted service(s):
+   [...]` should name the new service ([approach §7.8](discovery-service-approach.md#78-verifying-that-an-onboarding-worked)).
+7. **Test with the vendor** before you announce it
+   ([contract §12](discovery-service-contract.md#12-testing-your-integration);
+   [approach §7.8](discovery-service-approach.md#78-verifying-that-an-onboarding-worked)).
+
+To remove a service, delete its entry and restart
+([approach §7.9](discovery-service-approach.md#79-offboarding-and-rotation)). The settings that limit what one patron call may
+cost are the `DCB_DISCOVERY_*` rows of [Appendix B](#appendix-b-every-setting-new-since-v8710); the
+defaults suit most deployments.
+
+Source: `dcb/src/main/java/org/olf/dcb/security/discovery/` (`DiscoveryConfig`,
+`DiscoveryTrustedServices`, `DiscoveryTrustedServiceStore`);
+`dcb/src/main/java/org/olf/dcb/security/RoleNames.java`.
+
+---
+
+## 4. Troubleshooting
+
+### DCB does not start
+
+| Symptom                                                                                                                 | Cause                                                                                | What to do                                                                                      |
+|-------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| Startup fails naming a setting: `is set but blank`, `must not be blank`, `which is not a duration` or `names no client` | A setting from [§2.4](#24-blank-values-stop-startup) is present with no usable value | Remove it, or give it a value                                                                   |
+| Startup fails: `dcb.identity-provider "<key>" is not supported`                                                         | A key under `dcb.identity-provider` other than `keycloak` is set                     | Remove it ([§2.6](#account-provisioning))                                                       |
+| Startup fails: `Duplicate discovery service issuer`, `… id` or `… client-id`                                            | Two trust entries share a value                                                      | Give each service its own `service-id`, `issuer` and client id                                  |
+| Startup fails: `Incomplete … entry (service-id=…)`                                                                      | A trust entry has no `issuer`, or neither `jwks-uri` nor `jwks`                      | Complete the entry                                                                              |
+| Startup fails while preparing the index, citing a mapping or analyzer conflict                                          | The live index holds a field in another way                                          | Deploy with a new `DCB_INDEX_NAME`, then call `POST /admin/reindex` ([§2.6](#the-shared-index)) |
+| `status: 400 … Accept version must be … found 9`                                                                        | Elasticsearch 8.x behind a 9.x client                                                | Upgrade Elasticsearch to 9.x                                                                    |
+| `status: 401 … [es/indices.exists]`                                                                                     | The index credentials do not reach the client                                        | Check `DCB_INDEX_USERNAME` and `DCB_INDEX_PASSWORD`                                             |
+| `CP subsystem is a licensed feature`                                                                                    | A Hazelcast newer than 5.4.0 on the classpath                                        | It should not happen with our image: report it                                                  |
+
+Source: the classes named in [§2.3](#23-settings-no-longer-read) and [§2.4](#24-blank-values-stop-startup);
+`dcb/src/main/java/org/olf/dcb/security/discovery/DiscoveryTrustedServiceStore.java`.
+
+### The first start goes wrong
+
+| Symptom                                                                                | Cause                                                            | What to do                                                                        |
+|----------------------------------------------------------------------------------------|------------------------------------------------------------------|-----------------------------------------------------------------------------------|
+| The instance restarts again and again; the log stops during a migration                | The liveness probe fires during the migrations                   | Add a `startupProbe`, or raise its `failureThreshold` ([§1](#kubernetes-and-ecs)) |
+| Placements fail on some instances                                                      | A v8.71.0 instance is still running against the changed database | Stop it ([§1](#1-what-you-must-do))                                               |
+| High database and search load, and `Processed N clusters with oudated bibs` in the log | The clustering sweep                                             | Let it finish ([§2.6](#the-clustering-sweep))                                     |
+
+### Something fails once DCB is running
+
+| Symptom                                                                               | Cause                                                                                                   | What to do                                                                                                                              |
+|---------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| Integrations get `400` or `401` on `/patrons/requests/**` or `/v2/patron/auth/lookup` | No token (`400`) or no role (`401`)                                                                     | Give the caller a role from [Appendix C](#appendix-c-roles-and-routes)                                                                  |
+| Library staff see empty lists in DCB Admin for Libraries                              | Their access token has no `code` or `agencyCodes`                                                       | Set the claim in Keycloak ([§2.6](#checking-library-staff-accounts))                                                                    |
+| Placements refused with `PREFLIGHT_CHECKS_TIMED_OUT`                                  | The checks ran past `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT`                                             | Read `dcb.preflight.duration` to see how long placements take. Raise the limit above that, and the ingress idle timeout above the limit |
+| Every discovery patron call gets `401` with no `code` (`400` without a token)         | Discovery is off, so the routes do not exist                                                            | Set `DCB_DISCOVERY_ENABLED=true`                                                                                                        |
+| Every discovery patron call is refused; the log says "JWT issuer is not trusted"      | No trusted service is loaded                                                                            | Check the `Discovery patron assertions accepted from <n>` startup line, and use the JSON form                                           |
+| `403` on every `/discovery/` call                                                     | The role was given as a client role, or the client has no `roles` mapper                                | Fix the Keycloak client ([§3](#add-a-service), step 1)                                                                                  |
+| Patron assertions refused: `lifetime … exceeds the … maximum`                         | The vendor's assertions last longer than `DCB_DISCOVERY_MAX_ASSERTION_LIFETIME`                         | Ask the vendor for shorter assertions                                                                                                   |
+| Uploads refused at just over 1 MB                                                     | Something overrides `micronaut.server.multipart.max-file-size`, or the ingress body limit is below 2 MB | Remove the override, or raise the ingress limit                                                                                         |
+| The replica count changed after the upgrade                                           | A count set by hand on the cluster was set back to `DCB_INDEX_NUMBER_OF_REPLICAS` (default `1`)         | Set it to the count you run                                                                                                             |
+| Tracking still runs on an instance that should skip it                                | `DCB_SCHEDULED_TASKS_SKIPPED` names `TrackingServiceV3`                                                 | Use `TrackingScheduler`                                                                                                                 |
+| Many alarm posts a few minutes after start                                            | Old ping failures clearing, now that webhooks are sent                                                  | Nothing                                                                                                                                 |
+
+Source: `dcb/src/main/java/org/olf/dcb/security/DcbAuthorizationExceptionHandler.java`;
+`dcb/src/main/java/org/olf/dcb/security/discovery/PatronAssertionVerifier.java`;
+`docs/discovery-service-approach.md` §7.1.
+
+### Undo a change without a restore
+
+Each of these is undone by one setting and a restart:
+
+| To undo                                   | Set                                                                                      |
+|-------------------------------------------|------------------------------------------------------------------------------------------|
+| The new transaction code                  | `DCB_R2DBC_LEGACY_TRANSACTION_OPERATIONS_ENABLED=true`                                   |
+| Placements refused for time               | a higher `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT`, with the ingress idle timeout above it |
+| The supplier preflight                    | `DCB_REQUESTS_SUPPLIER_PREFLIGHT_ENABLED=false`                                          |
+| The duplicate-request check               | `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ENABLED=false`                         |
+| The DCB Admin role check refusing callers | `DCB_SECURITY_ADMIN_UI_MODE=WARN`, or remove `DCB_SECURITY_ADMIN_UI_CLIENT_ID`           |
+| Insights load                             | `DCB_INSIGHTS_ENABLED=false`                                                             |
+| Brand uploads                             | `DCB_BRANDING_ASSETS_STORE=none`                                                         |
+| Replica changes                           | `DCB_INDEX_NUMBER_OF_REPLICAS=<your current count>`                                      |
+| A misbehaving scheduled job               | `DCB_SCHEDULED_TASKS_SKIPPED=<its class name>`                                           |
+| Webhook posts                             | remove `DCB_GLOBAL_NOTIFICATIONS_*`                                                      |
+
+Log lines already written and webhook posts already sent cannot be undone.
+
+---
+
+## Appendix A. Database migrations and rollback
+
+### Migrations
+
+From v8.71.0, nineteen migrations run on first start, one transaction per file, so each lock is
+held until that file commits. None touches `bib_record`, `cluster_record`, `source_record` or
+`match_point`.
+
+Source: `dcb/src/main/resources/db/migration/`, one file per row below; Flyway settings under
+`flyway:` in `dcb/src/main/resources/application.yml`.
+
+| Migration                                  | What it does                                                                                                                                                     | Cost and lock                                                                                                                           |
+|--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| `V8_71_001__patron_request_outcome`        | Adds `outcome_code` to `patron_request`, then fills it for every historical row: four `UPDATE`s, three with correlated subqueries against `patron_request_audit` | **The expensive one.** `ACCESS EXCLUSIVE` on `patron_request` for the whole file                                                        |
+| `V8_72_001__dcb_profile_membership`        | New table, four indexes                                                                                                                                          | Trivial                                                                                                                                 |
+| `V9_0_001__consortium_branding`            | Six nullable columns on `consortium`                                                                                                                             | Trivial                                                                                                                                 |
+| `V9_0_002__library_branding`               | Three nullable columns on `library`, plus `idx_library_agency_id`                                                                                                | Small                                                                                                                                   |
+| `V9_0_003__brand_asset`                    | New `brand_asset` table                                                                                                                                          | Trivial                                                                                                                                 |
+| `V9_0_004__consortium_brand_merge`         | Copies two URLs into the brand columns, writes provenance to `data_change_log`, then **removes six columns** from `consortium`                                   | Small, **cannot be reversed**                                                                                                           |
+| `V9_0_005__analytics_indexes`              | Six indexes on `patron_request` and `patron_request_audit`, built without `CONCURRENTLY`                                                                         | **Significant.** Writes to both tables wait for each build. The file's own note: about 107 MB for `pra_audit_date_idx` at 5M audit rows |
+| `V9_0_006__library_user_account`           | New table, index and audit triggers                                                                                                                              | Trivial                                                                                                                                 |
+| `V9_0_007__agency_max_local_holds`         | Nullable `max_local_holds` on `agency`                                                                                                                           | Trivial                                                                                                                                 |
+| `V9_0_008__pr_tracking_resumed_at`         | Nullable timestamp on `patron_request`                                                                                                                           | Metadata only                                                                                                                           |
+| `V9_0_009__location_creation_source`       | `creation_source` on `location`, `NOT NULL DEFAULT 'UNKNOWN'`                                                                                                    | Metadata only on Postgres 11+                                                                                                           |
+| `V9_0_010__alarm_code_length`              | Widens `alarm.code` to `varchar(255)`                                                                                                                            | Trivial                                                                                                                                 |
+| `V9_0_011__host_lms_last_ping`             | Nullable `jsonb` on `host_lms`                                                                                                                                   | Trivial                                                                                                                                 |
+| `V9_0_012__supplier_request_item_index`    | `idx_supplier_request_item` on `supplier_request (host_lms_code, local_item_id) WHERE is_active`, not `CONCURRENTLY`                                             | Writes to `supplier_request` wait for the build                                                                                         |
+| `V9_0_013__support_url`                    | Nullable columns on `library` and `consortium`                                                                                                                   | Trivial                                                                                                                                 |
+| `V9_0_014__announcement`                   | New table, index and audit trigger                                                                                                                               | Trivial                                                                                                                                 |
+| `V9_0_015__library_classification_scheme`  | Nullable column on `library`                                                                                                                                     | Trivial                                                                                                                                 |
+| `V9_0_016__patron_request_placed_by_staff` | Adds `placed_by_staff` to `patron_request`, then sets it for earlier staff requests (expedited checkout, or a note or description starting `Staff Request:`)     | `ACCESS EXCLUSIVE` on `patron_request` for the whole file; one table scan                                                               |
+| `V9_0_017__patron_request_notes_and_tags`  | Three new tables for request notes and tags, and five seed tags                                                                                                  | Trivial; no foreign key to `patron_request`                                                                                             |
+
+While `V8_71_001` or `V9_0_016` runs, every read and write of `patron_request` waits. How much
+longer the first start takes depends on the size of `patron_request` and `patron_request_audit`.
+For an exact figure, restore a copy of your production database and time the upgrade against it.
+
+### Rollback
+
+**To go back to v8.71.0, restore the database** from the backup you took, and deploy the v8.71.0
+image with it. Once `V9_0_004` has run, v8.71.0 cannot read the `consortium` table, so in practice
+the restore point is "before the first v9.2.0 instance started".
+
+If you must start v8.71.0 against a database v9.2.0 has written to, run this first, because v8.71.0
+has no `AWAITING_RETURN_TO_SUPPLIER` status:
+
+```sql
+update patron_request set status_code = 'RETURN_TRANSIT' where status_code = 'AWAITING_RETURN_TO_SUPPLIER';
 ```
 
-These are **additions** to `/prometheus`, not renames — the old map was never scraped, so
-no existing dashboard or alert breaks. There is a new panel's worth of data to pick up if
-you want it.
+Audit rows that name the status stay unreadable to v8.71.0.
 
-**Request statistics endpoints are preserved.** The two `/patrons/requests/stats` routes
-that existed at v8.71.0 — `GET /stats/top-requestors` and `GET /stats/top-requested-titles`
-— still answer on the same paths with the same role set
-(`CONSORTIUM_ADMIN`, `LIBRARY_ADMIN`, `ADMINISTRATOR`), now served by a deprecated shim
-that delegates to the new Insights implementation. They are marked `@Deprecated` and
-documented as such in the OpenAPI, and log at WARN when called, so you can see whether
-anything still uses them. The new home for reporting is `/insights`.
+If you upgraded Elasticsearch to 9.x for this release, a DCB with an 8.x-era client cannot use the
+upgraded cluster.
+
+Source: `dcb/src/main/java/org/olf/dcb/core/model/PatronRequest.java` (`Status`).
 
 ---
 
-## 10. What has not changed
+## Appendix B. Every setting new since v8.71.0
 
-| | Status |
-|---|---|
-| Ports | **Unchanged** (8080) |
-| Health, info and Prometheus endpoints | **Unchanged** paths and behaviour |
-| Image tag scheme | **Unchanged** — `<repo>:<tag>`, native as `<repo>:native-<tag>` |
-| Existing environment variables | **Unchanged.** No renames |
-| Host LMS configuration in the database | **Unchanged** |
-| Hazelcast | **Unchanged** — pinned at 5.4.0 |
-| OpenSearch server requirements | **Unchanged** — `analysis-icu` still required |
-| Keycloak realm, roles and JWKS wiring | **Unchanged.** No role is added or removed for an existing deployment; what changed is which roles DCB *requires* on `/patrons/requests/**` — see [§5](#5-security-changes-that-need-coordination) |
-| The committed `Dockerfile` | **Unchanged** — there was none at v8.71.0 and there is none at v9.0.0. Images are built by the Gradle tasks in both |
-| `GET /patrons/requests` | **Still present**, still `@Secured(ADMINISTRATOR)` |
-| EBSCO Locate | **Unaffected.** Both routes it calls are retained for its `ADMIN` service account — see [§5](#ebsco-locate--deliberately-unaffected-nothing-to-do) |
-| `/patrons/requests/stats/top-requestors` and `/top-requested-titles` | **Still answer** on the same paths with the same roles, now via a deprecated shim over Insights |
-| Prometheus metric names | **Unchanged.** Two meters are added; none renamed |
+**Since** is the first release that read the setting. Source paths are under
+`dcb/src/main/java/org/olf/dcb/` unless given in full. What a blank value does is in
+[§2.4](#24-blank-values-stop-startup).
+
+| Variable                                                                                          | Default                                                                                                                                                                 | What it does                                                                                                                                                                                                                                                           | Since                    | Source                                                                                            |
+|---------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|---------------------------------------------------------------------------------------------------|
+| **Placement**                                                                                     |                                                                                                                                                                         |                                                                                                                                                                                                                                                                        |                          |                                                                                                   |
+| `DCB_REQUESTS_PREFLIGHT_CHECKS_TIMEOUT`                                                           | `PT55S`, logged at startup when you leave it out                                                                                                                        | One limit on all of a placement's checks together. A placement still checking when it runs out is refused with `PREFLIGHT_CHECKS_TIMED_OUT`, and nothing is saved. v8.71.0 had no limit                                                                                | 9.2.0                    | `request/fulfilment/PreflightChecksTimeout.java`                                                  |
+| `DCB_REQUESTS_SUPPLIER_PREFLIGHT_ENABLED`                                                         | `false`                                                                                                                                                                 | On, resolution skips the copies of a supplier whose setup or last ping says it cannot supply, and the request goes to another library. See `docs/operational/supplier-preflight.md`                                                                                    | 9.2.0                    | `request/fulfilment/SupplierPreflightService.java`                                                |
+| `DCB_REQUESTS_PREFLIGHT_CHECKS_CHOSEN_COPY_SUPPLIER_ENABLED`                                      | `true`                                                                                                                                                                  | With the supplier preflight on, a request for a copy staff chose is refused before it exists, with `SUPPLIER_CANNOT_SUPPLY` and the fix, when that copy's supplier cannot supply. Does nothing while the supplier preflight is off. `false` turns this check off alone | 9.2.0                    | `request/fulfilment/ChosenCopySupplierPreflightCheck.java`                                        |
+| `DCB_REQUESTS_PREFLIGHT_CHECKS_DUPLICATE_REQUESTS_ACTIVE_WINDOW`                                  | unset: the earlier request's whole active life                                                                                                                          | With the duplicate-request check on, only active requests placed within this duration count as duplicates. Must be positive                                                                                                                                            | 9.2.0                    | `request/fulfilment/PreventDuplicateRequestsPreFlightCheck.java`                                  |
+| `DCB_REQUESTS_STAFF_CLIENT_IDS`                                                                   | `dcb-admin,dcb-admin-for-libraries`                                                                                                                                     | The OIDC clients DCB Admin and DCB Admin for Libraries sign in through. A request placed with a token issued to one is recorded as placed by staff (`placedByStaff`) and is exempt from the duplicate-request check                                                    | 9.2.0                    | `security/StaffClients.java`                                                                      |
+| **Access and accounts**                                                                           |                                                                                                                                                                         |                                                                                                                                                                                                                                                                        |                          |                                                                                                   |
+| `DCB_SECURITY_ADMIN_UI_CLIENT_ID`                                                                 | unset: the role check is off                                                                                                                                            | DCB Admin's OIDC client. Set, a token issued to it needs a consortium role                                                                                                                                                                                             | 9.1.0                    | `security/AdminUiAccessConfig.java`                                                               |
+| `DCB_SECURITY_ADMIN_UI_MODE`                                                                      | `WARN`                                                                                                                                                                  | `WARN` logs what the check would refuse and refuses nothing; `ENFORCE` refuses. Read only when the client id is set                                                                                                                                                    | 9.1.0                    | `security/AdminUiAccessConfig.java`                                                               |
+| `DCB_IDENTITY_PROVIDER_KEYCLOAK_BASE_URL`                                                         | none                                                                                                                                                                    | The Keycloak in which DCB Admin creates DCB Admin for Libraries accounts                                                                                                                                                                                               | 9.2.0                    | `security/provisioning/IdentityProviderConfig.java`                                               |
+| `DCB_IDENTITY_PROVIDER_KEYCLOAK_REALM`                                                            | none                                                                                                                                                                    | Its realm                                                                                                                                                                                                                                                              | 9.2.0                    | `security/provisioning/keycloak/KeycloakConfig.java`                                              |
+| `DCB_IDENTITY_PROVIDER_KEYCLOAK_CLIENT_ID`                                                        | none                                                                                                                                                                    | The confidential client whose service account creates the accounts                                                                                                                                                                                                     | 9.2.0                    | `security/provisioning/IdentityProviderConfig.java`                                               |
+| `DCB_IDENTITY_PROVIDER_KEYCLOAK_CLIENT_SECRET`                                                    | none, deliberately                                                                                                                                                      | That client's secret                                                                                                                                                                                                                                                   | 9.2.0                    | `security/provisioning/IdentityProviderConfig.java`                                               |
+| **Discovery, new route: not used by EBSCO Locate ([§3](#3-adding-a-trusted-discovery-service))**  |                                                                                                                                                                         |                                                                                                                                                                                                                                                                        |                          |                                                                                                   |
+| `DCB_DISCOVERY_ENABLED`                                                                           | `false`                                                                                                                                                                 | Turns on the patron `/discovery/` routes. Off, no other `DCB_DISCOVERY_*` setting is read                                                                                                                                                                              | 9.0.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| `DCB_DISCOVERY_AUDIENCE`                                                                          | `dcb`                                                                                                                                                                   | The audience a patron assertion must name. Give each deployment its own                                                                                                                                                                                                | 9.0.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| `DCB_DISCOVERY_MAX_ASSERTION_LIFETIME`                                                            | `PT2M`                                                                                                                                                                  | DCB's limit on an assertion's life, whatever its `exp` says                                                                                                                                                                                                            | 9.0.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`                                                             | none: no service is trusted                                                                                                                                             | The trusted discovery services, as one JSON array                                                                                                                                                                                                                      | 9.0.0                    | `security/discovery/DiscoveryTrustedServices.java`                                                |
+| `DCB_DISCOVERY_MAX_LOANS`                                                                         | `25`                                                                                                                                                                    | The most loans one patron is told about. Each is one live read at the patron's library                                                                                                                                                                                 | 9.2.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| `DCB_DISCOVERY_LOAN_LOOKUP_CONCURRENCY`                                                           | `2`                                                                                                                                                                     | How many of those reads run at once, all against the patron's library                                                                                                                                                                                                  | 9.2.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| `DCB_DISCOVERY_LOAN_LOOKUP_TIMEOUT`                                                               | `8s`                                                                                                                                                                    | The limit on those reads                                                                                                                                                                                                                                               | 9.2.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| `DCB_DISCOVERY_MAX_ACCOUNT_ROWS`                                                                  | `25`                                                                                                                                                                    | The most loans, and the most charges, one account call returns                                                                                                                                                                                                         | 9.2.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| `DCB_DISCOVERY_ACCOUNT_LOOKUP_TIMEOUT`                                                            | `8s`                                                                                                                                                                    | The limit on an account call's read at the patron's library                                                                                                                                                                                                            | 9.2.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| `DCB_DISCOVERY_PATRON_RESOLVE_TIMEOUT`                                                            | `8s`                                                                                                                                                                    | The limit on one `POST /discovery/patrons/resolve`                                                                                                                                                                                                                     | 9.2.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| `DCB_DISCOVERY_PATRON_RESOLVES_PER_MINUTE`                                                        | `600`                                                                                                                                                                   | How many institution sign-ins one trusted service may resolve in a minute                                                                                                                                                                                              | 9.2.0                    | `security/discovery/DiscoveryConfig.java`                                                         |
+| **Branding**                                                                                      |                                                                                                                                                                         |                                                                                                                                                                                                                                                                        |                          |                                                                                                   |
+| `DCB_BRANDING_ASSETS_STORE`                                                                       | `database`                                                                                                                                                              | Where uploaded brand images live: `database` (Postgres), or `none`, which removes the upload and serve routes so that brand fields accept absolute URLs only                                                                                                           | 9.0.0                    | `core/branding/BrandAssetProperties.java`                                                         |
+| `DCB_BRANDING_ASSETS_MAX_BYTES`                                                                   | `2097152` (2 MB)                                                                                                                                                        | The largest upload. It also sets `micronaut.server.multipart.max-file-size`, up from the framework's 1 MB, so your ingress must accept bodies this size                                                                                                                | 9.0.0                    | `core/branding/BrandAssetProperties.java`; `dcb/src/main/resources/application.yml`               |
+| `DCB_BRANDING_ASSETS_MAX_DIMENSION`                                                               | `4096`                                                                                                                                                                  | The largest width or height, read from the image header before any pixel is decoded                                                                                                                                                                                    | 9.0.0                    | `core/branding/BrandAssetProperties.java`                                                         |
+| `DCB_BRANDING_ASSETS_ORPHAN_GRACE_PERIOD`                                                         | `24h`                                                                                                                                                                   | How long an uploaded image that no brand uses is kept by the sweep                                                                                                                                                                                                     | 9.0.0                    | `core/branding/BrandAssetProperties.java`                                                         |
+| `DCB_BRANDING_ASSETS_PUBLIC_PATH_PREFIX`                                                          | `/discovery/brand-assets/`                                                                                                                                              | The path every stored image URL starts with. Changing it after images exist breaks every stored URL                                                                                                                                                                    | 9.0.0                    | `core/branding/BrandAssetProperties.java`                                                         |
+| `DCB_BRANDING_ASSETS_SWEEP_INTERVAL`                                                              | `24h`                                                                                                                                                                   | How often the orphan sweep runs                                                                                                                                                                                                                                        | 9.0.0                    | `core/branding/BrandAssetSweep.java`                                                              |
+| `DCB_BRANDING_THEME_NAMES`                                                                        | `openRS,kInt`                                                                                                                                                           | The theme names a brand's default theme may be set to. Widen it only for a discovery front end that ships other themes                                                                                                                                                 | 9.0.0                    | `core/branding/BrandingProperties.java`                                                           |
+| **Insights**                                                                                      |                                                                                                                                                                         |                                                                                                                                                                                                                                                                        |                          |                                                                                                   |
+| `DCB_INSIGHTS_ENABLED`                                                                            | `true`                                                                                                                                                                  | The endpoints under `/insights`. `false` removes `/patrons/requests/stats/*` as well                                                                                                                                                                                   | 9.0.0                    | `dcb.insights` in `dcb/src/main/resources/application.yml`; `core/api/LegacyStatsController.java` |
+| `DCB_INSIGHTS_COLLECTION_ANALYSIS_CACHE_TTL`                                                      | `15m`                                                                                                                                                                   | Every collection figure is at most this old                                                                                                                                                                                                                            | 9.0.0                    | `dcb/src/main/resources/application.yml`                                                          |
+| `DCB_INSIGHTS_COLLECTION_ANALYSIS_STATEMENT_TIMEOUT`                                              | `10m`                                                                                                                                                                   | Postgres cancels a whole-catalogue pass that runs longer                                                                                                                                                                                                               | 9.2.0                    | `dcb/src/main/resources/application.yml`                                                          |
+| **Availability and the index**                                                                    |                                                                                                                                                                         |                                                                                                                                                                                                                                                                        |                          |                                                                                                   |
+| `DCB_INDEX_NUMBER_OF_REPLICAS`                                                                    | `1`                                                                                                                                                                     | Replicas of the shared index, applied at every start ([§2.6](#the-shared-index)). Zero or more                                                                                                                                                                         | 9.0.0                    | `indexing/SharedIndexConfiguration.java`                                                          |
+| `DCB_LIVE_AVAILABILITY_BATCH_MAX_CLUSTERS`                                                        | `25`                                                                                                                                                                    | The most clusters one anonymous `GET /items/availability/batch` may ask about                                                                                                                                                                                          | 9.2.0                    | `core/api/LiveAvailabilityController.java`                                                        |
+| `DCB_LIVE_AVAILABILITY_BATCH_CONCURRENCY`                                                         | `4`                                                                                                                                                                     | How many of those clusters are checked at once                                                                                                                                                                                                                         | 9.2.0                    | `core/api/LiveAvailabilityController.java`                                                        |
+| `DCB_JOBS_AVAILABILITY_CONCURRENCY_MAPPING_WRITES`                                                | `3`                                                                                                                                                                     | How many location-mapping writes the availability job runs at once                                                                                                                                                                                                     | 9.2.0                    | `availability/job/AvailabilityCheckJobConfig.java`                                                |
+| `DCB_JOBS_AVAILABILITY_MAPPED_RECHECK_GRACE_PERIOD`                                               | `P60D`; was `P30D`                                                                                                                                                      | How long before the job rechecks a location code it mapped                                                                                                                                                                                                             | default changed in 9.2.0 | `availability/job/AvailabilityCheckJobConfig.java`                                                |
+| `DCB_JOBS_AVAILABILITY_RECHECK_GRACE_PERIOD`                                                      | `P14D`; was `P7D`                                                                                                                                                       | How long before it rechecks a location code it could not map                                                                                                                                                                                                           | default changed in 9.2.0 | `availability/job/AvailabilityCheckJobConfig.java`                                                |
+| **Tracking**                                                                                      |                                                                                                                                                                         |                                                                                                                                                                                                                                                                        |                          |                                                                                                   |
+| `DCB_TRACKING_TOO_LONG`                                                                           | `56d`                                                                                                                                                                   | How long a request may stay in one non-final status before automatic polling stops for it. A manual "check for updates" starts it again and restarts the clock                                                                                                         | 9.1.0                    | `tracking/TooLongPolicy.java`                                                                     |
+| `DCB_TRACKING_SERVICE`                                                                            | unset: the v3 tracking service                                                                                                                                          | `v4` selects the lifecycle-evidence tracking service, which is optional and not yet the default                                                                                                                                                                        | 9.0.0                    | `tracking/TrackingServiceV4.java`; `tracking/MODULE.md`                                           |
+| **Platform**                                                                                      |                                                                                                                                                                         |                                                                                                                                                                                                                                                                        |                          |                                                                                                   |
+| `DCB_R2DBC_LEGACY_TRANSACTION_OPERATIONS_ENABLED`                                                 | `false`                                                                                                                                                                 | `true` and a restart bring back the transaction code from before Micronaut 5, while you investigate a problem. It is due to be removed                                                                                                                                 | 9.2.0                    | `dcb.r2dbc` in `dcb/src/main/resources/application.yml`                                           |
+| `DCB_FEDERATION_LOCK_PROVIDER`                                                                    | unset: Hazelcast                                                                                                                                                        | `local` holds DCB's named locks in one process's memory, so it suits a single instance only                                                                                                                                                                            | 9.0.0                    | `dcb/src/main/java/services/k_int/federation/local/LocalFederatedLockService.java`                |
+| `DCB_SOURCE_IMPORT_VANISHED_MAX_SHARE`                                                            | `0.10`                                                                                                                                                                  | A manual "vanished records" sweep that would remove more than this share of a Host LMS's bibs reports it and deletes nothing. Between 0 and 1                                                                                                                          | 9.2.0                    | `dataimport/SourceImportProperties.java`; `docs/polaris_notes.md`                                 |
+| `CAPABILITIES_*` (no `DCB_` prefix)                                                               | placement `IMPERATIVE`, tracking `SCHEDULED_POLL`                                                                                                                       | Defaults for the whole instance for how requests are placed and tracked. The defaults are how v8.71.0 worked: leave them unset                                                                                                                                         | 9.0.0                    | `request/lifecycle/LifecycleCapabilitiesConfiguration.java`                                       |
+| **NCIP peering between DCBs: leave unset unless your environment has OpenRS Appliance libraries** |                                                                                                                                                                         |                                                                                                                                                                                                                                                                        |                          |                                                                                                   |
+| `DCB_PEER_AUTH_ENABLED`, `DCB_PEER_AUTH_NCIP_ENABLED`                                             | `false`, `false`                                                                                                                                                        | Both `true` turn on token authentication between NCIP peers. See `docs/ncip-peer-authentication.md`                                                                                                                                                                    | 9.0.0                    | `request/lifecycle/ncip/peerauth/DcbPeerAuthProperties.java`                                      |
+| `DCB_PEER_AUTH_LOCAL_IDENTITY_*`                                                                  | `ID` `dcb`, `TOKEN_LIFETIME` `PT5M`; `ISSUER`, `SUBJECT`, `AUDIENCES`, `JWKS_URI`, `KEY_ID`, `PUBLIC_JWK` and `PRIVATE_JWK` none                                        | DCB's own signing identity towards its peers. `PRIVATE_JWK` is a secret                                                                                                                                                                                                | 9.0.0                    | `request/lifecycle/ncip/peerauth/DcbPeerAuthProperties.java`                                      |
+| `DCB_PEER_AUTH_REMOTE_JWKS_CONNECT_TIMEOUT`, `DCB_PEER_AUTH_REMOTE_JWKS_READ_TIMEOUT`             | `PT2S`, `PT5S`                                                                                                                                                          | The limits on fetching a peer's keys                                                                                                                                                                                                                                   | 9.0.0                    | `request/lifecycle/ncip/peerauth/DcbPeerAuthProperties.java`                                      |
+| `dcb.peer-auth.trusted-peers`                                                                     | none                                                                                                                                                                    | The peers, as a list: mount it as a file ([§1](#kubernetes-and-ecs))                                                                                                                                                                                                   | 9.0.0                    | `request/lifecycle/ncip/peerauth/DcbPeerAuthProperties.java`                                      |
+| `DCB_NCIP_SYSTEM_ID`, `DCB_NCIP_AGENCY_ID`                                                        | none                                                                                                                                                                    | DCB's own NCIP identity. A Host LMS that places or tracks through NCIP fails without them, on first use                                                                                                                                                                | 9.0.0                    | `request/lifecycle/ncip/NcipIdentityConfiguration.java`                                           |
+| `DCB_PROFILE_REGISTRATION_*`                                                                      | `NODE_NAME` `DCB`, `INVITATION_TTL` `30m`, `SYNC_INTERVAL` `15m`, `SYNC_POLL_INTERVAL` `1m`, `ALLOW_HTTP` and `ALLOW_PRIVATE_ADDRESSES` `false`; `PUBLIC_BASE_URL` none | Registering this DCB with a peer, and keeping that membership up to date                                                                                                                                                                                               | 9.0.0                    | `request/lifecycle/ncip/profile/application/DcbProfileRegistrationProperties.java`                |
 
 ---
 
-## 11. Upgrade procedure
+## Appendix C. Roles and routes
 
-1. **Audit the client credentials that call `/patrons/requests/**`** against the role
-   table in [§5](#5-security-changes-that-need-coordination). Anything relying on
-   `IS_AUTHENTICATED` alone will start getting 403s.
-2. **Run the clustering query from [§3](#find-out-whether-it-applies-to-you).** The
-   answer decides whether steps 7 and 10 are a formality or the main event.
-3. **If you run Elasticsearch, confirm the cluster is 9.x.** If you run OpenSearch,
-   confirm `analysis-icu` is installed.
-4. **Time the migration on a restored copy of production.** This is the step people skip
-   and regret. It gives you the number for step 6.
-5. **Take a backup you have tested restoring.** [§8](#8-rollback) explains why.
-6. **Raise the startup probe budget / health check grace period** to comfortably exceed
-   the time measured in step 4.
-7. **Scale to a single replica or task.** Mandatory if step 2 found version-3 records
-   and you are on Fargate, where every task would otherwise run its own sweep.
-8. **Deploy v9.0.0.** Watch the logs for Flyway applying `V8_71_001` through `V9_0_005`.
-9. **Confirm it went ready**, then check `/info` reports the expected
-   `dcb.index.backend` and `dcb.branding.assets.store`.
-10. **If a clustering sweep is running, let it finish before scaling out.** The rate line
-    in the logs tells you where it is up to.
-11. **Scale back up.**
-12. **Lower the probe budget** back to your normal value if you raised it temporarily.
-13. **Set `DCB_INDEX_NUMBER_OF_REPLICAS=0`** if you run a single-node search cluster and
-    the index has gone yellow.
+### `/patrons/requests/**` (since v9.0.0)
 
----
+At v8.71.0, `PatronRequestController` defaulted to `IS_AUTHENTICATED`, so several methods were open
+to any principal the realm would authenticate. Every method now has an explicit role set:
 
-## 12. Troubleshooting
+| Endpoint                                                                        | Roles                                                                 |
+|---------------------------------------------------------------------------------|-----------------------------------------------------------------------|
+| Class default, which covers `/{id}/update` (and an ownership check)             | `CONSORTIUM_ADMIN`, `ADMIN`, `LIBRARY_ADMIN`, `INTERNAL_API`          |
+| `/place`, `/place/expeditedCheckout`, `/place/walkup`                           | the above plus `LIBRARY_READ_ONLY`                                    |
+| `/{id}/transition/cleanup`, `/{id}/transition/confirm-returned`                 | `CONSORTIUM_ADMIN`, `ADMIN`, `LIBRARY_ADMIN`, with an ownership check |
+| `/{id}/rollback`                                                                | `CONSORTIUM_ADMIN`, `ADMIN`                                           |
+| `GET /{hostLmsCode}`                                                            | `CONSORTIUM_ADMIN`, `ADMIN`                                           |
+| `GET /patrons/{hostLmsCode}/requests` (legacy) and `GET /{?pageable*}` (legacy) | `ADMIN` only                                                          |
 
-| Symptom | Cause |
-|---|---|
-| `status: 400 ... Accept version must be ... found 9` | Elasticsearch 8.x behind a 9.x client — upgrade ES to 9.x |
-| `status: 401 ... [es/indices.exists]` | Index credentials not reaching the client — check `DCB_INDEX_USERNAME` / `DCB_INDEX_PASSWORD` |
-| Pod restarts repeatedly, logs stop mid-migration | Liveness probe firing during migration — no `startupProbe`, or too small a `failureThreshold`. See [§6](#6-kubernetes-specifics) |
-| Sustained database and search load after upgrade, `Processed N clusters with oudated bibs` in the logs | The clustering sweep. Expected if your bibs were at process version 3. See [§3](#3-the-clustering-sweep--check-this-before-you-upgrade) |
-| Several tasks all logging the clustering sweep at once on Fargate | Hazelcast multicast does not work on AWS, so the federated lock is per-task. Run one task until the sweep completes |
-| Second and subsequent replicas hang at startup | Flyway lock, held by the replica actually migrating. Expected. Roll one at a time |
-| `column "brand_logo_url" of relation "consortium" already exists` | This database applied the pre-release `V8_73_*` migration names. See [§2](#if-you-have-been-running-snapshots-from-main) |
-| An integration that worked before now gets 403 on `/patrons/requests/**` | Its credential relied on `IS_AUTHENTICATED`. Grant it a role from the table in [§5](#patronsrequests-no-longer-accepts-any-authenticated-principal) — `INTERNAL_API` for service-to-service |
-| Calls to `/discovery/**` return 401/403 | `DCB_DISCOVERY_ENABLED` still `false`, no trust anchor configured, or the caller holds no `DISCOVERY_SERVICE` credential. Only relevant if you are onboarding a discovery service |
-| Startup fails parsing discovery configuration | Malformed `DCB_DISCOVERY_TRUSTED_SERVICES_JSON`. Deliberate: a trust anchor that binds nothing silently is indistinguishable from one nobody configured |
-| Uploads rejected at just over 1 MB | Should no longer happen — the multipart limit now tracks `DCB_BRANDING_ASSETS_MAX_BYTES` (2 MB). If it does, something is overriding `micronaut.server.multipart.max-file-size` |
-| `/insights` panels return 429 | Collection analysis queueing behind `DCB_INSIGHTS_COLLECTION_ANALYSIS_CONCURRENCY=1` past `DCB_INSIGHTS_COLLECTION_ANALYSIS_MAX_WAIT`. Measure before raising |
-| Search index went yellow after upgrade | `DCB_INDEX_NUMBER_OF_REPLICAS` defaults to `1` and is now reconciled at every startup. Set `0` on a single-node cluster |
-| `CP subsystem is a licensed feature` | Hazelcast newer than 5.4.0 on the classpath — should not happen from our image; report it |
+A missing token gets `400`, and a token without the role gets `401`. Service-to-service callers
+want `INTERNAL_API`.
 
----
+Source: `@Secured` on each method of `dcb/src/main/java/org/olf/dcb/core/api/PatronRequestController.java`;
+`dcb/src/main/java/org/olf/dcb/security/RoleNames.java` (`ADMINISTRATOR = "ADMIN"`);
+`dcb/src/main/java/org/olf/dcb/security/DcbAuthorizationExceptionHandler.java`. Every route's
+security is checked by `ApiSecurityArchitectureTests`.
 
-## Questions we would rather you asked than guessed
+### EBSCO Locate
 
-- **How long will the migration take on my data?** We do not know, and neither does
-  anyone who has not run it against your data. Step 4 of
-  [§11](#11-upgrade-procedure) is the answer.
-- **How long will the clustering sweep take?** Same answer, with a better instrument: the
-  count from the query in [§3](#find-out-whether-it-applies-to-you) divided by the rate
-  DCB logs within the first few minutes of it running.
-- **Can I skip the backup because branding is empty here?** `V9_0_004` still drops the
-  columns. The backup is about the schema, not the data.
-- **My `flyway_schema_history` looks wrong after running snapshots.** Ask. The right
-  repair depends on which migrations were applied under which names, and improvising
-  there is how a database ends up half-migrated.
+Locate calls DCB with a Keycloak service account holding `ADMIN`, and names the patron in the
+request body. The Locate team confirmed on 20 October 2026 that its account holds `ADMIN`. No DCB
+setting is involved, and `DCB_DISCOVERY_ENABLED` has no effect on this route. The routes Locate uses
+are listed in `docs/discovery-service-approach.md` §8.3. Three of them changed after v8.71.0:
+
+| Route                                                           | Change                                                                                                                                                                                                                                        | Since |
+|-----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------|
+| `POST /v2/patron/auth/lookup`                                   | Needs one of `ADMIN`, `INTERNAL_API`, `CONSORTIUM_ADMIN`, `LIBRARY_ADMIN` or `LIBRARY_READ_ONLY`; it was anonymous. `ADMIN` qualifies, so Locate must send its token on this call                                                             | 9.2.0 |
+| `GET /patrons/requests/patrons/{hostLmsCode}/requests?barcode=` | `ADMIN` only, and marked `LEGACY` in the source; v8.71.0 also let `CONSORTIUM_ADMIN` in. The barcode is matched exactly: v8.71.0 matched part of it, so a partial or reformatted barcode that used to find a patron's requests now finds none | 9.0.0 |
+| `POST /graphql` (agencies)                                      | Needs a staff role in the data fetcher; v8.71.0 answered any signed-in caller. `ADMIN` is a staff role, so Locate is not affected                                                                                                             | 9.2.0 |
+
+`GET /patrons/requests`, the request list, was `ADMIN` only at v8.71.0 and still is; it is now marked
+`LEGACY`. `POST /patrons/requests/place` keeps `ADMIN` in its now explicit role set. The credential
+checks, `POST /patron/auth` and `POST /v2/patron/auth`, stay anonymous, and are open to every
+discovery service, not only Locate.
+
+Before you upgrade:
+
+1. In your access logs, count `POST /v2/patron/auth/lookup` requests that carry no `Authorization`
+   header. It must be 0.
+2. Whoever does QA for the hosting provider tests Locate from end to end against v9.2.0 on a test
+   environment: sign in with a library card, and through SAML where libraries use it; see live
+   availability; choose a pickup location; place a request, and find it in DCB Admin.
+
+Source: `@Secured` in `dcb/src/main/java/org/olf/dcb/core/api/PatronAuthV2Controller.java` and
+`.../PatronRequestController.java`; `findActiveRequestsForPatronByBarcode` and
+`findAllRequestsForPatronByBarcode` in `dcb/src/main/java/org/olf/dcb/storage/PatronRequestRepository.java`;
+`getAgenciesDataFetcher` in `dcb/src/main/java/org/olf/dcb/graphql/DataFetchers.java` (`GraphQLRoles.STAFF`).
+
+### Anonymous routes
+
+These routes are anonymous by design. The limits in DCB are their only protection inside the
+application:
+
+| Route                                               | Why anonymous                                                                                                                 | Limit in DCB                                                                              |
+|-----------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| `GET /items/availability`, `/items/availability-v2` | discovery layers ask before anyone signs in                                                                                   | one cluster per call; a Host LMS that times out is reported in `errors[]`                 |
+| `GET /items/availability/batch`                     | the same, for a page of results                                                                                               | 25 clusters, 4 at a time                                                                  |
+| `/discovery/brand-assets/{key}`                     | brand images show before sign-in. Responses are `Cache-Control: public, max-age=31536000, immutable`: let your CDN cache them | none needed                                                                               |
+| `POST /v2/patron/auth`                              | the credential check                                                                                                          | none                                                                                      |
+| `POST /ncip/v2_02`                                  | NCIP peers                                                                                                                    | peer authentication, whose default mode is `INSECURE`. Block it if you have no NCIP peers |
+
+If you see abuse, rate-limit `/items/availability*` (count a batch as its number of clusters),
+`/discovery/*` and `/v2/patron/auth` per client IP at your ingress.
+
+Source: `dcb/src/main/java/org/olf/dcb/core/api/LiveAvailabilityController.java`;
+`dcb/src/main/java/org/olf/dcb/request/lifecycle/ncip/NcipController.java`;
+`dcb/src/main/java/org/olf/dcb/request/lifecycle/ncip/peerauth/NcipPeerAuthProfile.java`.

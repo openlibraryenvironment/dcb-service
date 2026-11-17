@@ -66,6 +66,16 @@ class VirtualItemBarcodeCheckTests {
 	}
 
 	@Test
+	void shouldLookForTheBarcodeTheBorrowingSystemWouldGiveTheVirtualItem() {
+		// A Koha with virtual-item-barcode-prefix set names its virtual items differently
+		when(borrower.virtualItemBarcodeFor(BARCODE)).thenReturn("DCB-" + BARCODE);
+		when(borrower.getItemByBarcode("DCB-" + BARCODE)).thenReturn(Mono.just(HostLmsItem.builder().build()));
+
+		assertThat(present(copy(BARCODE), BORROWER, null), is(true));
+		verify(borrower, never()).getItemByBarcode(BARCODE);
+	}
+
+	@Test
 	void shouldNotFindABarcodeTheBorrowingSystemDoesNotHave() {
 		when(borrower.getItemByBarcode(BARCODE)).thenReturn(Mono.empty());
 
@@ -153,6 +163,7 @@ class VirtualItemBarcodeCheckTests {
 		when(client.getHostLmsCode()).thenReturn(hostLmsCode);
 		when(client.getClientId()).thenReturn(clientId);
 		when(client.compareTo(any())).thenCallRealMethod();
+		when(client.virtualItemBarcodeFor(any())).thenCallRealMethod();
 
 		return client;
 	}

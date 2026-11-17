@@ -30,6 +30,7 @@ import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.core.svc.HostLmsPingService;
+import org.olf.dcb.storage.LocationRepository;
 import org.olf.dcb.storage.ReferenceValueMappingRepository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -52,15 +53,18 @@ public class InteropTestService {
 	private final BibRecordService bibRecordService;
 	private final ReferenceValueMappingRepository referenceValueMappingRepository;
 	private final HostLmsPingService hostLmsPingService;
+	private final LocationRepository locationRepository;
 
 	public InteropTestService(HostLmsService hostLmsService,
 			BibRecordService bibRecordService,
 			ReferenceValueMappingRepository referenceValueMappingRepository,
-			HostLmsPingService hostLmsPingService) {
+			HostLmsPingService hostLmsPingService,
+			LocationRepository locationRepository) {
 		this.hostLmsService = hostLmsService;
 		this.bibRecordService = bibRecordService;
 		this.referenceValueMappingRepository = referenceValueMappingRepository;
 		this.hostLmsPingService = hostLmsPingService;
+		this.locationRepository = locationRepository;
 	}
 
 	/**
@@ -562,8 +566,34 @@ public class InteropTestService {
 	public Mono<ConfigurationReport> checkConfiguration(String systemCode) {
 		return hostLmsService.getClientFor(systemCode)
 			.flatMap(client -> client.checkConfiguration())
+			.flatMap(report -> withPickupLocationChecks(systemCode, report))
 			.onErrorResume(error -> Mono.just(ConfigurationReport.failed(systemCode,
 				"Could not reach " + systemCode + ": " + error.getMessage())));
+	}
+
+	/**
+	 * Every pickup Location of the Host LMS, judged against the codes its system says may be
+	 * collected from, where the adapter published them. A typo in a localId is otherwise found
+	 * by the first hold the system refuses. Bounded by the Host LMS's locations: branches, not
+	 * records.
+	 */
+	private Mono<ConfigurationReport> withPickupLocationChecks(String systemCode, ConfigurationReport report) {
+		final var pickupCodes = report.vocabularies().stream()
+			.filter(vocabulary -> ConfigurationReport.PICKUP_VOCABULARY.equals(vocabulary.name()))
+			.filter(vocabulary -> !vocabulary.truncated())
+			.findFirst();
+
+		if (pickupCodes.isEmpty()) {
+			return Mono.just(report);
+		}
+
+		return hostLmsService.findByCode(systemCode)
+			.flatMapMany(hostLms -> locationRepository.findByHostLmsIds(List.of(hostLms.getId())))
+			.filter(location -> Boolean.TRUE.equals(location.getIsPickup()))
+			.map(location -> ConfigurationReport.check("pickup location " + location.getCode(),
+				location.getLocalId(), pickupCodes.get().entries(), systemCode))
+			.collectList()
+			.map(report::withChecks);
 	}
 
 	public Mono<MappingValueCheck> checkMappingValue(String systemCode, MappingVocabulary vocabulary,

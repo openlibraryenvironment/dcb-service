@@ -2,6 +2,7 @@ package org.olf.dcb.request.fulfilment;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,6 +37,7 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
+import io.micronaut.core.convert.ConversionService;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.security.authentication.Authentication;
 import jakarta.inject.Inject;
@@ -267,25 +269,13 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	}
 
 	@Test
-	void shouldPassEverythingWhenNoStaffClientIsConfigured() {
-		final var repository = mock(PatronRequestRepository.class);
-
-		final var unarmed = new PreventDuplicateRequestsPreFlightCheck(repository, mock(BibRepository.class), new IntMessageService(),
-			new StaffClients(List.of()), null, null);
-
-		assertThat(singleValueFrom(unarmed.check(command(PATRON, title))), containsInAnyOrder(passedCheck()));
-
-		verifyNoInteractions(repository);
-	}
-
-	@Test
 	void shouldPassWhenThePatronsRequestsCannotBeRead() {
 		final var repository = mock(PatronRequestRepository.class);
 		when(repository.findActiveRequestsForPatronAndTitle(any(), any(), any(), any(), any()))
 			.thenReturn(Flux.error(new RuntimeException("database unavailable")));
 
 		final var overUnreadableRequests = new PreventDuplicateRequestsPreFlightCheck(repository, mock(BibRepository.class),
-			new IntMessageService(), new StaffClients(List.of("dcb-admin")), null, null);
+			new IntMessageService(), new StaffClients(List.of("dcb-admin")), null, null, null);
 
 		assertThat(singleValueFrom(overUnreadableRequests.check(command(PATRON, title))),
 			containsInAnyOrder(passedCheck()));
@@ -295,7 +285,21 @@ class PreventDuplicateRequestsPreflightCheckTests extends AbstractPreflightCheck
 	void shouldRefuseAnActiveWindowThatIsNotPositive() {
 		assertThrows(IllegalArgumentException.class, () -> new PreventDuplicateRequestsPreFlightCheck(
 			mock(PatronRequestRepository.class), mock(BibRepository.class), new IntMessageService(), new StaffClients(List.of("dcb-admin")),
-			Duration.ZERO, null));
+			Duration.ZERO, "PT0S", null));
+	}
+
+	@Test
+	void shouldRefuseAnActiveWindowSetButBlank() {
+		// Micronaut converts a blank value to no Duration: the Duration alone would read as unset
+		assertThat(ConversionService.SHARED.convert("", Duration.class).isEmpty(), is(true));
+
+		final var failure = assertThrows(IllegalArgumentException.class, () -> new PreventDuplicateRequestsPreFlightCheck(
+			mock(PatronRequestRepository.class), mock(BibRepository.class), new IntMessageService(), new StaffClients(List.of("dcb-admin")),
+			null, "", null));
+
+		assertThat(failure.getMessage(), containsString("active-window is set but blank"));
+		assertThat(PreventDuplicateRequestsPreFlightCheck.class.getAnnotation(io.micronaut.context.annotation.Context.class),
+			org.hamcrest.Matchers.notNullValue());
 	}
 
 	private List<CheckResult> check(PlacePatronRequestCommand command) {

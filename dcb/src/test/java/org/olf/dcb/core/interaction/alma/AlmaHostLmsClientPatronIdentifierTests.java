@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.test.PublisherUtils;
@@ -30,6 +32,7 @@ import services.k_int.interaction.alma.types.WithAttr;
 @TestInstance(PER_CLASS)
 class AlmaHostLmsClientPatronIdentifierTests {
 	private AlmaApiClient almaApi;
+	private ReferenceValueMappingService mappings;
 	private AlmaHostLmsClient sut;
 
 	@BeforeEach
@@ -42,10 +45,14 @@ class AlmaHostLmsClientPatronIdentifierTests {
 		final var clientFactory = mock(AlmaClientFactory.class);
 		when(clientFactory.createClientFor(hostLms)).thenReturn(almaApi);
 
+		mappings = mock(ReferenceValueMappingService.class);
+		when(mappings.findMapping(anyString(), anyString(), anyString(), anyString(), anyString()))
+			.thenReturn(Mono.empty());
+
 		sut = new AlmaHostLmsClient(
 			hostLms,
 			clientFactory,
-			mock(ReferenceValueMappingService.class),
+			mappings,
 			mock(MaterialTypeToItemTypeMappingService.class),
 			mock(LocationToAgencyMappingService.class),
 			mock(ConsortiumService.class));
@@ -105,8 +112,54 @@ class AlmaHostLmsClientPatronIdentifierTests {
 		assertThat(patron.getLocalHomeLibraryCode(), is(nullValue()));
 	}
 
+	@Test
+	void shouldReportTheCanonicalPatronTypeMappedFromTheUserGroup() {
+		whenUserDetailsReturn(user(CodeValuePair.builder().value("UNDRGRD").build(), null));
+		whenUserGroupMapsTo("UNDRGRD", "UNDERGRADUATE");
+
+		final var patron = PublisherUtils.singleValueFrom(sut.getPatronByLocalId("SIS123"));
+
+		assertThat(patron.getCanonicalPatronType(), is("UNDERGRADUATE"));
+	}
+
+	@Test
+	void shouldReportAPatronWhoseGroupIsNotEligibleAsIneligibleWhenLookedUpByIdentifier() {
+		whenUserDetailsReturn(user(CodeValuePair.builder().value("UBPatron").build(), null));
+		whenUserGroupMapsTo("UBPatron", "NOT_ELIGIBLE");
+
+		final var patron = PublisherUtils.singleValueFrom(sut.getPatronByIdentifier("SIS123"));
+
+		assertThat(patron.getCanonicalPatronType(), is("NOT_ELIGIBLE"));
+		assertThat(patron.isEligible(), is(false));
+	}
+
+	@Test
+	void shouldReportTheCanonicalPatronTypeWhenLookedUpByUsername() {
+		whenUserDetailsReturn(user(CodeValuePair.builder().value("UBPatron").build(), null));
+		whenUserGroupMapsTo("UBPatron", "NOT_ELIGIBLE");
+
+		final var patron = PublisherUtils.singleValueFrom(sut.getPatronByUsername("SIS123"));
+
+		assertThat(patron.getCanonicalPatronType(), is("NOT_ELIGIBLE"));
+	}
+
+	@Test
+	void shouldLeaveAnUnmappedUserGroupAsRead() {
+		whenUserDetailsReturn(user(CodeValuePair.builder().value("UNMAPPED").build(), null));
+
+		final var patron = PublisherUtils.singleValueFrom(sut.getPatronByLocalId("SIS123"));
+
+		assertThat(patron.getLocalPatronType(), is("UNMAPPED"));
+		assertThat(patron.getCanonicalPatronType(), is(nullValue()));
+	}
+
 	private void whenUserDetailsReturn(AlmaUser user) {
 		when(almaApi.getUserDetails("SIS123")).thenReturn(Mono.just(user));
+	}
+
+	private void whenUserGroupMapsTo(String userGroup, String canonicalPatronType) {
+		when(mappings.findMapping("patronType", "ALMA", userGroup, "patronType", "DCB"))
+			.thenReturn(Mono.just(ReferenceValueMapping.builder().toValue(canonicalPatronType).build()));
 	}
 
 	private static AlmaUser user(CodeValuePair userGroup, List<UserIdentifier> identifiers) {

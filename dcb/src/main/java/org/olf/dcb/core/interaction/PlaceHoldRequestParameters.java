@@ -5,12 +5,15 @@ import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.Library;
 
 import lombok.Builder;
+import lombok.ToString;
 import lombok.Value;
 
 @Value
 @Builder
 public class PlaceHoldRequestParameters {
 	String localPatronId;
+	// Every adapter logs these parameters whole
+	@ToString.Exclude
 	String localPatronBarcode;
 	String localPatronType;
 	String localBibId;
@@ -35,6 +38,7 @@ public class PlaceHoldRequestParameters {
 	String supplyingLocalItemBarcode;
 	String supplyingLocalItemLocation;
 	String activeWorkflow;
+	@ToString.Exclude
 	String localNames;
 	RequestShippingContext shippingContext;
 }

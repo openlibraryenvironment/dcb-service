@@ -1,44 +1,47 @@
 package org.olf.dcb.core.interaction.koha;
 
+import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.olf.dcb.test.MockServerCommonResponses.okJson;
 
-import java.time.Duration;
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.mockito.ArgumentCaptor;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.mock.action.ExpectationResponseCallback;
+import org.mockserver.model.HttpRequest;
+import org.mockserver.model.HttpResponse;
 import org.olf.dcb.core.interaction.CreateItemCommand;
-import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
-import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.koha.dto.KohaHoldResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaItem;
-import org.olf.dcb.core.interaction.koha.dto.KohaItemsList;
 import org.olf.dcb.core.interaction.koha.dto.KohaPatron;
-import org.olf.dcb.core.interaction.koha.dto.KohaPatronsList;
+import org.olf.dcb.core.interaction.koha.dto.KohaTransfer;
 import org.olf.dcb.core.model.BibRecord;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.events.RulesetCacheInvalidator;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.rules.ObjectRulesService;
+import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.core.model.ItemStatusCode;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.HostLmsFixture;
+import org.olf.dcb.test.ReferenceValueMappingFixture;
+import org.zalando.problem.ThrowableProblem;
 
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
+import jakarta.inject.Inject;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
 /**
  * How Koha records become DCB records.
@@ -47,51 +50,32 @@ import reactor.core.scheduler.Schedulers;
  * library from another, so anything that loses it collapses every co-tenant onto
  * one agency.
  */
-@TestInstance(PER_CLASS)
+@MockServerMicronautTest
 class KohaMappingTests {
-	private KohaApiClient apiClient;
-	private ReferenceValueMappingService referenceValueMappingService;
-	private KohaHostLmsClient client;
+	private static final String KOHA_HOST_LMS_CODE = "koha-mapping";
+	private static final String KOHA_HOST = "fake-koha-mapping";
+	private static final String BIBLIO_ID = "42";
+
+	@Inject
+	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private AgencyFixture agencyFixture;
+	@Inject
+	private ReferenceValueMappingFixture referenceValueMappingFixture;
+
+	private MockKohaFixture koha;
+	private HostLmsClient client;
 
 	@BeforeEach
-	void beforeEach() {
-		final var hostLms = mock(HostLms.class);
-		when(hostLms.getCode()).thenReturn("KOHA");
-		when(hostLms.getClientConfig()).thenReturn(Map.<String, Object>of(
-			"api-url", "https://koha.example.com",
-			"client_id", "any-id",
-			"client_secret", "any-secret",
-			"sharing-library-code", "DCB-SHARING",
-			"virtual-item-library-code", "DCB-VIRTUAL"));
+	void beforeEach(MockServerClient mockServerClient) {
+		mockServerClient.reset();
+		agencyFixture.deleteAll();
+		referenceValueMappingFixture.deleteAll();
+		hostLmsFixture.deleteAll();
 
-		apiClient = mock(KohaApiClient.class);
-		referenceValueMappingService = mock(ReferenceValueMappingService.class);
-
-		final var clientFactory = mock(KohaClientFactory.class);
-		when(clientFactory.createClientFor(hostLms)).thenReturn(apiClient);
-
-		// Enrichment is covered by its own tests; here it passes items through so the
-		// assertions are about what the Koha mapper produced and nothing else
-		final var locationToAgency = mock(LocationToAgencyMappingService.class);
-		when(locationToAgency.enrichItemAgencyFromLocation(any(), any()))
-			.thenAnswer(invocation -> Mono.just(invocation.<Item>getArgument(0)));
-
-		final var materialTypeToItemType = mock(MaterialTypeToItemTypeMappingService.class);
-		when(materialTypeToItemType.enrichItemWithMappedItemType(any()))
-			.thenAnswer(invocation -> Mono.just(invocation.<Item>getArgument(0)));
-
-		// No ruleset, so nothing here is suppressed by rules - suppression itself is
-		// pinned in RulesetTests against the shipped koha-item-default. A mocked
-		// invalidator would return a null publisher and NPE cacheInvalidateWhen, so the
-		// real one is used; it has no dependencies.
-		final var objectRulesService = mock(ObjectRulesService.class);
-		when(objectRulesService.findByName(any())).thenReturn(Mono.empty());
-
-		client = new KohaHostLmsClient(hostLms,
-			referenceValueMappingService, clientFactory,
-			materialTypeToItemType, locationToAgency,
-			objectRulesService, new RulesetCacheInvalidator(),
-			mock(HostLmsService.class));
+		hostLmsFixture.createKohaHostLms(KOHA_HOST_LMS_CODE, "https://" + KOHA_HOST);
+		koha = new MockKohaFixture(mockServerClient, KOHA_HOST);
+		client = hostLmsFixture.createClient(KOHA_HOST_LMS_CODE);
 	}
 
 	@Test
@@ -100,33 +84,29 @@ class KohaMappingTests {
 		// Every Koha patron therefore arrived with no home library code, fell through to
 		// the default agency, and on a 60-library Koha every one of them belonged to
 		// whichever library happened to be configured there.
-		givenPatron(KohaPatron.builder()
-			.patronId(1234L)
-			.cardnumber("6747664")
-			.firstname("Ada")
-			.surname("Lovelace")
-			.categoryId("ADULT")
-			.libraryId("BRANCH-NORTH")
-			.build());
+		koha.mockPatron(patron().libraryId("BRANCH-NORTH").build());
 
-		final var patron = client.getPatronByIdentifier("6747664").block();
+		final var patron = client.getPatronByLocalId("1234").block();
 
 		assertThat(patron.getLocalHomeLibraryCode(), is("BRANCH-NORTH"));
 	}
 
 	@Test
+	void shouldReadAPatronWithNoFirstName() {
+		koha.mockPatron(patron().firstname(null).surname("Lovelace").build());
+
+		final var patron = client.getPatronByLocalId("1234").block();
+
+		assertThat(patron.getLocalNames(), contains("Lovelace"));
+	}
+
+	@Test
 	void shouldTolerateAPatronWithNoHomeLibrary() {
-		givenPatron(KohaPatron.builder()
-			.patronId(1234L)
-			.cardnumber("6747664")
-			.firstname("Ada")
-			.surname("Lovelace")
-			.categoryId("ADULT")
-			.build());
+		koha.mockPatron(patron().build());
 
-		final var patron = client.getPatronByIdentifier("6747664").block();
+		final var patron = client.getPatronByLocalId("1234").block();
 
-		assertThat(patron.getLocalHomeLibraryCode(), is((String) null));
+		assertThat(patron.getLocalHomeLibraryCode(), is(nullValue()));
 		assertThat(patron.getLocalPatronType(), is("ADULT"));
 	}
 
@@ -139,11 +119,9 @@ class KohaMappingTests {
 			.checkedOutDate("2026-09-01T10:00:00Z")
 			.build();
 
-		final var byBarcode = new KohaItemsList();
-		byBarcode.add(onLoan);
-
-		when(apiClient.getItemByBarcode("ITEM-BARCODE")).thenReturn(Mono.just(byBarcode));
-		when(apiClient.getItem("99")).thenReturn(Mono.just(onLoan));
+		koha.mockItemByBarcode(onLoan);
+		koha.mockItem(onLoan);
+		koha.mockItemCirculation(BIBLIO_ID, "99", onLoan);
 
 		// Koha leaves every status field at "available" while an item is on loan
 		assertThat(client.getItemByBarcode("ITEM-BARCODE").block().getStatus(), is(HostLmsItem.ITEM_LOANED));
@@ -152,14 +130,67 @@ class KohaMappingTests {
 	}
 
 	@Test
+	void shouldOfferAnItemNothingIsHappeningTo() {
+		givenItem(item().build());
+
+		final var item = firstItem();
+
+		assertThat(item.getStatus().getCode(), is(ItemStatusCode.AVAILABLE));
+		assertThat(item.getIsRequestable(), is(true));
+	}
+
+	@Test
+	void shouldNotOfferAnItemInTransit() {
+		givenItem(item()
+			.transfer(KohaTransfer.builder().toLibraryId("BRANCH-SOUTH").dateSent("2026-10-21T09:00:00Z").build())
+			.build());
+
+		assertNotRequestable(firstItem());
+	}
+
+	@Test
+	void shouldNotOfferAnItemWaitingOnTheHoldShelfForAnotherPatron() {
+		givenItem(item()
+			.firstHold(KohaHoldResponse.builder().holdId(5L).status("W").build())
+			.build());
+
+		assertNotRequestable(firstItem());
+	}
+
+	@Test
+	void shouldNotOfferAnItemWhoseItemTypeIsNotForLoan() {
+		// The item's own flag is clear; the item type's is what Koha enforces
+		givenItem(item().notForLoanStatus(0).effectiveNotForLoanStatus(1).build());
+
+		assertNotRequestable(firstItem());
+	}
+
+	@Test
+	void shouldOfferAnItemWithARestrictionKohaStillLends() {
+		// Koha refuses a checkout for restricted 1 only
+		givenItem(item().restrictedStatus(2).build());
+
+		assertThat(firstItem().getStatus().getCode(), is(ItemStatusCode.AVAILABLE));
+	}
+
+	@Test
+	void shouldNotOfferAnItemKohaWillNotLendForItsRestriction() {
+		givenItem(item().restrictedStatus(1).build());
+
+		assertNotRequestable(firstItem());
+	}
+
+	private static void assertNotRequestable(Item item) {
+		assertThat(item.getStatus().getCode(), is(ItemStatusCode.UNAVAILABLE));
+		assertThat(item.getIsRequestable(), is(false));
+	}
+
+	@Test
 	void shouldMapTheOwningBranchAsTheItemLocation() {
 		// Koha's "location" is a shelving classifier that every branch shares, so using
 		// it as the location made location-to-agency mapping impossible on a shared
 		// server: either no branch could be identified, or all of them mapped to one.
-		givenItem(KohaItem.builder()
-			.itemId(99L)
-			.biblioId(42L)
-			.externalId("6565750674")
+		givenItem(item()
 			.homeLibraryId("BRANCH-NORTH")
 			.holdingLibraryId("BRANCH-SOUTH")
 			.location("STACKS")
@@ -174,10 +205,7 @@ class KohaMappingTests {
 
 	@Test
 	void shouldFallBackToTheHoldingBranchWhenThereIsNoHomeBranch() {
-		givenItem(KohaItem.builder()
-			.itemId(99L)
-			.biblioId(42L)
-			.externalId("6565750674")
+		givenItem(item()
 			.holdingLibraryId("BRANCH-SOUTH")
 			.location("STACKS")
 			.build());
@@ -189,12 +217,7 @@ class KohaMappingTests {
 	void shouldTolerateAnItemWithNoBranchAtAll() {
 		// No branch means no agency, and live availability drops agency-less items. It
 		// must not take the rest of the bib's items down with it.
-		givenItem(KohaItem.builder()
-			.itemId(99L)
-			.biblioId(42L)
-			.externalId("6565750674")
-			.location("STACKS")
-			.build());
+		givenItem(item().location("STACKS").build());
 
 		final var item = firstItem();
 
@@ -204,10 +227,7 @@ class KohaMappingTests {
 
 	@Test
 	void shouldTakeTheVolumeFromTheSerialEnumeration() {
-		givenItem(KohaItem.builder()
-			.itemId(99L)
-			.biblioId(42L)
-			.externalId("6565750674")
+		givenItem(item()
 			.homeLibraryId("BRANCH-NORTH")
 			.serialIssueNumber("Vol. 2")
 			.build());
@@ -223,18 +243,36 @@ class KohaMappingTests {
 		// virtual-item-library-code is one value on the Host LMS. On a Koha serving
 		// sixty libraries that would land every library's incoming loans at whichever
 		// branch was configured, where no patron could collect them.
-		final var created = createVirtualItem("BRANCH-NORTH");
+		createVirtualItem("BRANCH-NORTH");
 
-		assertThat(created.getHomeLibraryId(), is("BRANCH-NORTH"));
-		assertThat(created.getHoldingLibraryId(), is("BRANCH-NORTH"));
+		koha.verifyCreateItem(BIBLIO_ID,
+			"{\"home_library_id\": \"BRANCH-NORTH\", \"holding_library_id\": \"BRANCH-NORTH\"}");
+	}
+
+	@Test
+	void shouldNameTheLendingLibraryOnTheVirtualItem() {
+		// Staff checking the returned copy in have to know where to send it
+		referenceValueMappingFixture.defineCanonicalToLocalItemTypeMapping(KOHA_HOST_LMS_CODE, "BKM", "BK");
+		koha.mockCreateItem(BIBLIO_ID, KohaItem.builder().itemId(99L).build());
+
+		client.createItem(CreateItemCommand.builder()
+			.bibId(BIBLIO_ID)
+			.barcode("6565750674")
+			.canonicalItemType("BKM")
+			.locationCode("LENDING-AGENCY")
+			.patronHomeLocation("BRANCH-NORTH")
+			.build()).block();
+
+		koha.verifyCreateItem(BIBLIO_ID,
+			"{\"internal_notes\": \"Virtual item = created by DCB. Return to LENDING-AGENCY\"}");
 	}
 
 	@Test
 	void shouldFallBackToTheConfiguredVirtualItemLibrary() {
 		// A Host LMS serving one library has nothing per-request to go on
-		final var created = createVirtualItem(null);
+		createVirtualItem(null);
 
-		assertThat(created.getHomeLibraryId(), is("DCB-VIRTUAL"));
+		koha.verifyCreateItem(BIBLIO_ID, "{\"home_library_id\": \"DCB-VIRTUAL\"}");
 	}
 
 	@Test
@@ -242,82 +280,175 @@ class KohaMappingTests {
 		// A virtual patron stands for a borrower outside this Koha, which is what the
 		// sharing library represents. It used to read default-agency-code, which names
 		// one of the co-tenant libraries and bypassed the shared-system guard.
-		final var captor = ArgumentCaptor.forClass(KohaPatron.class);
+		koha.mockCreatePatron(KohaPatron.builder().patronId(77L).build());
 
-		when(apiClient.createPatron(captor.capture()))
-			.thenReturn(Mono.just(KohaPatron.builder().patronId(77L).build()));
-
-		client.createPatron(org.olf.dcb.core.interaction.Patron.builder()
-			.uniqueIds(java.util.List.of("unique-id"))
-			.localNames(java.util.List.of("Ada", "Lovelace"))
+		client.createPatron(Patron.builder()
+			.uniqueIds(List.of("unique-id"))
+			.localNames(List.of("Ada", "Lovelace"))
 			.localPatronType("DCB")
 			.localHomeLibraryCode("SOMEWHERE-ELSE")
 			.build()).block();
 
-		assertThat(captor.getValue().getLibraryId(), is("DCB-SHARING"));
+		koha.verifyPatronCreated("{\"library_id\": \"DCB-SHARING\"}");
 	}
 
 	@Test
-	void shouldNotCallKohaOncePerHoldingAllAtOnce() {
-		// getItems issues a getActiveHoldsForItem per item. Unbounded, a title held at
-		// sixty branches of a shared Koha is sixty concurrent calls to one server, per
-		// availability check, per user - and co-tenancy is what makes the holding count
-		// large while the server count stays at one.
-		final var holdings = 60;
-		final var inFlight = new AtomicInteger();
-		final var peakInFlight = new AtomicInteger();
+	void shouldGiveTheVirtualPatronTheUniqueIdAsUseridAndNoCard() {
+		// Koha caps cardnumber at 32 characters and userid at 75
+		final var uniqueId = "1234567890@" + "a".repeat(29);
+		koha.mockCreatePatron(KohaPatron.builder().patronId(77L).build());
 
-		final var kohaItems = IntStream.range(0, holdings)
+		client.createPatron(Patron.builder()
+			.uniqueIds(List.of(uniqueId))
+			.localNames(List.of("Ada", "Lovelace"))
+			.localPatronType("DCB")
+			.build()).block();
+
+		final var sent = koha.patronCreationSent();
+		assertThat(sent, hasEntry("userid", uniqueId));
+		assertThat(sent, not(hasKey("cardnumber")));
+	}
+
+	@Test
+	void shouldCarryTheHomeBarcodeWhereTheStaffSearchFindsItAndNotAsACard() {
+		// A pickup desk scans the card the patron carries. As a card number it would also let
+		// BASIC/BARCODE+NAME sign in as the virtual patron
+		koha.mockCreatePatron(KohaPatron.builder().patronId(77L).build());
+
+		client.createPatron(Patron.builder()
+			.uniqueIds(List.of("unique-id"))
+			.localNames(List.of("Ada", "Lovelace"))
+			.localBarcodes(List.of("2100045", "2100046"))
+			.localPatronType("DCB")
+			.build()).block();
+
+		final var sent = koha.patronCreationSent();
+		assertThat(sent, hasEntry("other_name", "2100045"));
+		assertThat(sent, not(hasKey("cardnumber")));
+	}
+
+	@Test
+	void shouldFindTheVirtualPatronByUserid() {
+		final var uniqueId = "1234567890@" + "a".repeat(29);
+		koha.mockPatronsByUserid(uniqueId, KohaPatron.builder()
+			.patronId(77L)
+			.userid(uniqueId)
+			.firstname("Borrowing")
+			.surname("Patron")
+			.libraryId("DCB-SHARING")
+			.categoryId("DCB")
+			.build());
+
+		final var found = client.findVirtualPatron(org.olf.dcb.core.model.Patron.builder()
+			.id(randomUUID())
+			.patronIdentities(List.of(PatronIdentity.builder()
+				.localId("1234567890")
+				.resolvedAgency(DataAgency.builder().code("a".repeat(29)).build())
+				.homeIdentity(true)
+				.build()))
+			.build()).block();
+
+		assertThat(found.getLocalId(), contains("77"));
+	}
+
+	@Test
+	void shouldReadTheHoldsOfEveryHoldingInOneCall() {
+		// A read per copy made a title held at sixty branches of a shared Koha sixty calls to
+		// one server, per availability check, per user
+		final var holdings = 60;
+
+		koha.mockItemsForBiblio(BIBLIO_ID, IntStream.range(0, holdings)
 			.mapToObj(index -> KohaItem.builder()
 				.itemId((long) index)
 				.biblioId(42L)
 				.externalId("barcode-" + index)
 				.homeLibraryId("BRANCH-%02d".formatted(index))
 				.build())
-			.toArray(KohaItem[]::new);
+			.toArray(KohaItem[]::new));
 
-		when(apiClient.getItemsForBiblio("42")).thenReturn(Mono.just(kohaItems));
+		ActiveHoldsProbe.reset();
+		koha.mockActiveHoldsAnsweredBy(ActiveHoldsProbe.class);
 
-		when(apiClient.getActiveHoldsForItem(any())).thenAnswer(invocation ->
-			Mono.fromCallable(() -> {
-					peakInFlight.accumulateAndGet(inFlight.incrementAndGet(), Math::max);
-					return new Object[0];
-				})
-				// Hold the call open so overlapping requests actually overlap
-				.delayElement(Duration.ofMillis(20))
-				.doOnNext(response -> inFlight.decrementAndGet())
-				.subscribeOn(Schedulers.boundedElastic()));
-
-		final var items = client.getItems(BibRecord.builder().sourceRecordId("42").build()).block();
+		final var items = client.getItems(BibRecord.builder().sourceRecordId(BIBLIO_ID).build()).block();
 
 		assertThat("Every holding is still mapped", items, hasSize(holdings));
-
-		assertThat("Concurrent calls to one Koha must stay bounded",
-			peakInFlight.get(), is(lessThanOrEqualTo(4)));
+		assertThat("One holds read for the title", ActiveHoldsProbe.calls.get(), is(1));
 	}
 
-	private KohaItem createVirtualItem(String patronHomeLocation) {
-		final var captor = ArgumentCaptor.forClass(KohaItem.class);
+	@Test
+	void shouldCountATitleLevelHoldOnEveryCopy() {
+		// Koha's patrons mostly hold the title, and any copy may fill it
+		koha.mockItemsForBiblio(BIBLIO_ID, copy(1L), copy(2L));
+		koha.mockActiveHoldsForBiblio(BIBLIO_ID, KohaHoldResponse.builder().holdId(9L).patronId(13L).build());
 
-		when(referenceValueMappingService.findMapping(any(), any(), any(), any(), any()))
-			.thenReturn(Mono.just(ReferenceValueMapping.builder().toValue("BK").build()));
+		final var items = client.getItems(BibRecord.builder().sourceRecordId(BIBLIO_ID).build()).block();
 
-		when(apiClient.createItem(eq("42"), captor.capture()))
-			.thenReturn(Mono.just(KohaItem.builder().itemId(99L).build()));
+		assertThat(items.stream().map(Item::getHoldCount).toList(), contains(1, 1));
+	}
+
+	@Test
+	void shouldCountACopysOwnHoldOnThatCopyAlone() {
+		koha.mockItemsForBiblio(BIBLIO_ID, copy(1L), copy(2L));
+		koha.mockActiveHoldsForBiblio(BIBLIO_ID, KohaHoldResponse.builder().holdId(9L).patronId(13L).itemId(2L).build());
+
+		final var items = client.getItems(BibRecord.builder().sourceRecordId(BIBLIO_ID).build()).block();
+
+		assertThat(items.stream().filter(item -> item.getLocalId().equals("1")).findFirst().orElseThrow().getHoldCount(), is(0));
+		assertThat(items.stream().filter(item -> item.getLocalId().equals("2")).findFirst().orElseThrow().getHoldCount(), is(1));
+	}
+
+	@Test
+	void shouldFailTheCheckWhenKohaWillNotListHolds() {
+		// A copy cannot be shown free of holds that were not read; it used to read as none
+		koha.mockItemsForBiblio(BIBLIO_ID, copy(1L));
+		koha.mockActiveHoldsUnreadable();
+
+		final var problem = assertThrows(ThrowableProblem.class,
+			() -> client.getItems(BibRecord.builder().sourceRecordId(BIBLIO_ID).build()).block());
+
+		assertThat(problem.getTitle(), is("Koha would not say which copies have holds"));
+	}
+
+	private static KohaItem copy(long itemId) {
+		return KohaItem.builder()
+			.itemId(itemId)
+			.biblioId(Long.valueOf(BIBLIO_ID))
+			.externalId("barcode-" + itemId)
+			.homeLibraryId("BRANCH-N")
+			.build();
+	}
+
+	/** Runs inside the mock server, one invocation per holds read. */
+	public static class ActiveHoldsProbe implements ExpectationResponseCallback {
+		static final AtomicInteger calls = new AtomicInteger();
+
+		static void reset() {
+			calls.set(0);
+		}
+
+		@Override
+		public HttpResponse handle(HttpRequest request) {
+			calls.incrementAndGet();
+
+			return okJson(new Object[0]);
+		}
+	}
+
+	private void createVirtualItem(String patronHomeLocation) {
+		referenceValueMappingFixture.defineCanonicalToLocalItemTypeMapping(KOHA_HOST_LMS_CODE, "BKM", "BK");
+		koha.mockCreateItem(BIBLIO_ID, KohaItem.builder().itemId(99L).build());
 
 		client.createItem(CreateItemCommand.builder()
-			.bibId("42")
+			.bibId(BIBLIO_ID)
 			.barcode("6565750674")
 			.canonicalItemType("BKM")
 			.patronHomeLocation(patronHomeLocation)
 			.build()).block();
-
-		return captor.getValue();
 	}
 
 	private Item firstItem() {
 		final var items = client.getItems(BibRecord.builder()
-			.sourceRecordId("42")
+			.sourceRecordId(BIBLIO_ID)
 			.build()).block();
 
 		assertThat("Expected exactly one item", items.size(), is(1));
@@ -326,18 +457,23 @@ class KohaMappingTests {
 	}
 
 	private void givenItem(KohaItem kohaItem) {
-		when(apiClient.getItemsForBiblio("42"))
-			.thenReturn(Mono.just(new KohaItem[] { kohaItem }));
-
-		when(apiClient.getActiveHoldsForItem(String.valueOf(kohaItem.getItemId())))
-			.thenReturn(Mono.just(new Object[0]));
+		koha.mockItemsForBiblio(BIBLIO_ID, kohaItem);
+		koha.mockNoActiveHolds();
 	}
 
-	private void givenPatron(KohaPatron kohaPatron) {
-		final var list = new KohaPatronsList();
-		list.add(kohaPatron);
+	private static KohaItem.KohaItemBuilder item() {
+		return KohaItem.builder()
+			.itemId(99L)
+			.biblioId(42L)
+			.externalId("6565750674");
+	}
 
-		when(apiClient.getPatronByCardnumber(kohaPatron.getCardnumber()))
-			.thenReturn(Mono.just(list));
+	private static KohaPatron.KohaPatronBuilder patron() {
+		return KohaPatron.builder()
+			.patronId(1234L)
+			.cardnumber("6747664")
+			.firstname("Ada")
+			.surname("Lovelace")
+			.categoryId("ADULT");
 	}
 }

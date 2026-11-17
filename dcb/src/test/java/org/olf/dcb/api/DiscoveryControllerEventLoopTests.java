@@ -34,6 +34,8 @@ import jakarta.inject.Inject;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 // One event loop makes synchronous assertion verification regressions fail deterministically.
 @Property(name = "micronaut.netty.event-loops.default.num-threads", value = "1")
+// The discovery routes exist only with discovery on
+@Property(name = "dcb.discovery.enabled", value = "true")
 class DiscoveryControllerEventLoopTests {
 	private static final String ACCESS_TOKEN = "discovery-event-loop-token";
 	private static final AtomicReference<EventLoopGroupRegistry> EVENT_LOOPS =

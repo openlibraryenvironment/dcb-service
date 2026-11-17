@@ -28,5 +28,31 @@
 		"rawItemStatus": "AVAILABLE",
 		"requestStatus": "MISSING",
 		"rawRequestStatus": "MISSING"
+	},
+	"cancelled-borrower": {
+		"itemStatus": "AVAILABLE",
+		"rawItemStatus": "AVAILABLE",
+		"requestStatus": "CANCELLED",
+		"rawRequestStatus": "CANCELLED"
+	},
+	"missing-supplier": {
+		"itemStatus": "AVAILABLE",
+		"rawItemStatus": "AVAILABLE",
+		"requestStatus": "MISSING",
+		"rawRequestStatus": "MISSING"
+	},
+	"loaned_renewed-borrower": {
+		"itemStatus": "LOANED",
+		"rawItemStatus": "LOANED",
+		"requestStatus": "CONFIRMED",
+		"rawRequestStatus": "CONFIRMED",
+		"renewalCount": 1
+	},
+	"loaned_with_hold-supplier": {
+		"itemStatus": "HOLDSHELF",
+		"rawItemStatus": "HOLDSHELF",
+		"requestStatus": "CONFIRMED",
+		"rawRequestStatus": "CONFIRMED",
+		"holdCount": 1
 	}
 }

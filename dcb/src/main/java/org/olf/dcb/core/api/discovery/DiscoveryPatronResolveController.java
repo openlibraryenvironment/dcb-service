@@ -11,10 +11,11 @@ import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.svc.AgencyService;
-import org.olf.dcb.security.discovery.DiscoveryServiceProperties;
+import org.olf.dcb.security.discovery.DiscoveryConfig;
 import org.olf.dcb.security.discovery.DiscoveryTrustedServiceStore;
 import org.olf.dcb.storage.PatronIdentityRepository;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
@@ -39,17 +40,18 @@ import reactor.core.publisher.Mono;
 @Secured(DISCOVERY_SERVICE)
 @Tag(name = "Discovery API")
 @Slf4j
+@Requires(property = DiscoveryConfig.ENABLED, value = "true")
 public class DiscoveryPatronResolveController {
 
 	private final AgencyService agencyService;
 	private final HostLmsService hostLmsService;
-	private final DiscoveryServiceProperties properties;
+	private final DiscoveryConfig properties;
 	private final PatronIdentityRepository patronIdentityRepository;
 	private final DiscoveryTrustedServiceStore trustedServiceStore;
 	private final PatronResolveRateLimiter rateLimiter;
 
 	public DiscoveryPatronResolveController(AgencyService agencyService,
-		HostLmsService hostLmsService, DiscoveryServiceProperties properties,
+		HostLmsService hostLmsService, DiscoveryConfig properties,
 		PatronIdentityRepository patronIdentityRepository,
 		DiscoveryTrustedServiceStore trustedServiceStore, PatronResolveRateLimiter rateLimiter) {
 
@@ -81,11 +83,6 @@ public class DiscoveryPatronResolveController {
 	public Mono<HttpResponse<?>> resolve(@Body @Valid ResolvePatronCommand command,
 		Authentication caller) {
 
-		// Assertions are refused while discovery is off, so the step that produces one is too.
-		if (!properties.isEnabled()) {
-			return Mono.just(forbidden("DISCOVERY_DISABLED", "This DCB accepts no discovery patrons."));
-		}
-
 		final var service = trustedServiceStore.findByCaller(caller);
 
 		if (service.isEmpty()) {
@@ -93,7 +90,7 @@ public class DiscoveryPatronResolveController {
 				"This client is not a trusted discovery service."));
 		}
 
-		if (!rateLimiter.tryAcquire(service.get().getServiceId())) {
+		if (!rateLimiter.tryAcquire(service.get().serviceId())) {
 			return Mono.just(HttpResponse.status(HttpStatus.TOO_MANY_REQUESTS)
 				.header("Retry-After", String.valueOf(PatronResolveRateLimiter.WINDOW.toSeconds()))
 				.body(Map.of("code", "TOO_MANY_RESOLVES", "message",

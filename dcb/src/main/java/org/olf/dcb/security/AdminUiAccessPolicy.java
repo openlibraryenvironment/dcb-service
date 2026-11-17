@@ -7,9 +7,8 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micronaut.context.annotation.Value;
+import io.micronaut.context.annotation.Context;
 import io.micronaut.core.annotation.Nullable;
-import jakarta.inject.Singleton;
 
 /**
  * Which application a token is allowed to drive. NOT a data control:
@@ -21,7 +20,8 @@ import jakarta.inject.Singleton;
  * <p>Why both controls are needed, and turning it on:
  * {@code operational:identity-provider-setup.adoc} §1.3–1.4.
  */
-@Singleton
+// Created at startup, so it says whether the bar is armed before the first admin call
+@Context
 public class AdminUiAccessPolicy {
 
 	private static final Logger log = LoggerFactory.getLogger(AdminUiAccessPolicy.class);
@@ -39,15 +39,9 @@ public class AdminUiAccessPolicy {
 	private final String adminUiClientId;
 	private final Mode mode;
 
-	public AdminUiAccessPolicy(
-		@Value("${dcb.security.admin-ui.client-id}") @Nullable String adminUiClientId,
-		@Value("${dcb.security.admin-ui.mode}") String mode) {
-
-		this.adminUiClientId = (adminUiClientId == null || adminUiClientId.isBlank())
-			? null
-			: adminUiClientId.trim();
-
-		this.mode = Mode.valueOf(mode.trim().toUpperCase());
+	public AdminUiAccessPolicy(@Nullable AdminUiAccessConfig config) {
+		this.adminUiClientId = config == null ? null : config.getClientId().trim();
+		this.mode = config == null ? Mode.WARN : config.getMode();
 	}
 
 	/**

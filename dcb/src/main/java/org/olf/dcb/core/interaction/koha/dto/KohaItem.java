@@ -196,7 +196,7 @@ public class KohaItem {
 	private KohaTransfer transfer;
 
 	@JsonProperty("first_hold")
-	private KohaHoldRequest firstHold;
+	private KohaHoldResponse firstHold;
 
 	@JsonProperty("recall")
 	private KohaRecall recall;

@@ -257,5 +257,69 @@
 				]
 			}
 		}
+	},
+	"hidden-by-a-truthy-no": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:20"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "942$n no: Koha hides it in the OPAC, so DCB must not share it" }
+							]
+						}
+					},
+					{
+						"942": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "c": "BK" },
+								{ "n": "no" }
+							]
+						}
+					}
+				]
+			}
+		}
+	},
+	"hidden-by-a-truthy-2": {
+		"header": {
+			"datestamp": "2026-04-10T09:34:16Z",
+			"identifier": "KOHA-OAI-TEST:21"
+		},
+		"metadata": {
+			"record": {
+				"leader": "00242nam a22000857a 4500",
+				"fields": [
+					{
+						"245": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "a": "942$n 2: Koha hides it in the OPAC, so DCB must not share it" }
+							]
+						}
+					},
+					{
+						"942": {
+							"ind1": " ",
+							"ind2": " ",
+							"subfields": [
+								{ "c": "BK" },
+								{ "n": "2" }
+							]
+						}
+					}
+				]
+			}
+		}
 	}
 }

@@ -36,19 +36,19 @@
       "To place a new request instead, or to let DCB choose another copy, staff at the borrowing library clean this request up first, then place the new one."
     ]
   },
-  "ALMA_USER_GROUP_CANNOT_REQUEST": {
+  "ALMA_NO_REQUEST_RULE_FOR_USER_GROUP": {
     "audience": "SUPPLYING_LIBRARY",
     "placeholders": [
       "hostLms",
       "userGroup",
       "offered"
     ],
-    "summary": "{hostLms}'s Alma does not let user group \"{userGroup}\" place a hold on this item",
+    "summary": "{hostLms}'s Alma has no Request rule for user group \"{userGroup}\" in the fulfilment unit of this item's location",
     "nextSteps": [
-      "In {hostLms}'s Alma fulfillment unit rules that apply to this item, give user group \"{userGroup}\" a Request term of use that allows a hold. Alma offered this user group: {offered}."
+      "In {hostLms}'s Alma, give user group \"{userGroup}\" a Request term of use that allows a hold in the fulfilment unit covering this item's location. Alma offered this user group: {offered}. The same user group can be offered a hold in one location and nothing in another, so check the item's location before the group."
     ],
     "retrySteps": [
-      "Retry only once {hostLms}'s staff confirm user group \"{userGroup}\" may now request this item. Until then a retry is refused in the same way.",
+      "Retry only once {hostLms}'s staff confirm user group \"{userGroup}\" may now place a hold on this item. Until then a retry is refused in the same way.",
       "To retry this request as it is, consortium staff roll it back from ERROR (POST /patrons/requests/<request id>/rollback, or the rollback action in DCB Admin). DCB places it at {hostLms} again within a few minutes. The refused attempt placed no hold at {hostLms}, so nothing is duplicated.",
       "To place a new request instead, or to let DCB choose another copy, staff at the borrowing library clean this request up first, then place the new one."
     ]

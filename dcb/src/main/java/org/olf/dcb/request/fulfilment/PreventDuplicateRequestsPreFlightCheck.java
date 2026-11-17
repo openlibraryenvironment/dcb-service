@@ -19,11 +19,11 @@ import org.olf.dcb.security.StaffClients;
 import org.olf.dcb.storage.BibRepository;
 import org.olf.dcb.storage.PatronRequestRepository;
 
+import io.micronaut.context.annotation.Context;
+import io.micronaut.context.annotation.Property;
 import io.micronaut.context.annotation.Requires;
-import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
-import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -37,7 +37,8 @@ import reactor.core.publisher.Mono;
  * multi-volume title a request without a volume is never refused, since the title is not one thing.
  */
 @Slf4j
-@Singleton
+// Created at startup when enabled, so a blank window stops the application, not the first placement
+@Context
 @Requires(property = "dcb.requests.preflight-checks.duplicate-requests.enabled", defaultValue = "false", notEquals = "false")
 public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 	public static final String DUPLICATE_REQUEST_ATTEMPT = "DUPLICATE_REQUEST_ATTEMPT";
@@ -48,6 +49,9 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 		.map(Enum::name)
 		.toList();
 
+	private static final String ACTIVE_WINDOW = "dcb.requests.preflight-checks.duplicate-requests.active-window";
+	private static final String REMOVED_REQUEST_WINDOW = "dcb.requests.preflight-checks.duplicate-requests.request-window";
+
 	private final PatronRequestRepository patronRequestRepository;
 	private final BibRepository bibRepository;
 	private final IntMessageService intMessageService;
@@ -57,12 +61,19 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 
 	public PreventDuplicateRequestsPreFlightCheck(PatronRequestRepository patronRequestRepository,
 		BibRepository bibRepository, IntMessageService intMessageService, StaffClients staffClients,
-		@Value("${dcb.requests.preflight-checks.duplicate-requests.active-window:}") @Nullable Duration activeWindow,
-		@Value("${dcb.requests.preflight-checks.duplicate-requests.request-window:}") @Nullable String removedRequestWindow) {
+		@Property(name = ACTIVE_WINDOW) @Nullable Duration activeWindow,
+		// The same key as text: a blank value converts to no Duration, so the Duration alone reads as unset
+		@Property(name = ACTIVE_WINDOW) @Nullable String activeWindowSetting,
+		@Property(name = REMOVED_REQUEST_WINDOW) @Nullable String removedRequestWindow) {
+
+		if (activeWindowSetting != null && activeWindowSetting.isBlank()) {
+			throw new IllegalArgumentException(ACTIVE_WINDOW + " is set but blank. Remove it to refuse for as long "
+				+ "as the earlier request is active, or set a positive duration such as 24h");
+		}
 
 		if (activeWindow != null && (activeWindow.isZero() || activeWindow.isNegative())) {
 			throw new IllegalArgumentException(
-				"dcb.requests.preflight-checks.duplicate-requests.active-window must be positive, or unset to "
+				ACTIVE_WINDOW + " must be positive, or unset to "
 					+ "refuse for as long as the earlier request is active: " + activeWindow);
 		}
 
@@ -76,22 +87,16 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 
 	@PostConstruct
 	void announce() {
-		if (hasText(removedRequestWindow)) {
-			log.warn("dcb.requests.preflight-checks.duplicate-requests.request-window is no longer read; "
+		if (removedRequestWindow != null) {
+			log.warn(REMOVED_REQUEST_WINDOW + " is no longer read; "
 				+ "set active-window to limit the check to recent requests");
 		}
 
-		if (!staffClients.isConfigured()) {
-			log.warn("Duplicate request check is OFF: dcb.requests.staff-client-ids is empty, so staff "
-				+ "could not place a request it refused");
-		}
-		else {
-			log.info("Duplicate request check is ON ({}); requests placed through clients {} are staff's",
-				activeWindow == null
-					? "while the earlier request is active"
-					: "active requests placed within " + activeWindow,
-				staffClients.clientIds());
-		}
+		log.info("Duplicate request check is ON ({}); requests placed through clients {} are staff's",
+			activeWindow == null
+				? "while the earlier request is active"
+				: "active requests placed within " + activeWindow,
+			staffClients.clientIds());
 	}
 
 	@Override
@@ -104,7 +109,7 @@ public class PreventDuplicateRequestsPreFlightCheck implements PreflightCheck {
 			getValueOrNull(citation, PlacePatronRequestCommand.Citation::getVolumeDesignator));
 		final var chosenCopy = getValueOrNull(command, PlacePatronRequestCommand::getItem);
 
-		if (!staffClients.isConfigured() || Boolean.TRUE.equals(command.getIsPlacedByStaff())
+		if (Boolean.TRUE.equals(command.getIsPlacedByStaff())
 			|| hostLmsCode == null || patronLocalId == null) {
 
 			return Mono.just(List.of(passed()));

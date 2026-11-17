@@ -207,6 +207,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	// Duration which constitutes a jump, the harvest should be crawling over bibs
 	private static final Duration WATERMARK_LEAP_ALARM = Duration.ofDays(7);
 
+	// Retried within the run because a failed import waits for every other import to finish
+	// before it is scheduled again
+	private static final Retry FAILED_HARVEST_PAGE_RETRY = Retry.backoff(2, Duration.ofSeconds(2))
+		.filter(FailedHarvestPageException.class::isInstance)
+		.onRetryExhaustedThrow((spec, signal) -> signal.failure());
+
 	private final PolarisConfig polarisConfig;
 	
 	private final R2dbcOperations r2dbcOperations;
@@ -2100,7 +2106,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				return Mono.just( apiParams )
 
 					// functioned out for different implementations
-					.flatMap(this::fetchBibs)
+					.flatMap(params -> Mono.defer(() -> fetchBibs(params))
+						.flatMap(this::refuseFailedPage)
+						.retryWhen(FAILED_HARVEST_PAGE_RETRY))
 
           .doOnNext ( bibsPaged -> log.info("bibsPaged {}",bibsPaged) )
 					
@@ -2273,6 +2281,27 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				});
 		} catch (Exception e) {
 			return Mono.error( e );
+		}
+	}
+
+	// A negative PAPIErrorCode is a failure, whatever rows the page carries
+	private Mono<JsonNode> refuseFailedPage(JsonNode page) {
+		final var code = page.get("PAPIErrorCode");
+
+		if (code == null || !code.isNumber() || code.getIntValue() >= 0) {
+			return Mono.just(page);
+		}
+
+		final var message = page.get("ErrorMessage");
+
+		return Mono.error(new FailedHarvestPageException(lms.getCode(), code.getIntValue(),
+			message == null || message.isNull() ? null : message.coerceStringValue()));
+	}
+
+	static class FailedHarvestPageException extends IllegalStateException {
+		FailedHarvestPageException(String hostLmsCode, int papiErrorCode, String errorMessage) {
+			super("Polaris failed a harvest page for %s: PAPIErrorCode %d, %s"
+				.formatted(hostLmsCode, papiErrorCode, errorMessage));
 		}
 	}
 

@@ -89,7 +89,7 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 		"CancelledRequestItemOut : patron hold gone while item is out, awaiting its return to the supplier";
 	static final String RETURN_NOT_REPORTABLE_NEEDS_ATTENTION =
 		"CancelledRequestItemOut : supplier cannot report this item's return - the request will stay parked "
-			+ "until someone confirms the item is home and cleans it up with force=true";
+			+ "until someone confirms the item is back at the supplying library";
 	static final String SUPPLIER_HOLD_VERIFICATION =
 		"CancelledRequestItemOut : supplier hold termination verification";
 	static final String DECLARATIVE_SUPPLIER_SKIPPED =
@@ -194,18 +194,8 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 			});
 	}
 
-	/**
-	 * Some suppliers cannot report the item's return once their hold is terminated - a FOLIO supplier
-	 * today, because cancelling the mod-dcb transaction is also what destroys the only channel DCB can
-	 * observe the item through. Nothing will release such a request automatically.
-	 * <p>
-	 * That is a reason to raise a flag, and never a reason to cancel. Cancelling finalises, finalisation
-	 * deletes the borrowing library's virtual item, and doing that while the real item is still out is the
-	 * orphaned-item bug this transition exists to prevent - the supplier's tracking limitations are not
-	 * the borrower's problem to pay for. A parked request a human can see and release (POST
-	 * .../transition/cleanup?force=true, once they have confirmed the item is home) beats a deleted record
-	 * they cannot recover.
-	 */
+	// A supplier that cannot report the return is flagged for a person to confirm it
+	// (.../transition/confirm-returned), never cancelled: docs/cancellation-handling.md §7.4
 	private Mono<RequestWorkflowContext> flagIfReturnCannotBeReported(RequestWorkflowContext ctx) {
 		final var hostLmsCode = getValueOrNull(ctx,
 			RequestWorkflowContext::getSupplierRequest, SupplierRequest::getHostLmsCode);
@@ -229,7 +219,7 @@ public class HandleCancelledRequestItemOut implements PatronRequestStateTransiti
 		final var auditData = new HashMap<String, Object>();
 		auditData.put("supplierHostLmsCode", hostLmsCode);
 		auditData.put("reason", "Supplier cannot report the item's return once its hold has been terminated");
-		auditData.put("resolution", "Confirm the item is back at the supplier, then clean up with force=true");
+		auditData.put("resolution", "Confirm the item is back at the supplying library");
 
 		// Alarm code is bounded by the number of host LMS, never by request - no high-cardinality keys.
 		final var alarmCode = "SYSTEM.REQ-WORKFLOW.CANCEL-WHILE-OUT.NO-RETURN-SIGNAL." + hostLmsCode;

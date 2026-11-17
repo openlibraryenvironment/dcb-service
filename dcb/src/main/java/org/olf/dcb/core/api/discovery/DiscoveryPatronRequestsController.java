@@ -18,11 +18,13 @@ import org.olf.dcb.request.fulfilment.PatronRequestCancellationService;
 import org.olf.dcb.request.fulfilment.PreflightCheckFailedException;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
+import org.olf.dcb.security.discovery.DiscoveryConfig;
 import org.olf.dcb.security.discovery.PatronAssertion;
 import org.olf.dcb.security.discovery.PatronAssertionVerifier;
 import org.olf.dcb.storage.PatronRequestRepository;
 import org.olf.dcb.tracking.TrackingService;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.data.model.Page;
@@ -74,6 +76,7 @@ import reactor.core.publisher.Mono;
 @Slf4j
 // Assertion verification is synchronous and may refresh trusted JWKS over bounded HTTP.
 @ExecuteOn(TaskExecutors.BLOCKING)
+@Requires(property = DiscoveryConfig.ENABLED, value = "true")
 public class DiscoveryPatronRequestsController {
 
 	private static final String ASSERTION_DESCRIPTION =

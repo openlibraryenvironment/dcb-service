@@ -5,12 +5,14 @@ import java.time.Duration;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.core.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * The bound on a placement's preflight checks together. Created at startup, so a blank or
  * non-positive setting stops the application rather than failing every placement after a green
  * rollout.
  */
+@Slf4j
 @Context
 public class PreflightChecksTimeout {
 	static final String PROPERTY = "dcb.requests.preflight-checks.timeout";
@@ -25,6 +27,10 @@ public class PreflightChecksTimeout {
 		if (setting != null && (setting.isBlank() || timeout == null)) {
 			throw new IllegalStateException(PROPERTY + " is \"" + setting + "\", which is not a duration. "
 				+ "Remove it for the default of " + DEFAULT + ", or set one such as PT90S");
+		}
+
+		if (setting == null) {
+			log.info("Using default preflight check timeout value of {}: {} is not set", DEFAULT, PROPERTY);
 		}
 
 		final var resolved = timeout != null ? timeout : DEFAULT;

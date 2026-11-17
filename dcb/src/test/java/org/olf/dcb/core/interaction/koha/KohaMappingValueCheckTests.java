@@ -3,76 +3,58 @@ package org.olf.dcb.core.interaction.koha;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 import static org.olf.dcb.core.interaction.MappingVocabulary.LOCATION;
-
-import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.MappingValueCheck.Result;
-import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.interaction.koha.dto.KohaLibrary;
-import org.olf.dcb.core.model.HostLms;
-import org.olf.dcb.core.svc.LocationToAgencyMappingService;
-import org.olf.dcb.core.HostLmsService;
-import org.olf.dcb.core.events.RulesetCacheInvalidator;
-import org.olf.dcb.rules.ObjectRulesService;
-import org.olf.dcb.core.svc.ReferenceValueMappingService;
+import org.olf.dcb.test.HostLmsFixture;
 
-import reactor.core.publisher.Mono;
+import jakarta.inject.Inject;
+import services.k_int.test.mockserver.MockServerMicronautTest;
 
-@TestInstance(PER_CLASS)
+@MockServerMicronautTest
 class KohaMappingValueCheckTests {
-	private KohaApiClient apiClient;
+	private static final String KOHA_HOST_LMS_CODE = "koha-mapping-value";
+	private static final String KOHA_HOST = "fake-koha-mapping-value";
+
+	@Inject
+	private HostLmsFixture hostLmsFixture;
+
+	private MockKohaFixture koha;
+	private HostLmsClient client;
 
 	@BeforeEach
-	void beforeEach() {
-		// Real default methods, so the query each vocabulary call sends is what is under test
-		apiClient = mock(KohaApiClient.class, withSettings().defaultAnswer(CALLS_REAL_METHODS));
+	void beforeEach(MockServerClient mockServerClient) {
+		mockServerClient.reset();
+		hostLmsFixture.deleteAll();
+
+		hostLmsFixture.createKohaHostLms(KOHA_HOST_LMS_CODE, "https://" + KOHA_HOST);
+		koha = new MockKohaFixture(mockServerClient, KOHA_HOST);
+		client = hostLmsFixture.createClient(KOHA_HOST_LMS_CODE);
 	}
 
 	@Test
 	void shouldAskKohaForEveryLibraryRatherThanItsDefaultPageOfTwenty() {
-		doReturn(Mono.just(new KohaLibrary[] {
-			KohaLibrary.builder().libraryId("CPL").name("Centerville").build() }))
-			.when(apiClient).get(eq("/api/v1/libraries"), eq(KohaLibrary[].class), eq(Map.of("_per_page", -1)));
+		// The expectation answers only a read that asks for every entry
+		koha.mockLibraries(KohaLibrary.builder().libraryId("CPL").name("Centerville").build());
 
-		final var check = client().checkMappingValue(LOCATION, "CPL").block();
+		final var check = client.checkMappingValue(LOCATION, "CPL").block();
 
 		assertThat(check.result(), is(Result.PRESENT));
 	}
 
 	@Test
 	void shouldReportWhyAVocabularyCouldNotBeRead() {
-		doReturn(Mono.error(new RuntimeException("Koha is unwell")))
-			.when(apiClient).get(eq("/api/v1/libraries"), eq(KohaLibrary[].class), any());
+		koha.mockLibrariesUnreadable();
 
-		final var check = client().checkMappingValue(LOCATION, "CPL").block();
+		final var check = client.checkMappingValue(LOCATION, "CPL").block();
 
 		assertThat(check.result(), is(Result.UNKNOWN));
-		assertThat(check.detail(), containsString("Koha is unwell"));
-	}
-
-	private KohaHostLmsClient client() {
-		final var hostLms = mock(HostLms.class);
-		when(hostLms.getCode()).thenReturn("KOHA");
-		when(hostLms.getClientConfig()).thenReturn(Map.of());
-
-		final var clientFactory = mock(KohaClientFactory.class);
-		when(clientFactory.createClientFor(hostLms)).thenReturn(apiClient);
-
-		return new KohaHostLmsClient(hostLms, mock(ReferenceValueMappingService.class),
-			clientFactory, mock(MaterialTypeToItemTypeMappingService.class),
-			mock(LocationToAgencyMappingService.class),
-			mock(ObjectRulesService.class), new RulesetCacheInvalidator(), mock(HostLmsService.class));
+		assertThat(check.detail(), containsString("Could not read LOCATION from " + KOHA_HOST_LMS_CODE));
+		assertThat(check.detail(), containsString("Koha API Error"));
 	}
 }

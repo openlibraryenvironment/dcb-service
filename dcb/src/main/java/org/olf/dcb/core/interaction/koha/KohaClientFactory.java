@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.koha;
 
+import org.olf.dcb.core.interaction.foundation.NcipAdaptor;
+import org.olf.dcb.core.interaction.foundation.NcipEndpoint;
 import org.olf.dcb.core.model.HostLms;
 
 import io.micronaut.context.BeanContext;
@@ -19,5 +21,9 @@ public class KohaClientFactory {
 
 	public KohaApiClient createClientFor(final HostLms hostLms) {
 		return context.createBean(KohaApiClientImpl.class, hostLms, client);
+	}
+
+	public NcipAdaptor createNcipClientFor(NcipEndpoint endpoint, String hostLmsCode) {
+		return NcipAdaptor.forEndpoint(client, endpoint, hostLmsCode);
 	}
 }

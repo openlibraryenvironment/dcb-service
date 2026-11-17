@@ -24,6 +24,7 @@ class UnsupportedAuthProfileTests {
 	private static final String SIERRA = "unsupported-profile-sierra";
 	private static final String POLARIS = "unsupported-profile-polaris";
 	private static final String FOLIO = "unsupported-profile-folio";
+	private static final String KOHA = "unsupported-profile-koha";
 	private static final String BARCODE = "barcode-14142";
 
 	@Inject
@@ -37,6 +38,17 @@ class UnsupportedAuthProfileTests {
 			"https://polaris.example.org", "DOMAIN", "access-id", "access-key");
 		hostLmsFixture.createFolioHostLms(FOLIO, "https://folio.example.org", "api-key",
 			"oai_dc", "marc21_withholdings");
+		hostLmsFixture.createKohaHostLms(KOHA, "https://koha.example.org");
+	}
+
+	@Test
+	void shouldRefuseAnUnknownKohaProfileAsAConfigurationError() {
+		assertConfigurationError(KOHA, "BASIC/UNIQUE-ID+PIN");
+	}
+
+	@Test
+	void shouldRefuseAMissingKohaProfileAsAConfigurationError() {
+		assertConfigurationError(KOHA, null);
 	}
 
 	@Test

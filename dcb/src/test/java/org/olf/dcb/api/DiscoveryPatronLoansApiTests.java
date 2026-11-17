@@ -40,6 +40,7 @@ import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 
+import io.micronaut.context.annotation.Property;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
@@ -61,6 +62,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
  */
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
+// The discovery routes exist only with discovery on
+@Property(name = "dcb.discovery.enabled", value = "true")
 class DiscoveryPatronLoansApiTests {
 
 	private static final String HOST_LMS_CODE = "discovery-loans-tests";
