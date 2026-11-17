@@ -78,6 +78,29 @@ class PolarisSupplierCheckInTests {
 	}
 
 	@Test
+	void copyItsLibraryWithdrewAfterTheLoanIsBack() {
+		// Two MOBIUS requests sat in RETURN_TRANSIT for weeks on exactly this reading
+		assertThat(client.showsCheckInAtSupplier(supplierRequest("Withdrawn", HostLmsRequest.HOLD_MISSING)), is(true));
+	}
+
+	@Test
+	void copySentForRepairWhicheverWayPolarisSpellsItIsBack() {
+		assertThat(client.showsCheckInAtSupplier(supplierRequest("In-Repair", HostLmsRequest.HOLD_MISSING)), is(true));
+		assertThat(client.showsCheckInAtSupplier(supplierRequest("In Repair", HostLmsRequest.HOLD_MISSING)), is(true));
+	}
+
+	@Test
+	void copyMadeLibraryUseOnlyIsBack() {
+		assertThat(client.showsCheckInAtSupplier(
+			supplierRequest(HostLmsItem.LIBRARY_USE_ONLY, HostLmsRequest.HOLD_MISSING)), is(true));
+	}
+
+	@Test
+	void copyWithAStatusPolarisDoesNotDocumentIsNotBack() {
+		assertThat(client.showsCheckInAtSupplier(supplierRequest("Mended", HostLmsRequest.HOLD_MISSING)), is(false));
+	}
+
+	@Test
 	void copyWithNoReadingIsNotBack() {
 		assertThat(client.showsCheckInAtSupplier(
 			supplierRequest(null, HostLmsRequest.HOLD_MISSING)), is(false));

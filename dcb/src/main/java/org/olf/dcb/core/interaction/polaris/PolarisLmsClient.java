@@ -2886,12 +2886,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 * home to a title with a queue reads in transit, or held, and never available. Checking the copy out to the
 	 * virtual patron filled DCB's own hold, which Polaris then no longer finds. So a routed copy whose hold is
 	 * gone has been checked in; one whose hold remains was never checked out, and is still on its outbound trip.
+	 * A copy its library has withdrawn, sent for repair or otherwise taken out of circulation is back in its
+	 * library's hands, whatever it reads next.
 	 */
 	@Override
 	public boolean showsCheckInAtSupplier(SupplierRequest supplierRequest) {
 		final var itemStatus = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemStatus);
 
 		return HostLmsClient.super.showsCheckInAtSupplier(supplierRequest)
+			|| PolarisItem.isHeldByTheOwningLibrary(itemStatus)
 			|| (itemStatus != null && ROUTED_ON_CHECK_IN.contains(itemStatus)
 				&& HostLmsRequest.HOLD_MISSING.equals(getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus)));
 	}

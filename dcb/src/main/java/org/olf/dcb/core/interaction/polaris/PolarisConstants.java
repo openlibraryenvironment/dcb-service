@@ -21,6 +21,8 @@ class PolarisConstants {
 	public static final String RETURNED_ILL = "Returned ILL";
 	public static final String NON_CIRCULATING = "Non-Circulating";
 	public static final String WITHDRAWN = "Withdrawn";
+	// Not in Polaris's list of statuses, but MOBIUS's lenders give it to a copy back from a loan
+	public static final String DAMAGED = "Damaged";
 	public static final String IN_REPAIR = "In Repair";
 	public static final String BINDERY = "Bindery";
 	public static final String UNAVAILABLE = "Unavailable";
