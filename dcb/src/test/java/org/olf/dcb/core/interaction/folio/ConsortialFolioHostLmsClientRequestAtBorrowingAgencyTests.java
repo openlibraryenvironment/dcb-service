@@ -3,9 +3,13 @@ package org.olf.dcb.core.interaction.folio;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockserver.model.HttpResponse.response;
+import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_PLACED;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
@@ -13,18 +17,26 @@ import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasRawLocalStatus;
 import static org.olf.dcb.test.matchers.ThrowableMatchers.hasMessage;
+import static org.olf.dcb.test.matchers.interaction.HttpResponseProblemMatchers.hasResponseStatusCode;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasDetail;
+import static org.olf.dcb.test.matchers.interaction.ProblemMatchers.hasTitle;
 import static services.k_int.utils.UUIDUtils.dnsUUID;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockserver.client.MockServerClient;
+import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
 import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.remediation.RemediableProblem;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -120,6 +132,51 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 				.servicePointId(pickupLocation.getLocalId())
 				.build())
 			.build());
+	}
+
+	@Test
+	void shouldNotCallABorrowingRequestPolicyRefusalASupplierRefusal() {
+		// Arrange: the borrowing tenant's own request policy refuses the virtual item's Hold
+		mockFolioFixture.mockCreateTransaction(response()
+			.withStatusCode(422)
+			.withBody(json(ConsortialFolioHostLmsClient.ValidationError.builder()
+				.errors(List.of(ConsortialFolioHostLmsClient.ValidationError.Error.builder()
+					.message("[422 Unprocessable Entity] during [POST] to [http://circulation/requests] "
+						+ "[CirculationClient#createRequest(CirculationRequest)]: [{\n  \"errors\" : [ {\n"
+						+ "    \"message\" : \"Hold requests are not allowed for this patron and item combination\",\n"
+						+ "    \"parameters\" : [ {\n      \"key\" : \"requestType\",\n      \"value\" : \"Hold\"\n    } ],\n"
+						+ "    \"code\" : \"REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION\"\n  } ]\n}]")
+					.type("-1")
+					.code("VALIDATION_ERROR")
+					.build()))
+				.build())));
+
+		referenceValueMappingFixture.defineMapping("DCB", "ItemType", "canonical", HOST_LMS_CODE, "ItemType", "book");
+
+		// Act
+		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
+
+		final var problem = assertThrows(CannotPlaceRequestProblem.class,
+			() -> singleValueFrom(client.placeHoldRequestAtBorrowingAgency(
+				PlaceHoldRequestParameters.builder()
+					.title("title")
+					.supplyingLocalItemBarcode("supplying-item-barcode")
+					.canonicalItemType("canonical")
+					.supplyingLocalItemId("supplying-item-id")
+					.supplyingAgencyCode("supplying-agency")
+					.localPatronId(randomUUID().toString())
+					.localPatronBarcode("[67129553]")
+					.pickupLocation(Location.builder().localId(randomUUID().toString()).build())
+					.build())));
+
+		// Assert: a borrowing transaction sends no patron group, so the refusal cannot name one
+		assertThat(problem, not(instanceOf(SupplierRefusedRequestProblem.class)));
+		assertThat(problem, not(instanceOf(RemediableProblem.class)));
+		assertThat(problem, hasTitle("Cannot Place Request in Host LMS \"%s\"".formatted(HOST_LMS_CODE)));
+		assertThat(problem, hasDetail(
+			"%s's request policy does not allow a Hold request for patron group \"unknown\" on this item"
+				.formatted(HOST_LMS_CODE)));
+		assertThat(problem, hasResponseStatusCode(422));
 	}
 
 	@Test

@@ -333,7 +333,13 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.localStatus(HOLD_CONFIRMED)
 						.rawLocalStatus(response.getStatus())
 						.build());
-			});
+			})
+			// Only here is the refusing policy the lending library's, so only here is it a supplier refusal
+			.onErrorMap(FolioRequestPolicyRefusedProblem.class, refusal -> new SupplierRefusedRequestProblem(
+				getHostLmsCode(), FOLIO_REQUEST_POLICY_REFUSED,
+				Map.of("hostLms", getHostLmsCode(), "requestType", refusal.getRequestType(),
+					"patronGroup", refusal.getPatronGroup()),
+				refusal.getRefusal(), refusal.getResponseException(), refusal.getRequest()));
 	}
 
 	private String getLibraryCode(PlaceHoldRequestParameters parameters) {
@@ -385,7 +391,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	 * mod-dcb wraps mod-circulation's refusal as text inside its own VALIDATION_ERROR, so the
 	 * circulation code and the request type it refused are read out of the message.
 	 */
-	private SupplierRefusedRequestProblem requestPolicyRefusal(String firstError,
+	private FolioRequestPolicyRefusedProblem requestPolicyRefusal(String firstError,
 		HttpClientResponseException responseException,
 		MutableHttpRequest<CreateTransactionRequest> request) {
 
@@ -399,8 +405,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			.map(CreateTransactionRequest.Patron::getGroup)
 			.orElse("unknown");
 
-		return new SupplierRefusedRequestProblem(getHostLmsCode(), FOLIO_REQUEST_POLICY_REFUSED,
-			Map.of("hostLms", getHostLmsCode(), "requestType", requestType, "patronGroup", patronGroup),
+		return new FolioRequestPolicyRefusedProblem(getHostLmsCode(), requestType, patronGroup,
 			firstError, responseException, request);
 	}
 
