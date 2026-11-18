@@ -40,7 +40,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 	private static final List<Status> possibleSourceStatus = List.of(Status.RETURN_TRANSIT);
 
 	static final String CHECKED_IN_AUDIT =
-		"Supplier shows the item checked in after the loan (item %s, hold %s). Completing request";
+		"Returned: %s shows the copy back (item %s, hold %s), so the request is complete";
 	
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
@@ -105,6 +105,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 				.thenReturn(pr))
 			.flatMap( pr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)) )
 			.flatMap( spr -> auditService.addAuditEntry(spr, CHECKED_IN_AUDIT.formatted(
+				getValueOrNull(ctx.getSupplierRequest(), SupplierRequest::getHostLmsCode),
 				getValueOrNull(ctx.getSupplierRequest(), SupplierRequest::getLocalItemStatus),
 				getValueOrNull(ctx.getSupplierRequest(), SupplierRequest::getLocalStatus))) )
 			.thenReturn(ctx);

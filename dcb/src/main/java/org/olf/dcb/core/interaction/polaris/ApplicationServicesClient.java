@@ -110,7 +110,7 @@ class ApplicationServicesClient {
 			.map(function(ApplicationServicesClient::addBodyToRequest)),
 			Argument.of(WorkflowResponse.class))
 			.flatMap(resp -> answerPrompts(resp, HOLD_PROMPT_ANSWERS, MAX_PROMPTS_ANSWERED))
-			.map(this::validateWorkflowResponse)
+			.map(response -> validateWorkflowResponse(response, "the hold"))
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getBibliographicRecordID(),
@@ -162,10 +162,10 @@ class ApplicationServicesClient {
 		return noteWithActivationDateUTC + "\n Activated: " + activationDateUTC;
 	}
 
-	private WorkflowResponse validateWorkflowResponse(WorkflowResponse workflowResponse) {
+	private WorkflowResponse validateWorkflowResponse(WorkflowResponse workflowResponse, String refused) {
 		log.debug("Validating response to placing a request: {}", workflowResponse);
 
-		validateWorkflowStatus(workflowResponse);
+		validateWorkflowStatus(workflowResponse, refused);
 		validateInformationMessages(workflowResponse);
 
 		// logging successful response message
@@ -179,7 +179,7 @@ class ApplicationServicesClient {
 		return workflowResponse;
 	}
 
-	private static void validateWorkflowStatus(WorkflowResponse response) {
+	private static void validateWorkflowStatus(WorkflowResponse response, String refused) {
 		final var workflowStatus = getValueOrNull(response, WorkflowResponse::getWorkflowStatus);
 
 		if (workflowStatus == null || workflowStatus < CompletedSuccessfully) {
@@ -198,7 +198,7 @@ class ApplicationServicesClient {
 				.withType(ERR0210)
 				.withTitle(RequestLimitReached.equals(promptId)
 					? "Polaris refused the hold: the patron has reached its request limit for this material type, or its patron type may not request it"
-					: "Failed to handle Polaris.ApplicationServices API workflow")
+					: "Polaris refused " + refused)
 				.withDetail(title)
 				.with("Message", message)
 				.with("Information messages", informationalMessages)
@@ -851,7 +851,7 @@ class ApplicationServicesClient {
 			Argument.of(WorkflowResponse.class))
 			.switchIfEmpty(raiseError(Problem.builder()
 				.withType(ERR0210)
-				.withTitle("Failed to handle Polaris.ApplicationServices API workflow")
+				.withTitle("Polaris stopped at a prompt DCB does not answer")
 				.withDetail(response.getPrompt() != null && response.getPrompt().getTitle() != null ? response.getPrompt().getTitle() : "Response didn't have a title")
 				.with("Message", response.getPrompt() != null && response.getPrompt().getMessage() != null ? response.getPrompt().getMessage() : "No message")
 				.with("Information messages", response.getInformationMessages() != null ? response.getInformationMessages() : "No messages")
@@ -1074,7 +1074,7 @@ class ApplicationServicesClient {
 				// Fills another request, transfer?
 				.flatMap(response -> replyIfPromptMatches(response, FillsRequestTransferPrompt, Yes))
 				.flatMap(response -> replyIfPromptMatches(response, UpdateItemRecord, Yes))
-				.map(this::validateWorkflowResponse);
+				.map(response -> validateWorkflowResponse(response, "the check-in"));
 	}
 
 	/**
@@ -1114,7 +1114,7 @@ class ApplicationServicesClient {
 					.build())
 				.build())),
 			Argument.of(WorkflowResponse.class))
-			.map(this::validateWorkflowResponse);
+			.map(response -> validateWorkflowResponse(response, "the checkout"));
 	}
 
 	// The blocks a virtual patron inflicts on itself over its lifecycle - a lapsed address check
@@ -1201,7 +1201,7 @@ class ApplicationServicesClient {
 				.build()))
 			.map(function(ApplicationServicesClient::addBodyToRequest)),
 			Argument.of(WorkflowResponse.class))
-			.map(this::validateWorkflowResponse)
+			.map(response -> validateWorkflowResponse(response, "the hold"))
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getTitle(),

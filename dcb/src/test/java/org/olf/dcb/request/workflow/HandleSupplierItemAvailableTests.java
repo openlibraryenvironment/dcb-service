@@ -56,7 +56,7 @@ class HandleSupplierItemAvailableTests {
 			.saveOrUpdate(fixture.patronRequest());
 		verify(fixture.auditService()).addAuditEntry(
 			fixture.patronRequest(),
-			"Supplier shows the item checked in after the loan (item AVAILABLE, hold null). Completing request");
+			"Returned: supplier-host shows the copy back (item AVAILABLE, hold null), so the request is complete");
 	}
 
 	@Test

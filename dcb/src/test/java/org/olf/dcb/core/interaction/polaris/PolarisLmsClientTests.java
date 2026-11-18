@@ -1460,7 +1460,7 @@ class PolarisLmsClientTests {
 		// Assert
 		assertThat(exception, allOf(
 			notNullValue(),
-			hasMessage("Failed to handle Polaris.ApplicationServices API workflow: Serial Holds")
+			hasMessage("Polaris refused the hold: Serial Holds")
 		));
 	}
 
