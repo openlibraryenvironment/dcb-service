@@ -801,6 +801,8 @@ type PatronIdentity {
   canonicalPtype: String
   localHomeLibraryCode: String
   lastValidated: String
+  # The library system this identity is in: the patron's own for a home identity, a lender's for a virtual patron
+  hostLms: HostLms
   # The library this patron belongs to, resolved from their home location during
   # patron validation. The only place a request records it: patronHostlmsCode names
   # the system, which on a shared one is every co-tenant rather than any of them.
