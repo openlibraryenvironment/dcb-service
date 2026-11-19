@@ -12,7 +12,6 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
-import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.interops.ConfigType;
 
@@ -288,15 +287,6 @@ public interface HostLmsClient
 	 */
 	default Mono<SupplierPreflight> supplierPreflight(SupplierPreflight.Query query) {
 		return Mono.just(SupplierPreflight.notChecked());
-	}
-
-	/**
-	 * Retire a virtual patron the borrower no longer has open requests for, so staff cannot use it
-	 * by mistake. Empty where the system has nothing to do; DCB brings the patron back into use the
-	 * next time it needs it.
-	 */
-	default Mono<String> retireVirtualPatron(PatronIdentity virtualIdentity) {
-		return Mono.empty();
 	}
 
 	default boolean reflectPatronLoanAtSupplier() {

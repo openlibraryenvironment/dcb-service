@@ -47,14 +47,3 @@ found", with the reason. Staff should resolve the match in Polaris.
 * Otherwise DCB uses the virtual patron it used last for this borrower, and records a warning in
 the request's audit naming the others by their Polaris patron id, to merge or delete.
 * If DCB has used none of them, it refuses as before.
-
-== Retiring virtual patrons
-
-Polaris has no way to delete a patron, so every virtual patron DCB creates stays in the lender's
-Polaris. When a request finishes and the borrower has no other open request in DCB, DCB sets the
-virtual patron's expiry date to yesterday, so staff cannot use it by mistake. The request's audit
-says "Virtual patron : retired, the borrower has no open requests".
-
-The next time DCB needs that virtual patron, it finds it and pushes its expiry date out again, as
-it already does for an expired one. If expiring fails, the audit says "Virtual patron : could not
-be retired" and the request still finishes.
