@@ -12,8 +12,15 @@ When DCB reads a patron's circulation blocks and PAPI answers -1 ("General failu
 fails the patron lookup. Before this release DCB read the -1 as "not blocked", so a patron PAPI
 could not check was let through.
 
-If a Polaris answers -1 for every blocks check, its patrons cannot place requests until the
-cause is fixed. The error names the code and PAPI's message.
+The request is refused with the failed check `PATRON_STATUS_UNCHECKED`. The patron is told DCB
+could not check their library account, to try again in a few minutes, and to contact their library
+if it keeps happening. The check is recorded in the event log with the Host LMS code, so it can be
+counted per library. If a Polaris answers -1 for every blocks check, its patrons cannot place
+requests until the cause is fixed.
+
+Measured on two production Polaris servers (19 Nov 2026), -1 came back only for a barcode the
+server no longer had. DCB reads the patron's current barcode just before it asks, so a -1 in use
+means the barcode changed in between, the account was merged or deleted, or Polaris failed.
 
 An answer without `CanPatronCirculate` also fails the lookup. Before this release DCB read it as
 "not blocked". The Polaris 8.1 training server sent the field on every answer seen, including the

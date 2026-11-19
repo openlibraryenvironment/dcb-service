@@ -3,6 +3,7 @@ package org.olf.dcb.core.interaction.polaris;
 import static java.lang.Integer.parseInt;
 import static java.lang.Long.parseLong;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,12 +26,14 @@ import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isBlocked;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotBlocked;
 import static org.olf.dcb.test.matchers.interaction.PatronMatchers.isNotDeleted;
 
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.Patron;
+import org.olf.dcb.core.interaction.PatronStatusUncheckedException;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.PatronData;
 import org.olf.dcb.core.interaction.polaris.PAPIClient.PatronCirculationBlocksResult;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
@@ -175,10 +178,12 @@ class PolarisLmsClientGetPatronTests {
 
 		definePatronTypeMapping(patronCodeId, "UNDERGRADUATE");
 
-		final var problem = assertThrows(CannotGetPatronBlocksProblem.class,
+		final var problem = assertThrows(PatronStatusUncheckedException.class,
 			() -> getPatron(localId));
 
-		assertThat(problem, hasMessage("Circulation blocks endpoint did not say whether the patron can circulate"));
+		assertThat(problem, isStatusUncheckedFor(localId));
+		assertThat(problem.getCause(), allOf(instanceOf(CannotGetPatronBlocksProblem.class),
+			hasMessage("Circulation blocks endpoint did not say whether the patron can circulate")));
 	}
 
 	@Test
@@ -206,15 +211,14 @@ class PolarisLmsClientGetPatronTests {
 		definePatronTypeMapping(patronCodeId, "UNDERGRADUATE");
 
 		// Act
-		final var problem = assertThrows(CannotGetPatronBlocksProblem.class,
+		final var problem = assertThrows(PatronStatusUncheckedException.class,
 			() -> getPatron(localId));
 
 		// Assert
-		assertThat(problem, allOf(
-			notNullValue(),
+		assertThat(problem, isStatusUncheckedFor(localId));
+		assertThat(problem.getCause(), allOf(instanceOf(CannotGetPatronBlocksProblem.class),
 			hasMessage("Circulation blocks endpoint returned error code [%d] with message: %s"
-				.formatted(-50, "Something went wrong"))
-		));
+				.formatted(-50, "Something went wrong"))));
 	}
 
 	@Test
@@ -240,10 +244,16 @@ class PolarisLmsClientGetPatronTests {
 
 		definePatronTypeMapping(patronCodeId, "UNDERGRADUATE");
 
-		final var problem = assertThrows(CannotGetPatronBlocksProblem.class,
+		final var problem = assertThrows(PatronStatusUncheckedException.class,
 			() -> getPatron(localId));
 
-		assertThat(problem, hasMessage("Circulation blocks endpoint returned error code [-1] with message: General Failure"));
+		assertThat(problem, isStatusUncheckedFor(localId));
+		assertThat(problem.getCause(), allOf(instanceOf(CannotGetPatronBlocksProblem.class),
+			hasMessage("Circulation blocks endpoint returned error code [-1] with message: General Failure")));
+	}
+
+	private static Matcher<Throwable> isStatusUncheckedFor(String localId) {
+		return hasMessage("Could not check whether patron \"%s\" may borrow in \"%s\"".formatted(localId, HOST_LMS_CODE));
 	}
 
 	@Test

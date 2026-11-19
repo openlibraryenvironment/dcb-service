@@ -70,6 +70,7 @@ import org.olf.dcb.core.interaction.LocalRequest;
 import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PatronStatusUncheckedException;
 import org.olf.dcb.core.interaction.ClockSkew;
 import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
@@ -1357,7 +1358,9 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		final var barcode = getValueOrNull(patron, Patron::getFirstBarcode);
 
-		return PAPIService.getPatronCirculationBlocks(barcode);
+		return PAPIService.getPatronCirculationBlocks(barcode)
+			.onErrorMap(CannotGetPatronBlocksProblem.class, problem -> new PatronStatusUncheckedException(
+				getValueOrNull(patron, Patron::getFirstLocalId), getHostLmsCode(), problem));
 	}
 
 	private static Patron isBlocked(Patron patron, PatronCirculationBlocksResult blocks) {
