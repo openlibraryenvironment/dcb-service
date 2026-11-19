@@ -1566,6 +1566,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		return client.cancelUserRequest(userId, requestId, config.getRequestCancellationReason());
 	}
 
+	@Override
+	public Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of(VirtualPatronRemoval.DELETE);
+	}
+
   public Mono<String> deletePatron(String id) {
 		return Mono.from(client.deleteUser(id))
 			.then(Mono.just("OK"));

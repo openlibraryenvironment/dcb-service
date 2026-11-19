@@ -7,11 +7,13 @@ import static services.k_int.utils.MapUtils.getAsOptionalString;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.interops.ConfigType;
 
@@ -291,6 +293,23 @@ public interface HostLmsClient
 
 	default boolean reflectPatronLoanAtSupplier() {
 		return true;
+	}
+
+	/**
+	 * How this system can remove a virtual patron DCB created in it, when staff ask. Empty when it
+	 * can do neither. {@link VirtualPatronRemoval#DELETE} uses {@link #deletePatron(String)}.
+	 */
+	default Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of();
+	}
+
+	/**
+	 * Expire a virtual patron DCB created here, for a system that cannot delete one. It must refuse a
+	 * record that is not DCB's virtual patron; DCB renews an expired one when it next needs it.
+	 */
+	default Mono<Void> retireVirtualPatron(PatronIdentity virtualIdentity) {
+		return Mono.error(new UnsupportedOperationException(
+			"Retiring a virtual patron is not supported by " + getHostLmsCode()));
 	}
 
 	/**

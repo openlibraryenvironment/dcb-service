@@ -261,6 +261,9 @@ dcb:
     # Every retry reads and checks out a copy in the lender's own system
     lender-checkout-retry:
       per-caller-per-minute: 10
+    # Every removal reads, then deletes or expires, a record in a library's own system
+    virtual-patron-removal:
+      per-caller-per-minute: 10
 
   insights:
     enabled: true

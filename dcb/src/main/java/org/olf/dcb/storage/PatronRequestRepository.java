@@ -61,6 +61,11 @@ public interface PatronRequestRepository {
 
 
 
+	// Bounded by idx_pr_patron: one patron's requests. Anything not yet cleaned up counts, ERROR included
+	@SingleResult
+	@Query(value = "SELECT count(*) FROM patron_request WHERE patron_id = :patronId AND status_code NOT IN ('FINALISED', 'ARCHIVED')", nativeQuery = true)
+	Publisher<Long> countUnfinishedRequestsForPatron(UUID patronId);
+
 	@Query(value = "SELECT p.* from patron_request p  where p.status_code in ( select code from status_code where model = 'DCBRequest' and tracked = true )", nativeQuery = true)
 	Publisher<PatronRequest> findProgressibleDCBRequests();
 

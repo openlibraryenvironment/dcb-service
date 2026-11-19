@@ -47,3 +47,31 @@ found", with the reason. Staff should resolve the match in Polaris.
 * Otherwise DCB uses the virtual patron it used last for this borrower, and records a warning in
 the request's audit naming the others by their Polaris patron id, to merge or delete.
 * If DCB has used none of them, it refuses as before.
+
+== Removing virtual patrons
+
+DCB never removes a virtual patron on its own: libraries expect them to stay. Staff can ask DCB to
+remove one, or every one a borrower has:
+
+* `POST /patrons/identities/{identityId}/virtual/retire`, with an optional body
+`{"mode": "DELETE"}` or `{"mode": "EXPIRE"}`
+* `POST /patrons/{patronId}/virtual-identities/retire`, one library system at a time, with an
+outcome for each
+
+A library system that can delete a patron (Sierra, Alma, Koha) deletes it, and DCB then forgets its
+own record: finished requests no longer name that virtual patron. Polaris cannot delete a patron,
+so DCB sets its expiry date to yesterday and keeps its record; DCB renews it if the borrower
+requests from that library again. FOLIO is not supported.
+
+DCB refuses:
+
+* the patron's own library account, and any record that is a patron's own account in that system;
+* a borrower with any request that is not yet finalised;
+* a record the library's system does not name as DCB's virtual patron for that borrower, or one
+of several it might be;
+* in Polaris, a patron whose barcode does not start with the virtual patron barcode prefix.
+
+Consortium staff can remove any virtual patron. A library administrator can remove the virtual
+patrons of their own library's borrowers, and a single virtual patron held in their library's
+system. Each removal is recorded in the event log, with the member of staff, and is limited to 10
+a minute for each member of staff (`dcb.requests.virtual-patron-removal.per-caller-per-minute`).

@@ -2068,6 +2068,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.deleteHold(id)).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
 
+	@Override
+	public Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of(VirtualPatronRemoval.DELETE);
+	}
+
+  @Override
   public Mono<String> deletePatron(String id) {
 		log.info("Sierra delete patron {}",id);
 		return Mono.from(client.deletePatron(id)).thenReturn("OK").defaultIfEmpty("ERROR");

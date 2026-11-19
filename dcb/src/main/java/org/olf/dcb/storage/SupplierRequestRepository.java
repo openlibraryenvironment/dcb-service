@@ -68,6 +68,12 @@ public interface SupplierRequestRepository {
 	Publisher<SupplierRequest> findTrackedSupplierItems();
 	Publisher<PatronIdentity> findVirtualIdentityById(UUID supplierRequestId);
 
+	// No index on virtual_identity_id: one scan of the table, for a staff action that is rate limited
+	@NonNull
+	@SingleResult
+	@Query(value = "UPDATE supplier_request SET virtual_identity_id = NULL WHERE virtual_identity_id = :virtualIdentityId", nativeQuery = true)
+	Publisher<Long> updateClearVirtualIdentity(@NonNull UUID virtualIdentityId);
+
   Publisher<Long> updateLocalRequestTracking(@Id @NotNull UUID id, String localStatus, Instant localRequestLastCheckTimestamp, Long localRequestStatusRepeat);
   Publisher<Long> updateLocalItemTracking(@Id @NotNull UUID id, String localItemStatus, Instant localItemLastCheckTimestamp, Long localItemStatusRepeat);
 

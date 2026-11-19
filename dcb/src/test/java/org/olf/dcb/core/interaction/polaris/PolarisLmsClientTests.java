@@ -589,6 +589,38 @@ class PolarisLmsClientTests {
 	}
 
 	@Test
+	void shouldExpireAVirtualPatronStaffRetire() {
+		final var patronId = generateNumericLocalId();
+		final var barcode = "DCB-" + generateBarcode();
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, barcode);
+		mockPolarisFixture.mockUpdatePatronDates(barcode, 0);
+
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		singleValueFrom(client.retireVirtualPatron(
+			PatronIdentity.builder().localId(convertIntegerToString(patronId)).build()).thenReturn(true));
+
+		mockPolarisFixture.verifyUpdatePatronDatesContains(barcode,
+			java.time.LocalDate.now(java.time.ZoneOffset.UTC).minusDays(1).toString());
+	}
+
+	@Test
+	void shouldRefuseToExpireAPatronThatIsNotDcbsVirtualPatron() {
+		final var patronId = generateNumericLocalId();
+		final var barcode = generateBarcode();
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, barcode);
+		mockPolarisFixture.mockUpdatePatronDates(barcode, 0);
+
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		final var error = assertThrows(IllegalStateException.class, () -> singleValueFrom(client.retireVirtualPatron(
+			PatronIdentity.builder().localId(convertIntegerToString(patronId)).build())));
+
+		assertThat(error.getMessage(), containsString("is not DCB's virtual patron"));
+		mockPolarisFixture.verifyNoUpdatePatronDates(barcode);
+	}
+
+	@Test
 	void shouldUseTheVirtualPatronDcbUsedLastWhenSeveralMatch() {
 		// Arrange
 		final var homeBarcode = generateBarcode();

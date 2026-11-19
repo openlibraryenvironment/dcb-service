@@ -2,6 +2,7 @@ package org.olf.dcb.storage;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.async.annotation.SingleResult;
+import io.micronaut.data.annotation.Query;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -32,6 +33,12 @@ public interface InactiveSupplierRequestRepository {
 
 	@Transactional
 	Publisher<Void> delete(UUID id);
+
+	// No index on virtual_identity_id: one scan of the table, for a staff action that is rate limited
+	@NonNull
+	@SingleResult
+	@Query(value = "UPDATE inactive_supplier_request SET virtual_identity_id = NULL WHERE virtual_identity_id = :virtualIdentityId", nativeQuery = true)
+	Publisher<Long> updateClearVirtualIdentity(@NonNull UUID virtualIdentityId);
 
 	@NonNull
 	@SingleResult

@@ -22,6 +22,8 @@ import static services.k_int.utils.StringUtils.stringEquals;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -77,6 +79,7 @@ import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.UnsupportedAuthProfileException;
+import org.olf.dcb.core.interaction.VirtualPatronRemoval;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibInfo;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.CirculationData;
@@ -1966,6 +1969,36 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// workflow PUT continue delete
 		// ERROR PolarisWorkflowException
 		return ApplicationServices.deleteBibliographicRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
+	}
+
+	// PAPI has no patron delete, so a virtual patron can only be expired
+	@Override
+	public Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of(VirtualPatronRemoval.EXPIRE);
+	}
+
+	@Override
+	public Mono<Void> retireVirtualPatron(PatronIdentity virtualIdentity) {
+		final var localId = getValueOrNull(virtualIdentity, PatronIdentity::getLocalId);
+
+		if (localId == null) {
+			return Mono.error(new IllegalArgumentException("A virtual patron to retire needs its Polaris patron id"));
+		}
+
+		final var prefix = polarisConfig.getPatronBarcodePrefix(PolarisConfig.DEFAULT_PATRON_BARCODE_PREFIX);
+		final var yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).toString();
+
+		return ApplicationServices.getPatronBarcode(localId)
+			.switchIfEmpty(Mono.error(() -> new IllegalStateException(
+				"Polaris patron " + localId + " at " + getHostLmsCode() + " has no barcode, so it is not DCB's virtual patron")))
+			.flatMap(barcode -> barcode.startsWith(prefix)
+				? PAPIService.patronRegistrationUpdateDates(barcode, yesterday, null)
+				: Mono.error(new IllegalStateException("Polaris patron " + localId + " at " + getHostLmsCode()
+					+ " is not DCB's virtual patron: its barcode does not start with " + prefix)))
+			.flatMap(updated -> TRUE.equals(updated)
+				? Mono.<Void>empty()
+				: Mono.error(new IllegalStateException(
+					"Polaris refused to expire virtual patron " + localId + " at " + getHostLmsCode())));
 	}
 
   public Mono<String> deletePatron(String id) {
