@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.NotDcbsVirtualPatronException;
 import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.VirtualPatronRemoval;
 import org.olf.dcb.core.model.DataAgency;
@@ -177,6 +178,51 @@ class VirtualPatronRemovalServiceTests {
 
 		verify(lender, never()).deletePatron(any());
 		verify(records).forget(virtual.getId());
+	}
+
+	@Test
+	void expiresARecordTheSearchNoLongerNamesWhenTheLibrarySystemMatchesDcbsRecordOfIt() {
+		lenderAnswers(lender, Set.of(VirtualPatronRemoval.EXPIRE), "virtual-made-after-a-barcode-change");
+		virtual.setLocalBarcode("[12345]");
+
+		StepVerifier.create(service.removeOne(virtual.getId(), null, CONSORTIUM, STAFF))
+			.assertNext(result -> assertThat(result.outcome(), is("EXPIRED")))
+			.verifyComplete();
+
+		verify(lender).retireVirtualPatron(virtual);
+	}
+
+	@Test
+	void doesNotFallBackWithoutABarcodeDcbRecorded() {
+		lenderAnswers(lender, Set.of(VirtualPatronRemoval.EXPIRE), "virtual-1");
+		when(lender.findVirtualPatron(any())).thenReturn(Mono.error(VirtualPatronNotFound.builder().build()));
+
+		expectRefusal(service.removeOne(virtual.getId(), null, CONSORTIUM, STAFF), "NOT_CONFIRMED_AT_LIBRARY");
+		verifyLenderUntouched();
+	}
+
+	@Test
+	void forgetsARecordTheLibrarySystemNoLongerHas() {
+		lenderAnswers(lender, Set.of(VirtualPatronRemoval.EXPIRE), "virtual-1");
+		when(lender.findVirtualPatron(any())).thenReturn(Mono.error(VirtualPatronNotFound.builder().build()));
+		when(lender.retireVirtualPatron(any())).thenReturn(Mono.error(VirtualPatronNotFound.builder().build()));
+		virtual.setLocalBarcode("[12345]");
+
+		StepVerifier.create(service.removeOne(virtual.getId(), null, CONSORTIUM, STAFF))
+			.assertNext(result -> assertThat(result.outcome(), is("ALREADY_GONE")))
+			.verifyComplete();
+
+		verify(records).forget(virtual.getId());
+	}
+
+	@Test
+	void refusesARecordTheLibrarySystemSaysIsNotDcbs() {
+		lenderAnswers(lender, Set.of(VirtualPatronRemoval.EXPIRE), "virtual-made-after-a-barcode-change");
+		when(lender.retireVirtualPatron(any())).thenReturn(Mono.error(new NotDcbsVirtualPatronException("not ours")));
+		virtual.setLocalBarcode("[12345]");
+
+		expectRefusal(service.removeOne(virtual.getId(), null, CONSORTIUM, STAFF), "NOT_CONFIRMED_AT_LIBRARY");
+		verify(records, never()).forget(any());
 	}
 
 	@Test

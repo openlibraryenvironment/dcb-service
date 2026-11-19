@@ -71,6 +71,11 @@ DCB refuses:
 of several it might be;
 * in Polaris, a patron whose barcode does not start with the virtual patron barcode prefix.
 
+A borrower whose barcode has changed leaves a virtual patron Polaris's search no longer finds:
+DCB looks for it by the borrower's current barcode, and creates a new one on their next request.
+Such a record is still expired if its barcode is the one DCB recorded for it, with or without the
+prefix; if Polaris no longer has it, DCB forgets its record. Without a recorded barcode it is refused.
+
 Consortium staff can remove any virtual patron. A library administrator can remove the virtual
 patrons of their own library's borrowers, and a single virtual patron held in their library's
 system. Each removal is recorded in the event log, with the member of staff, and is limited to 10

@@ -4,11 +4,13 @@ import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.StringBody.subString;
+import static org.olf.dcb.test.MockServerCommonResponses.notFound;
 import static org.olf.dcb.test.MockServerCommonResponses.okText;
 import static org.olf.dcb.test.MockServerCommonResponses.serverError;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 import static services.k_int.utils.StringUtils.convertIntegerToString;
 
+import java.util.Map;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
@@ -353,6 +355,11 @@ public class MockPolarisFixture {
 
 	public void mockGetPatronBlocksSummaryServerErrorResponse(String patronId) {
 		mockServer.replaceMock(commonRequests.get(paths.blocksSummary(patronId)), serverError());
+	}
+
+	public void mockGetPatronBarcodeNotFound(Integer patronId) {
+		mockServer.mockGet(paths.applicationServices("/barcodes/patrons/" + patronId),
+			notFound(Map.of("ErrorMessage", "Patron not found")));
 	}
 
 	public void mockGetPatronBarcode(Integer patronId, String barcode) {

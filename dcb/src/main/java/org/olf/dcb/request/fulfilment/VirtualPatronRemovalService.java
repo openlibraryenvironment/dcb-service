@@ -15,6 +15,7 @@ import java.util.UUID;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
+import org.olf.dcb.core.interaction.NotDcbsVirtualPatronException;
 import org.olf.dcb.core.interaction.VirtualPatronNotFound;
 import org.olf.dcb.core.interaction.VirtualPatronRemoval;
 import org.olf.dcb.core.model.DataAgency;
@@ -119,14 +120,17 @@ public class VirtualPatronRemovalService {
 			.flatMap(lender -> {
 				final var removal = chooseRemoval(lender.virtualPatronRemovals(), requested, hostLmsCode);
 
-				return confirmedAtLender(lender, patron, identity)
-					.flatMap(confirmed -> confirmed
-						? act(lender, identity, removal)
-						: removal == VirtualPatronRemoval.DELETE
+				return searchAtLender(lender, patron, identity)
+					.flatMap(search -> switch (search) {
+						case NAMES_IT -> act(lender, identity, removal);
+						case FINDS_NONE -> removal == VirtualPatronRemoval.DELETE
 							// The library's system no longer has it, so only DCB's record is left to remove
 							? virtualIdentityRecords.forget(identity.getId()).thenReturn("ALREADY_GONE")
-							: Mono.error(new VirtualPatronRemovalRefused(CONFLICT, "NOT_FOUND_AT_LIBRARY",
-								"The library's system did not find DCB's virtual patron for this borrower, so there is nothing to expire.")));
+							: expireByDcbsRecord(lender, identity);
+						case NAMES_ANOTHER -> removal == VirtualPatronRemoval.DELETE
+							? Mono.error(notConfirmed("The library's system names a different record as DCB's virtual patron for this borrower."))
+							: expireByDcbsRecord(lender, identity);
+					});
 			})
 			.flatMap(outcome -> record(identity, patron, hostLmsCode, outcome, callerSubject)
 				.thenReturn(VirtualPatronRemovalResult.of(identity.getId(), hostLmsCode, outcome)));
@@ -137,8 +141,31 @@ public class VirtualPatronRemovalService {
 			case DELETE -> lender.deletePatron(identity.getLocalId())
 				.then(virtualIdentityRecords.forget(identity.getId()))
 				.thenReturn("DELETED");
-			case EXPIRE -> lender.retireVirtualPatron(identity).thenReturn("EXPIRED");
+			case EXPIRE -> expire(lender, identity);
 		};
+	}
+
+	/**
+	 * The borrower's current details no longer lead the library's search to this record, as when
+	 * their barcode has changed since it was made. The library's system then checks the record at
+	 * DCB's id against the barcode DCB recorded for it, so without one nothing is touched.
+	 */
+	private Mono<String> expireByDcbsRecord(HostLmsClient lender, PatronIdentity identity) {
+		if (identity.getLocalBarcode() == null || identity.getLocalBarcode().isBlank()) {
+			return Mono.error(notConfirmed("The library's system does not find this record for the borrower, "
+				+ "and DCB recorded no barcode for it to check the record against."));
+		}
+
+		return expire(lender, identity);
+	}
+
+	private Mono<String> expire(HostLmsClient lender, PatronIdentity identity) {
+		return lender.retireVirtualPatron(identity)
+			.thenReturn("EXPIRED")
+			.onErrorResume(VirtualPatronNotFound.class,
+				gone -> virtualIdentityRecords.forget(identity.getId()).thenReturn("ALREADY_GONE"))
+			.onErrorMap(NotDcbsVirtualPatronException.class, notDcbs -> notConfirmed(
+				"The library's system holds a record at this id that is not the virtual patron DCB made for this borrower."));
 	}
 
 	static VirtualPatronRemoval chooseRemoval(Set<VirtualPatronRemoval> supported,
@@ -164,21 +191,21 @@ public class VirtualPatronRemovalService {
 			"The library system %s can neither delete nor expire a virtual patron.".formatted(hostLmsCode));
 	}
 
+	private enum Search { NAMES_IT, FINDS_NONE, NAMES_ANOTHER }
+
 	/**
-	 * Asked to find DCB's virtual patron for this borrower, the library's system answers with this
-	 * record: that is each system's own test of what DCB's virtual patron is. Not found means it is
-	 * gone; several, or a different one, is refused.
+	 * Asked to find DCB's virtual patron for this borrower, does the library's system name this
+	 * record? That is each system's own test of what DCB's virtual patron is. Several candidates are refused.
 	 */
-	private Mono<Boolean> confirmedAtLender(HostLmsClient lender, Patron patron, PatronIdentity identity) {
+	private Mono<Search> searchAtLender(HostLmsClient lender, Patron patron, PatronIdentity identity) {
 		return lender.findVirtualPatron(patron)
-			.map(found -> found.getLocalId() != null && found.getLocalId().contains(identity.getLocalId()))
-			.flatMap(same -> same
-				? Mono.just(true)
-				: Mono.<Boolean>error(notConfirmed("The library's system names a different record as DCB's virtual patron for this borrower.")))
-			.onErrorResume(VirtualPatronNotFound.class, notFound -> Mono.just(false))
+			.map(found -> found.getLocalId() != null && found.getLocalId().contains(identity.getLocalId())
+				? Search.NAMES_IT
+				: Search.NAMES_ANOTHER)
+			.onErrorResume(VirtualPatronNotFound.class, notFound -> Mono.just(Search.FINDS_NONE))
 			.onErrorMap(MultipleVirtualPatronsFound.class, multiple -> notConfirmed(
 				"The library's system has several records that could be DCB's virtual patron for this borrower. Resolve them there."))
-			.defaultIfEmpty(false);
+			.defaultIfEmpty(Search.FINDS_NONE);
 	}
 
 	private Mono<Void> ensureVirtual(PatronIdentity identity) {

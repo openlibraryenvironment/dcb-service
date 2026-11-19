@@ -146,6 +146,7 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
+import org.olf.dcb.core.interaction.NotDcbsVirtualPatronException;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.storage.AlarmRepository;
@@ -613,11 +614,58 @@ class PolarisLmsClientTests {
 		mockPolarisFixture.mockUpdatePatronDates(barcode, 0);
 
 		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
-		final var error = assertThrows(IllegalStateException.class, () -> singleValueFrom(client.retireVirtualPatron(
+		final var error = assertThrows(NotDcbsVirtualPatronException.class, () -> singleValueFrom(client.retireVirtualPatron(
 			PatronIdentity.builder().localId(convertIntegerToString(patronId)).build())));
 
 		assertThat(error.getMessage(), containsString("is not DCB's virtual patron"));
 		mockPolarisFixture.verifyNoUpdatePatronDates(barcode);
+	}
+
+	@Test
+	void shouldExpireARecordWhoseBarcodeIsTheOneDcbRecordedThoughTheBorrowersHasChanged() {
+		final var patronId = generateNumericLocalId();
+		final var oldHomeBarcode = generateBarcode();
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, "DCB-" + oldHomeBarcode);
+		mockPolarisFixture.mockUpdatePatronDates("DCB-" + oldHomeBarcode, 0);
+
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		singleValueFrom(client.retireVirtualPatron(PatronIdentity.builder()
+			.localId(convertIntegerToString(patronId))
+			.localBarcode("[" + oldHomeBarcode + "]")
+			.build()).thenReturn(true));
+
+		mockPolarisFixture.verifyUpdatePatronDatesContains("DCB-" + oldHomeBarcode,
+			java.time.LocalDate.now(java.time.ZoneOffset.UTC).minusDays(1).toString());
+	}
+
+	@Test
+	void shouldRefuseToExpireARecordWhoseBarcodeIsNotTheOneDcbRecorded() {
+		final var patronId = generateNumericLocalId();
+		final var someoneElses = "DCB-" + generateBarcode();
+
+		mockPolarisFixture.mockGetPatronBarcode(patronId, someoneElses);
+		mockPolarisFixture.mockUpdatePatronDates(someoneElses, 0);
+
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		assertThrows(NotDcbsVirtualPatronException.class, () -> singleValueFrom(client.retireVirtualPatron(
+			PatronIdentity.builder()
+				.localId(convertIntegerToString(patronId))
+				.localBarcode("[" + generateBarcode() + "]")
+				.build())));
+
+		mockPolarisFixture.verifyNoUpdatePatronDates(someoneElses);
+	}
+
+	@Test
+	void shouldReportAPatronPolarisNoLongerHasAsNotFound() {
+		final var patronId = generateNumericLocalId();
+
+		mockPolarisFixture.mockGetPatronBarcodeNotFound(patronId);
+
+		final var client = hostLmsFixture.createClient(CATALOGUING_HOST_LMS_CODE);
+		assertThrows(VirtualPatronNotFound.class, () -> singleValueFrom(client.retireVirtualPatron(
+			PatronIdentity.builder().localId(convertIntegerToString(patronId)).localBarcode("[1]").build())));
 	}
 
 	@Test

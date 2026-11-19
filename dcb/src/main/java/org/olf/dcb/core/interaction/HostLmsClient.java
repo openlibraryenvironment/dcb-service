@@ -304,8 +304,10 @@ public interface HostLmsClient
 	}
 
 	/**
-	 * Expire a virtual patron DCB created here, for a system that cannot delete one. It must refuse a
-	 * record that is not DCB's virtual patron; DCB renews an expired one when it next needs it.
+	 * Expire a virtual patron DCB created here, for a system that cannot delete one; DCB renews an
+	 * expired one when it next needs it. A record that is not DCB's virtual patron is refused with
+	 * {@link NotDcbsVirtualPatronException}, checked against the barcode DCB recorded for the identity
+	 * when there is one; a record that no longer exists fails with {@link VirtualPatronNotFound}.
 	 */
 	default Mono<Void> retireVirtualPatron(PatronIdentity virtualIdentity) {
 		return Mono.error(new UnsupportedOperationException(

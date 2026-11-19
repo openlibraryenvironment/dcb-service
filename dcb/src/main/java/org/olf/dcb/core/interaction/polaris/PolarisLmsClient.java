@@ -80,6 +80,8 @@ import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.UnsupportedAuthProfileException;
 import org.olf.dcb.core.interaction.VirtualPatronRemoval;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.NotDcbsVirtualPatronException;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibInfo;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.CirculationData;
@@ -1977,6 +1979,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Set.of(VirtualPatronRemoval.EXPIRE);
 	}
 
+	/**
+	 * Expire the record at the identity's Polaris id, if it is DCB's virtual patron: its barcode has
+	 * the virtual patron prefix and, where DCB recorded a barcode for this identity, is that barcode
+	 * with or without the prefix. The recorded barcode is what ties a record the borrower's current
+	 * barcode no longer finds to this borrower.
+	 */
 	@Override
 	public Mono<Void> retireVirtualPatron(PatronIdentity virtualIdentity) {
 		final var localId = getValueOrNull(virtualIdentity, PatronIdentity::getLocalId);
@@ -1986,19 +1994,37 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		}
 
 		final var prefix = polarisConfig.getPatronBarcodePrefix(PolarisConfig.DEFAULT_PATRON_BARCODE_PREFIX);
+		final var recorded = Optional.ofNullable(parseList(getValueOrNull(virtualIdentity, PatronIdentity::getLocalBarcode)))
+			.orElse(List.of());
 		final var yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).toString();
 
 		return ApplicationServices.getPatronBarcode(localId)
-			.switchIfEmpty(Mono.error(() -> new IllegalStateException(
+			.onErrorMap(PolarisLmsClient::isNotFound, notFound -> VirtualPatronNotFound.builder()
+				.withDetail("Polaris at " + getHostLmsCode() + " has no patron " + localId)
+				.build())
+			.switchIfEmpty(Mono.error(() -> new NotDcbsVirtualPatronException(
 				"Polaris patron " + localId + " at " + getHostLmsCode() + " has no barcode, so it is not DCB's virtual patron")))
-			.flatMap(barcode -> barcode.startsWith(prefix)
+			.flatMap(barcode -> isDcbsVirtualPatron(barcode, prefix, recorded)
 				? PAPIService.patronRegistrationUpdateDates(barcode, yesterday, null)
-				: Mono.error(new IllegalStateException("Polaris patron " + localId + " at " + getHostLmsCode()
-					+ " is not DCB's virtual patron: its barcode does not start with " + prefix)))
+				: Mono.error(new NotDcbsVirtualPatronException("Polaris patron " + localId + " at " + getHostLmsCode()
+					+ " is not DCB's virtual patron: its barcode lacks the prefix " + prefix + " or is not the one DCB recorded")))
 			.flatMap(updated -> TRUE.equals(updated)
 				? Mono.<Void>empty()
 				: Mono.error(new IllegalStateException(
 					"Polaris refused to expire virtual patron " + localId + " at " + getHostLmsCode())));
+	}
+
+	static boolean isDcbsVirtualPatron(String barcode, String prefix, List<String> recorded) {
+		return barcode.startsWith(prefix)
+			&& (recorded.isEmpty() || recorded.stream().map(String::trim)
+				.anyMatch(dcbs -> barcode.equals(dcbs) || barcode.equals(prefix + dcbs)));
+	}
+
+	// Application Services answers an unknown patron id with 404, which arrives wrapped
+	private static boolean isNotFound(Throwable error) {
+		return HttpResponsePredicates.isNotFound(error)
+			|| (error instanceof ThrowableProblem problem && problem.getParameters() != null
+				&& Integer.valueOf(404).equals(problem.getParameters().get("responseStatusCode")));
 	}
 
   public Mono<String> deletePatron(String id) {
