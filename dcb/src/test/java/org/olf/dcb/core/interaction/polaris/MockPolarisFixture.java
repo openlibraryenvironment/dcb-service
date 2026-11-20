@@ -297,6 +297,16 @@ public class MockPolarisFixture {
 		mockServer.mockGet(paths.patronById(patronId), patron);
 	}
 
+	/** For tests outside this package, which cannot build the client's PatronData. */
+	public void mockGetPatron(String patronId, int patronCodeId, String barcode, int organisationId) {
+		mockGetPatron(patronId, ApplicationServicesClient.PatronData.builder()
+			.patronID(Integer.parseInt(patronId))
+			.patronCodeID(patronCodeId)
+			.barcode(barcode)
+			.organizationID(organisationId)
+			.build());
+	}
+
 	/**
 	 * Serves a raw JSON body for GET patron, so date fields can be expressed as the ISO strings
 	 * Polaris actually returns (object serialization would emit them as Jackson arrays the client
