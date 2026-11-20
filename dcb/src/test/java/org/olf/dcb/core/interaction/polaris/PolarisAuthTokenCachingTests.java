@@ -162,11 +162,13 @@ class PolarisAuthTokenCachingTests {
 	void shouldSignInOnceMoreWhenTheFirstSignInIsNotAnswered() {
 		final var hostLmsCode = "polaris-sign-in-timeout-once";
 
-		createPolarisHostLms(hostLmsCode, "900", 1);
+		// The limit applies to every call, the resent sign-in and the call behind it included, so it
+		// must leave a busy test runner room to answer those: 1 second failed in CI
+		createPolarisHostLms(hostLmsCode, "900", 3);
 
 		mockServerClient.reset();
 		// Registered first so it wins for the first sign-in only
-		mockPolarisFixture.mockAppServicesStaffAuthenticationAnsweringAfterOnce(2000);
+		mockPolarisFixture.mockAppServicesStaffAuthenticationAnsweringAfterOnce(6000);
 		mockPolarisFixture.mockAppServicesStaffAuthentication();
 		mockPolarisFixture.mockGetHoldRequestDefaults(5);
 
