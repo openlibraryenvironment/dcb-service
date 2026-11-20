@@ -82,11 +82,11 @@ extension points, or constraints need more detail than this overview.
 - Host LMS support: implement or extend `HostLmsClient` capability slices.
 - Protocol support: add protocol adapters below `request.lifecycle.<protocol>`
   and map to lifecycle abstractions.
-- Error remediation: a failure that implements `core.remediation.RemediableProblem`
-  names an entry in `remediation/catalogue.json`, and the workflow's error
-  transformer records that entry's summary and next steps on the request. Raise
-  the code where the failure is recognised (an adapter, a transition); keep the
-  words in the catalogue. The developer documentation's "Remediation catalogue" page says how to add an entry.
+- Supplier refusals: when a supplier's own configuration refuses a supplier
+  hold, the adapter raises `core.interaction.SupplierRefusedRequestProblem`,
+  titled with the library and the cause. Placement then re-resolves the request
+  or ends it in ERROR, as the consortium's settings decide; core code never
+  tests for one library system's refusal.
 
 ## Persistence
 

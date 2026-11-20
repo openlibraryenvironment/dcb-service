@@ -8,7 +8,7 @@ import org.olf.dcb.core.interaction.CannotPlaceRequestProblem;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.remediation.RemediableProblem;
+
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
 import services.k_int.test.mockserver.MockServerMicronautTest;
@@ -97,7 +97,7 @@ class ConsortialFolioHostLmsClientRequestAtPickupAgencyTests {
 
 		// Assert
 		assertThat(problem, not(instanceOf(SupplierRefusedRequestProblem.class)));
-		assertThat(problem, not(instanceOf(RemediableProblem.class)));
+		assertThat(problem, not(instanceOf(SupplierRefusedRequestProblem.class)));
 		assertThat(problem, hasDetail(
 			"%s's request policy does not allow a Hold request for patron group \"undergrad\" on this item"
 				.formatted(HOST_LMS_CODE)));

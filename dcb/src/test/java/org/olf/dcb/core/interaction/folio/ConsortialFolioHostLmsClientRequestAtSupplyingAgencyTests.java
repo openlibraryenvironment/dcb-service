@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CONFIRMED;
-import static org.olf.dcb.core.remediation.RemediationCode.FOLIO_REQUEST_POLICY_REFUSED;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalId;
 import static org.olf.dcb.test.matchers.LocalRequestMatchers.hasLocalStatus;
@@ -204,17 +203,15 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.pickupAgency(pickupAgency)
 					.build())));
 
-		// Assert: the adapter names the failure and its facts; the catalogue holds the words
+		// Assert: the title names the library and the cause; the detail keeps FOLIO's own answer
 		assertThat(problem, allOf(
-			hasTitle("Host LMS \"%s\" refused the request: FOLIO_REQUEST_POLICY_REFUSED"
+			hasTitle(("%s's request policy does not allow a Hold request for patron group \"DCB patrons\" on this item")
 				.formatted(SUPPLYING_HOST_LMS_CODE)),
 			hasProperty("detail", containsString("REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION")),
 			hasResponseStatusCode(422)
 		));
 
-		assertThat(problem.remediationCode(), is(FOLIO_REQUEST_POLICY_REFUSED));
-		assertThat(problem.remediationValues(), is(Map.of("hostLms", SUPPLYING_HOST_LMS_CODE,
-			"requestType", "Hold", "patronGroup", "DCB patrons")));
+		assertThat(problem.getHostLmsCode(), is(SUPPLYING_HOST_LMS_CODE));
 	}
 
 	@Test

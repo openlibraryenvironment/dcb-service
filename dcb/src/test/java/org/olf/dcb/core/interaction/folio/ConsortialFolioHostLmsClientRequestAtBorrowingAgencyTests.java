@@ -36,7 +36,7 @@ import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.Library;
 import org.olf.dcb.core.model.Location;
-import org.olf.dcb.core.remediation.RemediableProblem;
+
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -171,7 +171,7 @@ class ConsortialFolioHostLmsClientRequestAtBorrowingAgencyTests {
 
 		// Assert: a borrowing transaction sends no patron group, so the refusal cannot name one
 		assertThat(problem, not(instanceOf(SupplierRefusedRequestProblem.class)));
-		assertThat(problem, not(instanceOf(RemediableProblem.class)));
+		assertThat(problem, not(instanceOf(SupplierRefusedRequestProblem.class)));
 		assertThat(problem, hasTitle("Cannot Place Request in Host LMS \"%s\"".formatted(HOST_LMS_CODE)));
 		assertThat(problem, hasDetail(
 			"%s's request policy does not allow a Hold request for patron group \"unknown\" on this item"

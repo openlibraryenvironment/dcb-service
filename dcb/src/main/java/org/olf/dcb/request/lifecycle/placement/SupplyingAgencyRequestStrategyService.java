@@ -1,5 +1,6 @@
 package org.olf.dcb.request.lifecycle.placement;
 
+import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLVE_SUPPLIER_REFUSALS;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
@@ -8,8 +9,6 @@ import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.interaction.SupplierPreflight;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
-import org.olf.dcb.core.remediation.Remediation;
-import org.olf.dcb.core.remediation.RemediationCatalogue;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.SupplierPlacementGate;
 import org.olf.dcb.request.lifecycle.LifecycleOperation;
@@ -24,7 +23,6 @@ public class SupplyingAgencyRequestStrategyService {
 	private final SupplyingAgencyRequestProjector projector;
 	private final SupplierRequestRepository supplierRequestRepository;
 	private final SupplierPlacementGate supplierPlacementGate;
-	private final RemediationCatalogue remediationCatalogue;
 	private final ConsortiumService consortiumService;
 
 	public SupplyingAgencyRequestStrategyService(
@@ -32,14 +30,12 @@ public class SupplyingAgencyRequestStrategyService {
 		SupplyingAgencyRequestProjector projector,
 		SupplierRequestRepository supplierRequestRepository,
 		SupplierPlacementGate supplierPlacementGate,
-		RemediationCatalogue remediationCatalogue,
 		ConsortiumService consortiumService) {
 
 		this.strategyResolver = strategyResolver;
 		this.projector = projector;
 		this.supplierRequestRepository = supplierRequestRepository;
 		this.supplierPlacementGate = supplierPlacementGate;
-		this.remediationCatalogue = remediationCatalogue;
 		this.consortiumService = consortiumService;
 	}
 
@@ -53,16 +49,18 @@ public class SupplyingAgencyRequestStrategyService {
 			.onErrorResume(SupplierRefusedRequestProblem.class, refusal -> refusalEndsInError(context)
 				.flatMap(endsInError -> endsInError
 					? Mono.<RequestWorkflowContext>error(refusal)
-					: supplierPlacementGate.refuse(context,
-						cannotSupply(remediationCatalogue.render(refusal.remediationCode(), refusal.remediationValues())))));
+					: supplierPlacementGate.refused(context, cannotSupply(refusal))));
 	}
 
 	// A copy staff chose is never swapped for another. Otherwise the consortium decides, and without
-	// its decision a refusal ends in ERROR, as it did before the setting existed
+	// its decision a refusal ends in ERROR, as it did before the setting existed. Without RE_RESOLUTION
+	// nothing would look for another supplier, and the request would end with no valid item although
+	// it has one that a configuration change at the supplier would let it have
 	private Mono<Boolean> refusalEndsInError(RequestWorkflowContext context) {
 		return isChosenCopy(context)
 			? Mono.just(true)
-			: consortiumService.isEnabled(RE_RESOLVE_SUPPLIER_REFUSALS).map(reResolve -> !reResolve);
+			: Mono.zip(consortiumService.isEnabled(RE_RESOLVE_SUPPLIER_REFUSALS), consortiumService.isEnabled(RE_RESOLUTION))
+				.map(enabled -> !(enabled.getT1() && enabled.getT2()));
 	}
 
 	private static boolean isChosenCopy(RequestWorkflowContext context) {
@@ -70,8 +68,9 @@ public class SupplyingAgencyRequestStrategyService {
 			PatronRequest::getIsManuallySelectedItem));
 	}
 
-	private static SupplierPreflight cannotSupply(Remediation remediation) {
-		return SupplierPreflight.cannotSupply(remediation.summary(), String.join(" ", remediation.nextSteps()));
+	private static SupplierPreflight cannotSupply(SupplierRefusedRequestProblem refusal) {
+		return SupplierPreflight.cannotSupply(refusal.getReason(),
+			"Only %s's staff can change this, in %s's own system".formatted(refusal.getHostLmsCode(), refusal.getHostLmsCode()));
 	}
 
 	private Mono<RequestWorkflowContext> placeWithStrategy(RequestWorkflowContext context) {

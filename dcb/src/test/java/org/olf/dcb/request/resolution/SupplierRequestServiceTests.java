@@ -20,6 +20,7 @@ import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasResolvedAgenc
 import static org.olf.dcb.test.matchers.SupplierRequestMatchers.hasStatusCode;
 import static org.olf.dcb.utils.CollectionUtils.firstValueOrNull;
 
+import java.util.Set;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -214,7 +215,7 @@ public class SupplierRequestServiceTests {
 
 		// Act
 		final var possiblySupplyingAgencies = manyValuesFrom(
-			supplierRequestService.findAllSupplyingAgencies(patronRequest));
+			supplierRequestService.findSupplyingAgencies(patronRequest, Set.of()));
 
 		// Assert
 		assertThat("Should include agencies from different kinds of supplier request",
@@ -240,7 +241,7 @@ public class SupplierRequestServiceTests {
 
 		// Act
 		final var possiblySupplyingAgencies = manyValuesFrom(
-			supplierRequestService.findAllSupplyingAgencies(patronRequest));
+			supplierRequestService.findSupplyingAgencies(patronRequest, Set.of()));
 
 		// Assert
 		assertThat("Should ignore null resolved agencies",

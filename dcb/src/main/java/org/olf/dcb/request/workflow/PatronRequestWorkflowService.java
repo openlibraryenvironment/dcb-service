@@ -15,9 +15,6 @@ import java.util.stream.Stream;
 import org.olf.dcb.core.svc.AlarmsService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.Alarm;
-import org.olf.dcb.core.remediation.RemediableProblem;
-import org.olf.dcb.core.remediation.Remediation;
-import org.olf.dcb.core.remediation.RemediationCatalogue;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -50,7 +47,6 @@ public class PatronRequestWorkflowService {
 	private final TrackingHelpers trackingHelpers;
 	private final RequestTrackingPolicy requestTrackingPolicy;
 	private final AlarmsService alarmsService;
-	private final RemediationCatalogue remediationCatalogue;
 
 	public PatronRequestWorkflowService(List<PatronRequestStateTransition> allTransitions,
 		PatronRequestRepository patronRequestRepository,
@@ -58,8 +54,7 @@ public class PatronRequestWorkflowService {
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		TrackingHelpers trackingHelpers,
 		RequestTrackingPolicy requestTrackingPolicy,
-		AlarmsService alarmsService,
-		RemediationCatalogue remediationCatalogue) {
+		AlarmsService alarmsService) {
 
 		this.patronRequestAuditService = patronRequestAuditService;
 		// By loading the list of all transitions, we can declare new transitions
@@ -71,7 +66,6 @@ public class PatronRequestWorkflowService {
 		this.trackingHelpers = trackingHelpers;
 		this.requestTrackingPolicy = requestTrackingPolicy;
 		this.alarmsService = alarmsService;
-		this.remediationCatalogue = remediationCatalogue;
 
 		log.info("Initialising workflow engine with available transitions");
 		for (PatronRequestStateTransition t : allTransitions) {
@@ -249,13 +243,10 @@ public class PatronRequestWorkflowService {
 					return Mono.error(throwable);
 				}
 
-				final var remediation = remediationFor(throwable);
-				final var message = remediation.map(Remediation::summary)
-					.orElseGet(() -> determineMessage(throwable));
+				final var message = determineMessage(throwable);
 				patronRequest.setErrorMessage(message); // keep pr ref aligned
 
 				final var auditData = new HashMap<String, Object>();
-				remediation.ifPresent(found -> auditData.put("remediation", found.toAuditData()));
 
 				if (throwable instanceof Problem problem) {
 					if (isNotEmpty(problem.getDetail())) {
@@ -279,12 +270,6 @@ public class PatronRequestWorkflowService {
 					})
 					.then(Mono.error(throwable));
 			}));
-	}
-
-	private Optional<Remediation> remediationFor(Throwable throwable) {
-		return throwable instanceof RemediableProblem remediable
-			? Optional.of(remediationCatalogue.render(remediable.remediationCode(), remediable.remediationValues()))
-			: Optional.empty();
 	}
 
 	private static String determineMessage(Throwable throwable) {

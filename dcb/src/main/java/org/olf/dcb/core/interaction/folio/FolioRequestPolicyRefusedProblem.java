@@ -21,16 +21,18 @@ final class FolioRequestPolicyRefusedProblem extends CannotPlaceRequestProblem {
 	FolioRequestPolicyRefusedProblem(String hostLmsCode, String requestType, String patronGroup,
 		String refusal, HttpClientResponseException responseException, HttpRequest<?> request) {
 
-		super(hostLmsCode,
-			"%s's request policy does not allow a %s request for patron group \"%s\" on this item"
-				.formatted(hostLmsCode, requestType, patronGroup),
-			responseException, request);
+		super(hostLmsCode, reason(hostLmsCode, requestType, patronGroup), responseException, request);
 
 		this.requestType = requestType;
 		this.patronGroup = patronGroup;
 		this.refusal = refusal;
 		this.responseException = responseException;
 		this.request = request;
+	}
+
+	static String reason(String hostLmsCode, String requestType, String patronGroup) {
+		return "%s's request policy does not allow a %s request for patron group \"%s\" on this item"
+			.formatted(hostLmsCode, requestType, patronGroup);
 	}
 
 	String getRequestType() {

@@ -5,9 +5,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.startsWith;
-import static org.olf.dcb.core.remediation.RemediationCode.FOLIO_REQUEST_POLICY_REFUSED;
-
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
@@ -24,9 +21,10 @@ class SupplierPlacementFailureTests {
 		.localItemId("item-1").localItemType("Monograph").hostLmsCode("supplier").build();
 
 	@Test
-	void aFailureThatNamesItsRemediationIsPassedOnAsItIs() {
-		final var refusal = new SupplierRefusedRequestProblem("supplier", FOLIO_REQUEST_POLICY_REFUSED,
-			Map.of("hostLms", "supplier"), "raw response", null, null);
+	void aSupplierRefusalIsPassedOnAsItIs() {
+		final var refusal = new SupplierRefusedRequestProblem("supplier",
+			"supplier's request policy does not allow a Hold request for patron group \"DCB patrons\" on this item",
+			"raw response", null, null);
 
 		final var failure = SupplyingAgencyService.placementFailure(
 			refusal, patronRequest, virtualIdentity, supplierRequest);

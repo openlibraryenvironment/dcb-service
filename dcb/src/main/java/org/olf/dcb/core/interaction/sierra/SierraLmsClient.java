@@ -1,6 +1,5 @@
 package org.olf.dcb.core.interaction.sierra;
 
-import static org.olf.dcb.core.remediation.RemediationCode.SIERRA_HOLD_REFUSED_FOR_PATRON_RECORD;
 import org.olf.dcb.core.interaction.VirtualPatronEmail;
 
 import static io.micronaut.core.util.StringUtils.isEmpty;
@@ -1042,9 +1041,8 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return placeHoldRequest(parameters, parameters.getPickupLocationCode(), "supplier")
 			// What XCirc refuses for the virtual patron's record only the lending library's staff can clear
 			.onErrorMap(PatronRecordProblem.class, refusal -> new SupplierRefusedRequestProblem(getHostLmsCode(),
-				SIERRA_HOLD_REFUSED_FOR_PATRON_RECORD,
-				Map.of("hostLms", getHostLmsCode(),
-					"patronType", Objects.requireNonNullElse(parameters.getLocalPatronType(), "unknown")),
+				"%s's Sierra refused the hold because of DCB's patron record there (P TYPE %s), not because of the item"
+					.formatted(getHostLmsCode(), Objects.requireNonNullElse(parameters.getLocalPatronType(), "unknown")),
 				refusal));
 	}
 

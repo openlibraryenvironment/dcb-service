@@ -1,6 +1,5 @@
 package org.olf.dcb.core.interaction.alma;
 
-import static org.olf.dcb.core.remediation.RemediationCode.ALMA_NO_REQUEST_RULE_FOR_USER_GROUP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static io.micrometer.common.util.StringUtils.isBlank;
 import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
@@ -339,10 +338,10 @@ public class AlmaHostLmsClient implements HostLmsClient {
 
 		final var offered = refusal.getOptions().requestTypes();
 
-		return new SupplierRefusedRequestProblem(getHostLmsCode(), ALMA_NO_REQUEST_RULE_FOR_USER_GROUP,
-			Map.of("hostLms", getHostLmsCode(),
-				"userGroup", Objects.requireNonNullElse(p.getLocalPatronType(), "unknown"),
-				"offered", offered.isEmpty() ? "nothing" : String.join(", ", offered)),
+		return new SupplierRefusedRequestProblem(getHostLmsCode(),
+			"%s's Alma has no Request rule for user group \"%s\" in the fulfilment unit of this item's location (offered: %s)"
+				.formatted(getHostLmsCode(), Objects.requireNonNullElse(p.getLocalPatronType(), "unknown"),
+					offered.isEmpty() ? "nothing" : String.join(", ", offered)),
 			refusal);
 	}
 

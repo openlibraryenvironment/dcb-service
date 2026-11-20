@@ -17,7 +17,6 @@ import java.util.function.Function;
 
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.*;
-import org.olf.dcb.core.remediation.RemediableProblem;
 import org.olf.dcb.core.model.NoHomeIdentityException;
 import org.olf.dcb.core.model.PatronIdentity;
 import org.olf.dcb.core.model.PatronRequest;
@@ -306,11 +305,11 @@ public class SupplyingAgencyService {
 			});
 	}
 
-	// A failure that names its remediation stays itself, so the workflow can say what to do about it
+	// A refusal stays itself, so placement can re-resolve the request or end it in ERROR with the refusal's reason
 	static Throwable placementFailure(Throwable error, PatronRequest patronRequest,
 		PatronIdentity patronIdentityAtSupplier, SupplierRequest supplierRequest) {
 
-		return error instanceof RemediableProblem
+		return error instanceof SupplierRefusedRequestProblem
 			? error
 			: unableToPlaceRequestAtSupplyingAgencyProblem(error, patronRequest, patronIdentityAtSupplier, supplierRequest);
 	}

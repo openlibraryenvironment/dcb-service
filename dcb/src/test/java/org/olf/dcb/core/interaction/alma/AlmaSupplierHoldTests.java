@@ -6,7 +6,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.olf.dcb.core.remediation.RemediationCode.ALMA_NO_REQUEST_RULE_FOR_USER_GROUP;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -110,9 +109,9 @@ class AlmaSupplierHoldTests {
 		// The item is the lender's own, so only the lending library can change its fulfilment unit's rules
 		assertThat(error, instanceOf(SupplierRefusedRequestProblem.class));
 		final var refusal = (SupplierRefusedRequestProblem) error;
-		assertThat(refusal.remediationCode(), is(ALMA_NO_REQUEST_RULE_FOR_USER_GROUP));
-		assertThat(refusal.remediationValues(),
-			is(Map.of("hostLms", "ALMA", "userGroup", "DCB-GROUP", "offered", "DIGITIZATION")));
+		assertThat(refusal.getHostLmsCode(), is("ALMA"));
+		assertThat(refusal.getTitle(), is("ALMA's Alma has no Request rule for user group \"DCB-GROUP\" "
+			+ "in the fulfilment unit of this item's location (offered: DIGITIZATION)"));
 		assertThat(refusal.getDetail(), allOf(
 			startsWith("Alma offers this patron no hold on item item-1 (offered: DIGITIZATION)"),
 			containsString("fulfilment unit of the item's location has no Request rule")));

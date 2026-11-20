@@ -1,6 +1,5 @@
 package org.olf.dcb.core.interaction.folio;
 
-import static org.olf.dcb.core.remediation.RemediationCode.FOLIO_REQUEST_POLICY_REFUSED;
 import static graphql.com.google.common.base.Strings.isNullOrEmpty;
 import static io.micronaut.core.type.Argument.VOID;
 import static io.micronaut.core.util.CollectionUtils.isEmpty;
@@ -336,9 +335,8 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			})
 			// Only here is the refusing policy the lending library's, so only here is it a supplier refusal
 			.onErrorMap(FolioRequestPolicyRefusedProblem.class, refusal -> new SupplierRefusedRequestProblem(
-				getHostLmsCode(), FOLIO_REQUEST_POLICY_REFUSED,
-				Map.of("hostLms", getHostLmsCode(), "requestType", refusal.getRequestType(),
-					"patronGroup", refusal.getPatronGroup()),
+				getHostLmsCode(),
+				FolioRequestPolicyRefusedProblem.reason(getHostLmsCode(), refusal.getRequestType(), refusal.getPatronGroup()),
 				refusal.getRefusal(), refusal.getResponseException(), refusal.getRequest()));
 	}
 
