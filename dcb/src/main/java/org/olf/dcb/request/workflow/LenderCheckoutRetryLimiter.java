@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
-import io.micronaut.context.annotation.Value;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 /**
@@ -18,6 +18,9 @@ import jakarta.inject.Singleton;
 public class LenderCheckoutRetryLimiter {
 	static final Duration WINDOW = Duration.ofMinutes(1);
 
+	// Not a setting: no deployment needs to change it, and a bad value would stop the controller that places requests
+	static final int PER_CALLER = 10;
+
 	private final int perCaller;
 
 	// Keyed by the token's subject: staff accounts, bounded by the cap and the window
@@ -26,9 +29,12 @@ public class LenderCheckoutRetryLimiter {
 		.expireAfterWrite(WINDOW)
 		.build();
 
-	public LenderCheckoutRetryLimiter(
-		@Value("${dcb.requests.lender-checkout-retry.per-caller-per-minute}") int perCaller) {
+	@Inject
+	public LenderCheckoutRetryLimiter() {
+		this(PER_CALLER);
+	}
 
+	LenderCheckoutRetryLimiter(int perCaller) {
 		this.perCaller = perCaller;
 	}
 
