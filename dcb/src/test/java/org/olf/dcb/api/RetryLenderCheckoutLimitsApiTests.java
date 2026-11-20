@@ -33,7 +33,6 @@ import org.olf.dcb.test.PatronFixture;
 import org.olf.dcb.test.PatronRequestsFixture;
 import org.olf.dcb.test.SupplierRequestsFixture;
 
-import io.micronaut.context.annotation.Property;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
@@ -46,7 +45,6 @@ import reactor.core.publisher.Mono;
 
 @DcbTest
 @TestInstance(PER_CLASS)
-@Property(name = "dcb.requests.lender-checkout-retry.per-caller-per-minute", value = "2")
 class RetryLenderCheckoutLimitsApiTests {
 	private static final String REQUEST_LIMIT_TOKEN = "retry-limits-request-token";
 	private static final String CALLER_LIMIT_TOKEN = "retry-limits-caller-token";
@@ -135,8 +133,9 @@ class RetryLenderCheckoutLimitsApiTests {
 
 	@Test
 	void aMemberOfStaffOverTheirRetriesForTheMinuteIsRefused() {
-		assertThat(refusal(onLoan(), CALLER_LIMIT_TOKEN).getStatus(), is(HttpStatus.BAD_GATEWAY));
-		assertThat(refusal(onLoan(), CALLER_LIMIT_TOKEN).getStatus(), is(HttpStatus.BAD_GATEWAY));
+		for (int retry = 0; retry < 10; retry++) {
+			assertThat(refusal(onLoan(), CALLER_LIMIT_TOKEN).getStatus(), is(HttpStatus.BAD_GATEWAY));
+		}
 
 		final var third = refusal(onLoan(), CALLER_LIMIT_TOKEN);
 
