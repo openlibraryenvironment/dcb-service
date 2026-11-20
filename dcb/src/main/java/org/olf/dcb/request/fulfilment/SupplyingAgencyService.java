@@ -321,9 +321,18 @@ public class SupplyingAgencyService {
 			.onErrorResume(error -> {
 				log.error("Error in placeRequestAtSupplier {} : {}", psrc, error.getMessage());
 
-				return Mono.error(unableToPlaceRequestAtSupplyingAgencyProblem(error,
+				return Mono.error(placementFailure(error,
 					patronRequest, patronIdentityAtSupplier, supplierRequest));
 			});
+	}
+
+	// A refusal stays itself, so placement can re-resolve the request or end it in ERROR with the refusal's reason
+	static Throwable placementFailure(Throwable error, PatronRequest patronRequest,
+		PatronIdentity patronIdentityAtSupplier, SupplierRequest supplierRequest) {
+
+		return error instanceof SupplierRefusedRequestProblem
+			? error
+			: unableToPlaceRequestAtSupplyingAgencyProblem(error, patronRequest, patronIdentityAtSupplier, supplierRequest);
 	}
 
 	private Mono<LocalRequest> placeHoldRequest(HostLmsClient client,
@@ -382,18 +391,15 @@ public class SupplyingAgencyService {
 					.build()));
 	}
 
-	static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
+	private static ThrowableProblem unableToPlaceRequestAtSupplyingAgencyProblem(
 		Throwable error, PatronRequest patronRequest, PatronIdentity patronIdentityAtSupplier,
 		SupplierRequest supplierRequest) {
 
-		final var title = error instanceof SupplierRefusedRequestProblem refusal
-			? refusal.getReason()
-			: "Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
-				" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode();
-
 		var builder = Problem.builder()
 			.withType(ERR0010)
-			.withTitle(title)
+			.withTitle(
+				"Unable to place SUPPLIER hold request for pr=" + patronRequest.getId() + " Lpatron=" + patronIdentityAtSupplier.getLocalId() +
+					" Litemid=" + supplierRequest.getLocalItemId() + " Lit=" + supplierRequest.getLocalItemType() + " Lpt=" + patronIdentityAtSupplier.getLocalPtype() + " system=" + supplierRequest.getHostLmsCode())
 			.withDetail(error.getMessage())
 			.with("supplier-dcbPatronId", patronIdentityAtSupplier.getLocalId())
 			.with("supplier-dcbLocalItemId", supplierRequest.getLocalItemId())
@@ -408,10 +414,6 @@ public class SupplyingAgencyService {
 			if (isNotEmpty(underlyingProblem.getParameters())) {
 				underlyingProblem.getParameters().forEach(builder::with);
 			}
-		}
-
-		if (error instanceof SupplierRefusedRequestProblem refusal) {
-			builder.with("howToFix", refusal.getHowToFix());
 		}
 
 		return builder.build();

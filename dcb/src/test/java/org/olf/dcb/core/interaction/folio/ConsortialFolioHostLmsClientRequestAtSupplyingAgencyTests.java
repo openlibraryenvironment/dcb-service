@@ -171,7 +171,7 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 	}
 
 	@Test
-	void shouldExplainARequestPolicyRefusalAndHowToFixIt() {
+	void shouldNameARequestPolicyRefusalAndItsFacts() {
 		// Arrange: mod-dcb wraps mod-circulation's refusal as text, as a FOLIO 7 tenant answers
 		mockFolioFixture.mockCreateTransaction(response()
 			.withStatusCode(422)
@@ -203,17 +203,15 @@ class ConsortialFolioHostLmsClientRequestAtSupplyingAgencyTests {
 					.pickupAgency(pickupAgency)
 					.build())));
 
-		// Assert
+		// Assert: the title names the library and the cause; the detail keeps FOLIO's own answer
 		assertThat(problem, allOf(
-			hasTitle(("%s's request policy does not allow a Hold request for patron group \"DCB patrons\" "
-				+ "on this item").formatted(SUPPLYING_HOST_LMS_CODE)),
+			hasTitle(("%s's request policy does not allow a Hold request for patron group \"DCB patrons\" on this item")
+				.formatted(SUPPLYING_HOST_LMS_CODE)),
 			hasProperty("detail", containsString("REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION")),
 			hasResponseStatusCode(422)
 		));
 
-		assertThat(problem.getHowToFix(), is(("In %s's FOLIO circulation rules, allow Hold requests "
-			+ "(FOLIO asks for a Hold once a copy is paged or on loan) in the request policy for patron group "
-			+ "\"DCB patrons\" and this item").formatted(SUPPLYING_HOST_LMS_CODE)));
+		assertThat(problem.getHostLmsCode(), is(SUPPLYING_HOST_LMS_CODE));
 	}
 
 	@Test

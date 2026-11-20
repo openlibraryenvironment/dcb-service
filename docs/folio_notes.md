@@ -14,15 +14,3 @@ same `apikey` as circulation.
 Earlier releases accepted a FOLIO Host LMS without `record-syntax` or `metadata-prefix`, and
 its harvest then never ran: the ingest source could not be built, and DCB logged a warning
 naming the Host LMS and carried on. A Host LMS without either now harvests with the defaults.
-
-## Request policies for DCB's patron groups
-
-DCB places a supplier request in FOLIO for its virtual patron, in the patron group mapped
-from the borrower's patron type. FOLIO pages an available copy, and asks for a Hold once the
-copy is already paged or on loan, for example when a second consortium patron requests a
-single copy. If the circulation rules' request policy for that patron group allows Page but
-not Hold, FOLIO refuses the second request with `REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION`.
-
-DCB records that refusal on the request as the supplier's request policy not allowing that
-request type for the patron group, with the fix in the audit entry's `howToFix`: allow Hold
-(as well as Page) in the request policy that applies to each patron group DCB uses.

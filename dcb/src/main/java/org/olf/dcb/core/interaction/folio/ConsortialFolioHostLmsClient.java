@@ -332,7 +332,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.localStatus(HOLD_CONFIRMED)
 						.rawLocalStatus(response.getStatus())
 						.build());
-			});
+			})
+			// Only here is the refusing policy the lending library's, so only here is it a supplier refusal
+			.onErrorMap(FolioRequestPolicyRefusedProblem.class, refusal -> new SupplierRefusedRequestProblem(
+				getHostLmsCode(),
+				FolioRequestPolicyRefusedProblem.reason(getHostLmsCode(), refusal.getRequestType(), refusal.getPatronGroup()),
+				refusal.getRefusal(), refusal.getResponseException(), refusal.getRequest()));
 	}
 
 	private String getLibraryCode(PlaceHoldRequestParameters parameters) {
@@ -384,33 +389,22 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	 * mod-dcb wraps mod-circulation's refusal as text inside its own VALIDATION_ERROR, so the
 	 * circulation code and the request type it refused are read out of the message.
 	 */
-	private SupplierRefusedRequestProblem requestPolicyRefusal(String firstError,
+	private FolioRequestPolicyRefusedProblem requestPolicyRefusal(String firstError,
 		HttpClientResponseException responseException,
 		MutableHttpRequest<CreateTransactionRequest> request) {
 
 		final var requestType = Optional.of(REFUSED_REQUEST_TYPE.matcher(firstError))
 			.filter(Matcher::find)
-			.map(matcher -> matcher.group(1));
+			.map(matcher -> matcher.group(1))
+			.orElse("Page or Hold");
 
 		final var patronGroup = request.getBody()
 			.map(CreateTransactionRequest::getPatron)
 			.map(CreateTransactionRequest.Patron::getGroup)
 			.orElse("unknown");
 
-		final var refused = requestType.map("a %s request"::formatted).orElse("this request");
-		final var reason = "%s's request policy does not allow %s for patron group \"%s\" on this item"
-			.formatted(getHostLmsCode(), refused, patronGroup);
-
-		// FOLIO pages an available copy, and asks for a Hold once a copy is paged or on loan
-		final var allow = requestType
-			.map(type -> "Hold".equalsIgnoreCase(type)
-				? "Hold requests (FOLIO asks for a Hold once a copy is paged or on loan)"
-				: type + " requests")
-			.orElse("Page and Hold requests");
-		final var howToFix = "In %s's FOLIO circulation rules, allow %s in the request policy for patron group \"%s\" and this item"
-			.formatted(getHostLmsCode(), allow, patronGroup);
-
-		return new SupplierRefusedRequestProblem(reason, howToFix, firstError, responseException, request);
+		return new FolioRequestPolicyRefusedProblem(getHostLmsCode(), requestType, patronGroup,
+			firstError, responseException, request);
 	}
 
 	@Override

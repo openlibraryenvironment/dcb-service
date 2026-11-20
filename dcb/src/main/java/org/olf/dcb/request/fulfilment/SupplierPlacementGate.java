@@ -30,6 +30,7 @@ import services.k_int.utils.UUIDUtils;
 public class SupplierPlacementGate {
 	public static final String SUPPLIER_CANNOT_SUPPLY = "Supplier cannot supply: request not placed";
 	public static final String SUPPLIER_UNREACHABLE = "Supplier unreachable at its last check: placing anyway";
+	public static final String SUPPLIER_REFUSED = "Supplier refused the request";
 
 	private static final Duration SUPPLIER_ALARM_LIFETIME = Duration.ofDays(7);
 
@@ -85,6 +86,19 @@ public class SupplierPlacementGate {
 				context.setPatronRequest(patronRequest.setStatus(PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER));
 				return context;
 			});
+	}
+
+	/**
+	 * As {@link #refuse}, for a supplier that refused when the hold was placed rather than at the
+	 * preflight. The audit entry says so, which is what tells re-resolution a supplier refused.
+	 */
+	public Mono<RequestWorkflowContext> refused(RequestWorkflowContext context, SupplierPreflight refusal) {
+		final Map<String, Object> auditData = new HashMap<>();
+		auditData.put("supplier", context.getSupplierRequest().getHostLmsCode());
+		auditData.put("reason", refusal.reason());
+
+		return patronRequestAuditService.addAuditEntry(context.getPatronRequest(), SUPPLIER_REFUSED, auditData)
+			.then(Mono.defer(() -> refuse(context, refusal)));
 	}
 
 	public Mono<RequestWorkflowContext> warnIfUnreachable(RequestWorkflowContext context, SupplierPreflight preflight) {

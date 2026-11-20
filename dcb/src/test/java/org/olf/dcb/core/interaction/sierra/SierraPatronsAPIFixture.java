@@ -158,6 +158,14 @@ public class SierraPatronsAPIFixture {
 				.build()), problemWithLibraryRecord());
 	}
 
+	/** The library has fixed what made it refuse: the same hold request is now accepted. */
+	public void acceptHoldRequestAfterProblemWithLibraryRecord(String patronId, String expectedRecordType) {
+		mockServer.replaceMock(postPatronHoldRequest(patronId, PatronHoldPost.builder()
+				.recordType(expectedRecordType)
+				.recordNumber(null)
+				.build()), noContent());
+	}
+
 	public void verifyCreatePatronRequestMade(String uniqueId) {
 		mockServer.verify(postPatronRequest(uniqueId));
 	}
