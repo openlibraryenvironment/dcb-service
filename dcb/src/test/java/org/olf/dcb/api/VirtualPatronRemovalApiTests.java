@@ -47,6 +47,7 @@ import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.VirtualPatronRemovalResult;
 import org.olf.dcb.security.TestStaticTokenValidator;
 import org.olf.dcb.test.AgencyFixture;
+import org.olf.dcb.test.ConsortiumFixture;
 import org.olf.dcb.test.EventLogFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.InactiveSupplierRequestsFixture;
@@ -86,6 +87,8 @@ class VirtualPatronRemovalApiTests {
 	private static final String KEY = "vpr-key";
 	private static final String SECRET = "vpr-secret";
 
+	@Inject
+	private ConsortiumFixture consortiumFixture;
 	@Inject
 	@Client("/")
 	private HttpClient client;
@@ -152,6 +155,8 @@ class VirtualPatronRemovalApiTests {
 	@BeforeEach
 	void beforeEach(MockServerClient mockServerClient) {
 		mockServerClient.reset();
+		// Another class may leave consortium settings on; Polaris's virtual patron search depends on one
+		consortiumFixture.deleteAll();
 		SierraTestUtils.mockFor(mockServerClient, SIERRA_BASE_URL).setValidCredentials(KEY, SECRET, "vpr-sierra-token", 3600);
 		polaris.mockPapiStaffAuthentication();
 		polaris.mockAppServicesStaffAuthentication();
