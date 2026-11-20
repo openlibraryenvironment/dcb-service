@@ -22,7 +22,7 @@ class PolarisItem {
 
 	/**
 	 * Statuses only the owning library gives a copy it has in hand. On the return leg they mean the
-	 * copy is back: the two MOBIUS requests a withdrawn copy left in RETURN_TRANSIT, and the in-repair,
+	 * copy is back: the two production requests a withdrawn copy left in RETURN_TRANSIT, and the in-repair,
 	 * damaged and unavailable ones that waited until the copy read "In" again.
 	 */
 	private static final Set<String> HELD_BY_THE_OWNING_LIBRARY = normalised(WITHDRAWN, IN_REPAIR, DAMAGED,
@@ -95,7 +95,7 @@ class PolarisItem {
 		}).apply(status);
 	}
 
-	// MOBIUS's Polaris sends "In-Repair" where the documentation writes "In Repair"
+	// A production Polaris sends "In-Repair" where the documentation writes "In Repair"
 	private static String normalisedStatus(String status) {
 		return status == null ? "" : status.replaceAll("[^A-Za-z]", "").toLowerCase(Locale.ROOT);
 	}

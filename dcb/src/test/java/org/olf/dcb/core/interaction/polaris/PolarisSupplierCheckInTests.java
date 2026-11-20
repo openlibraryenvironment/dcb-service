@@ -79,7 +79,7 @@ class PolarisSupplierCheckInTests {
 
 	@Test
 	void copyItsLibraryWithdrewAfterTheLoanIsBack() {
-		// Two MOBIUS requests sat in RETURN_TRANSIT for weeks on exactly this reading
+		// Two production requests sat in RETURN_TRANSIT for weeks on exactly this reading
 		assertThat(client.showsCheckInAtSupplier(supplierRequest("Withdrawn", HostLmsRequest.HOLD_MISSING)), is(true));
 	}
 
