@@ -314,6 +314,15 @@ public interface HostLmsClient
 	}
 
 	/**
+	 * The barcode the virtual item for a supplier copy carries in this system: the copy's own,
+	 * unless this system names its virtual items differently. Resolution asks for it when it looks
+	 * for a virtual item that is already there.
+	 */
+	default String virtualItemBarcodeFor(String supplierBarcode) {
+		return supplierBarcode;
+	}
+
+	/**
 	 * Does {@link #getItemByBarcode} find the virtual items DCB creates in this system as a borrowing
 	 * or pickup library?
 	 * <p>

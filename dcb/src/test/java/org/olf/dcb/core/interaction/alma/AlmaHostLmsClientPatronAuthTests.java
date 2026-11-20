@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -21,6 +22,7 @@ import org.olf.dcb.core.interaction.UnsupportedAuthProfileException;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
+import org.olf.dcb.core.model.ReferenceValueMapping;
 import org.olf.dcb.core.svc.LocationToAgencyMappingService;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.test.PublisherUtils;
@@ -38,6 +40,7 @@ class AlmaHostLmsClientPatronAuthTests {
 	private static final String AUTH_PROFILE = "BASIC/BARCODE+PASSWORD";
 
 	private AlmaApiClient almaApi;
+	private ReferenceValueMappingService mappings;
 	private AlmaHostLmsClient sut;
 
 	@BeforeEach
@@ -50,10 +53,14 @@ class AlmaHostLmsClientPatronAuthTests {
 		final var clientFactory = mock(AlmaClientFactory.class);
 		when(clientFactory.createClientFor(hostLms)).thenReturn(almaApi);
 
+		mappings = mock(ReferenceValueMappingService.class);
+		when(mappings.findMapping(anyString(), anyString(), anyString(), anyString(), anyString()))
+			.thenReturn(Mono.empty());
+
 		sut = new AlmaHostLmsClient(
 			hostLms,
 			clientFactory,
-			mock(ReferenceValueMappingService.class),
+			mappings,
 			mock(MaterialTypeToItemTypeMappingService.class),
 			mock(LocationToAgencyMappingService.class),
 			mock(ConsortiumService.class));
@@ -140,6 +147,19 @@ class AlmaHostLmsClientPatronAuthTests {
 		PublisherUtils.singleValueFrom(sut.patronAuth(AUTH_PROFILE, "BAR1", "correct"));
 
 		verify(almaApi, never()).getUserPin(any());
+	}
+
+	@Test
+	void shouldReportASignedInPatronWhoseGroupIsNotEligibleAsIneligible() {
+		when(almaApi.authenticateUser("BAR1", "correct")).thenReturn(Mono.empty());
+		when(almaApi.getUserDetails("BAR1")).thenReturn(Mono.just(almaUser("BAR1")));
+		when(mappings.findMapping("patronType", "ALMA", "UNDRGRD", "patronType", "DCB"))
+			.thenReturn(Mono.just(ReferenceValueMapping.builder().toValue("NOT_ELIGIBLE").build()));
+
+		final var patron = PublisherUtils.singleValueFrom(sut.patronAuth(AUTH_PROFILE, "BAR1", "correct"));
+
+		assertThat(patron.getCanonicalPatronType(), is("NOT_ELIGIBLE"));
+		assertThat(patron.isEligible(), is(false));
 	}
 
 	@Test

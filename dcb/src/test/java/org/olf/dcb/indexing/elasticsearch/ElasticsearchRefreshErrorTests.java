@@ -18,22 +18,27 @@ import java.util.function.Function;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.olf.dcb.indexing.SharedIndexBackendInfo;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
+import org.olf.dcb.metrics.MetricService;
+import org.olf.dcb.test.DcbTest;
 import org.slf4j.LoggerFactory;
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient;
 import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse;
 import co.elastic.clients.elasticsearch.indices.PutIndicesSettingsResponse;
-
+import jakarta.inject.Inject;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.core.read.ListAppender;
 import reactor.core.publisher.Hooks;
 
+@DcbTest
 @Isolated("Temporarily captures Reactor's global dropped-error hook")
 class ElasticsearchRefreshErrorTests {
+	
+	@Inject
+	MetricService metricService;
 
 	private static final String INDEX = "shared-index";
 
@@ -95,11 +100,11 @@ class ElasticsearchRefreshErrorTests {
 		}
 	}
 
-	private static final class TestService extends ElasticsearchSharedIndexService {
+	private final class TestService extends ElasticsearchSharedIndexService {
 		TestService(ElasticsearchAsyncClient client) {
-			super(new SharedIndexConfiguration(INDEX, Optional.empty(), Optional.empty(),
+			super(metricService, new SharedIndexConfiguration(INDEX, Optional.empty(), Optional.empty(),
 				Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()),
-				client, null, null, null, new SharedIndexBackendInfo());
+				client, null, null, null);
 		}
 
 		@Override

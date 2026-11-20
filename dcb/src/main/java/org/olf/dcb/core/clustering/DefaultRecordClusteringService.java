@@ -691,9 +691,11 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 				.orElse(Boolean.TRUE))
 
 			.next()
+			.flatMap(bibRecords::getById)
 			.map(contrib -> {
-				log.trace("Setting selected bib on cluster record {} to {}", cr.getId(), contrib);
-				return cr.setSelectedBib(contrib);
+				log.trace("Setting selected bib on cluster record {} to {}", cr.getId(), contrib.getId());
+				return cr.setSelectedBib(contrib.getId())
+						.setTitle(contrib.getTitle());
 			})
 			.defaultIfEmpty(cr)
 			.flatMap(this::saveOrUpdate);

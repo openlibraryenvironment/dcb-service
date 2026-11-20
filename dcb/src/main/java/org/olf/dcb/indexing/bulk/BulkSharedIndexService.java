@@ -11,6 +11,7 @@ import org.olf.dcb.core.clustering.RecordClusteringService;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
 import org.olf.dcb.indexing.SharedIndexConfiguration;
 import org.olf.dcb.indexing.SharedIndexService;
+import org.olf.dcb.metrics.MetricService;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,8 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	private final AtomicBoolean circuitOpen = new AtomicBoolean(false);
 	
 	private final AtomicBoolean rateThresholdOpen = new AtomicBoolean(false);
+	
+	private final MetricService metricsService;
 
 	private FluxSink<String> theSink = null;
 	
@@ -62,8 +65,9 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 		return publisherTransformer;
 	}
 
-	protected BulkSharedIndexService( RecordClusteringService clusters, PublisherTransformationService publisherTransformationService, SharedIndexConfiguration conf ) {
+	protected BulkSharedIndexService( RecordClusteringService clusters, PublisherTransformationService publisherTransformationService, SharedIndexConfiguration conf, MetricService metricsService ) {
 		
+		this.metricsService = metricsService;
 		this.clusters = clusters;
 		this.maxSize = conf.maxResourceListSize().orElse(1500); // Default to 1500
 		this.throttleTimeout = conf.minUpdateFrequency().orElse(Duration.ofSeconds(5)); // Default 5 seconds.
@@ -87,6 +91,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 			});
 	}
 	
+	@SuppressWarnings("unused")
 	protected void initializeQueue() {
 		Flux.create( this::setSink )
 			.transform( this::addHooks )
@@ -101,6 +106,7 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 			});
 	}
 
+	@SuppressWarnings("unused")
 	private Flux<String> addHooks(Flux<String> source) {
 
 		// Using shared allows for multiple receivers of the emissions without multiple subscriptions.
@@ -195,11 +201,14 @@ public abstract class BulkSharedIndexService implements SharedIndexService {
 	}
 
 	@NonNull
+	@SuppressWarnings("unused")
 	@CircuitBreaker(reset = "2m", attempts = "3", maxDelay = "5s", throwWrappedException = true )
 	protected Flux<List<IndexOperation<UUID, ClusterRecord>>> offloadToImplementation( final List<IndexOperation<UUID, ClusterRecord>> ops ) {
 		return Flux.just(ops)
 			.flatMap( data -> Flux.from( doOnNext(data) ))
-			.doOnNext(_item -> this.flagCircuitClosed());
+			.doOnNext(_item -> this.flagCircuitClosed())
+			.name("index")
+			.transform(metricsService.timedPublisher());
 	}
 	
 	private void flagCircuitOpen() {

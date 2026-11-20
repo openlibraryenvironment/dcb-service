@@ -127,11 +127,21 @@ public class MockKohaFixture {
 	}
 
 	/**
-	 * No active holds, which is what getItems asks for per item to derive the hold
-	 * count. Matched on the path alone so one expectation covers every item.
+	 * No active holds: what getItems reads once per biblio to derive hold counts. Matched on
+	 * the path alone so one expectation covers every biblio.
 	 */
 	public void mockNoActiveHolds() {
 		mockServer.mock(commonRequests.get(HOLDS_PATH), okJson(new Object[0]));
+	}
+
+	/** A biblio's current holds: on one copy where item_id is set, on the title where it is not. */
+	public void mockActiveHoldsForBiblio(String biblioId, KohaHoldResponse... holds) {
+		mockServer.mock(commonRequests.get(HOLDS_PATH, "biblio_id", biblioId), okJson(holds));
+	}
+
+	public void mockActiveHoldsUnreadable() {
+		mockServer.mock(commonRequests.get(HOLDS_PATH),
+			response().withStatusCode(500).withBody(json(Map.of("error", "Something went wrong"))));
 	}
 
 	/**
@@ -268,6 +278,11 @@ public class MockKohaFixture {
 
 	private HttpRequest createBibRequest() {
 		return commonRequests.post("/api/v1/biblios").withHeader("x-confirm-not-duplicate", "1");
+	}
+
+	/** The one virtual bib creation Koha received, with the content type it was sent as. */
+	public HttpRequest bibCreationSent() {
+		return onlyRequestSent(createBibRequest());
 	}
 
 	/** The virtual item's state as the request progresses: the latest answer replaces the last. */
@@ -542,6 +557,14 @@ public class MockKohaFixture {
 	}
 
 	private Map<String, Object> onlyBodySent(HttpRequest request) {
+		try {
+			return JSON.readValue(onlyRequestSent(request).getBodyAsString(), new TypeReference<>() {});
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	private HttpRequest onlyRequestSent(HttpRequest request) {
 		final var recorded = client.retrieveRecordedRequests(request);
 
 		if (recorded.length != 1) {
@@ -549,11 +572,7 @@ public class MockKohaFixture {
 				.formatted(request.getMethod(), request.getPath(), recorded.length));
 		}
 
-		try {
-			return JSON.readValue(recorded[0].getBodyAsString(), new TypeReference<>() {});
-		} catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
+		return recorded[0];
 	}
 
 	private static String itemPath(String biblioId, String itemId) {
@@ -571,6 +590,12 @@ public class MockKohaFixture {
 
 	public void mockCreateItem(String biblioId, KohaItem createdItem) {
 		mockServer.mock(commonRequests.post(itemsForBiblioPath(biblioId)), created(createdItem));
+	}
+
+	/** Koha's answer to a second item with a barcode it already holds (Koha::REST::V1::Biblios). */
+	public void mockCreateItemDuplicateBarcode(String biblioId) {
+		mockServer.mock(commonRequests.post(itemsForBiblioPath(biblioId)),
+			response().withStatusCode(409).withBody(json(Map.of("error", "Duplicate barcode."))));
 	}
 
 	/** The loans on one item, which is how DCB finds the checkout to ask about renewal. */
@@ -706,18 +731,10 @@ public class MockKohaFixture {
 		mockServer.mock(commonRequests.post(CHECKOUTS_PATH), created(checkout));
 	}
 
-	/**
-	 * Koha wants a confirmation: 412 to the plain checkout. Add the confirmed checkout
-	 * first, because the first expectation that matches a request answers it.
-	 */
+	/** Koha wants a confirmation: 412 to the plain checkout. */
 	public void mockCheckoutNeedsConfirmation() {
 		mockServer.mock(commonRequests.post(CHECKOUTS_PATH),
 			response().withStatusCode(412).withBody(json(Map.of("error", "Checkout needs confirmation"))));
-	}
-
-	public void mockCheckoutConfirmed(String token, KohaCheckout checkout) {
-		mockServer.mock(commonRequests.post(CHECKOUTS_PATH).withQueryStringParameter("confirmation", token),
-			created(checkout));
 	}
 
 	/**
@@ -736,10 +753,6 @@ public class MockKohaFixture {
 	public void verifyCheckedOut(String onlyTheseFields) {
 		client.verify(commonRequests.post(CHECKOUTS_PATH)
 			.withBody(json(onlyTheseFields, MatchType.ONLY_MATCHING_FIELDS)));
-	}
-
-	public void verifyCheckoutConfirmedWith(String token) {
-		client.verify(commonRequests.post(CHECKOUTS_PATH).withQueryStringParameter("confirmation", token));
 	}
 
 	public void verifyCheckoutNeverConfirmed() {
