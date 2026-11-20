@@ -1,8 +1,5 @@
 # Polaris notes
 
-Operator pages written for the documentation site are in [`docs/polaris/`](polaris/README.adoc),
-in AsciiDoc. Start there for lender checkout and patron blocks.
-
 ## Settings the admin API requires
 
 Creating or changing a Polaris Host LMS is refused unless these are set, as well as the
@@ -268,22 +265,3 @@ notices of every virtual patron created after that go there; one created before
 keeps the address it was created with. Without it they have no address, and a
 value that is not an address is not sent. It must be an operational
 address, never a patron's own: every virtual patron on this system shares it.
-
-## A lent copy returned to a title with holds
-
-When a lent copy comes home, the library checks it in from the virtual patron. If the
-title has holds in Polaris, Polaris sends the copy straight to one of them: staff see
-"Transfer for hold", and the copy reads In-Transit (Hold), or Held, but never
-Available. Seen on one tenant's training server on 2026-11-13.
-
-OpenRS DCB completes the request on that check-in. Checking the copy out to the
-virtual patron when the borrower's patron collected it filled DCB's own hold, so
-Polaris no longer finds that hold. A copy that is in transit or held and whose DCB
-hold is gone has been checked in. A copy in transit whose DCB hold is still there
-has not: its checkout to the virtual patron failed, and it is still on its way to
-the borrower.
-
-A cancelled request waiting for its copy to come home does not use this rule. A
-copy cancelled on its outbound trip was never checked out, and can look the same.
-If one is routed to a hold instead of being shelved, confirm it back with
-`POST /patrons/requests/{id}/transition/confirm-returned`.
