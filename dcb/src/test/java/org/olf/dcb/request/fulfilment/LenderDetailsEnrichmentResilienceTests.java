@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.olf.dcb.core.HostLmsService;
+import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.LocationService;
@@ -71,6 +72,36 @@ class LenderDetailsEnrichmentResilienceTests {
 	}
 
 	@Test
+	void loadsLenderClientForTheLoadedHost() {
+		final var lenderSystem = lenderSystem();
+		final var lenderClient = mock(HostLmsClient.class);
+
+		when(hostLmsService.findByCode("supplier-host")).thenReturn(Mono.just(lenderSystem));
+		when(hostLmsService.getClientFor(lenderSystem)).thenReturn(Mono.just(lenderClient));
+
+		final var context = helper.decorateContextWithLenderDetails(context()).block();
+
+		assertThat(context, is(notNullValue()));
+		assertThat(context.getLenderSystem(), is(sameInstance(lenderSystem)));
+		assertThat(context.getLenderClient(), is(sameInstance(lenderClient)));
+	}
+
+	@Test
+	void clientThatCannotBeBuiltLeavesTheLoadedHostInPlace() {
+		final var lenderSystem = lenderSystem();
+
+		when(hostLmsService.findByCode("supplier-host")).thenReturn(Mono.just(lenderSystem));
+		when(hostLmsService.getClientFor(lenderSystem))
+			.thenReturn(Mono.error(new IllegalStateException("client class is either unknown or invalid")));
+
+		final var context = helper.decorateContextWithLenderDetails(context()).block();
+
+		assertThat(context, is(notNullValue()));
+		assertThat(context.getLenderSystem(), is(sameInstance(lenderSystem)));
+		assertThat(context.getLenderClient(), is(nullValue()));
+	}
+
+	@Test
 	void unknownHostLeavesLenderSystemUnsetWithoutFailing() {
 		// UnknownHostLmsException is not constructible from here; the guard is
 		// deliberately type-agnostic, so any lookup error exercises the same path.
@@ -124,5 +155,13 @@ class LenderDetailsEnrichmentResilienceTests {
 			.setSupplierRequest(new SupplierRequest()
 				.setHostLmsCode("supplier-host")
 				.setLocalAgency("supplier-agency"));
+	}
+
+	private static DataHostLms lenderSystem() {
+		return DataHostLms.builder()
+			.id(UUID.randomUUID())
+			.code("supplier-host")
+			.name("supplier-host")
+			.build();
 	}
 }

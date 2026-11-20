@@ -177,7 +177,8 @@ public class GraphQLFactory {
 					.dataFetcher("lastPing", dataFetchers.getHostLmsLastPingDataFetcher()))
 			.type("PatronIdentity",
 				typeWiring -> typeWiring
-					.dataFetcher("resolvedAgency", dataFetchers.getResolvedAgencyForPatronIdentityDataFetcher()))
+					.dataFetcher("resolvedAgency", dataFetchers.getResolvedAgencyForPatronIdentityDataFetcher())
+					.dataFetcher("hostLms", dataFetchers.getHostLmsForPatronIdentityDataFetcher()))
 			.type("AgencyGroup",
 				typeWiring -> typeWiring
 					.dataFetcher("members", dataFetchers.getAgencyGroupMembersDataFetcher()))

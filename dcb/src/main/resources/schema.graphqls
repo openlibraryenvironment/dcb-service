@@ -676,6 +676,8 @@ type PatronRequest {
 	localHoldingId: String
 	pickupHoldingId: String
 	isTooLong: Boolean
+	"True when something DCB could not do needs a person: a failed checkout at the lender or the borrower, or a request tracked too long"
+	needsAttention: Boolean
 	protocol: String
 	renewalStatus: RenewalStatus
 	# Newest first, at most 50 per page
@@ -758,6 +760,8 @@ type SupplierRequest {
   localHoldingId: String
 	localRenewable: Boolean
 	localHoldCount: Int
+	"When reads of the lender's hold started failing; null while they succeed. localStatus is the last status read"
+	localReadFailingSince: String
 }
 
 type InactiveSupplierRequest {
@@ -797,6 +801,8 @@ type PatronIdentity {
   canonicalPtype: String
   localHomeLibraryCode: String
   lastValidated: String
+  # The library system this identity is in: the patron's own for a home identity, a lender's for a virtual patron
+  hostLms: HostLms
   # The library this patron belongs to, resolved from their home location during
   # patron validation. The only place a request records it: patronHostlmsCode names
   # the system, which on a shared one is every co-tenant rather than any of them.

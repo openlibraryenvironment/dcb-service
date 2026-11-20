@@ -103,6 +103,22 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.delete("/holds/*");
 	}
 
+	public void mockDeletePatron(String patronId) {
+		mockServer.replaceMock(deletePatronRequest(patronId), noContent());
+	}
+
+	public void verifyDeletePatronRequestMade(String patronId) {
+		mockServer.verify(deletePatronRequest(patronId));
+	}
+
+	public void verifyNoDeletePatronRequestMade(String patronId) {
+		mockServer.verifyNever(deletePatronRequest(patronId));
+	}
+
+	private HttpRequest deletePatronRequest(String patronId) {
+		return sierraMockServerRequests.delete("/" + patronId);
+	}
+
 	public void postPatronResponse(String uniqueId, int returnId, String linkBaseUrl) {
 		mockServer.mock(postPatronRequest(uniqueId), patronPlacedResponse(returnId, linkBaseUrl));
 	}

@@ -82,6 +82,17 @@ public class PolarisConfig {
 	 */
 	@JsonProperty("token-cache-ttl-seconds")
 	private Integer tokenCacheTtlSeconds;
+	/**
+	 * Seconds this Polaris has to send a whole response, harvest pages included. Absent, the only
+	 * limit is PolarisClientConfig's read timeout, shared by every Polaris, which this cannot raise.
+	 */
+	@JsonProperty("response-timeout-seconds")
+	private Integer responseTimeoutSeconds;
+	public Optional<Duration> getResponseTimeout() {
+		return Optional.ofNullable(responseTimeoutSeconds)
+			.filter(seconds -> seconds > 0)
+			.map(Duration::ofSeconds);
+	}
 	@JsonProperty("papi")
 	private PapiConfig papi;
 	@JsonProperty("services")
@@ -114,6 +125,18 @@ public class PolarisConfig {
 	 * If enabled then we can "hard delete" records such as virtual items
 	 * Otherwise default to the "soft delete" approach to records
 	 */
+	/**
+	 * Whether a lender checkout Polaris refuses for a patron block (PAPI -6101) is retried with the
+	 * block overridden, when no stored block on the virtual patron was placed by a person. The item is
+	 * already with the borrowing patron by then, so a refusal only leaves the lender's copy showing
+	 * Transferred. Default true.
+	 */
+	@JsonProperty("override-blocks-at-checkout")
+	private Boolean overrideBlocksAtCheckout;
+	public boolean isOverrideBlocksAtCheckout() {
+		return valueWithDefault(overrideBlocksAtCheckout, Boolean.class, true);
+	}
+
 	@JsonProperty("enableDoubleDelete")
 	private Boolean enableDoubleDelete;
 	public Boolean isDoubleDeleteEnabled() { return valueWithDefault(enableDoubleDelete, Boolean.class, false); }

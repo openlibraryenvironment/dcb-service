@@ -142,7 +142,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 				Stream.concat(faults.getT1().stream(), faults.getT2().stream())
 					.forEach(fault -> bySupplier.putIfAbsent(fault.supplierHostLmsCode(), fault));
 
-				return List.copyOf(bySupplier.values());
+				return NoValidItemExplanation.withNotLent(List.copyOf(bySupplier.values()),
+					noValidItemExplanation.notLentBy(excludedItems));
 			})
 			.flatMap(faults -> noValidItemExplanation.explain(getPatronRequestFromContext(context), faults))
 			.thenReturn(context);

@@ -1590,6 +1590,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 				error -> Mono.just("Request not found in Alma"));
 	}
 
+	@Override
+	public Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of(VirtualPatronRemoval.DELETE);
+	}
+
   public Mono<String> deletePatron(String id) {
 		return Mono.from(client.deleteUser(id))
 			.then(Mono.just("OK"));

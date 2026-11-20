@@ -19,8 +19,11 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 import static services.k_int.utils.StringUtils.parseList;
 import static services.k_int.utils.StringUtils.stringEquals;
 
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -66,14 +69,19 @@ import org.olf.dcb.core.interaction.HostLmsPropertyDefinition;
 import org.olf.dcb.core.interaction.HostLmsRenewal;
 import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.interaction.LocalRequest;
+import org.olf.dcb.core.interaction.MultipleVirtualPatronsFound;
 import org.olf.dcb.core.interaction.Patron;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PatronStatusUncheckedException;
 import org.olf.dcb.core.interaction.ClockSkew;
 import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
 import org.olf.dcb.core.interaction.PreventRenewalCommand;
 import org.olf.dcb.core.interaction.RelativeUriResolver;
 import org.olf.dcb.core.interaction.UnsupportedAuthProfileException;
+import org.olf.dcb.core.interaction.VirtualPatronRemoval;
+import org.olf.dcb.core.interaction.VirtualPatronNotFound;
+import org.olf.dcb.core.interaction.NotDcbsVirtualPatronException;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibInfo;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.BibliographicRecord;
 import org.olf.dcb.core.interaction.polaris.ApplicationServicesClient.CirculationData;
@@ -87,12 +95,16 @@ import org.olf.dcb.core.interaction.shared.MissingParameterException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.NumericPatronTypeMapper;
 import org.olf.dcb.core.interaction.shared.PublisherState;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.Alarm;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.DataHostLms;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.Location;
 import org.olf.dcb.core.model.ReferenceValueMapping;
+import org.olf.dcb.core.svc.AlarmsService;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.core.svc.ReferenceValueMappingService;
 import org.olf.dcb.dataimport.job.SourceRecordDataSource;
 import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
@@ -160,8 +172,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	private final PolarisItemMapper itemMapper;
 	private final PAPIClient PAPIService;
 	private final ApplicationServicesClient ApplicationServices;
-	private Mono<List<ApplicationServicesClient.MaterialType>> materialTypes;
-	private Mono<List<PolarisItemStatus>> itemStatuses;
 	// NB: PolarisConfig must be bound with Jackson, NOT Micronaut's ObjectMapper, even
 	// though it is @Serdeable. PolarisConfig.baseUrl is declared as Object, and Micronaut
 	// Serde 3 silently binds null into Object-typed bean properties -- every Polaris test
@@ -184,13 +194,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	// ToDo align these URLs
   private static final URI ERR0211 = URI.create("https://openlibraryfoundation.atlassian.net/wiki/spaces/DCB/pages/0211/Polaris/UnableToCreateItem");
-	//  No longer needed as DCB_BORROWING_FLOW is the same as the default behaviour
-	//	private static final String DCB_BORROWING_FLOW = "DCB";
 	private static final String ILL_BORROWING_FLOW = "ILL";
 
 	// Synch_BibsByIDGet accepts at most 50 ids per call.
 	private static final int BIBS_BY_ID_LIMIT = 50;
 	private static final int ITEM_ENRICHMENT_CONCURRENCY = 4;
+	// What a copy checked in at a branch reads when Polaris sends it on rather than shelving it
+	private static final Set<String> ROUTED_ON_CHECK_IN = Set.of(HostLmsItem.ITEM_TRANSIT, HostLmsItem.ITEM_ON_HOLDSHELF);
 
 	// Polaris creates a new blocking note rather than replacing one when the note id is 1
 	private static final Integer CREATE_NEW_BLOCKING_NOTE = 1;
@@ -217,6 +227,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	
 	private final R2dbcOperations r2dbcOperations;
 	private final PolarisTokenCache tokenCache;
+	private final PolarisReferenceDataCache referenceDataCache;
+	private final AlarmsService alarmsService;
 
 	@Creator
 	PolarisLmsClient(@Parameter("hostLms") HostLms hostLms,
@@ -225,7 +237,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									 NumericPatronTypeMapper numericPatronTypeMapper, PolarisItemMapper itemMapper,
 									 R2dbcOperations r2dbcOperations, ObjectMapper objectMapper,
 									 ObjectRulesService objectRuleService, RulesetCacheInvalidator cacheInvalidator, HostLmsService hostLmsService,
-									 ConsortiumService consortiumService, PolarisTokenCache tokenCache) {
+									 ConsortiumService consortiumService, PolarisTokenCache tokenCache,
+									 PolarisReferenceDataCache referenceDataCache, AlarmsService alarmsService) {
 
 		log.debug("Creating Polaris HostLms client for HostLms {}", hostLms);
 
@@ -238,6 +251,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		this.defaultBaseUrl = UriBuilder.of(polarisConfig.getBaseUrl()).build();
 		this.applicationServicesOverrideURL = applicationServicesOverrideURL();
 		this.tokenCache = tokenCache;
+		this.referenceDataCache = referenceDataCache;
+		this.alarmsService = alarmsService;
 		this.ApplicationServices = new ApplicationServicesClient(this, polarisConfig, tokenCache);
 		this.PAPIService = new PAPIClient(this, polarisConfig, conversionService, lms, consortiumService, tokenCache);
 		this.itemMapper = itemMapper;
@@ -305,17 +320,32 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsRenewal> renew(HostLmsRenewal hostLmsRenewal) {
-		log.info("renew({})", hostLmsRenewal);
+		log.info("renew item {} for patron {}", hostLmsRenewal.getLocalItemId(),
+			hostLmsRenewal.getLocalPatronId());
 
-		return PAPIService.itemCheckoutPost(hostLmsRenewal.getLocalItemBarcode(), hostLmsRenewal.getLocalPatronBarcode())
+		return renewalPatronBarcode(hostLmsRenewal)
+			.flatMap(patronBarcode -> PAPIService.itemCheckoutPost(
+				hostLmsRenewal.getLocalItemBarcode(), patronBarcode))
 			.map(itemCheckoutResult -> hostLmsRenewal)
-			.doOnError(e -> log.error("Error renewing item", e));
+			.doOnError(e -> log.error("Error renewing item {}", hostLmsRenewal.getLocalItemId(), e));
+	}
+
+	// Polaris gives a virtual patron its own prefixed barcode, so the one DCB stored is refused
+	// with -4005 "Invalid patron barcode". Ask Polaris, as checkout does.
+	private Mono<String> renewalPatronBarcode(HostLmsRenewal hostLmsRenewal) {
+		final var localPatronId = hostLmsRenewal.getLocalPatronId();
+
+		if (localPatronId == null) {
+			return Mono.justOrEmpty(hostLmsRenewal.getLocalPatronBarcode());
+		}
+
+		return ApplicationServices.getPatronBarcode(localPatronId);
 	}
 
 	@Override
 	public Mono<LocalRequest> updateHoldRequest(LocalRequest localRequest) {
 
-		log.info("updatePatronRequest({})", localRequest);
+		log.debug("updatePatronRequest({})", localRequest);
 
 		final var itemId = localRequest.getRequestedItemId();
 
@@ -329,7 +359,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 				ApplicationServices.itemrecords(itemId, FALSE),
 				getMappedItemType(localRequest.getCanonicalItemType())
 			)
-			.doOnSuccess(item -> log.info("Successfully received item record: {}", item))
+			.doOnSuccess(item -> log.debug("Successfully received item record: {}", item))
 			.doOnError(error -> log.error("Error retrieving item record: {}", error.getMessage()))
 			.flatMap(tuple -> {
 				final var item = tuple.getT1();
@@ -339,7 +369,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 				return ApplicationServices.updateItemRecord(itemId, itemStatusId, newBarcode, noteForStaff, itemType);
 			})
-			.doOnSuccess(item -> log.info("Successfully updated item, returning {}.", item))
+			.doOnSuccess(item -> log.debug("Successfully updated item, returning {}.", item))
 			.doOnError(error -> log.error("Error updating item: {}", error.getMessage()))
 			.then(Mono.defer(() -> getRequest(HostLmsRequest.builder().localId(localRequest.getLocalId()).build())))
 			.map(hostLmsRequest -> LocalRequest.builder()
@@ -443,7 +473,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 					.itemBarcode(item.getBarcode())
 					.build();
 			})
-			.doOnNext(hr -> log.info("Attempt to place hold... {}", hr))
+			.doOnNext(hr -> log.debug("Attempt to place hold... {}", hr))
 			.flatMap(ApplicationServices::createHoldRequestWorkflow)
 			.doOnNext(__ -> log.info("Hold paced, attempting to get hold.. "))
 			.doOnError(error -> log.error("Failed to place hold.. ", error))
@@ -479,7 +509,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return Mono.just(patronId)
 			.delayElement(Duration.ofSeconds(delay))
 			.flatMap(ApplicationServices::listPatronLocalHolds)
-			.doOnSuccess(resp -> log.info("Full log resp of getting hold after placing in {}: {}", getHostLmsCode(), resp))
+			.doOnSuccess(resp -> log.debug("Full log resp of getting hold after placing in {}: {}", getHostLmsCode(), resp))
 			.doOnError(error -> log.error("Full log resp of getting hold after placing in {}", getHostLmsCode(), error))
 			.doOnNext(logLocalHolds())
 			.flatMap(holds -> processHolds(holds, bibId, activationDate, note, patronId, parameters));
@@ -688,8 +718,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			case "Pending", "Active",
 				// Edge case that the item has been put in transit by staff
 				// before DCB had a chance to confirm the supplier request
-				"Shipped" -> HostLmsRequest.HOLD_CONFIRMED;
-			case "Held" -> HostLmsRequest.HOLD_READY;
+				"Shipped",
+				// An item found for the hold; Polaris moves it on to Shipped within hours
+				"Located" -> HostLmsRequest.HOLD_CONFIRMED;
+			// Unclaimed: the hold-shelf period has passed but the item is still there, and patrons do
+			// still collect (39 of 442 in one consortium's production, Aug to Oct 2026). Polaris cancels it later.
+			case "Held", "Unclaimed" -> HostLmsRequest.HOLD_READY;
 			case "Missing" -> HostLmsRequest.HOLD_MISSING;
 			default -> status;
 		};
@@ -701,7 +735,52 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			return refuseIllBorrowingFlow();
 		}
 
-		return ApplicationServices.createBibliographicRecord(bib).map(String::valueOf);
+		return ApplicationServices.createBibliographicRecord(bib)
+			.flatMap(this::confirmHiddenVirtualBib)
+			.map(String::valueOf);
+	}
+
+	// Polaris can answer a create with the id of a bib it already had. A holdable virtual item on
+	// a bib the PAC displays joins that bib's local hold queue and traps for the next local hold, so
+	// a bib Polaris reports displayed is refused. A read that says nothing refuses nothing: it is
+	// reported, and the request goes on as it did before the read-back existed
+	private Mono<Integer> confirmHiddenVirtualBib(Integer bibId) {
+		return ApplicationServices.getBibliographicRecordByID(String.valueOf(bibId))
+			.map(record -> Optional.ofNullable(record.getDisplayInPAC()))
+			.defaultIfEmpty(Optional.empty())
+			.onErrorResume(error -> {
+				log.warn("Could not read virtual bib {} back from {}: {}", bibId, getHostLmsCode(), error.toString());
+				return Mono.just(Optional.empty());
+			})
+			.flatMap(displayInPac -> {
+				if (displayInPac.isEmpty()) {
+					return raiseUnconfirmedVirtualBibAlarm(bibId).thenReturn(bibId);
+				}
+
+				return FALSE.equals(displayInPac.get())
+					? Mono.just(bibId)
+					: Mono.error(Problem.builder()
+						.withTitle("Polaris did not create a hidden virtual bib")
+						.withDetail("Bib %d at %s is displayed in the PAC, so no virtual item was attached to it"
+							.formatted(bibId, getHostLmsCode()))
+						.with("localBibId", bibId)
+						.build());
+			});
+	}
+
+	private Mono<Void> raiseUnconfirmedVirtualBibAlarm(Integer bibId) {
+		final var alarmCode = "ILS." + getHostLmsCode() + ".POLARIS_VIRTUAL_BIB_UNCONFIRMED";
+
+		return alarmsService.raiseAccumulating(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.expires(Instant.now().plus(Duration.ofDays(5)))
+				.build(),
+			"bibIds", String.valueOf(bibId))
+			.onErrorResume(error -> {
+				log.warn("Unable to record {} for bib {}", alarmCode, bibId, error);
+				return Mono.empty();
+			});
 	}
 
 	@Override
@@ -718,14 +797,14 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<HostLmsItem> createItem(CreateItemCommand createItemCommand) {
-		log.info("createItem({})",createItemCommand);
+		log.debug("createItem({})",createItemCommand);
 
 		if (followsIllBorrowingFlow(polarisConfig)) {
 			return refuseIllBorrowingFlow();
 		}
 
 		return ApplicationServices.addItemRecord(createItemCommand)
-			.doOnSuccess(r -> log.info("Got create item response from Polaris: {}",r))
+			.doOnSuccess(r -> log.debug("Got create item response from Polaris: {}",r))
 			.map(itemCreateResponse -> {
 				if (itemCreateResponse.getAnswerExtension() == null) {
 					final var messages = itemCreateResponse.getInformationMessages() != null
@@ -788,9 +867,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.cacheInvalidateWhen( cacheInvalidator::getInvalidator );
 	}
 
-	// bib suppression not supported in Polaris
-//	private final Mono<ObjectRuleset> _lmsBibSuppressionRuleset = null;
-
 	private Mono<Optional<ObjectRuleset>> _lmsItemSuppressionRuleset = null;
 	private synchronized Mono<Optional<ObjectRuleset>> getLmsItemSuppressionRuleset() {
 
@@ -819,7 +895,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		return parseLocalItemId(localItemId)
 			.flatMap(id -> ApplicationServices.itemrecords(id,TRUE))
-			.doOnSuccess(itemRecordFull -> log.info("Got item: {}", itemRecordFull))
+			.doOnSuccess(itemRecordFull -> log.debug("Got item: {}", itemRecordFull))
 			.map(item -> validate(localItemId, item))
 			.flatMap(this::collectItemStatusName)
 			.map(itemRecord -> {
@@ -861,25 +937,27 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 
+	// For availability an unreadable hold is not counted: a timeout must not hide a copy from resolution
 	private Mono<Item> enrichWithCombinedNumberOfHoldsOnItem(Item item) {
 		String localId = item.getLocalId();
 		Integer currentHoldCount = item.getHoldCount();
 		String barcode = item.getBarcode();
 
-		return enrichHoldCount(localId, currentHoldCount, barcode)
+		return enrichHoldCount(localId, currentHoldCount, barcode, false)
 			.map(updatedHoldCount -> {
 				item.setHoldCount(updatedHoldCount);
 				return item;
 			});
 	}
 
+	// For renewal an unreadable hold counts: wrongly refusing a renewal can be put right,
+	// renewing over another patron's hold cannot
 	private Mono<HostLmsItem> enrichWithCombinedNumberOfHoldsOnItem(HostLmsItem item) {
 		String localId = item.getLocalId();
 		Integer currentHoldCount = item.getHoldCount();
 		String barcode = item.getBarcode();
 
-
-		return enrichHoldCount(localId, currentHoldCount, barcode)
+		return enrichHoldCount(localId, currentHoldCount, barcode, true)
 			.map(updatedHoldCount -> {
 				item.setHoldCount(updatedHoldCount);
 				return item;
@@ -890,12 +968,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	 // Make calls to get any holds on the item, or on the title
 	 */
 
-	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount, String itemBarcode) {
+	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount, String itemBarcode,
+		boolean unreadableHoldCounts) {
 		// prevent NPEs
 		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
 		if (localId == null) return Mono.just(currentCount);
 
-		log.info("Current count is {}", currentCount);
+		log.debug("Current count is {}", currentCount);
 
 		final int itemId = Integer.parseInt(localId);
 		final int PAGE_SIZE = 50; // In practice, we are extremely unlikely to need to paginate here.
@@ -949,8 +1028,8 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						}
 						return false;
 					})
-					.defaultIfEmpty(false)
-					.onErrorReturn(false);
+					.defaultIfEmpty(unreadableHoldCounts)
+					.onErrorReturn(unreadableHoldCounts);
 			})
 			.filter(Boolean::booleanValue)
 			.count()
@@ -958,50 +1037,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			// If we get nothing fall back to the original count
 			.defaultIfEmpty(currentCount);
 	}
-
-//	private Mono<Integer> enrichHoldCount(String localId, Integer currentHoldCount) {
-//
-//		// prevent NPEs
-//		final int currentCount = currentHoldCount != null ? currentHoldCount : 0;
-//		if (localId == null) return Mono.just(currentCount);
-//
-//		// Convert localId to Integer for the reservation request
-//		Integer itemId = Integer.valueOf(localId);
-//
-//		return ApplicationServices.getReservationsForItem(itemId)
-//			.map(response -> {
-//				// If there's a valid response with reservation data
-//				if (response != null && response.getReservations() != null) {
-//					// Count the number of reservations for this item
-//					int externalHoldCount = response.getReservations().size();
-//					return externalHoldCount;
-//
-////					if (externalHoldCount > 0)
-////					{
-////						return externalHoldCount;
-////
-////					}
-////					else {
-////						// There is a situation where the reservation data is not present, but the hold count is not zero
-////						// In this situation, we should use the total count as a fallback
-////						if (response.getTotalCount() != null && response.getTotalCount() > 0)
-////						{
-////							return response.getTotalCount();
-////
-////						}
-////						else
-////						{
-////							// If the total count is not present or is zero, fall back to original count
-////							return currentCount;
-////						}
-////					}
-//				}
-//				// Fall back to the original count if no reservation data or total count is available
-//				return currentCount;
-//			})
-//			// Handle getReservationsForItem returning empty
-//			.defaultIfEmpty(currentCount);
-//	}
 
 	private Mono<String> parseLocalItemId(String localItemId) {
 		if (localItemId == null) {
@@ -1039,16 +1074,57 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> updateItemStatus(HostLmsItem hostLmsItem, CanonicalItemState crs) {
-		log.warn("Attempting to update an item status.");
-
 		final var itemId = getValueOrNull(hostLmsItem, HostLmsItem::getLocalId);
-		
+
+		// No default branch, on purpose: a state added to CanonicalItemState does not compile until
+		// it is handled here, so it can never reach a Polaris library unhandled.
 		return switch (crs) {
 			case AVAILABLE -> updateItemToAvailable(itemId).thenReturn("OK");
 			case TRANSIT -> updateItemToPickupTransit(itemId).thenReturn("OK");
-			default -> Mono.just("OK").doOnSuccess(ok ->
-				log.error("CanonicalItemState: '{}' cannot be updated.", crs));
+			// Sent in every workflow; Polaris's own check-in already did what these mean
+			case RECEIVED, COMPLETED -> Mono.just("OK")
+				.doOnSuccess(ok -> log.debug("Polaris has nothing to do for item state {}", crs));
+			// DCB sends none of these to Polaris today. Failing would stop the request, so answer as
+			// before and raise an alarm instead.
+			case OFFSITE, MISSING, ONHOLDSHELF -> raiseUnsupportedItemStateAlarm(crs).thenReturn("OK");
 		};
+	}
+
+	// A virtual patron search answered -1 in a way only seen as "no match" on one Polaris
+	Mono<Void> raiseUnconfirmedNoMatchAlarm(String answer) {
+		final var alarmCode = "ILS." + getHostLmsCode() + ".POLARIS_UNCONFIRMED_NO_MATCH";
+
+		log.warn("POLARIS_UNCONFIRMED_NO_MATCH :: Host: {} answered a virtual patron search with -1: {}",
+			getHostLmsCode(), answer);
+
+		return alarmsService.raiseAccumulating(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.expires(Instant.now().plus(Duration.ofDays(5)))
+				.build(),
+			"answers", answer)
+			.onErrorResume(error -> {
+				log.warn("Unable to record {}", alarmCode, error);
+				return Mono.empty();
+			});
+	}
+
+	private Mono<Void> raiseUnsupportedItemStateAlarm(CanonicalItemState crs) {
+		final var alarmCode = "ILS." + getHostLmsCode() + ".POLARIS_UNSUPPORTED_ITEM_STATE";
+
+		log.warn("POLARIS_UNSUPPORTED_ITEM_STATE :: Host: {} was asked to set item state {}, which it cannot",
+			getHostLmsCode(), crs);
+
+		return alarmsService.raiseAccumulating(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.expires(Instant.now().plus(Duration.ofDays(5)))
+				.build(),
+			"itemStates", crs.name())
+			.onErrorResume(error -> {
+				log.warn("Unable to record unsupported Polaris item state against {}", alarmCode, error);
+				return Mono.empty();
+			});
 	}
 
 	private Mono<Void> updateItemToAvailable(String itemId) {
@@ -1077,7 +1153,61 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// to then create the patron
 		return PAPIService.patronSearch(firstBarcodeInList)
 			.map(PAPIClient.PatronSearchRow::getPatronID)
-			.flatMap(this::foundVirtualPatron);	}
+			.flatMap(this::foundVirtualPatron)
+			.onErrorResume(MultipleVirtualPatronsFound.class, multiple -> chooseVirtualPatron(multiple, patron));
+	}
+
+	/**
+	 * Several Polaris patrons match the borrower. Use the virtual patron DCB used last, when every
+	 * match is a virtual patron, and say in the request's audit which others to clean up. A match
+	 * without the virtual patron barcode prefix is a real patron, and the request is refused.
+	 */
+	private Mono<Patron> chooseVirtualPatron(MultipleVirtualPatronsFound multiple,
+		org.olf.dcb.core.model.Patron patron) {
+
+		final List<PAPIClient.PatronSearchRow> rows = multiple.getParameters().get("Response")
+			instanceof PAPIClient.PatronSearchResult result && result.getPatronSearchRows() != null
+				? result.getPatronSearchRows()
+				: List.of();
+
+		final var prefix = polarisConfig.getPatronBarcodePrefix(PolarisConfig.DEFAULT_PATRON_BARCODE_PREFIX);
+
+		if (rows.isEmpty() || rows.stream().anyMatch(row -> row.getBarcode() == null || !row.getBarcode().startsWith(prefix))) {
+			return Mono.error(MultipleVirtualPatronsFound.builder()
+				.withDetail("%d patrons match at %s and at least one is not a virtual patron (its barcode does not start with %s). Resolve in Polaris."
+					.formatted(rows.size(), getHostLmsCode(), prefix))
+				.build());
+		}
+
+		final var lastUsed = Optional.ofNullable(patron.getPatronIdentities()).orElse(List.of()).stream()
+			.filter(identity -> FALSE.equals(identity.getHomeIdentity()))
+			.filter(identity -> identity.getHostLms() != null && Objects.equals(identity.getHostLms().getId(), lms.getId()))
+			.map(PatronIdentity::getLocalId)
+			.filter(Objects::nonNull)
+			.collect(Collectors.toSet());
+
+		final var chosen = rows.stream()
+			.filter(row -> row.getPatronID() != null && lastUsed.contains(String.valueOf(row.getPatronID())))
+			.findFirst();
+
+		if (chosen.isEmpty()) {
+			return Mono.error(multiple);
+		}
+
+		final var others = rows.stream()
+			.map(PAPIClient.PatronSearchRow::getPatronID)
+			.filter(id -> !Objects.equals(id, chosen.get().getPatronID()))
+			.map(String::valueOf)
+			.collect(Collectors.joining(", "));
+
+		log.warn("{} virtual patrons match at {}; using {}, the one DCB used last", rows.size(), getHostLmsCode(),
+			chosen.get().getPatronID());
+
+		return foundVirtualPatron(chosen.get().getPatronID())
+			.map(found -> found.addWarning(("Polaris at %s holds %d virtual patrons for this borrower. DCB used %s, "
+				+ "the one it used last. Merge or delete the others in Polaris: %s")
+				.formatted(getHostLmsCode(), rows.size(), chosen.get().getPatronID(), others)));
+	}
 
 	private Mono<Patron> foundVirtualPatron(Integer patronId) {
 		log.info("Found virtual patron with local id: {}", patronId);
@@ -1091,7 +1221,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> createPatron(Patron patron) {
-		log.info("createPatron({}) at {}", patron, lms);
+		log.debug("createPatron({}) at {}", patron, lms);
 
 		return collectDefaultsForCreatePatron(patron)
 			.flatMap(PAPIService::patronRegistrationCreate)
@@ -1229,18 +1359,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<PatronCirculationBlocksResult> getPatronCirculationBlocks(Patron patron) {
-		log.info("getPatronCirculationBlocks: {}", patron);
+		log.debug("getPatronCirculationBlocks: {}", patron);
 
 		final var barcode = getValueOrNull(patron, Patron::getFirstBarcode);
 
-		return PAPIService.getPatronCirculationBlocks(barcode);
+		return PAPIService.getPatronCirculationBlocks(barcode)
+			.onErrorMap(CannotGetPatronBlocksProblem.class, problem -> new PatronStatusUncheckedException(
+				getValueOrNull(patron, Patron::getFirstLocalId), getHostLmsCode(), problem));
 	}
 
 	private static Patron isBlocked(Patron patron, PatronCirculationBlocksResult blocks) {
-		final var canCirculate = getValue(blocks,
-			PatronCirculationBlocksResult::getCanPatronCirculate, true);
-
-		return patron.setIsBlocked(!canCirculate);
+		return patron.setIsBlocked(!TRUE.equals(blocks.getCanPatronCirculate()));
 	}
 
 	@Override
@@ -1347,8 +1476,55 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			}
 
 			return PAPIService.itemCheckoutPost(itemBarcode, patronBarcode)
-				.thenReturn("OK");
+				.thenReturn("OK")
+				.onErrorResume(PAPIClient::isPatronBlockRefusal,
+					refusal -> overrideBlockRefusal(itemBarcode, patronBarcode, localPatronId, refusal));
 		});
+	}
+
+	/**
+	 * Polaris works some blocks out only at checkout, so the stored list read above can be empty and
+	 * the PAPI checkout still refused. Override once, unless a person placed a block on the patron.
+	 * The circulation blocks are read so the log says which block it was.
+	 */
+	private Mono<String> overrideBlockRefusal(String itemBarcode, String patronBarcode,
+		Integer localPatronId, Throwable refusal) {
+
+		if (!polarisConfig.isOverrideBlocksAtCheckout() || localPatronId == null) {
+			return Mono.error(refusal);
+		}
+
+		return describeCirculationBlocks(patronBarcode)
+			.doOnNext(blocks -> log.debug("Circulation blocks for virtual patron {} at {}: {}",
+				localPatronId, getHostLmsCode(), blocks))
+			.zipWith(ApplicationServices.hasOnlySelfResolvableBlocksOrNone(localPatronId))
+			.flatMap(function((blocks, overridable) -> {
+				if (!overridable) {
+					log.info("Polaris refused checkout to virtual patron {} at {} with a block a person placed; not overriding",
+						localPatronId, getHostLmsCode());
+
+					return Mono.<String>error(refusal);
+				}
+
+				log.info("Polaris refused checkout to virtual patron {} at {} for {} circulation block(s); retrying with override",
+					localPatronId, getHostLmsCode(), blocks.size());
+
+				return ApplicationServices.checkoutItemToPatron(itemBarcode, patronBarcode, true)
+					.thenReturn("OK");
+			}));
+	}
+
+	private Mono<List<String>> describeCirculationBlocks(String patronBarcode) {
+		return PAPIService.getPatronCirculationBlocks(patronBarcode)
+			.map(result -> Optional.ofNullable(result.getBlocks()).orElse(List.of()).stream()
+				.map(PAPIClient.CirculationBlock::getBlockDescription)
+				.filter(Objects::nonNull)
+				.toList())
+			.onErrorResume(error -> {
+				log.warn("Could not read circulation blocks at {}: {}", getHostLmsCode(), error.getMessage());
+				return Mono.just(List.of());
+			})
+			.defaultIfEmpty(List.of());
 	}
 
 	private Mono<LocalRequest> getPlaceHoldRequestData(Integer holdRequestId) {
@@ -1379,6 +1555,28 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return checkHoldStatus(value);
 	}
 
+	// The walk moves past a row it could not read, so a bib skipped here is not harvested again
+	// until it changes. The alarm keeps up to 100 bib ids per Host LMS for an operator.
+	private void recordUnstagedBib(JsonNode rawJson, Throwable error) {
+		final var bibId = Optional.ofNullable(rawJson.get("BibliographicRecordID"))
+			.map(JsonNode::coerceStringValue)
+			.orElse("unknown");
+
+		log.error("POLARIS_HARVEST_UNSTAGED :: Host: {} bib {} could not be read from the harvested page", lms.getCode(), bibId, error);
+
+		final var alarmCode = "ILS." + lms.getCode() + ".POLARIS_HARVEST_UNSTAGED";
+
+		alarmsService.raiseAccumulating(Alarm.builder()
+				.id(UUIDUtils.generateAlarmId(alarmCode))
+				.code(alarmCode)
+				.expires(Instant.now().plus(Duration.ofDays(5)))
+				.build(),
+			"unstagedBibs", bibId)
+			.subscribe(
+				ignored -> { },
+				alarmError -> log.warn("Unable to record unstaged Polaris bib against {}", alarmCode, alarmError));
+	}
+
 	private Mono<BibliographicRecord> getBib(String localBibId) {
 		return ApplicationServices.getBibliographicRecordByID(localBibId);
 	}
@@ -1403,11 +1601,19 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 		final var description = itemGetRow.getCircStatus();
 
-		return fetchItemStatusObjectBy(SearchType.DESCRIPTION, description)
-			.map(status -> {
-				itemGetRow.setCircStatusID(status.getItemStatusID());
-				itemGetRow.setCircStatusName(status.getName());
-				itemGetRow.setCircStatusBanner(status.getBannerText());
+		// A status missing from the library's list leaves this item UNKNOWN, not the whole bib failed
+		return fetchItemStatusesFromApi()
+			.map(statuses -> {
+				statuses.stream()
+					.filter(status -> stringEquals(description, status.getDescription()))
+					.findFirst()
+					.ifPresentOrElse(status -> {
+						itemGetRow.setCircStatusID(status.getItemStatusID());
+						itemGetRow.setCircStatusName(status.getName());
+						itemGetRow.setCircStatusBanner(status.getBannerText());
+					}, () -> log.warn("Item {} at {} has status \"{}\", which is not in its item status list: its status is unknown",
+						itemGetRow.getItemRecordID(), getHostLmsCode(), description));
+
 				return itemGetRow;
 			});
 	}
@@ -1438,37 +1644,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	}
 
 	private Mono<List<PolarisItemStatus>> fetchItemStatusesFromApi() {
-		synchronized (this) {
-			if (itemStatuses == null) {
-				log.info("Fetching item statuses...");
-				itemStatuses = ApplicationServices.listItemStatuses()
-					.doOnError(error -> clearItemStatuses())
-					.cache();
-			}
-
-			return itemStatuses;
-		}
+		return referenceDataCache.get(getHostLmsCode(), PolarisReferenceDataCache.Kind.ITEM_STATUSES,
+			() -> ApplicationServices.listItemStatuses()
+				.doOnSubscribe(subscription -> log.info("Fetching item statuses for {}", getHostLmsCode())));
 	}
 
 	private Mono<List<ApplicationServicesClient.MaterialType>> fetchMaterialTypesFromApi() {
-		synchronized (this) {
-			if (materialTypes == null) {
-				log.info("Fetching material types...");
-				materialTypes = ApplicationServices.listMaterialTypes()
-					.doOnError(error -> clearMaterialTypes())
-					.cache();
-			}
-
-			return materialTypes;
-		}
-	}
-
-	private synchronized void clearItemStatuses() {
-		itemStatuses = null;
-	}
-
-	private synchronized void clearMaterialTypes() {
-		materialTypes = null;
+		return referenceDataCache.get(getHostLmsCode(), PolarisReferenceDataCache.Kind.MATERIAL_TYPES,
+			() -> ApplicationServices.listMaterialTypes()
+				.doOnSubscribe(subscription -> log.info("Fetching material types for {}", getHostLmsCode())));
 	}
 
 	/**
@@ -1513,6 +1697,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		return doExchange(requestMono, returnClass, useGenericHttpClientResponseExceptionHandler, TRUE);
 	}
 
+	private <T> Mono<T> withResponseTimeout(Mono<T> response) {
+		return polarisConfig.getResponseTimeout()
+			.map(response::timeout)
+			.orElse(response);
+	}
+
 	private <T> Mono<HttpResponse<T>> doExchange(Mono<? extends MutableHttpRequest<?>> requestMono, Class<T> returnClass,
 		Boolean useGenericHttpClientResponseExceptionHandler, Boolean reauthenticateOn401) {
 
@@ -1522,7 +1712,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 			return requestMono
 				.doOnNext(sent::set)
-				.flatMap(request -> Mono.from(client.exchange(request, returnClass)))
+				.flatMap(request -> withResponseTimeout(Mono.from(client.exchange(request, returnClass))))
 				.transform(send -> TRUE.equals(reauthenticateOn401)
 					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
 				.doOnError(error -> logRequestFailure(sent.get(), error))
@@ -1580,7 +1770,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 			return requestMono
 				.doOnNext(sent::set)
-				.flatMap(request -> Mono.<T>from(client.retrieve(request, responseBodyType)))
+				.flatMap(request -> withResponseTimeout(Mono.<T>from(client.retrieve(request, responseBodyType))))
 				.transform(send -> TRUE.equals(reauthenticateOn401)
 					? send.retryWhen(reauthenticateOnceOnUnauthorised()) : send)
 				.doOnError(error -> logRequestFailure(sent.get(), error))
@@ -1755,7 +1945,12 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						// This is important as it would appear to be deleted, but it wouldn't actually have been deleted
 						if (Optional.ofNullable(answerData.getBlockedRecordIds()).orElse(Collections.emptyList()).contains(id)) {
 							log.warn("Workflow for item {} completed (Status: 1), but deletion was BLOCKED by Polaris.", id);
-							return Mono.just("OK_WORKFLOW_BLOCKED");
+							return Mono.error(Problem.builder()
+								.withTitle("Polaris refused to delete the virtual item")
+								.withDetail("Polaris listed item %s at %s as blocked, usually because a loan or hold still links to it"
+									.formatted(id, getHostLmsCode()))
+								.with("localItemId", id)
+								.build());
 						}
 						// Weirdly it wasn't in either list
 						log.warn("Polaris Workflow for item {} completed but ID was not present in the response", id);
@@ -1776,6 +1971,60 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		// workflow PUT continue delete
 		// ERROR PolarisWorkflowException
 		return ApplicationServices.deleteBibliographicRecord(id).thenReturn("OK").defaultIfEmpty("ERROR");
+	}
+
+	// PAPI has no patron delete, so a virtual patron can only be expired
+	@Override
+	public Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of(VirtualPatronRemoval.EXPIRE);
+	}
+
+	/**
+	 * Expire the record at the identity's Polaris id, if it is DCB's virtual patron: its barcode has
+	 * the virtual patron prefix and, where DCB recorded a barcode for this identity, is that barcode
+	 * with or without the prefix. The recorded barcode is what ties a record the borrower's current
+	 * barcode no longer finds to this borrower.
+	 */
+	@Override
+	public Mono<Void> retireVirtualPatron(PatronIdentity virtualIdentity) {
+		final var localId = getValueOrNull(virtualIdentity, PatronIdentity::getLocalId);
+
+		if (localId == null) {
+			return Mono.error(new IllegalArgumentException("A virtual patron to retire needs its Polaris patron id"));
+		}
+
+		final var prefix = polarisConfig.getPatronBarcodePrefix(PolarisConfig.DEFAULT_PATRON_BARCODE_PREFIX);
+		final var recorded = Optional.ofNullable(parseList(getValueOrNull(virtualIdentity, PatronIdentity::getLocalBarcode)))
+			.orElse(List.of());
+		final var yesterday = LocalDate.now(ZoneOffset.UTC).minusDays(1).toString();
+
+		return ApplicationServices.getPatronBarcode(localId)
+			.onErrorMap(PolarisLmsClient::isNotFound, notFound -> VirtualPatronNotFound.builder()
+				.withDetail("Polaris at " + getHostLmsCode() + " has no patron " + localId)
+				.build())
+			.switchIfEmpty(Mono.error(() -> new NotDcbsVirtualPatronException(
+				"Polaris patron " + localId + " at " + getHostLmsCode() + " has no barcode, so it is not DCB's virtual patron")))
+			.flatMap(barcode -> isDcbsVirtualPatron(barcode, prefix, recorded)
+				? PAPIService.patronRegistrationUpdateDates(barcode, yesterday, null)
+				: Mono.error(new NotDcbsVirtualPatronException("Polaris patron " + localId + " at " + getHostLmsCode()
+					+ " is not DCB's virtual patron: its barcode lacks the prefix " + prefix + " or is not the one DCB recorded")))
+			.flatMap(updated -> TRUE.equals(updated)
+				? Mono.<Void>empty()
+				: Mono.error(new IllegalStateException(
+					"Polaris refused to expire virtual patron " + localId + " at " + getHostLmsCode())));
+	}
+
+	static boolean isDcbsVirtualPatron(String barcode, String prefix, List<String> recorded) {
+		return barcode.startsWith(prefix)
+			&& (recorded.isEmpty() || recorded.stream().map(String::trim)
+				.anyMatch(dcbs -> barcode.equals(dcbs) || barcode.equals(prefix + dcbs)));
+	}
+
+	// Application Services answers an unknown patron id with 404, which arrives wrapped
+	private static boolean isNotFound(Throwable error) {
+		return HttpResponsePredicates.isNotFound(error)
+			|| (error instanceof ThrowableProblem problem && problem.getParameters() != null
+				&& Integer.valueOf(404).equals(problem.getParameters().get("responseStatusCode")));
 	}
 
   public Mono<String> deletePatron(String id) {
@@ -1822,7 +2071,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			.sourceRecordId(String.valueOf(resource.getBibliographicRecordID()))
 			// TODO: resolve differences from sierra
 			.suppressFromDiscovery(!resource.getIsDisplayInPAC())
-			.deleted(false);
+			.deleted(TRUE.equals(resource.getDcbDeleted()));
 	}
 
 	@Override
@@ -1958,6 +2207,10 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		@JsonProperty("BibliographicRecordXML")
 		@JsonInclude(JsonInclude.Include.NON_NULL)
 		private String BibliographicRecordXML;
+		// Not a PAPI field: set only on the rows DCB writes for bibs Polaris reports deleted
+		@JsonProperty("DCBDeleted")
+		@JsonInclude(JsonInclude.Include.NON_NULL)
+		private Boolean dcbDeleted;
 	}
 
 	private static RuntimeException patronNotFound(String localId, String hostLmsCode) {
@@ -1966,7 +2219,7 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public Mono<String> checkInItem(CheckInItemCommand checkInItemCommand){
-		log.info("Check In Item({})", checkInItemCommand);
+		log.debug("Check In Item({})", checkInItemCommand);
 
 		return PAPIService.itemCheckInPost(checkInItemCommand.getItemBarcode())
 			.map(itemCheckInResult -> "OK");
@@ -2028,14 +2281,6 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 
 	@Override
 	public @NonNull String getClientId() {
-		
-//		return Optional.ofNullable(this.applicationServicesOverrideURL())
-//			.map( uri -> uri.resolve("/") )
-//			.map( ovr -> "%s:%s".formatted(this.defaultBaseUrl.resolve("/").toString(), ovr.toString()) )
-//			.orElseGet(this.defaultBaseUrl.resolve("/")::toString);
-		
-		// Probably don't need both.
-		
 		// Uri "toString" behaviour will sometimes return the string provided at initialization.
 		// While this is OK for general operation, we need to compare values here. Resolving a relative URI
 		// will force the toString method to construct a new string representation, meaning it's more comparable.
@@ -2096,10 +2341,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 			final Optional<BibsPagedGetParams> optParams = optExtParams.isPresent() ? Optional.of(optExtParams.get().toBibsPagedGetParams()) : Optional.empty();
 
 
-				// Instant highestDateUpdatedSeen = optExtParams.isPresent() ? optExtParams.get().getHighestDateUpdatedSeen() : null;
 				
 				final BibsPagedGetParams apiParams = mergeApiParameters(optParams);
 				final Instant now = Instant.now();
+
+				if (extParams.getWalkStartedAt() == null) {
+					extParams.setWalkStartedAt(now);
+				}
 
 				log.info("Polaris get bibs page from {} with params {}",lms.getName(),apiParams);
 
@@ -2110,13 +2358,13 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 						.flatMap(this::refuseFailedPage)
 						.retryWhen(FAILED_HARVEST_PAGE_RETRY))
 
-          .doOnNext ( bibsPaged -> log.info("bibsPaged {}",bibsPaged) )
+          .doOnNext ( bibsPaged -> log.trace("bibsPaged {}",bibsPaged) )
 					
 					.flatMap( bibsPaged -> {
 
             if ( bibsPaged.get("PAPIErrorCode") != null ) // THIS CAN BE A POSITIVE VALUE AND NOT MEAN AN ERROR
               log.info("PAPIErrorCode: {}",bibsPaged.get("PAPIErrorCode").getValue());
-						log.info("Bibs paged {}", bibsPaged.toString());
+						log.trace("Bibs paged {}", bibsPaged);
 
 
             if ( bibsPaged.get("ErrorMessage") != null )
@@ -2206,22 +2454,17 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												.build());
 
 											Instant modification_instant = convertMSJsonDate(rawJson.get("ModificationDate").getStringValue());
-											// log.info("Record modification date : {}",modification_instant);
 
 											if ( ( modification_instant != null ) &&
                            ( ( extParams.getHighestDateUpdatedSeen() == null ) ||
 											       ( extParams.getHighestDateUpdatedSeen().isBefore(modification_instant) ) ) ) {
 											  extParams.setHighestDateUpdatedSeen(modification_instant);
-												log.info("{} extParams.setHighestDateUpdatedSeen({})",lms.getCode(), modification_instant);
+												log.debug("{} extParams.setHighestDateUpdatedSeen({})",lms.getCode(), modification_instant);
 										  }
 
-					  			} catch (Throwable t) {  				
-					  				if (log.isDebugEnabled()) {
-					    				log.error( "Error creating SourceRecord from JSON '{}' \ncause: {}", rawJson, t);
-					  				} else {
-					  					log.error( "Error creating SourceRecord from JSON", t );
-					  				}
-					  			}
+					  			} catch (Throwable t) {
+											recordUnstagedBib(rawJson, t);
+										}
 								});
 
 								if ( isLastChunk ) {
@@ -2249,10 +2492,16 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 												lms.getCode(), startDateModified, highestSeen, jsonArr.size());
 										}
 
+										final Instant walkStartedAt = extParams.getWalkStartedAt();
+										final Instant watermark = walkStartedAt != null && walkStartedAt.isBefore(highestSeen)
+											? walkStartedAt
+											: highestSeen;
+
 										extParams.setStartdatemodified(
-											highestSeen.minus(polarisConfig.getHarvestWatermarkOverlap()));
+											watermark.minus(polarisConfig.getHarvestWatermarkOverlap()));
 									}
 
+									extParams.setWalkStartedAt(null);
 									extParams.setLastId(Integer.valueOf(0));
                   extParams.setPagesInCurrentCheckpoint(Integer.valueOf(0));
                   extParams.setCheckpointDate(Instant.now());
@@ -2266,13 +2515,15 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 									extParams.setLastId(Integer.valueOf(lastId));
 								}
 
-								// We return the current data with the Checkpoint that will return the next chunk.
-								final JsonNode newCheckpoint = objectMapper.writeValueToTree(extParams);
-								log.info("Polaris checkpoint {} {} {}",lms.getCode(), extParams, newCheckpoint);
+								if (!isLastChunk) {
+									return Mono.just(withCheckpoint(builder, extParams));
+								}
 
-								builder.checkpoint( newCheckpoint );
-								
-								return Mono.just( builder.build() );
+								return readDeletions(extParams, now)
+									.map(deleted -> {
+										deleted.forEach(builder::dataEntry);
+										return withCheckpoint(builder, extParams);
+									});
 								
 							} catch (Exception e) {
 								return Mono.error( e );
@@ -2282,6 +2533,102 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 		} catch (Exception e) {
 			return Mono.error( e );
 		}
+	}
+
+	// The checkpoint returned with the data is the one that fetches the next chunk
+	private SourceRecordImportChunk withCheckpoint(SourceRecordImportChunk.SourceRecordImportChunkBuilder builder,
+		ExtendedBibsPagedGetParams extParams) {
+
+		try {
+			final JsonNode newCheckpoint = objectMapper.writeValueToTree(extParams);
+			log.info("Polaris checkpoint {} {} {}", lms.getCode(), extParams, newCheckpoint);
+
+			return builder.checkpoint(newCheckpoint).build();
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException("Could not write the Polaris harvest checkpoint", e);
+		}
+	}
+
+	// The PAPI walk never sees a deleted bib. When a walk ends, read the ids Polaris reports deleted
+	// and emit a deleted row for each, keyed like the bib's own row, so ingest removes it. Bounded per
+	// run; the cursor resumes where a capped run stopped. A failed read leaves the watermark alone.
+	static final Duration FIRST_DELETIONS_WINDOW = Duration.ofDays(90);
+	static final Duration DELETIONS_INTERVAL = Duration.ofMinutes(30);
+	private static final int DELETIONS_PAGE_SIZE = 100;
+	private static final int DELETIONS_PAGES_PER_RUN = 20;
+
+	private Mono<List<SourceRecord>> readDeletions(ExtendedBibsPagedGetParams extParams, Instant now) {
+		final Instant since = extParams.getDeletedSince() != null
+			? extParams.getDeletedSince()
+			: now.minus(FIRST_DELETIONS_WINDOW);
+		final int startId = extParams.getDeletedLastId() == null ? 0 : extParams.getDeletedLastId();
+
+		// Read again once the watermark is this old, not on every two-minute run
+		if (startId == 0 && extParams.getDeletedSince() != null && since.isAfter(now.minus(DELETIONS_INTERVAL))) {
+			return Mono.just(List.of());
+		}
+
+		if (startId == 0 && extParams.getDeletionsFailedAt() != null
+			&& extParams.getDeletionsFailedAt().isAfter(now.minus(DELETIONS_INTERVAL))) {
+			return Mono.just(List.of());
+		}
+
+		final String sinceParam = since.truncatedTo(ChronoUnit.MILLIS).toString();
+
+		return deletedBibPage(sinceParam, startId)
+			.expand(ids -> ids.size() < DELETIONS_PAGE_SIZE
+				? Mono.empty()
+				: deletedBibPage(sinceParam, ids.get(ids.size() - 1)))
+			.take(DELETIONS_PAGES_PER_RUN)
+			.collectList()
+			.map(pages -> {
+				final List<Integer> deletedIds = pages.stream().flatMap(List::stream).toList();
+				final boolean capped = pages.size() == DELETIONS_PAGES_PER_RUN
+					&& pages.get(pages.size() - 1).size() == DELETIONS_PAGE_SIZE;
+
+				if (capped) {
+					extParams.setDeletedSince(since);
+					extParams.setDeletedLastId(deletedIds.get(deletedIds.size() - 1));
+				}
+				else {
+					extParams.setDeletedSince(now.minus(polarisConfig.getHarvestWatermarkOverlap()));
+					extParams.setDeletedLastId(0);
+				}
+
+				log.info("POLARIS_HARVEST_DELETIONS :: Host: {} {} bib(s) deleted since {}{}", lms.getCode(),
+					deletedIds.size(), sinceParam, capped ? ", more to read next run" : "");
+
+				extParams.setDeletionsFailedAt(null);
+
+				return deletedIds.stream().map(id -> deletedBibRow(id, now)).toList();
+			})
+			.onErrorResume(error -> {
+				log.warn("POLARIS_HARVEST_DELETIONS :: Host: {} could not read deleted bibs since {}; will retry in {}",
+					lms.getCode(), sinceParam, DELETIONS_INTERVAL, error);
+				extParams.setDeletionsFailedAt(now);
+				return Mono.just(List.of());
+			});
+	}
+
+	private Mono<List<Integer>> deletedBibPage(String since, int lastId) {
+		return Mono.from(PAPIService.synch_GetDeletedBibsPaged(since, DELETIONS_PAGE_SIZE, lastId))
+			.map(result -> Optional.ofNullable(result.getBibIDListRows()).orElseGet(List::of).stream()
+				.map(PAPIClient.BibIDListRow::getBibliographicRecordID)
+				.filter(Objects::nonNull)
+				.toList());
+	}
+
+	private SourceRecord deletedBibRow(Integer bibId, Instant now) {
+		return SourceRecord.builder()
+			.hostLmsId(lms.getId())
+			.lastFetched(now)
+			.remoteId(String.valueOf(bibId))
+			.sourceRecordData(JsonNode.createObjectNode(Map.of(
+				"BibliographicRecordID", JsonNode.createNumberNode(bibId),
+				"IsDisplayInPAC", JsonNode.createBooleanNode(false),
+				"DCBDeleted", JsonNode.createBooleanNode(true))))
+			.build();
 	}
 
 	// A negative PAPIErrorCode is a failure, whatever rows the page carries
@@ -2572,6 +2919,24 @@ public class PolarisLmsClient implements MarcIngestSource<PolarisLmsClient.BibsP
 	@Override
 	public boolean canSeeVirtualItemsByBarcode() {
 		return true;
+	}
+
+	/**
+	 * Polaris sends a copy checked in at any branch straight on to a hold it can fill, so a lent copy coming
+	 * home to a title with a queue reads in transit, or held, and never available. Checking the copy out to the
+	 * virtual patron filled DCB's own hold, which Polaris then no longer finds. So a routed copy whose hold is
+	 * gone has been checked in; one whose hold remains was never checked out, and is still on its outbound trip.
+	 * A copy its library has withdrawn, sent for repair or otherwise taken out of circulation is back in its
+	 * library's hands, whatever it reads next.
+	 */
+	@Override
+	public boolean showsCheckInAtSupplier(SupplierRequest supplierRequest) {
+		final var itemStatus = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemStatus);
+
+		return HostLmsClient.super.showsCheckInAtSupplier(supplierRequest)
+			|| PolarisItem.isHeldByTheOwningLibrary(itemStatus)
+			|| (itemStatus != null && ROUTED_ON_CHECK_IN.contains(itemStatus)
+				&& HostLmsRequest.HOLD_MISSING.equals(getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus)));
 	}
 
 	public Mono<HostLmsItem> getItemByBarcode(String barcode) {

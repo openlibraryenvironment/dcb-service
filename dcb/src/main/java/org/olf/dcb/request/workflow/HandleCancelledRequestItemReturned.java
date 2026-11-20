@@ -42,7 +42,9 @@ import reactor.core.publisher.Mono;
 public class HandleCancelledRequestItemReturned implements PatronRequestStateTransition {
 	private static final List<Status> possibleSourceStatus = List.of(Status.AWAITING_RETURN_TO_SUPPLIER);
 
-	// The supplier has the item back. Mirrors HandleSupplierItemAvailable.
+	// The supplier has the item back. Narrower than HandleSupplierItemAvailable, which also asks the supplier's
+	// client: a copy cancelled on its outbound trip was never checked out, and can read in transit with its hold
+	// cancelled, which is what a Polaris copy checked in and routed to a local hold looks like.
 	private static final List<String> supplierItemBackStatus = List.of(
 		HostLmsItem.ITEM_AVAILABLE, HostLmsItem.ITEM_RECEIVED);
 

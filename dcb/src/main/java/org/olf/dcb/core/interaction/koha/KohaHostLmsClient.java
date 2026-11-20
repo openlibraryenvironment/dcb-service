@@ -331,6 +331,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 	}
 
 	@Override
+	public Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of(VirtualPatronRemoval.DELETE);
+	}
+
+	@Override
 	public Mono<String> deletePatron(String id) {
 		log.info("Deleting Koha patron: {}", id);
 		return client.deletePatron(id)

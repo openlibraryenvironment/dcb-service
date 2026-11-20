@@ -2,6 +2,7 @@ package org.olf.dcb.core.model;
 
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import org.olf.dcb.request.fulfilment.SupplierRequestStatusCode;
@@ -50,6 +51,11 @@ public class SupplierRequest extends BaseSupplierRequest<SupplierRequest> {
 	@Nullable
 	@Builder.Default
 	private Boolean isActive = true;
+
+	// Set by tracking when a read of the lender's hold fails, cleared by the next good read.
+	// localStatus keeps the last status the lender reported meanwhile.
+	@Nullable
+	private Instant localReadFailingSince;
 
 	@Transient
 	public UUID getResolvedAgencyId() {

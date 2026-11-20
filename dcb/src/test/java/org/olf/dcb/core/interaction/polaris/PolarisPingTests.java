@@ -125,6 +125,24 @@ class PolarisPingTests {
 		assertThat(ping().getStatus(), is(PingResponse.OK));
 	}
 
+	@Test
+	void aLibrarysResponseTimeoutAppliesToItsPolarisOnly() {
+		mockServerClient.reset();
+		mockPolarisFixture.mockAppServicesStaffAuthentication();
+		mockPolarisFixture.mockGetHoldRequestDefaults(5);
+		mockPolarisFixture.mockPapiApiKeyAccepted();
+		mockPolarisFixture.mockPapiApiVersionAnsweringAfter("7.6.1234", 2000);
+
+		hostLmsFixture.createPolarisHostLms("polaris-ping-impatient", "staff-user", "staff-password",
+			"https://" + HOST, "TEST", "access-id", "access-key", null, 73,
+			Map.of("token-cache-ttl-seconds", "0", "response-timeout-seconds", 1));
+
+		final var impatient = singleValueFrom(hostLmsFixture.createClient("polaris-ping-impatient").ping());
+
+		assertThat(impatient.getVersionInfo(), is("POLARIS (version unknown)"));
+		assertThat("the library without a timeout waits", ping().getVersionInfo(), is("POLARIS PAPI 7.6.1234"));
+	}
+
 	private PingResponse ping() {
 		return singleValueFrom(hostLmsFixture.createClient(HOST_LMS_CODE).ping());
 	}

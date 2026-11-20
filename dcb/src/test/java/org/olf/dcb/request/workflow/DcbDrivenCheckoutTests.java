@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -98,6 +99,25 @@ class DcbDrivenCheckoutTests {
 		// The physical loan happened at the pickup library, so the request stands - but the
 		// patron's own library has no record of it and someone has to put that right
 		assertThat(context.getPatronRequest().getNeedsAttention(), is(true));
+	}
+
+	@Test
+	void marksTheRequestForAttentionWhenTheLenderRefusesTheVirtualPatronCheckout() {
+		when(supplierClient.reflectPatronLoanAtSupplier()).thenReturn(true);
+		when(supplierClient.checkOutItemToPatron(any()))
+			.thenReturn(Mono.error(new IllegalStateException("Patron block")));
+
+		final var transition = new HandleBorrowerItemLoaned(patronRequestRepository,
+			hostLmsService, auditService);
+
+		final var context = context();
+
+		transition.checkHomeItemOutToVirtualPatron(context).block();
+
+		// The loan stands, but the lender's copy is still Transferred until staff check it out
+		assertThat(context.getPatronRequest().getNeedsAttention(), is(true));
+		verify(auditService).addAuditEntry(any(PatronRequest.class),
+			startsWith("Virtual checkout failed"), any());
 	}
 
 	@Test
