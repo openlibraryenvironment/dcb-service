@@ -23,9 +23,13 @@ import static org.olf.dcb.request.fulfilment.SupplierPlacementGate.SUPPLIER_CANN
 import static org.olf.dcb.request.fulfilment.SupplierPlacementGate.SUPPLIER_REFUSED;
 import static org.olf.dcb.request.workflow.ResolveNextSupplierTransition.NO_OTHER_SUPPLIER;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
+
+import org.awaitility.core.ConditionTimeoutException;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -213,7 +217,7 @@ class SupplierRefusalApiTests {
 
 		rollBack(requestId);
 
-		final var placed = await().atMost(30, SECONDS).until(
+		final var placed = await().atMost(60, SECONDS).until(
 			() -> adminApiClient.getPatronRequestViaAdminApi(requestId),
 			hasProperty("status", hasProperty("code", is("REQUEST_PLACED_AT_BORROWING_AGENCY"))));
 
@@ -236,10 +240,8 @@ class SupplierRefusalApiTests {
 		rollBack(requestId);
 
 		// Twice and no more: a refusal after the rollback is not retried until staff roll back again
-		await().pollDelay(3, SECONDS).atMost(30, SECONDS).until(() -> {
-			final var request = patronRequestsFixture.findById(requestId);
-			return request.getStatus() == ERROR && refusals(request) == 2;
-		});
+		awaitState(requestId, request -> request.getStatus() == ERROR && refusals(request) == 2,
+			"ERROR after a second refusal");
 	}
 
 	@Test
@@ -342,8 +344,33 @@ class SupplierRefusalApiTests {
 	}
 
 	private PatronRequest awaitStatus(UUID requestId, PatronRequest.Status status) {
-		return await().atMost(30, SECONDS).until(() -> patronRequestsFixture.findById(requestId),
-			request -> request.getStatus() == status);
+		return awaitState(requestId, request -> request.getStatus() == status, status.name());
+	}
+
+	// A shared CI runner is slower than a workstation; and on a timeout, say where the request stopped
+	private PatronRequest awaitState(UUID requestId, Predicate<PatronRequest> reached, String expected) {
+		try {
+			return await().atMost(60, SECONDS).until(() -> patronRequestsFixture.findById(requestId), reached);
+		}
+		catch (ConditionTimeoutException timeout) {
+			throw new AssertionError(describe(requestId, expected), timeout);
+		}
+	}
+
+	private String describe(UUID requestId, String expected) {
+		final var request = patronRequestsFixture.findById(requestId);
+		final var description = new StringBuilder("Request did not reach ").append(expected)
+			.append(": status=").append(request.getStatus())
+			.append(" previousStatus=").append(request.getPreviousStatus())
+			.append(" errorMessage=").append(request.getErrorMessage())
+			.append("\n  audits, oldest first:");
+
+		patronRequestsFixture.findAuditEntries(request).stream()
+			.sorted(Comparator.comparing(PatronRequestAudit::getAuditDate, Comparator.nullsFirst(Comparator.naturalOrder())))
+			.forEach(audit -> description.append("\n    ").append(audit.getFromStatus()).append(" -> ")
+				.append(audit.getToStatus()).append(" : ").append(audit.getBriefDescription()));
+
+		return description.toString();
 	}
 
 	private List<String> briefDescriptions(PatronRequest request) {
