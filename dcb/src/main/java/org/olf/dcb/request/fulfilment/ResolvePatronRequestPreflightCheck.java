@@ -13,6 +13,7 @@ import org.olf.dcb.core.IntMessageService;
 import org.olf.dcb.core.UnknownHostLmsException;
 import org.olf.dcb.core.interaction.LocalPatronService;
 import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
+import org.olf.dcb.core.interaction.PatronStatusUncheckedException;
 import org.olf.dcb.core.interaction.shared.NoPatronTypeMappingFoundException;
 import org.olf.dcb.core.interaction.shared.UnableToConvertLocalPatronTypeException;
 import org.olf.dcb.core.model.Patron;
@@ -64,6 +65,8 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 			// This is due to both having to resolve the patron before performing the checks
 			.onErrorResume(UnableToResolveAgencyProblem.class, this::agencyNotFound)
 			.onErrorResume(PatronNotFoundInHostLmsException.class, error -> patronNotFound(
+				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
+			.onErrorResume(PatronStatusUncheckedException.class, error -> patronStatusUnchecked(
 				getValueOrNull(command, PlacePatronRequestCommand::getRequestorLocalSystemCode)))
 			.onErrorResume(NoPatronTypeMappingFoundException.class, this::noPatronTypeMappingFound)
 			.onErrorResume(UnableToConvertLocalPatronTypeException.class, this::nonNumericPatronType)
@@ -164,6 +167,14 @@ public class ResolvePatronRequestPreflightCheck implements PreflightCheck {
 	}
 
 	// Not the exception's message: that names the patron, and this description is kept in event_log
+	private Mono<List<CheckResult>> patronStatusUnchecked(String hostLmsCode) {
+		return Mono.just(List.of(
+			failedUm("PATRON_STATUS_UNCHECKED",
+				"Could not check whether the patron may borrow: \"%s\" did not answer clearly".formatted(hostLmsCode),
+				intMessageService.getMessage("PATRON_STATUS_UNCHECKED"))
+		));
+	}
+
 	private Mono<List<CheckResult>> patronNotFound(String hostLmsCode) {
 		return Mono.just(List.of(
 			failed("PATRON_NOT_FOUND",
