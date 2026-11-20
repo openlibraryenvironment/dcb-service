@@ -18,7 +18,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
  * Removes the preferences of staff who have not used either app for the retention period (saved
  * views and watches go with them), and watches whose request has gone or finished long ago.
  * Does nothing while preferences are off, so switching off cannot quietly delete everyone's settings.
- * No cluster lock: every delete is idempotent, as for notes. docs/operational/admin-preferences.md.
+ * No cluster lock: every delete is idempotent, as for notes.
  */
 @Slf4j
 @Singleton

@@ -13,7 +13,7 @@ import jakarta.inject.Singleton;
 /**
  * The opaque key a member of staff's preferences are filed under:
  * {@code base64url(HMAC-SHA256(secret, "u:" + sub))}. Never the username, never the subject itself.
- * docs/operational/admin-preferences.md.
+ * Changing the secret orphans every stored record.
  */
 @Singleton
 public class AdminKey {

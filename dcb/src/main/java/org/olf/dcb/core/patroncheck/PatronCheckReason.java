@@ -4,7 +4,7 @@ import java.util.Map;
 
 /**
  * Why a patron would be refused, as library staff are told it: a fixed vocabulary with no
- * detail from the patron's record. Decision D-23 in the OpenRS for Libraries plan.
+ * detail from the patron's record.
  */
 public enum PatronCheckReason {
 	BLOCKED,

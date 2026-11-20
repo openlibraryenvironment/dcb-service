@@ -8,8 +8,3 @@ How DCB's integrations work, for developers changing or debugging them.
   Alma, its bounds and its known gaps.
 - [Alma API reference](alma-api-reference.md): every Alma call the adapter makes, and what uses
   it.
-
-## Staff preferences
-
-- [Staff preferences](admin-preferences.md): the API, the vocabularies that keep patron data
-  out, and the schema.

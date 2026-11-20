@@ -37,7 +37,7 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
 
-/** The stored measures (S-23): recorded each week, and a trend once four weeks are recorded. */
+/** The stored measures: recorded each week, and a trend once four weeks are recorded. */
 @DcbTest
 @TestInstance(PER_CLASS)
 class WeeklyMeasureTests {

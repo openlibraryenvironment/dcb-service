@@ -45,7 +45,6 @@ import reactor.core.publisher.Mono;
  * The signed-in member of staff's own settings, in either admin app. No route takes an owner: the
  * key comes from the caller's verified claims. LIBRARY_READ_ONLY may write here, deliberately:
  * these are the person's settings, not library data. Interop testers are not in the list.
- * docs/dev/admin-preferences.md.
  */
 @Controller("/preferences")
 @Validated

@@ -54,7 +54,7 @@ import services.k_int.interaction.sierra.patrons.SierraPatronRecord;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 /**
- * Library staff checking why one of their own patrons would be refused (S-21, decision D-23).
+ * Library staff checking why one of their own patrons would be refused.
  * Two libraries share one Sierra, so a patron of the other must look like no patron at all.
  */
 @MockServerMicronautTest
@@ -254,7 +254,7 @@ class PatronCheckApiTests {
 
 		// DCB's own code at every level. Micronaut is captured at the level it runs at: its HTTP
 		// client prints request URLs, which carry a Sierra patron search, only when raised past the
-		// WARN that logback.xml pins. docs/operational/patron-checks.md
+		// WARN that logback.xml pins
 		final var ours = List.of(
 			(Logger) LoggerFactory.getLogger("org.olf.dcb"),
 			(Logger) LoggerFactory.getLogger("services.k_int"));

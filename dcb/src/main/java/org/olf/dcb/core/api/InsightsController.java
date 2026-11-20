@@ -780,7 +780,7 @@ public class InsightsController {
 	}
 
 
-	/** What other libraries ask this one to supply most, a year at most, small groups folded (S-22). */
+	/** What other libraries ask this one to supply most, a year at most, small groups folded. */
 	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
 	@Get("/most-lent-titles")
 	public Mono<LendingAnalysis<LentTitleStat>> getMostLentTitles(
@@ -794,7 +794,7 @@ public class InsightsController {
 			.flatMap(scope -> lendingAnalysisService.mostLent(scope.libraryCode(), scope.agencyCodes(), startDate, endDate));
 	}
 
-	/** The same, by canonical format (S-22). */
+	/** The same, by canonical format. */
 	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
 	@Get("/lending-by-format")
 	public Mono<LendingAnalysis<LendingFormatStat>> getLendingByFormat(

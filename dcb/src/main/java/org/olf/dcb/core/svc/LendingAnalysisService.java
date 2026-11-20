@@ -22,9 +22,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * What other libraries ask a library to supply, by title and by format (S-22). Over a year at
+ * What other libraries ask a library to supply, by title and by format. Over a year at
  * most; a group below {@link #MINIMUM_GROUP} requests is counted as other, never shown on its
- * own. Cached per library and window, as the collection analysis is: docs/insights.md part 5.
+ * own. Cached per library and window, as {@link CollectionAnalysisService} is.
  */
 @Singleton
 public class LendingAnalysisService {

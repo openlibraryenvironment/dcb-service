@@ -20,7 +20,7 @@ import services.k_int.micronaut.scheduling.processor.AppTask;
 /**
  * Records last week's stored measures for every library, once a week, from DCB's own tables only:
  * hundreds of libraries, two queries each, two at a time. Rewriting a week replaces it, so a second
- * instance running at the same moment does no harm. docs/operational/staff-notifications.md.
+ * instance running at the same moment does no harm.
  */
 @Slf4j
 @Singleton

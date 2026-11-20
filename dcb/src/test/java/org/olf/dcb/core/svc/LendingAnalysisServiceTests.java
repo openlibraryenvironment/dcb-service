@@ -24,7 +24,7 @@ import org.olf.dcb.test.PatronRequestsFixture;
 
 import jakarta.inject.Inject;
 
-/** What other libraries ask a library to lend (S-22): small groups folded, other libraries kept out. */
+/** What other libraries ask a library to lend: small groups folded, other libraries kept out. */
 @DcbTest
 class LendingAnalysisServiceTests {
 	@Inject

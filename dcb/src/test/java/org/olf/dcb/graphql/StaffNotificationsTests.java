@@ -47,7 +47,7 @@ import io.micronaut.data.r2dbc.operations.R2dbcOperations;
 import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
 
-/** A library's notification feed (S-20) and its weekly trends (S-23). */
+/** A library's notification feed and its weekly trends. */
 @DcbTest
 @TestInstance(PER_CLASS)
 class StaffNotificationsTests {

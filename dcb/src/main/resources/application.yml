@@ -272,7 +272,7 @@ dcb:
       # Postgres cancels a whole-catalogue pass that runs longer than this.
       statement-timeout: 10m
 
-  # Library staff asking why one of their patrons would be refused: docs/operational/patron-checks.md.
+  # Library staff asking why one of their patrons would be refused (PatronCheckController).
   patron-checks:
     enabled: true
     # Every check is a live read of a library system DCB does not own.

@@ -29,8 +29,9 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 /**
- * Library staff asking why one of their own patrons would be refused. Decision D-23 in the
- * OpenRS for Libraries plan; docs/operational/patron-checks.md.
+ * Library staff asking why one of their own patrons would be refused, without seeing the patron's
+ * record. The rules are placement's own ({@link org.olf.dcb.request.fulfilment.PatronEligibilityChecks}),
+ * and the answer gives reasons from {@link org.olf.dcb.core.patroncheck.PatronCheckReason}.
  */
 @Controller("/patrons/eligibility-checks")
 @Secured(LIBRARY_ADMIN)

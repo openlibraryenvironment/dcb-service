@@ -10,7 +10,7 @@ import io.micronaut.core.annotation.Nullable;
  * an empty Mono is far too easy to read as "denied" at a call site - which would fail open.
  * A null libraryCode means "no narrowing", and only a consortium-level caller ever gets one.
  * agencyCodes narrows further, to requests whose patron or supplying library is one of them;
- * null means every library on those systems. docs/insights-per-agency.md.
+ * null means every library on those systems.
  */
 public record StatsScope(@Nullable String libraryCode, @Nullable String agencyCodes) {
 

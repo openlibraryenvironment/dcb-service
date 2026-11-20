@@ -35,7 +35,7 @@ import jakarta.inject.Inject;
 import services.k_int.interaction.sierra.SierraTestUtils;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
-/** The two limits on patron checks: per member of staff, and per library system (S-21, D-23). */
+/** The two limits on patron checks: per member of staff, and per library system. */
 @MockServerMicronautTest
 @TestInstance(PER_CLASS)
 @Property(name = "dcb.patron-checks.per-caller-per-minute", value = "2")

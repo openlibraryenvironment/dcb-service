@@ -8,7 +8,7 @@ import org.olf.dcb.core.model.PatronRequest;
 import io.micronaut.core.annotation.Nullable;
 
 /**
- * A weekly figure a library is told about when it moves well outside its last eight weeks (S-23).
+ * A weekly figure a library is told about when it moves well outside its last eight weeks.
  * The threshold is part of the measure: a measure cannot be added without one.
  */
 public enum TrendMeasure {

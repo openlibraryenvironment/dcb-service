@@ -36,9 +36,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * A library's notifications (S-20), worked out when read from what DCB already holds: the Home
- * counts that need staff, notes other libraries added to its requests, and its weekly trends
- * (S-23). Nothing is stored per member of staff. docs/operational/staff-notifications.md.
+ * A library's notifications, worked out when read from what DCB already holds: the Home counts
+ * that need staff, notes other libraries added to its requests, and its weekly trends
+ * ({@link TrendMeasure}). Nothing is stored per member of staff.
  */
 @Slf4j
 @Singleton

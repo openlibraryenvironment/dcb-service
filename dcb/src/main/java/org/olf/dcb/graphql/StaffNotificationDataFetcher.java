@@ -17,8 +17,8 @@ import graphql.schema.DataFetcher;
 import jakarta.inject.Singleton;
 
 /**
- * {@code staffNotifications}: one library's feed (S-20). A library user reads their own
- * libraries' only; consortium staff name the library. docs/operational/staff-notifications.md
+ * {@code staffNotifications}: one library's feed ({@link org.olf.dcb.core.notifications.StaffNotificationService}).
+ * A library user reads their own libraries' only; consortium staff name the library.
  */
 @Singleton
 public class StaffNotificationDataFetcher implements DataFetcher<CompletableFuture<Map<String, Object>>> {

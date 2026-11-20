@@ -7,7 +7,6 @@ import java.util.Set;
 /**
  * What stored preference content may contain. Allow-lists, so a column added to a grid is not
  * remembered until it is added here: the safe direction for patron data.
- * docs/dev/admin-preferences.md, "Vocabularies".
  */
 public final class PreferenceVocabulary {
 	public static final String ADMIN_APP = "admin";

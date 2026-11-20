@@ -6,7 +6,7 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 
 /**
  * Staff preferences. On when a secret is set, unless {@code enabled} is false; never a reason to
- * stop startup. docs/operational/admin-preferences.md.
+ * stop startup.
  */
 @ConfigurationProperties("dcb.preferences")
 public class PreferencesConfig {

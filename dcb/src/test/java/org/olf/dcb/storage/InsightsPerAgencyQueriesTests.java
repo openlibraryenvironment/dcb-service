@@ -29,7 +29,6 @@ import jakarta.inject.Inject;
  * Two libraries on one shared system, each borrowing from and lending to another system. With
  * agencies named, a library's figures are its own: its patrons' requests on the borrowing side,
  * the requests it supplied on the lending side. Without, the system's as before.
- * docs/insights-per-agency.md.
  */
 @DcbTest
 class InsightsPerAgencyQueriesTests {
