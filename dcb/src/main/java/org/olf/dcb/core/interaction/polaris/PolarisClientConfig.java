@@ -305,8 +305,9 @@ public class PolarisClientConfig extends DefaultHttpClientConfiguration {
 		return defaultConfig.toString();
 	}
 
-	// Polaris advertises MAX_CONCURRENT_STREAMS 100 (observed 2026-08-05). Going over tears the
-	// connection down and fails every call on it, patron sign-in included.
+	// Polaris advertises MAX_CONCURRENT_STREAMS 100 (observed 2026-08-05 and 2026-11-20). Netty refuses a request
+	// over that before sending it, and the pool frees a slot just before Netty does, so a limit of exactly 100
+	// still refuses requests under load. Requests over this limit wait for a free slot.
 	static final int MAX_STREAMS_PER_POLARIS_CONNECTION = 64;
 
 	private final ConnectionPoolConfiguration polarisPool;
