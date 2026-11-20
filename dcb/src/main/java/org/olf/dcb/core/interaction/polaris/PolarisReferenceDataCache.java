@@ -12,7 +12,6 @@ import reactor.core.publisher.Mono;
 /**
  * Each Polaris's item statuses and material types, read once an hour rather than by every client.
  * PolarisLmsClient is built per call, so a list held on the client was read again for every bib.
- * See docs/polaris/load-and-connections.adoc.
  */
 @Singleton
 class PolarisReferenceDataCache {

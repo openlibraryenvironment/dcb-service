@@ -34,7 +34,7 @@ import reactor.core.publisher.Mono;
 /**
  * A person retries the checkout of the lender's copy to the virtual patron, after the one made when
  * the patron borrowed the item failed. Until it succeeds, the lender's copy shows Transferred and is
- * routed again when it is checked in. See docs/polaris/lender-checkout.adoc.
+ * routed again when it is checked in.
  */
 @Slf4j
 @Singleton
