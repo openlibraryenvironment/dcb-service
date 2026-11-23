@@ -558,7 +558,7 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	protected Flux<ClusterRecord> doExtraProcessing(BibRecord compareTo, Collection<MatchPoint> candidates,
-			List<ClusterRecord> alreadyMatchedClusers) {
+			List<ClusterRecord> alreadyMatchedClusters) {
 
 		if (candidates.isEmpty()) {
 			log.debug("No extra processing for bib [{}] required", compareTo.getId());
@@ -566,24 +566,15 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 			return Flux.empty();
 		}
 		
-		// Mutate the map making the manifested bib the key and not just the ID
+		var matchedClusters = new HashSet<>(alreadyMatchedClusters);
 		return Mono.just(candidates.stream()
 			.filter( mp -> !mp.getBibId().equals(compareTo.getId()) )
-			.collect(Collectors.groupingBy(mp -> mp.getBibId().toString())))
+			.collect(Collectors.groupingBy(MatchPoint::getBibId)))
 
-			// Manifest the bibs in the map, and that aren't attached to clusters that
-			// we've already decided to match with.
-			.flatMap(bibIdMap -> Mono.just(bibIdMap.keySet().stream().map(UUID::fromString).toList())
-				.flatMapMany( ids -> chunkLoadBibsAndCluster(ids, 200) )
-				.filter(bib -> alreadyMatchedClusers.contains(bib.getContributesTo()))
-				.collectMap(bib -> bib.getId().toString())
-				.map(manifestedBibs -> {
-					Map<BibRecord, List<MatchPoint>> bibMap = new LinkedHashMap<>();
-					manifestedBibs.forEach((bid, bib) -> bibMap
-							.put(bib, bibIdMap.get(bid)));
-					return bibMap;
-				}))
-			.flatMapMany(bibsToCheck -> doCompareBibs(compareTo, bibsToCheck, alreadyMatchedClusers));
+			.flatMap(bibIdMap -> chunkLoadBibsAndCluster(bibIdMap.keySet(), 200)
+				.filter(bib -> !matchedClusters.contains(bib.getContributesTo()))
+				.collectMap(Function.identity(), bib -> bibIdMap.get(bib.getId()), LinkedHashMap::new))
+			.flatMapMany(bibsToCheck -> doCompareBibs(compareTo, bibsToCheck, alreadyMatchedClusters));
 	}
 
 	@Transactional(propagation = Propagation.MANDATORY)
@@ -615,6 +606,10 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 			.stream()
 			.map(MatchPoint::getValue)
 			.collect(Collectors.toUnmodifiableSet());
+		final var lowConfidenceValues = rankedPoints.getOrDefault(MatchConfidence.LOW, Collections.emptySet())
+			.stream()
+			.map(MatchPoint::getValue)
+			.collect(Collectors.toUnmodifiableSet());
 		
 		return matchpointService.getMatchesByDerrivedType(bib.getDerivedType(), highConfidenceValues)
 			.filter( mp -> !mp.getBibId().equals(bib.getId()) )
@@ -640,10 +635,21 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 			// twice it was matched on 2 match points.
 			// Hence List and NOT Set
 			.collectList()
-			.flatMapMany(primaryMatchedClusters -> Flux.fromIterable(primaryMatchedClusters)
-				.concatWith(
-					doExtraProcessing(bib, rankedPoints.computeIfAbsent(MatchConfidence.LOW,
-						_k -> Collections.emptySet()), primaryMatchedClusters)));
+			.flatMapMany(primaryMatchedClusters -> {
+				var primaryMatches = Flux.fromIterable(primaryMatchedClusters);
+				if (lowConfidenceValues.isEmpty()) {
+					return primaryMatches;
+				}
+
+				var secondaryMatches = matchpointService.getMatchesByDerrivedType(bib.getDerivedType(), lowConfidenceValues)
+					// Older stored points can lack a domain. The value identifies the generated point's domain.
+					.map(hit -> hit.getDomain() == null
+						? hit.toBuilder().domain(matchPointValueMap.get(hit.getValue()).getDomain()).build()
+						: hit)
+					.collectList()
+					.flatMapMany(hits -> doExtraProcessing(bib, hits, primaryMatchedClusters));
+				return primaryMatches.concatWith(secondaryMatches);
+			});
 	}
 	
 	@Transactional(propagation = Propagation.REQUIRED)
@@ -857,7 +863,7 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 						.then(Mono.defer(() -> refreshPrimaryAndQueueBibs(primary, detached, bibs)));
 				}))
 			.then(Mono.fromSupplier(() -> {
-				sharedIndexService.get().update(clusterID);
+				sharedIndexService.ifPresent(index -> index.update(clusterID));
 				return clusterID;
 			}));
 	}
