@@ -23,10 +23,13 @@ import static org.olf.dcb.request.fulfilment.SupplierPlacementGate.SUPPLIER_CANN
 import static org.olf.dcb.request.fulfilment.SupplierPlacementGate.SUPPLIER_REFUSED;
 import static org.olf.dcb.request.workflow.ResolveNextSupplierTransition.NO_OTHER_SUPPLIER;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import org.awaitility.core.ConditionTimeoutException;
@@ -85,6 +88,8 @@ class SupplierRefusalApiTests {
 	private static final String PICKUP_LOCATION_CODE = "RF123";
 	private static final String PICKUP_LOCATION_ID = "5b3e1a0c-6a2d-4c55-9a43-0c4bd1e5f101";
 	private static final String VIRTUAL_PATRON_TYPE = "15";
+	// Locally the workflow's last save lands about 150ms after ERROR is visible
+	private static final Duration NO_FURTHER_SAVES_FOR = Duration.ofSeconds(2);
 
 	@Inject
 	private SierraApiFixtureProvider sierraApiFixtureProvider;
@@ -329,6 +334,8 @@ class SupplierRefusalApiTests {
 
 	// Tracking picks a rolled-back request up at its next poll; asking it to check now is the same step, sooner
 	private void rollBack(UUID requestId) {
+		awaitNoFurtherSaves(requestId);
+
 		assertThat(patronRequestApiClient.rollbackPatronRequest(requestId).getStatus(), is(OK));
 		assertThat(patronRequestApiClient.updatePatronRequest(requestId).getStatus(), is(OK));
 	}
@@ -347,10 +354,27 @@ class SupplierRefusalApiTests {
 		return awaitState(requestId, request -> request.getStatus() == status, status.name());
 	}
 
-	// A shared CI runner is slower than a workstation; and on a timeout, say where the request stopped
+	// The workflow that put the request in ERROR saves its own copy once more after ERROR is visible, overwriting a
+	// rollback made in between. Nothing but dateUpdated shows that save, so wait until it stops changing
+	private void awaitNoFurtherSaves(UUID requestId) {
+		final var lastSaved = new AtomicReference<Instant>();
+
+		awaitState(requestId, request -> request.getDateUpdated() != null
+				&& request.getDateUpdated().equals(lastSaved.getAndSet(request.getDateUpdated())),
+			"no further saves for " + NO_FURTHER_SAVES_FOR, NO_FURTHER_SAVES_FOR);
+	}
+
 	private PatronRequest awaitState(UUID requestId, Predicate<PatronRequest> reached, String expected) {
+		return awaitState(requestId, reached, expected, Duration.ofMillis(100));
+	}
+
+	// A shared CI runner is slower than a workstation; and on a timeout, say where the request stopped
+	private PatronRequest awaitState(UUID requestId, Predicate<PatronRequest> reached, String expected,
+		Duration pollInterval) {
+
 		try {
-			return await().atMost(60, SECONDS).until(() -> patronRequestsFixture.findById(requestId), reached);
+			return await().atMost(60, SECONDS).pollInterval(pollInterval)
+				.until(() -> patronRequestsFixture.findById(requestId), reached);
 		}
 		catch (ConditionTimeoutException timeout) {
 			throw new AssertionError(describe(requestId, expected), timeout);
