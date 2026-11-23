@@ -9,8 +9,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Singular;
 import services.k_int.interaction.sierra.DateTimeRange;
-import services.k_int.interaction.sierra.DateTimeRange.DateTimeRangeBuilder;
 
+// Serde reads a checkpoint through this builder, so it has one setter per property: a Consumer
+// overload stops every harvest resuming from its checkpoint.
 @Builder(toBuilder = true)
 @Data
 @Serdeable
@@ -58,21 +59,6 @@ public class BibParams {
 		
 		public BibParamsBuilder deletedDate(DateTimeRange range) {
 			deletedDate = range;
-			return this;
-		}
-		
-		public BibParamsBuilder createdDate(Consumer<DateTimeRangeBuilder> consumer) {
-			createdDate = DateTimeRange.build(consumer);
-			return this;
-		}
-
-		public BibParamsBuilder updatedDate(Consumer<DateTimeRangeBuilder> consumer) {
-			updatedDate = DateTimeRange.build(consumer);
-			return this;
-		}
-
-		public BibParamsBuilder deletedDate(Consumer<DateTimeRangeBuilder> consumer) {
-			deletedDate = DateTimeRange.build(consumer);
 			return this;
 		}
 	}
