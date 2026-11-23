@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
 import org.apache.commons.codec.language.DoubleMetaphone;
+import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.audit.ProcessAuditService;
 import org.olf.dcb.core.clustering.matching.MatchpointService;
 import org.olf.dcb.core.clustering.model.ClusterRecord;
@@ -32,8 +33,10 @@ import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.svc.BibRecordService;
 import org.olf.dcb.dataimport.job.SourceRecordService;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
+import org.olf.dcb.dataimport.job.model.SourceRecord.ProcessingStatus;
 import org.olf.dcb.indexing.SharedIndexService;
 import org.olf.dcb.ingest.IngestService;
+import org.olf.dcb.ingest.conversion.SourceToIngestRecordConverter;
 import org.olf.dcb.storage.ClusterRecordRepository;
 import org.olf.dcb.storage.MatchPointRepository;
 import org.reactivestreams.Publisher;
@@ -55,6 +58,7 @@ import jakarta.inject.Singleton;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.function.TupleUtils;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
@@ -78,6 +82,7 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 
 	private final ClusterRecordRepository clusterRecords;
 	private final Optional<SourceRecordService> sourceRecordService;
+	private final BeanProvider<HostLmsService> hostLmsService;
 	private final BeanProvider<SharedIndexService> sharedIndexService;
 	private final BibRecordService bibRecords;
 	private final MatchpointService matchpointService;
@@ -91,9 +96,11 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 			Environment environment,
 			MatchPointRepository matchPointRepository,
 			Optional<SourceRecordService> sourceRecordService,
-			BeanProvider<SharedIndexService> sharedIndexService, MatchpointService matchpointservice, ReactiveTransactionalBehaviours transactionalBehaviours, ProcessAuditService genericAuditService, BeanProvider<ClusterHousekeepingService> housekeepingProvider) {
+			BeanProvider<SharedIndexService> sharedIndexService, MatchpointService matchpointservice, ReactiveTransactionalBehaviours transactionalBehaviours, ProcessAuditService genericAuditService, BeanProvider<ClusterHousekeepingService> housekeepingProvider,
+			BeanProvider<HostLmsService> hostLmsService) {
 		this.clusterRecords = clusterRecordRepository;
 		this.sourceRecordService = sourceRecordService;
+		this.hostLmsService = hostLmsService;
 		this.sharedIndexService = sharedIndexService;
 		this.bibRecords = bibRecordService;
 		this.matchpointService = matchpointservice;
@@ -718,11 +725,9 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 			.then();
 	}
 
-	/**
-	 * Flag that this cluster needs reprocessing.
-	 * 
-	 * Actual flow is to orphan all the bibs 
-	 */
+	/*
+	 * Original disperseAndRecluster retained for comparison.
+	 *
 	@Override
 	@Retryable
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -822,6 +827,87 @@ public class DefaultRecordClusteringService implements RecordClusteringService {
 				sharedIndexService.get().update(clusterID);
 					return clusterID;
 				}));
+	}
+	*/
+
+	@Override
+	@Retryable
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public Mono<UUID> disperseAndRecluster(@NotNull @NonNull UUID clusterID) {
+		return findById(clusterID)
+			.flatMap(cluster -> bibRecords.findAllByContributesTo(cluster)
+				.concatMap(bibRecords::checkOrphanedBib)
+				.distinct(BibRecord::getId)
+				.collectList()
+				.flatMap(bibs -> {
+					if (bibs.isEmpty()) {
+						return softDelete(cluster).then();
+					}
+
+					var primary = bibs.stream()
+						.filter(bib -> bib.getId().equals(cluster.getSelectedBib()))
+						.findFirst()
+						.orElseGet(() -> bibs.getFirst());
+					var detached = bibs.stream()
+						.filter(bib -> !bib.getId().equals(primary.getId()))
+						.toList();
+
+					return Flux.fromIterable(detached)
+						.flatMap(bib -> bibRecords.saveOrUpdate(bib.setContributesTo(null)))
+						.then(Mono.defer(() -> refreshPrimaryAndQueueBibs(primary, detached, bibs)));
+				}))
+			.then(Mono.fromSupplier(() -> {
+				sharedIndexService.get().update(clusterID);
+				return clusterID;
+			}));
+	}
+
+	private Mono<Void> refreshPrimaryAndQueueBibs(BibRecord primary, List<BibRecord> detached, List<BibRecord> allBibs) {
+		if (sourceRecordService.isEmpty()) {
+			return Mono.empty();
+		}
+
+		var processVersion = primary.getProcessVersion();
+		if (detached.isEmpty() || (processVersion != null && processVersion >= IngestService.getProcessVersion())) {
+			return queueBibsForReprocessing(allBibs);
+		}
+
+		// Publish the sibling flags in the same transaction as the refreshed primary.
+		return bibRecords.findSourceRecordForBib(primary)
+			.single()
+			.flatMap(source -> refreshPrimaryBib(primary.getId(), source))
+			.then(Mono.defer(() -> queueBibsForReprocessing(detached)));
+	}
+
+	private Mono<Void> refreshPrimaryBib(UUID bibId, SourceRecord source) {
+		var sourceRecords = sourceRecordService.orElseThrow();
+		var hosts = hostLmsService.get();
+		return hosts.findById(source.getHostLmsId())
+			.flatMap(hosts::getIngestSourceFor)
+			.ofType(SourceToIngestRecordConverter.class)
+			.publishOn(Schedulers.boundedElastic())
+			.flatMap(converter -> converter.convertSourceToIngestRecord(source))
+			.filter(record -> bibId.equals(record.getUuid()))
+			.switchIfEmpty(Mono.error(() -> new IllegalStateException(
+				"Source record %s did not convert to retained bib %s".formatted(source.getId(), bibId))))
+			.flatMap(bibRecords::process)
+			.flatMap(bib -> clusterBib(bib)
+				.switchIfEmpty(Mono.error(() -> new IllegalStateException(
+					"Clustering returned no result for retained bib " + bibId))))
+			.then(Mono.defer(() -> sourceRecords.updateProcessingInformation(
+				source.getId(), Instant.now(), ProcessingStatus.SUCCESS,
+				"Bib [%s] reprocessed during cluster dispersion".formatted(bibId))))
+			.transform(ProcessAuditService.withNewProcessAudit("ingest"));
+	}
+
+	private Mono<Void> queueBibsForReprocessing(List<BibRecord> bibs) {
+		var sourceRecords = sourceRecordService.orElseThrow();
+		return Flux.fromIterable(bibs)
+			.concatMap(bibRecords::findSourceRecordForBib)
+			.map(SourceRecord::getId)
+			.distinct()
+			.flatMap(sourceRecords::requireProcessing)
+			.then();
 	}
 
 	@Override
