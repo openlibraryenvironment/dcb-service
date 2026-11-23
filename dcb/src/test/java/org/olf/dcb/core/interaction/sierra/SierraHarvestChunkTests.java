@@ -92,6 +92,23 @@ class SierraHarvestChunkTests {
 		assertThat(last.getData().size(), is(10));
 	}
 
+	@Test
+	void aDeltaRunAsksSierraOnlyForBibsChangedSinceItsWindowOpened() {
+		// Arrange
+		final var deltaCheckpoint = jsonNode("""
+			{ "updatedDate": { "fromDate": "2026-11-20T10:00:00" } }""");
+
+		sierra.whenRequest(req -> req.withPath(BIBS_PATH)
+				.withQueryStringParameter("updatedDate", "2026-11-20T10:00.*"))
+			.respond(bibs(1, 10));
+
+		// Act
+		final var chunk = singleValueFrom(client.getChunk(Optional.of(deltaCheckpoint)));
+
+		// Assert
+		assertThat(chunk.getData().size(), is(10));
+	}
+
 	private void mockPage(int offset, HttpResponse response) {
 		sierra.whenRequest(req -> req.withPath(BIBS_PATH)
 				.withQueryStringParameter("offset", String.valueOf(offset)))
