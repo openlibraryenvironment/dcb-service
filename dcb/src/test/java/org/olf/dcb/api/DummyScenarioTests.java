@@ -1,5 +1,6 @@
 package org.olf.dcb.api;
 
+import static org.awaitility.Awaitility.await;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.CoreMatchers.allOf;
@@ -373,7 +374,7 @@ class DummyScenarioTests {
 		setPickupAnywhereState(LOANED_STATE, RECEIVED_AT_PICKUP_STATE);
 		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
 
-		await().alias("the request stays LOANED").during(3, SECONDS).atMost(15, SECONDS)
+		await().alias("the request stays LOANED").during(Duration.ofSeconds(3)).atMost(Duration.ofSeconds(15))
 			.until(() -> LOANED.equals(patronRequestsFixture.findById(placedRequestUUID).getStatus()));
 		assertThat(patronRequestsFixture.findById(placedRequestUUID).getLocalItemStatus(), is("LOANED"));
 	}
