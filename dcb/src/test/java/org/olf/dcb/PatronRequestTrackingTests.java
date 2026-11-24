@@ -5,7 +5,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockserver.model.HttpResponse.response;
@@ -254,8 +253,8 @@ public class PatronRequestTrackingTests {
 		// Assert
 
 		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
-		await().atMost(5, SECONDS)
-			.until(() -> getPatronRequest(patronRequest.getId()), hasProperty("localRequestStatus", is("MISSING")));
+		patronRequestsFixture.awaitRequest(patronRequest.getId(), "localRequestStatus MISSING",
+			request -> "MISSING".equals(request.getLocalRequestStatus()), Duration.ofSeconds(5));
 	}
 
 	@Test
@@ -284,9 +283,8 @@ public class PatronRequestTrackingTests {
 		trackingFixture.trackRequest(patronRequest);
 
 		// Assert: the poll reached the host LMS, which a parked request never did
-		await().atMost(5, SECONDS)
-			.until(() -> getPatronRequest(patronRequest.getId()),
-				hasProperty("localRequestStatus", is("MISSING")));
+		patronRequestsFixture.awaitRequest(patronRequest.getId(), "localRequestStatus MISSING",
+			request -> "MISSING".equals(request.getLocalRequestStatus()), Duration.ofSeconds(5));
 
 		final var tracked = getPatronRequest(patronRequest.getId());
 
