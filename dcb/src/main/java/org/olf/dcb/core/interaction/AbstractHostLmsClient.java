@@ -24,9 +24,18 @@ public abstract class AbstractHostLmsClient implements HostLmsClient {
 		return List.of();
 	}
 
+	/**
+	 * Refuses, rather than returning empty.
+	 *
+	 * SupplierRenewalTransition runs neither its success nor its failure branch on an empty
+	 * result, so an adapter that inherited this recorded no renewal, no failure and no audit
+	 * entry — the request said nothing had happened by saying nothing at all. An error
+	 * reaches the transition's onErrorResume and is audited as a failure.
+	 */
 	@Override
 	public Mono<HostLmsRenewal> renew(@NonNull HostLmsRenewal hostLmsRenewal) {
-		return Mono.empty();
+		return Mono.error(() -> new UnsupportedOperationException(
+			"Renewal is not supported by the client for Host LMS " + getHostLms().getCode()));
 	}
 
 	@Override

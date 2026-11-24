@@ -101,7 +101,13 @@ public class SupplierRenewalTransition implements PatronRequestStateTransition {
 	private Mono<RequestWorkflowContext> processRenewal(
 		PatronRequest patronRequest, SupplierRequest supplierRequest, RequestWorkflowContext ctx) {
 
+		// switchIfEmpty before the flatMap, because an empty outcome runs neither branch
+		// below it and so leaves no audit entry at all. Every adapter that renews returns a
+		// value or throws, so empty here means the renewal did not happen — whether from an
+		// unsupported client or from no client being resolved for the supplier at all.
 		return performRenewal(supplierRequest, ctx)
+			.switchIfEmpty(Mono.error(() -> new IllegalStateException(
+				"Renewal at " + ctx.getLenderSystemCode() + " produced no outcome")))
 			.flatMap(renewalResponse -> renewalSuccess(patronRequest, ctx))
 			.onErrorResume(error -> renewalFailure(patronRequest, error, ctx));
 	}
