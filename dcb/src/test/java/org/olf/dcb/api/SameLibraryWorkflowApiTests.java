@@ -1,9 +1,8 @@
 package org.olf.dcb.api;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.HANDED_OFF_AS_LOCAL;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.lang.Integer.parseInt;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -12,6 +11,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -258,29 +258,9 @@ class SameLibraryWorkflowApiTests {
 	}
 
 	private void assertRequestWasHandedOffAsLocal(UUID requestUUID) {
-		final String expectedStatus = "HANDED_OFF_AS_LOCAL";
-		final int timeoutInSeconds = 30;
-
-		log.info("Verifying that request ID {} is a single library request...", requestUUID);
-
-		try {
-			await()
-				.atMost(timeoutInSeconds, SECONDS)
-				.until(() -> isRequestHandedOffAsLocal(requestUUID, expectedStatus));
-
-			log.info("Request ID {} successfully handed off as local.", requestUUID);
-		} catch (Exception e) {
-			log.error("Verification failed for request ID {} within {} seconds.", requestUUID, timeoutInSeconds, e);
-			throw new AssertionError("Request was not handed off as local as expected", e);
-		}
+		patronRequestsFixture.awaitStatus(requestUUID, HANDED_OFF_AS_LOCAL, Duration.ofSeconds(30));
 	}
 
-	private boolean isRequestHandedOffAsLocal(UUID requestUUID, String expectedStatus) {
-		var response = adminApiClient.getPatronRequestViaAdminApi(requestUUID);
-		String currentStatus = response.getStatus().getCode();
-		log.debug("Current status for request ID {}: {}", requestUUID, currentStatus);
-		return expectedStatus.equals(currentStatus);
-	}
 
 	private void assertPatronRequestWorkflow(UUID placedRequestUUID) {
 		final var patronRequest = patronRequestsFixture.findById(placedRequestUUID);

@@ -1,5 +1,6 @@
 package org.olf.dcb.api;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.lang.Integer.parseInt;
 import static java.util.UUID.randomUUID;
@@ -8,7 +9,6 @@ import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
@@ -25,7 +25,6 @@ import static org.olf.dcb.request.workflow.ResolveNextSupplierTransition.NO_OTHE
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -222,9 +221,9 @@ class SupplierRefusalApiTests {
 
 		rollBack(requestId);
 
-		final var placed = await().atMost(60, SECONDS).until(
-			() -> adminApiClient.getPatronRequestViaAdminApi(requestId),
-			hasProperty("status", hasProperty("code", is("REQUEST_PLACED_AT_BORROWING_AGENCY"))));
+		awaitStatus(requestId, REQUEST_PLACED_AT_BORROWING_AGENCY);
+
+		final var placed = adminApiClient.getPatronRequestViaAdminApi(requestId);
 
 		final var supplierRequest = placed.getSupplierRequests().stream()
 			.filter(request -> "PLACED".equals(request.getStatus()))
@@ -377,24 +376,9 @@ class SupplierRefusalApiTests {
 				.until(() -> patronRequestsFixture.findById(requestId), reached);
 		}
 		catch (ConditionTimeoutException timeout) {
-			throw new AssertionError(describe(requestId, expected), timeout);
+			throw new AssertionError("Request " + requestId + " did not reach " + expected
+				+ patronRequestsFixture.describe(requestId), timeout);
 		}
-	}
-
-	private String describe(UUID requestId, String expected) {
-		final var request = patronRequestsFixture.findById(requestId);
-		final var description = new StringBuilder("Request did not reach ").append(expected)
-			.append(": status=").append(request.getStatus())
-			.append(" previousStatus=").append(request.getPreviousStatus())
-			.append(" errorMessage=").append(request.getErrorMessage())
-			.append("\n  audits, oldest first:");
-
-		patronRequestsFixture.findAuditEntries(request).stream()
-			.sorted(Comparator.comparing(PatronRequestAudit::getAuditDate, Comparator.nullsFirst(Comparator.naturalOrder())))
-			.forEach(audit -> description.append("\n    ").append(audit.getFromStatus()).append(" -> ")
-				.append(audit.getToStatus()).append(" : ").append(audit.getBriefDescription()));
-
-		return description.toString();
 	}
 
 	private List<String> briefDescriptions(PatronRequest request) {

@@ -52,7 +52,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
  */
 @Slf4j
 @MockServerMicronautTest
-@MicronautTest(transactional = false, rebuildContext = true,
+@MicronautTest(transactional = false,
 	contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 @TestInstance(PER_CLASS)
 class PolarisHarvestChunkTests {
