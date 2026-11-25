@@ -637,6 +637,10 @@ public class MockKohaFixture {
 			response().withStatusCode(status).withBody(json(Map.of("error", reason))));
 	}
 
+	public void verifyNoHoldPlaced() {
+		client.verify(commonRequests.post(HOLDS_PATH), VerificationTimes.never());
+	}
+
 	public void verifyHoldPlacedOverridingPatronBlocks() {
 		client.verify(commonRequests.post(HOLDS_PATH).withHeader("x-koha-override", "any"));
 	}

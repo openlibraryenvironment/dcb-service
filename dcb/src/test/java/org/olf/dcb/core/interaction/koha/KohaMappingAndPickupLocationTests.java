@@ -295,11 +295,9 @@ class KohaMappingAndPickupLocationTests {
 	}
 
 	@Test
-	void shouldNeverSendThePickupLocationsUuidAsAKohaBranch() {
-		// The pickup location UUID used to be the fallback when localId was absent.
-		// Koha's library_id is at most 10 characters, so it could only ever be rejected -
-		// and a rejected hold at this point looks like a Koha fault rather than a pickup
-		// location missing its branch code.
+	void shouldRefuseAPickupLocationWithNoKohaBranch() {
+		// Neither the location's UUID, which Koha can only reject, nor the sharing library,
+		// where the patron would never find the copy
 		mockKohaFixture.mockPlaceHold(KohaHoldResponse.builder()
 			.holdId(502L)
 			.itemId(1L)
@@ -312,11 +310,12 @@ class KohaMappingAndPickupLocationTests {
 			.name("North Branch")
 			.build();
 
-		singleValueFrom(client.placeHoldRequestAtPickupAgency(
-			holdParameters(pickupLocationWithNoLocalId)));
+		final var problem = assertThrows(ThrowableProblem.class, () -> singleValueFrom(
+			client.placeHoldRequestAtPickupAgency(holdParameters(pickupLocationWithNoLocalId))));
 
-		// Falls back to the sharing library, which is a real branch, rather than a UUID
-		mockKohaFixture.verifyHoldPlaced("{\"pickup_library_id\": \"DCB-SHARING\"}");
+		assertThat(problem.getTitle(), is("Pickup location has no Koha branch"));
+		assertThat(problem.getDetail(), containsString("PICKUP-NORTH"));
+		mockKohaFixture.verifyNoHoldPlaced();
 	}
 
 	private PlaceHoldRequestParameters holdParameters(Location pickupLocation) {
