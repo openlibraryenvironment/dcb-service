@@ -34,6 +34,7 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -108,16 +109,36 @@ class ApplicationServicesClient {
 			.zipWith(getLocalRequestBody(holdRequestParameters, activationDateUTC, noteWithActivationDateUTC))
 			.map(function(ApplicationServicesClient::addBodyToRequest)),
 			Argument.of(WorkflowResponse.class))
-			.flatMap(resp -> replyIfPromptMatches(resp, ExceededTotalRequestLimit, Continue))
-			.flatMap(resp -> replyIfPromptMatches(resp, PromoteItemRequestToBib, Continue))
-			.flatMap(resp -> replyIfPromptMatches(resp, DuplicateHoldRequests, Continue))
-			.map(this::validateWorkflowResponse)
+			.flatMap(resp -> answerPrompts(resp, HOLD_PROMPT_ANSWERS, MAX_PROMPTS_ANSWERED))
+			.map(response -> validateWorkflowResponse(response, "the hold"))
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getBibliographicRecordID(),
 				activationDateUTC,
 				noteWithActivationDateUTC,
 				holdRequestParameters));
+	}
+
+	// Polaris asks these one at a time, in whatever order it meets them. A prompt not listed is not
+	// answered, and validateWorkflowResponse refuses it, naming the prompt.
+	private static final Map<Integer, Integer> HOLD_PROMPT_ANSWERS = Map.of(
+		ExceededTotalRequestLimit, Continue,
+		PromoteItemRequestToBib, Continue,
+		DuplicateHoldRequests, Continue);
+	private static final int MAX_PROMPTS_ANSWERED = 5;
+
+	private Mono<WorkflowResponse> answerPrompts(WorkflowResponse response, Map<Integer, Integer> answers,
+		int remaining) {
+
+		final var promptId = getValueOrNull(response, WorkflowResponse::getPrompt, Prompt::getWorkflowPromptID);
+		final var answer = promptId == null ? null : answers.get(promptId);
+
+		if (!InputRequired.equals(response.getWorkflowStatus()) || answer == null || remaining == 0) {
+			return Mono.just(response);
+		}
+
+		return handlePolarisWorkflow(response, promptId, answer)
+			.flatMap(next -> answerPrompts(next, answers, remaining - 1));
 	}
 
 	private Mono<WorkflowResponse> replyIfPromptMatches(WorkflowResponse response, Integer promptID, Integer promptResult) {
@@ -141,10 +162,10 @@ class ApplicationServicesClient {
 		return noteWithActivationDateUTC + "\n Activated: " + activationDateUTC;
 	}
 
-	private WorkflowResponse validateWorkflowResponse(WorkflowResponse workflowResponse) {
+	private WorkflowResponse validateWorkflowResponse(WorkflowResponse workflowResponse, String refused) {
 		log.debug("Validating response to placing a request: {}", workflowResponse);
 
-		validateWorkflowStatus(workflowResponse);
+		validateWorkflowStatus(workflowResponse, refused);
 		validateInformationMessages(workflowResponse);
 
 		// logging successful response message
@@ -158,7 +179,7 @@ class ApplicationServicesClient {
 		return workflowResponse;
 	}
 
-	private static void validateWorkflowStatus(WorkflowResponse response) {
+	private static void validateWorkflowStatus(WorkflowResponse response, String refused) {
 		final var workflowStatus = getValueOrNull(response, WorkflowResponse::getWorkflowStatus);
 
 		if (workflowStatus == null || workflowStatus < CompletedSuccessfully) {
@@ -175,7 +196,9 @@ class ApplicationServicesClient {
 
 			throw Problem.builder()
 				.withType(ERR0210)
-				.withTitle("Failed to handle Polaris.ApplicationServices API workflow")
+				.withTitle(RequestLimitReached.equals(promptId)
+					? "Polaris refused the hold: the patron has reached its request limit for this material type, or its patron type may not request it"
+					: "Polaris refused " + refused)
 				.withDetail(title)
 				.with("Message", message)
 				.with("Information messages", informationalMessages)
@@ -671,7 +694,7 @@ class ApplicationServicesClient {
 						.build())
 					.build();
 
-				log.info("create item workflow request: {}", body);
+				log.debug("create item workflow request: {}", body);
 				return request.body(body);
 			}), itemBarcode);
 	}
@@ -828,7 +851,7 @@ class ApplicationServicesClient {
 			Argument.of(WorkflowResponse.class))
 			.switchIfEmpty(raiseError(Problem.builder()
 				.withType(ERR0210)
-				.withTitle("Failed to handle Polaris.ApplicationServices API workflow")
+				.withTitle("Polaris stopped at a prompt DCB does not answer")
 				.withDetail(response.getPrompt() != null && response.getPrompt().getTitle() != null ? response.getPrompt().getTitle() : "Response didn't have a title")
 				.with("Message", response.getPrompt() != null && response.getPrompt().getMessage() != null ? response.getPrompt().getMessage() : "No message")
 				.with("Information messages", response.getInformationMessages() != null ? response.getInformationMessages() : "No messages")
@@ -1051,7 +1074,7 @@ class ApplicationServicesClient {
 				// Fills another request, transfer?
 				.flatMap(response -> replyIfPromptMatches(response, FillsRequestTransferPrompt, Yes))
 				.flatMap(response -> replyIfPromptMatches(response, UpdateItemRecord, Yes))
-				.map(this::validateWorkflowResponse);
+				.map(response -> validateWorkflowResponse(response, "the check-in"));
 	}
 
 	/**
@@ -1066,7 +1089,7 @@ class ApplicationServicesClient {
 	Mono<WorkflowResponse> checkoutItemToPatron(String itemBarcode, String patronBarcode,
 		boolean bypassPatronBlocks) {
 
-		log.info("checkoutItemToPatron item {} patron {} bypassPatronBlocks {}",
+		log.debug("checkoutItemToPatron item {} patron {} bypassPatronBlocks {}",
 			itemBarcode, patronBarcode, bypassPatronBlocks);
 
 		final var path = createPath("workflow");
@@ -1091,7 +1114,7 @@ class ApplicationServicesClient {
 					.build())
 				.build())),
 			Argument.of(WorkflowResponse.class))
-			.map(this::validateWorkflowResponse);
+			.map(response -> validateWorkflowResponse(response, "the checkout"));
 	}
 
 	// The blocks a virtual patron inflicts on itself over its lifecycle - a lapsed address check
@@ -1114,6 +1137,24 @@ class ApplicationServicesClient {
 			.defaultIfEmpty(FALSE)
 			.onErrorResume(error -> {
 				log.warn("Could not determine blocks for patron {}, will not bypass at checkout: {}",
+					localPatronId, error.getMessage());
+				return Mono.just(FALSE);
+			});
+	}
+
+	/**
+	 * True when no stored block on the patron is one a person placed: the list is empty, or holds only
+	 * the blocks a virtual patron brings on itself. Polaris can still refuse such a patron at checkout,
+	 * from blocks it works out at circulation time and never stores. False when the blocks cannot be
+	 * read.
+	 */
+	Mono<Boolean> hasOnlySelfResolvableBlocksOrNone(Integer localPatronId) {
+		return getPatronBlocks(localPatronId)
+			.map(blocks -> blocks.stream()
+				.allMatch(block -> SELF_RESOLVABLE_BLOCKS.contains(block.getBlockType())))
+			.defaultIfEmpty(TRUE)
+			.onErrorResume(error -> {
+				log.warn("Could not determine blocks for patron {}, will not override a checkout refusal: {}",
 					localPatronId, error.getMessage());
 				return Mono.just(FALSE);
 			});
@@ -1160,7 +1201,7 @@ class ApplicationServicesClient {
 				.build()))
 			.map(function(ApplicationServicesClient::addBodyToRequest)),
 			Argument.of(WorkflowResponse.class))
-			.map(this::validateWorkflowResponse)
+			.map(response -> validateWorkflowResponse(response, "the hold"))
 			.thenReturn(Tuples.of(
 				holdRequestParameters.getLocalPatronId(),
 				holdRequestParameters.getTitle(),
@@ -1221,7 +1262,7 @@ class ApplicationServicesClient {
 
 	private Mono<ILLRequestInfo> createTransferRequest(Mono<MutableHttpRequest<WorkflowRequest>> workflowReq) {
 		return client.retrieve(workflowReq, Argument.of(WorkflowResponse.class))
-			.doOnSuccess(r -> log.info("Got transfer request response {}", r))
+			.doOnSuccess(r -> log.debug("Got transfer request response {}", r))
 			.doOnError(e -> log.info("Error response for transferring ILL request", e))
 			// when we save the virtual item we need to confirm we do not want the item to display in pac
 			.flatMap(response -> handlePolarisWorkflow(response, BriefItemEntry, Continue))
@@ -1899,6 +1940,9 @@ class ApplicationServicesClient {
 		public static final Integer ConfirmBibRecordDelete = 79;
 		public static final Integer LastCopyOrRecordOptions = 82;
 		public static final Integer PromoteItemRequestToBib = 88;
+		// "Patron has exceeded request limit for the title ... Do you want to place this request?"
+		// The lender's own limit: not overridden.
+		public static final Integer RequestLimitReached = 100;
 
 		@JsonProperty("WorkflowPromptID")
 		private Integer WorkflowPromptID;
@@ -1921,7 +1965,8 @@ class ApplicationServicesClient {
 		private String browseTitle;
 		@JsonProperty("ConstituentFlag")
 		private Boolean constituentFlag;
-		@JsonProperty("DisplayInPAC")
+		// A bib read spells it DisplayInPac, unlike the create body (Polaris 8.1 training server, 2 Nov 2026)
+		@JsonProperty("DisplayInPac")
 		private Boolean displayInPAC;
 		@JsonProperty("HostFlag")
 		private Boolean hostFlag;

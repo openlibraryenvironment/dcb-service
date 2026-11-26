@@ -5,11 +5,15 @@ import static org.olf.dcb.core.model.FunctionalSettingType.DENY_LIBRARY_MAPPING_
 import static org.olf.dcb.core.model.FunctionalSettingType.OWN_LIBRARY_BORROWING;
 import static org.olf.dcb.core.model.FunctionalSettingType.PICKUP_ANYWHERE;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
+import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLVE_SUPPLIER_REFUSALS;
 import static org.olf.dcb.core.model.FunctionalSettingType.SELECT_UNAVAILABLE_ITEMS;
 import static org.olf.dcb.core.model.FunctionalSettingType.TRIGGER_SUPPLIER_RENEWAL;
 import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_POLARIS;
 import static org.olf.dcb.core.model.FunctionalSettingType.VIRTUAL_PATRON_NAMES_VISIBLE;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
+
+import java.util.List;
+import java.util.stream.Stream;
 
 import org.olf.dcb.core.model.Consortium;
 import org.olf.dcb.core.model.ConsortiumFunctionalSetting;
@@ -96,17 +100,19 @@ public class ConsortiumFixture {
 	}
 
 	public void enableAllSettings() {
+		enableAllSettingsExcept(List.of());
+	}
+
+	/** One consortium with every setting below on apart from those given, which it does not have at all. */
+	public void enableAllSettingsExcept(List<FunctionalSettingType> excluded) {
 		final var consortium = createConsortium();
 
 		// TODO: Make this generic by enumerating all functional setting types
-		enableSetting(consortium, OWN_LIBRARY_BORROWING);
-		enableSetting(consortium, PICKUP_ANYWHERE);
-		enableSetting(consortium, RE_RESOLUTION);
-		enableSetting(consortium, SELECT_UNAVAILABLE_ITEMS);
-		enableSetting(consortium, TRIGGER_SUPPLIER_RENEWAL);
-		enableSetting(consortium, DENY_LIBRARY_MAPPING_EDIT);
-		enableSetting(consortium, VIRTUAL_PATRON_NAMES_VISIBLE);
-		enableSetting(consortium, VIRTUAL_PATRON_NAMES_POLARIS);
+		Stream.of(OWN_LIBRARY_BORROWING, PICKUP_ANYWHERE, RE_RESOLUTION, RE_RESOLVE_SUPPLIER_REFUSALS,
+				SELECT_UNAVAILABLE_ITEMS, TRIGGER_SUPPLIER_RENEWAL, DENY_LIBRARY_MAPPING_EDIT,
+				VIRTUAL_PATRON_NAMES_VISIBLE, VIRTUAL_PATRON_NAMES_POLARIS)
+			.filter(type -> !excluded.contains(type))
+			.forEach(type -> enableSetting(consortium, type));
 	}
 
 	/**

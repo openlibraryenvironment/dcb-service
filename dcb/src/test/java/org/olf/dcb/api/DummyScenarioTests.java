@@ -1,9 +1,8 @@
 package org.olf.dcb.api;
 
+import static org.awaitility.Awaitility.await;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -33,6 +32,7 @@ import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RE
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.SUPPLIER_ROLE;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
+import java.time.Duration;
 import java.util.UUID;
 
 import org.hamcrest.Matchers;
@@ -342,6 +342,49 @@ class DummyScenarioTests {
 		assertRequestIsInExpectedStatus(placedRequestUUID, FINALISED);
 	}
 
+	/**
+	 * The pickup library lends the item while the borrower's virtual item still reads in transit,
+	 * as a borrower's does when the item never passes through it. DCB then lends the virtual item
+	 * at the borrower, and the request must stay LOANED: the transit it last read is not a return.
+	 */
+	@Test
+	void pickupAnywhereLoanIsNotTakenForAReturnBeforeTheBorrowerHasReadTheLoan() {
+		PUA_PICKUP_LOCATION_ID = randomUUID().toString();
+		createPUAPickupLocation();
+		final var clusterRecordId = createClusterRecordWithOneAvailableItem();
+
+		final var placedRequestUUID = patronRequestApiClient.placePatronRequest(
+			clusterRecordId, "872321", PUA_PICKUP_LOCATION_ID,
+			BORROWING_HOST_LMS_CODE, "HOME_LIBRARY_CODE").body().getId();
+		assertRequestIsInExpectedStatus(placedRequestUUID, REQUEST_PLACED_AT_PICKUP_AGENCY);
+
+		setPickupAnywhereState(PICKUP_TRANSIT_STATE, PICKUP_TRANSIT_STATE);
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+		assertRequestIsInExpectedStatus(placedRequestUUID, PICKUP_TRANSIT);
+
+		// From here the borrower's virtual item reads in transit, and nothing at the borrower moves
+		setPickupAnywhereState(RECEIVED_AT_PICKUP_STATE, RECEIVED_AT_PICKUP_STATE);
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+		assertRequestIsInExpectedStatus(placedRequestUUID, RECEIVED_AT_PICKUP);
+
+		setPickupAnywhereState(READY_FOR_PICKUP_STATE, RECEIVED_AT_PICKUP_STATE);
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+		assertRequestIsInExpectedStatus(placedRequestUUID, READY_FOR_PICKUP);
+
+		setPickupAnywhereState(LOANED_STATE, RECEIVED_AT_PICKUP_STATE);
+		patronRequestApiClient.updatePatronRequest(placedRequestUUID);
+
+		await().alias("the request stays LOANED").during(Duration.ofSeconds(3)).atMost(Duration.ofSeconds(15))
+			.until(() -> LOANED.equals(patronRequestsFixture.findById(placedRequestUUID).getStatus()));
+		assertThat(patronRequestsFixture.findById(placedRequestUUID).getLocalItemStatus(), is("LOANED"));
+	}
+
+	private void setPickupAnywhereState(String supplierAndPickupState, String borrowerState) {
+		hostLmsFixture.setDummyState(SUPPLYING_HOST_LMS_CODE, supplierAndPickupState, SUPPLIER_ROLE, RET_PUA_RESPONSE_TYPE);
+		hostLmsFixture.setDummyState(PICKUP_HOST_LMS_CODE, supplierAndPickupState, PICKUP_ROLE, RET_PUA_RESPONSE_TYPE);
+		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, borrowerState, BORROWER_ROLE, RET_PUA_RESPONSE_TYPE);
+	}
+
 	@Test
 	void skippedLoanCustomWorkflowScenario() {
 		log.info("Starting test: customWorkflowScenario");
@@ -490,25 +533,7 @@ class DummyScenarioTests {
 	}
 
 	private void assertRequestIsInExpectedStatus(UUID requestUUID, PatronRequest.Status expectedStatus) {
-		log.info("Verifying that request ID {} is in expected status {}...", requestUUID, expectedStatus);
-
-		int timeoutInSeconds = 30;
-
-		try {
-			await()
-				.atMost(timeoutInSeconds, SECONDS)
-				.until(() -> {
-					final var response = patronRequestsFixture.findById(requestUUID);
-					final var currentStatus = response.getStatus();
-					log.debug("Current status for request ID {}: {}", requestUUID, currentStatus);
-					return expectedStatus.equals(currentStatus);
-				});
-
-			log.info("Request ID {} successfully in expected status {}.", requestUUID, expectedStatus);
-		} catch (Exception e) {
-			log.error("Verification failed for request ID {} within {} seconds.", requestUUID, timeoutInSeconds, e);
-			throw new AssertionError("Request was not in expected status as expected", e);
-		}
+		patronRequestsFixture.awaitStatus(requestUUID, expectedStatus, Duration.ofSeconds(30));
 	}
 
 	private void assertPatronRequestUsesWorkflow(UUID placedRequestUUID, String expectedWorkflow) {

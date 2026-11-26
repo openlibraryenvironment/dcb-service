@@ -4,11 +4,13 @@ import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.mockserver.model.HttpResponse.response;
 import static org.mockserver.model.JsonBody.json;
 import static org.mockserver.model.StringBody.subString;
+import static org.olf.dcb.test.MockServerCommonResponses.notFound;
 import static org.olf.dcb.test.MockServerCommonResponses.okText;
 import static org.olf.dcb.test.MockServerCommonResponses.serverError;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 import static services.k_int.utils.StringUtils.convertIntegerToString;
 
+import java.util.Map;
 import java.util.List;
 
 import org.mockserver.client.MockServerClient;
@@ -144,6 +146,25 @@ public class MockPolarisFixture {
 			response().withStatusCode(401), Times.once());
 	}
 
+	/** Answers the next staff sign-in too late, then as usual. Register before mockAppServicesStaffAuthentication. */
+	public void mockAppServicesStaffAuthenticationAnsweringAfterOnce(int milliseconds) {
+		mockServer.mock(commonRequests.post(paths.baseApplicationServices("/authentication/staffuser")),
+			appServicesStaffToken().withDelay(org.mockserver.model.Delay.milliseconds(milliseconds)), Times.once());
+	}
+
+	public void mockAppServicesStaffAuthenticationAlwaysAnsweringAfter(int milliseconds) {
+		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
+			appServicesStaffToken().withDelay(org.mockserver.model.Delay.milliseconds(milliseconds)));
+	}
+
+	private org.mockserver.model.HttpResponse appServicesStaffToken() {
+		return okJson(ApplicationServicesAuthFilter.AuthToken.builder()
+			.accessToken("fzB8NAopx8CEwSQI5HqpMCTQrjWm1e1x")
+			.accessSecret("C5UnM8pmim1hfZRQ")
+			.authExpDate(futureAuthExpDate())
+			.build());
+	}
+
 	public void mockAppServicesStaffAuthentication() {
 		mockServer.mockPost(paths.baseApplicationServices("/authentication/staffuser"),
 			// Values taken from previously hard coded responses
@@ -166,6 +187,12 @@ public class MockPolarisFixture {
 	public void mockPapiApiVersion(String version) {
 		mockServer.mockGet(paths.publicPapiService("/api"),
 			PAPIClient.ApiResult.builder().papiErrorCode(0).version(version).build());
+	}
+
+	public void mockPapiApiVersionAnsweringAfter(String version, int milliseconds) {
+		mockServer.mockGet(paths.publicPapiService("/api"),
+			okJson(PAPIClient.ApiResult.builder().papiErrorCode(0).version(version).build())
+				.withDelay(org.mockserver.model.Delay.milliseconds(milliseconds)));
 	}
 
 	public void mockPatronAuthentication(PatronAuthToken responseBody) {
@@ -236,6 +263,15 @@ public class MockPolarisFixture {
 				.build()));
 	}
 
+	public void mockPatronSearch(String firstLastName, List<PAPIClient.PatronSearchRow> rows) {
+		mockServer.mock(patronSearchRequest(firstLastName),
+			okJson(PatronSearchResult.builder()
+				.papiErrorCode(rows.size())
+				.PatronSearchRows(rows)
+				.TotalRecordsFound(rows.size())
+				.build()));
+	}
+
 	public void mockPatronSearchPapiError(String firstLastName, int papiErrorCode, String errorMessage) {
 		mockServer.mock(patronSearchRequest(firstLastName),
 			okJson(PatronSearchResult.builder()
@@ -259,6 +295,16 @@ public class MockPolarisFixture {
 
 	public void mockGetPatron(String patronId, ApplicationServicesClient.PatronData patron) {
 		mockServer.mockGet(paths.patronById(patronId), patron);
+	}
+
+	/** For tests outside this package, which cannot build the client's PatronData. */
+	public void mockGetPatron(String patronId, int patronCodeId, String barcode, int organisationId) {
+		mockGetPatron(patronId, ApplicationServicesClient.PatronData.builder()
+			.patronID(Integer.parseInt(patronId))
+			.patronCodeID(patronCodeId)
+			.barcode(barcode)
+			.organizationID(organisationId)
+			.build());
 	}
 
 	/**
@@ -321,9 +367,19 @@ public class MockPolarisFixture {
 		mockServer.replaceMock(commonRequests.get(paths.blocksSummary(patronId)), serverError());
 	}
 
+	public void mockGetPatronBarcodeNotFound(Integer patronId) {
+		mockServer.mockGet(paths.applicationServices("/barcodes/patrons/" + patronId),
+			notFound(Map.of("ErrorMessage", "Patron not found")));
+	}
+
 	public void mockGetPatronBarcode(Integer patronId, String barcode) {
 		mockServer.mockGet(paths.applicationServices("/barcodes/patrons/" + patronId),
 			okText("\"%s\"".formatted(barcode)));
+	}
+
+	public void mockCancelHold(String patronBarcode, String holdId, String responseBody) {
+		mockServer.mockPut(paths.patronByBarcode(patronBarcode) + "/holdrequests/" + holdId + "/cancelled",
+			okJson(responseBody));
 	}
 
 	public void mockItemCheckout(String localPatronBarcode, ItemOperationResult response) {
@@ -387,6 +443,16 @@ public class MockPolarisFixture {
 		mockServer.mockGet(paths.localRequests(patronId), serverError());
 	}
 
+	public void mockGetItemHolds(Integer itemId, String rawJson) {
+		mockServer.mock(commonRequests.get(paths.applicationServices("/itemrecords/" + itemId + "/holds")),
+			response().withStatusCode(200).withBody(json(rawJson)));
+	}
+
+	public void mockGetHoldServerError(Integer holdId) {
+		mockServer.mock(commonRequests.get(paths.getHold(convertIntegerToString(holdId))),
+			response().withStatusCode(500));
+	}
+
 	public void mockGetHold(Integer holdId, LibraryHold responseBody) {
 		mockGetHold(convertIntegerToString(holdId), responseBody);
 	}
@@ -408,6 +474,39 @@ public class MockPolarisFixture {
 
 	public void mockCreateBib(Integer bibId) {
 		mockServer.replaceMock(createBibRequest(), bibId);
+		mockGetBibAsPolarisSendsIt(bibId, false);
+	}
+
+	/**
+	 * Polaris answers the create with the id of a bib it already had, which the PAC displays
+	 */
+	public void mockCreateBibResolvingOntoDisplayedBib(Integer bibId) {
+		mockServer.replaceMock(createBibRequest(), bibId);
+		mockGetBibAsPolarisSendsIt(bibId, true);
+	}
+
+	/** The read-back answers without saying whether the PAC displays the bib. */
+	public void mockCreateBibWithReadBackSilentOnDisplay(Integer bibId) {
+		mockServer.replaceMock(createBibRequest(), bibId);
+		mockServer.mockGet(paths.getBib(bibId), response()
+			.withStatusCode(200)
+			.withBody(json("""
+				{ "BibliographicRecordID": %d }""".formatted(bibId))));
+	}
+
+	/** The read-back itself fails. */
+	public void mockCreateBibWithReadBackFailing(Integer bibId) {
+		mockServer.replaceMock(createBibRequest(), bibId);
+		mockServer.mockGet(paths.getBib(bibId), response().withStatusCode(500));
+	}
+
+	// Raw JSON, not a serialised BibliographicRecord: a round trip through the model would hide a
+	// wrongly spelt property
+	private void mockGetBibAsPolarisSendsIt(Integer bibId, boolean displayInPac) {
+		mockServer.mockGet(paths.getBib(bibId), response()
+			.withStatusCode(200)
+			.withBody(json("""
+				{ "BibliographicRecordID": %d, "DisplayInPac": %b }""".formatted(bibId, displayInPac))));
 	}
 
 	public void verifyCreateBibBodyContains(String fragment) {
@@ -468,6 +567,15 @@ public class MockPolarisFixture {
 	private static final String FAILED_PAGED_BIBS = """
 		{ "PAPIErrorCode": -1, "ErrorMessage": "An unhandled exception occurred" }""";
 
+	public void mockGetDeletedBibs(Integer lastId, Object responseBody) {
+		mockServer.mock(deletedBibsRequest()
+			.withQueryStringParameter("lastid", String.valueOf(lastId)), responseBody);
+	}
+
+	public void mockGetDeletedBibsServerError() {
+		mockServer.mock(deletedBibsRequest(), response().withStatusCode(500));
+	}
+
 	public void mockGetUpdatedBibs(Integer lastId, Object responseBody) {
 		mockServer.mock(updatedBibsRequest()
 			.withQueryStringParameter("lastid", String.valueOf(lastId)), responseBody);
@@ -507,6 +615,10 @@ public class MockPolarisFixture {
 		return commonRequests.get(paths.protectedPapiService("/string/synch/bibs/updated/paged"));
 	}
 
+	private HttpRequest deletedBibsRequest() {
+		return commonRequests.get(paths.protectedPapiService("/string/synch/bibs/deleted/paged"));
+	}
+
 	private HttpRequest bibsByIdRequest() {
 		return commonRequests.get(paths.protectedPapiService("/string/synch/bibs/MARCXML"));
 	}
@@ -537,6 +649,10 @@ public class MockPolarisFixture {
 
 	public void verifyWorkflowBodyNeverContains(String fragment) {
 		mockServer.verifyNever(commonRequests.post(paths.workflow()).withBody(subString(fragment)));
+	}
+
+	public void verifyItemNeverRead(Integer itemId) {
+		mockServer.verifyNever(commonRequests.get(paths.getItem(itemId)));
 	}
 
 	public void verifyNoItemCheckout(String patronBarcode) {

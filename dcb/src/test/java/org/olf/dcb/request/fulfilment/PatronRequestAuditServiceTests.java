@@ -1,6 +1,7 @@
 package org.olf.dcb.request.fulfilment;
 
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
@@ -65,5 +66,39 @@ class PatronRequestAuditServiceTests {
 			hasAuditDataProperty("someProperty", "some value"),
 			hasNestedAuditDataProperty("someNestedProperty", "otherProperty", "other value")
 		));
+	}
+
+	@Test
+	void shouldKeepTheWholeOfAMessageTooLongForTheBriefDescription() {
+		final var patronRequest = PatronRequest.builder()
+			.id(UUID.randomUUID())
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		final var message = "Alma refused a hold. ".repeat(15) + "The end of the message names the cause.";
+
+		singleValueFrom(patronRequestAuditService.addErrorAuditEntry(
+			patronRequest, RESOLVED, message, Map.of()));
+
+		final var onlyAuditEntry = patronRequestsFixture.findOnlyAuditEntry(patronRequest);
+
+		assertThat(onlyAuditEntry.getBriefDescription().length() <= 254, is(true));
+		assertThat(onlyAuditEntry, hasAuditDataProperty("fullMessage", message));
+	}
+
+	@Test
+	void shouldNotRepeatAMessageThatFitsTheBriefDescription() {
+		final var patronRequest = PatronRequest.builder()
+			.id(UUID.randomUUID())
+			.build();
+
+		patronRequestsFixture.savePatronRequest(patronRequest);
+
+		singleValueFrom(patronRequestAuditService.addErrorAuditEntry(
+			patronRequest, RESOLVED, "Short", Map.of()));
+
+		assertThat(patronRequestsFixture.findOnlyAuditEntry(patronRequest).getAuditData().containsKey("fullMessage"),
+			is(false));
 	}
 }

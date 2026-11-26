@@ -48,10 +48,9 @@ import org.olf.dcb.core.interaction.HostLmsRequest;
 import javax.annotation.Nullable;
 
 @Validated
-// Default-DENY, matching PatronRequestController. Every route here is already
-// explicitly CONSORTIUM_ADMIN, so this changes no current behaviour — it removes the
-// trap, which is that the NEXT method added inherits "any authenticated principal",
-// and the realm now issues credentials to discovery services.
+// Default-DENY, matching PatronRequestController: without it the NEXT method added
+// inherits "any authenticated principal", and the realm issues credentials to
+// discovery services.
 @Secured({CONSORTIUM_ADMIN, ADMINISTRATOR})
 @Controller("/suppliers/requests")
 @Tag(name = "Supplier Request API")
@@ -138,7 +137,7 @@ public class SupplierRequestController {
 	 * This will (1) pause re-resolution by setting isActive=false, (2) cancel the supplier hold,
 	 * and (3) attempt to verify the cancel on the remote.
 	 */
-	@Secured(CONSORTIUM_ADMIN)
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR})
 	@SingleResult
 	@Operation(
 		summary = "Cancel supplier hold (pause re-resolution)",
@@ -206,7 +205,7 @@ public class SupplierRequestController {
 	 * Explicitly re-enable (or keep disabled) the SupplierRequest’s participation in re-resolution.
 	 * Set active=true AFTER fixing the borrowing-side error to allow the system to resolve again.
 	 */
-	@Secured(CONSORTIUM_ADMIN)
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR})
 	@SingleResult
 	@Operation(
 		summary = "Toggle SupplierRequest active flag",
@@ -250,7 +249,7 @@ public class SupplierRequestController {
 	 * This cancels the remote hold and immediately triggers the tracking service to evaluate the transition.
 	 * This is for if a library sits on a request and it doesn't get past REQUEST_PLACED_AT_SUPPLYING_AGENCY
 	 */
-	@Secured(CONSORTIUM_ADMIN)
+	@Secured({CONSORTIUM_ADMIN, ADMINISTRATOR})
 	@SingleResult
 	@Operation(
 		summary = "Skip current supplier (trigger re-resolution)",

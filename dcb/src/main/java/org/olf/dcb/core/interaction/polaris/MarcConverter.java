@@ -11,6 +11,11 @@ import java.nio.charset.StandardCharsets;
 class MarcConverter {
 	private static final Logger log = LoggerFactory.getLogger(MarcConverter.class);
 	static Record convertToMarcRecord(String xmlString) {
+		// A deleted bib reaches ingest with no MARC at all
+		if (xmlString == null) {
+			return null;
+		}
+
 		try {
 			ByteArrayInputStream inputStream = new ByteArrayInputStream(xmlString.getBytes(StandardCharsets.UTF_8));
 			MarcReader reader = new MarcXmlReader(inputStream);

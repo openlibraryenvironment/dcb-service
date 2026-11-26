@@ -92,3 +92,5 @@ workflows, and `checkConfiguration` says which workflows it supports.
   version before the route is relied on; the sandbox checklist carries both.
 - The bundle host item is part of the administrator's setup, documented in
   [the setup guide](../operational/koha-setup.md).
+- With `virtual-item-barcode-prefix` set, the virtual item's barcode is the prefix and the
+  lender's barcode, and that is the barcode both routes send.

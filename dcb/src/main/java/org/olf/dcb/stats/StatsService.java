@@ -1,22 +1,18 @@
 package org.olf.dcb.stats;
 
-import jakarta.inject.Singleton;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-
-import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.cluster.Member;
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.map.IMap;
 
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micronaut.scheduling.annotation.Scheduled;
+import jakarta.inject.Singleton;
 
 
 /**
@@ -26,22 +22,20 @@ import io.micronaut.scheduling.annotation.Scheduled;
  * running instance.
  *
  * Because many instances of DCB may be running, we store the stats in a distributed map.
-// */
+ */
 @Singleton
-public class StatsService implements Runnable{
-
+public class StatsService implements Runnable {
+	
 	private static final Logger log = LoggerFactory.getLogger(StatsService.class);
 	private static final String HEARTBEAT_KEY = "lastHeartbeat";
-
-	private static final String EVENTS_METRIC = "dcb.stats.events";
-	private static final String TIMED_METRIC = "dcb.stats.timed";
+	
 
   private final HazelcastInstance hazelcastInstance;
-	private final MeterRegistry meterRegistry;
+//	private final MeterRegistry meterRegistry;
 
-	public StatsService(HazelcastInstance hazelcastInstance, MeterRegistry meterRegistry) {
+	public StatsService(HazelcastInstance hazelcastInstance) { //, MeterRegistry meterRegistry) {
 		this.hazelcastInstance = hazelcastInstance;
-		this.meterRegistry = meterRegistry;
+//		this.meterRegistry = meterRegistry;
 	}
 
 	/**
@@ -54,16 +48,23 @@ public class StatsService implements Runnable{
 	 * LMS source code. Never pass a UUID, timestamp, or raw user input here — that
 	 * explodes meter cardinality (the high-cardinality ban).
 	 */
-	public void notifyEvent(String event, String context) {
-		meterRegistry.counter(EVENTS_METRIC, "event", event, "context", context).increment();
-	}
+//	public void notifyEvent(StatisticType type, String context) {
+//		meterRegistry.counter(METER_EVENTS, TAG_EVENT, type.getEventName(), TAG_CONTEXT, context)
+//			.increment();
+//	}
+//
+//	public void notifyTimedEvent(StatisticType type, String context, long elapsed) {
+//		
+//		meterRegistry.timer(METER_TIMED, TAG_EVENT, type.getEventName(), TAG_CONTEXT, context)
+//			.record(elapsed, TimeUnit.MILLISECONDS);
+//	}
 
-	public void notifyTimedEvent(String event, String context, long elapsed) {
-		meterRegistry.timer(TIMED_METRIC, "event", event, "context", context)
-			.record(elapsed, TimeUnit.MILLISECONDS);
-	}
-
+	
+	
+	
 	/**
+	 * TODO: Remove this. Add a standalone endpoint for "cluster" info and add an option to run as a single node.
+	 * 
 	 * Periodic tasks to publish stats about this node so we can get a view over the whole cluster
 	 * from one place;
 	 */
@@ -81,7 +82,7 @@ public class StatsService implements Runnable{
 
 
 			if ( amITheLeader() ) {
-				List evict_list = new ArrayList();
+				List<String> evict_list = new ArrayList<>();
 				for ( var entry : dcbNodeInfo.entrySet() ) {
 					// log.debug("Eviction testing {} / {}",entry.getKey(), entry.getValue() );
 					if ( ! isLive(entry.getKey() ) ) {
@@ -102,12 +103,13 @@ public class StatsService implements Runnable{
     }
 	}
 
-	public boolean amITheLeader() {
+	private boolean amITheLeader() {
 		Member oldestMember = hazelcastInstance.getCluster().getMembers().iterator().next();
+		
 		return oldestMember.localMember();
 	}
 
-	public boolean isLive(String nodeid) {
+	private boolean isLive(String nodeid) {
 		// log.debug("test liveliness {}",nodeid);
 		boolean result = false;
 		for ( var m : hazelcastInstance.getCluster().getMembers() ) {
@@ -119,4 +121,7 @@ public class StatsService implements Runnable{
 		return result;
 	}
 
+	
+	
+	
 }

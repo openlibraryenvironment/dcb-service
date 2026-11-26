@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -25,6 +26,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.HttpClient;
 import org.junit.jupiter.api.Test;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.interaction.ncip.NcipSchemaPath;
 import org.olf.dcb.core.interaction.ncip.NcipSchemaValidator;
@@ -395,6 +397,21 @@ class ORSApplianceHostLMSTests {
 			is(true));
 	}
 
+	@Test
+	void reportsAnUnknownUserAsPatronNotFound() {
+		final var httpClient = mock(HttpClient.class);
+		final var client = clientWith(
+			new CapturingTransport(response("remote-request")),
+			httpClient);
+		when(httpClient.exchange(any(HttpRequest.class), eq(Argument.of(String.class))))
+			.thenReturn(Mono.just(HttpResponse.ok(unknownUserLookupUserResponse())));
+
+		final var error = assertThrows(PatronNotFoundInHostLmsException.class,
+			() -> singleValueFrom(client.getPatronByIdentifier("nobody-0002")));
+
+		assertThat(error.getMessage(), containsString("nobody-0002"));
+	}
+
 	private static ORSApplianceHostLMS clientWith(
 		DeclarativeRequestTransport transport) {
 
@@ -501,6 +518,26 @@ class ORSApplianceHostLMSTests {
 			        <AgencyUserPrivilegeType>Patron</AgencyUserPrivilegeType>
 			      </UserPrivilege>
 			    </UserOptionalFields>
+			  </LookupUserResponse>
+			</NCIPMessage>
+			""";
+	}
+
+	private static String unknownUserLookupUserResponse() {
+		return """
+			<NCIPMessage xmlns="http://www.niso.org/2008/ncip" xmlns:ncip="http://www.niso.org/2008/ncip" ncip:version="2.02">
+			  <LookupUserResponse>
+			    <ResponseHeader>
+			      <FromAgencyId>
+			        <AgencyId>ors-unseen</AgencyId>
+			      </FromAgencyId>
+			    </ResponseHeader>
+			    <Problem>
+			      <ProblemType>Unknown User</ProblemType>
+			      <ProblemDetail>No patron has this identifier</ProblemDetail>
+			      <ProblemElement>UserIdentifierValue</ProblemElement>
+			      <ProblemValue>nobody-0002</ProblemValue>
+			    </Problem>
 			  </LookupUserResponse>
 			</NCIPMessage>
 			""";

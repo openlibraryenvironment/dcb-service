@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.koha;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.HostLmsClient;
+import org.olf.dcb.core.interaction.PingFailure;
 import org.olf.dcb.core.interaction.PingResponse;
 import org.olf.dcb.core.interaction.koha.dto.KohaLibrary;
 import org.olf.dcb.test.HostLmsFixture;
@@ -26,6 +28,8 @@ class KohaPingTests {
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
+	@Inject
+	private KohaTokenCache tokenCache;
 
 	private MockKohaFixture koha;
 	private HostLmsClient client;
@@ -34,6 +38,7 @@ class KohaPingTests {
 	void beforeEach(MockServerClient mockServerClient) {
 		mockServerClient.reset();
 		hostLmsFixture.deleteAll();
+		tokenCache.invalidate(KOHA_HOST_LMS_CODE);
 
 		hostLmsFixture.createKohaHostLms(KOHA_HOST_LMS_CODE, "https://" + KOHA_HOST);
 		koha = new MockKohaFixture(mockServerClient, KOHA_HOST);
@@ -59,5 +64,31 @@ class KohaPingTests {
 
 		assertThat(response.getStatus(), is(PingResponse.ERROR));
 		assertThat(response.getAdditional(), containsString("Koha API Error"));
+	}
+
+	@Test
+	void shouldNameTheTokenRequestAndTheServerThatRefusedIt() {
+		koha.mockTokenRefusedByCdn("8f1c2d3e4f5a6b7c-DEN");
+
+		final var response = client.ping().block();
+
+		assertThat(response.getFailure(), is(PingFailure.REFUSED));
+		assertThat(response.getAdditional(), allOf(
+			containsString("POST /api/v1/oauth/token: HTTP 403"),
+			containsString("server: cloudflare"),
+			containsString("cf-ray: 8f1c2d3e4f5a6b7c-DEN"),
+			containsString("cf-mitigated: challenge")));
+	}
+
+	@Test
+	void shouldNameTheLibraryReadWhenOnlyItIsRefused() {
+		koha.mockLibrariesRefusedByCdn("8f1c2d3e4f5a6b7d-DEN");
+
+		final var response = client.ping().block();
+
+		assertThat(response.getFailure(), is(PingFailure.REFUSED));
+		assertThat(response.getAdditional(), allOf(
+			containsString("GET /api/v1/libraries: HTTP 403"),
+			containsString("cf-ray: 8f1c2d3e4f5a6b7d-DEN")));
 	}
 }

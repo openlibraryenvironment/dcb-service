@@ -41,6 +41,8 @@ public class ObjectRulesetController {
 	@Operation(summary = "Browse Object Filter Rulesets", description = "Paginate through the list of known Object Filter Rulesets", parameters = {
 			@Parameter(in = ParameterIn.QUERY, name = "number", description = "The page number", schema = @Schema(type = "integer", format = "int32"), example = "1"),
 			@Parameter(in = ParameterIn.QUERY, name = "size", description = "The page size", schema = @Schema(type = "integer", format = "int32"), example = "100") })
+	// Reads are wider than the class: createHostLms admits CONSORTIUM_ADMIN, and it names a ruleset
+	@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})
 	@Get("/{?pageable*}")
 	public Mono<Page<ObjectRuleset>> list(@Parameter(hidden = true) @Valid Pageable pageable) {
 		if (pageable == null) {
@@ -50,6 +52,7 @@ public class ObjectRulesetController {
 		return Mono.from(objectFilterRulesetRepository.queryAll(pageable));
 	}
 
+	@Secured({RoleNames.ADMINISTRATOR, RoleNames.CONSORTIUM_ADMIN})
 	@Get("/{name}")
 	public Mono<ObjectRuleset> show(String name) {
 		return Mono.from(objectFilterRulesetRepository.findByName(name));

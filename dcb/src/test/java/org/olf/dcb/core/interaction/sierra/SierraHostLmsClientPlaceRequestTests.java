@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
 import org.olf.dcb.test.AgencyFixture;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.ReferenceValueMappingFixture;
@@ -253,15 +254,20 @@ class SierraHostLmsClientPlaceRequestTests {
 		// Act
 		final var client = hostLmsFixture.createClient(HOST_LMS_CODE);
 
-		final var problem = assertThrows(ThrowableProblem.class,
+		final var problem = assertThrows(SupplierRefusedRequestProblem.class,
 			() -> singleValueFrom(client.placeHoldRequestAtSupplyingAgency(
 				PlaceHoldRequestParameters.builder()
 					.localBibId(localBibId)
 					.localPatronId(localPatronId)
+					.localPatronType("15")
 					.patronRequestId(patronRequestId)
 					.build())));
 
 		// Assert
+		// Only the lending library's staff can clear it, so it is a refusal DCB can route around
+		assertThat(problem.getHostLmsCode(), is(HOST_LMS_CODE));
+		assertThat(problem.getTitle(), is(("%s's Sierra refused the hold because of DCB's patron record there "
+			+ "(P TYPE 15), not because of the item").formatted(HOST_LMS_CODE)));
 		assertThat(problem.toString(), allOf(
 			containsString("sierra-place-hold-tests XCirc Error: There is a problem with the patron's library record"),
 			// The fault is with the patron, so the diagnostics must describe the patron

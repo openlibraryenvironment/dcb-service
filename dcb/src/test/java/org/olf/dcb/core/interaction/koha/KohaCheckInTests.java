@@ -202,6 +202,18 @@ class KohaCheckInTests {
 	}
 
 	@Test
+	void shouldSendTheBarcodeThePrefixGaveTheVirtualItemOverNcip() {
+		final var config = withNcipFallback(true);
+		config.remove("bundle-host-barcode");
+		config.put("virtual-item-barcode-prefix", "DCB-");
+		koha.mockNcipCheckIn(NCIP_TOKEN, CHECKED_IN);
+
+		assertThat(clientWith(config).checkInItem(command()).block(), is("OK"));
+
+		koha.verifyNcipCheckIn(NCIP_TOKEN, "DCB-" + VIRTUAL_ITEM_BARCODE);
+	}
+
+	@Test
 	void shouldNotFallBackUnlessTheHostLmsEnablesIt() {
 		koha.mockAddToBundleRefused(HOST_ITEM_ID, "failed_checkin");
 		koha.mockNcipCheckIn(NCIP_TOKEN, CHECKED_IN);

@@ -152,6 +152,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	}
 	
 	// Wrap for proper transactional boundaries.
+	@SuppressWarnings("unused")
 	@Transactional(readOnly = true)
 	protected Mono<List<SourceRecord>> fetchPage() {
 		return Mono.from( sourceRecordService.getUnprocessedRecords( Pageable.from(0, PAGE_SIZE) ))
@@ -161,6 +162,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 			.doOnSubscribe(_s -> log.info("Collecting page of unprocessed records"));
 	}
 	
+	@SuppressWarnings("unused")
 	protected Mono<JobChunk<IngestOperation>> getChunk() {
 		return fetchPage()
       .doOnNext( page -> log.info("Got page....") )
@@ -220,6 +222,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 		return getChunk();
 	}
 	
+	@SuppressWarnings("unused")
 	@NonNull
 	public Mono<IngestRecord> tryConvertToIngestRecord( @NonNull SourceRecord sourceRecord ) {
 		
@@ -293,6 +296,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 //		return Mono.just( chunk );
 	}
 
+	@SuppressWarnings("unused")
 	@Retryable
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	protected Mono<BibRecord> processSingleOperation( IngestOperation op, Instant processedTime ) {
@@ -406,6 +410,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	}
 	
 	
+	@SuppressWarnings("unused")
 	public Mono<Tuple2<Long, Long>> buildIngestJobStream() {
     return Mono.just(this)
       .flatMapMany(jobRunnerService::processJobInstance)
@@ -428,7 +433,7 @@ public class IngestJob implements Job<IngestOperation>, JobChunkProcessor {
 	
 	@AppTask
 	@ExecuteOn(TaskExecutors.BLOCKING)
-	@Scheduled(initialDelay = "15s", fixedDelay = "2m")
+	@Scheduled(initialDelay = "15s", fixedDelay = "${dcb.ingest.interval:2m}")
 	public void scheduleJob() {
 		
 		buildIngestJobStream()

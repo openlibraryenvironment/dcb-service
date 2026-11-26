@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.xml.parsers.DocumentBuilderFactory;
+import org.olf.dcb.core.interaction.PatronNotFoundInHostLmsException;
 import org.olf.dcb.core.interaction.ncip.NcipProtocol;
 import org.olf.dcb.core.interaction.AbstractHostLmsClient;
 import org.olf.dcb.core.interaction.ConfigurationReport;
@@ -52,6 +53,7 @@ import reactor.core.publisher.Flux;
 @Slf4j
 @Prototype
 public class ORSApplianceHostLMS extends AbstractHostLmsClient {
+	private static final String UNKNOWN_USER_PROBLEM_TYPE = "Unknown User";
 	public static final String NCIP_ENDPOINT_URL_KEY
 		= NcipHostLmsConfiguration.ENDPOINT_URL_KEY;
 
@@ -326,7 +328,9 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			null));
 
 		return postLookupUser(payload)
-			.map(ORSApplianceHostLMS::lookupUserResponseToPatron);
+			.map(ORSApplianceHostLMS::lookupUserResponseToPatron)
+			.onErrorMap(NcipUnknownUserException.class,
+				unknownUser -> new PatronNotFoundInHostLmsException(identifier, getHostLmsCode()));
 	}
 
 	private Mono<String> postLookupUser(String payload) {
@@ -490,11 +494,14 @@ public class ORSApplianceHostLMS extends AbstractHostLmsClient {
 			.orElseThrow(() -> new NcipProblemException(
 				"NCIP response does not contain LookupUserResponse"));
 
-		if (firstDescendant(lookupUserResponse, "Problem").isPresent()) {
-			throw new NcipProblemException(
-				"LookupUserResponse contains Problem: "
-					+ optionalText(lookupUserResponse, "ProblemDetail")
-						.orElse("No problem detail supplied"));
+		final var problem = firstDescendant(lookupUserResponse, "Problem");
+		if (problem.isPresent()) {
+			final var message = "LookupUserResponse contains Problem: "
+				+ optionalText(problem.get(), "ProblemDetail").orElse("No problem detail supplied");
+			if (optionalText(problem.get(), "ProblemType").filter(UNKNOWN_USER_PROBLEM_TYPE::equals).isPresent()) {
+				throw new NcipUnknownUserException(message);
+			}
+			throw new NcipProblemException(message);
 		}
 
 		final var localId = requiredText(lookupUserResponse, "UserIdentifierValue");

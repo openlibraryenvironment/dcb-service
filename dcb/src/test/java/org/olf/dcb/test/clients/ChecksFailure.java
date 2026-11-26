@@ -21,6 +21,7 @@ public class ChecksFailure {
 	public static class Check {
 		@Nullable String code;
 		@Nullable String description;
+		@Nullable String userMessage;
 
 		public static Matcher<Check> hasDescription(String expectedDescription) {
 			return hasProperty("description", is(expectedDescription));
@@ -28,6 +29,10 @@ public class ChecksFailure {
 
 		public static Matcher<Check> hasCode(String expectedCode) {
 			return hasProperty("code", is(expectedCode));
+		}
+
+		public static Matcher<Check> hasUserMessage(String expectedUserMessage) {
+			return hasProperty("userMessage", is(expectedUserMessage));
 		}
 	}
 }

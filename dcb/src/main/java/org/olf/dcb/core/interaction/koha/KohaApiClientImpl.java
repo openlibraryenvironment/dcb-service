@@ -6,6 +6,7 @@ import io.micronaut.core.annotation.Creator;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.*;
 import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientErrorDecoder;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.uri.UriBuilder;
 import io.micronaut.serde.ObjectMapper;
@@ -21,9 +22,11 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static io.micronaut.http.MediaType.APPLICATION_JSON;
 import static io.micronaut.http.MediaType.APPLICATION_FORM_URLENCODED;
@@ -38,7 +41,8 @@ import static services.k_int.utils.ReactorUtils.raiseError;
  * <p>{@code api-url} may end in {@code /api} or {@code /api/v1}, in any case, and may carry a path
  * prefix, which is kept and is part of the server's identity.
  * <p>A failure whose body fits Koha's error schema is raised as a problem carrying the status and
- * Koha's error and error code; any other failure is the raw {@code HttpClientResponseException}.
+ * Koha's error and error code; any other failure is an {@code HttpClientResponseException} whose
+ * message names the call, the status and, from {@link #SOURCE_HEADERS}, the server that answered.
  * The request body never goes into a problem, because every problem parameter is copied into the
  * patron request's audit; a refused body reaches the debug log only, redacted on the token,
  * password-validation and patron calls.
@@ -47,6 +51,24 @@ import static services.k_int.utils.ReactorUtils.raiseError;
 @Slf4j
 @Secondary
 public class KohaApiClientImpl implements KohaApiClient {
+	/**
+	 * A ping shows only the message, and a refusal from a CDN or proxy in front of Koha reads the
+	 * same as Koha's own. These say which answered; a Cloudflare ray id is what the host's support
+	 * searches their logs by.
+	 */
+	static final List<String> SOURCE_HEADERS = List.of("server", "cf-ray", "cf-mitigated");
+
+	// Header values come from the other side of the connection
+	private static final int MAX_HEADER_VALUE_LENGTH = 80;
+
+	// The default decoder makes getMessage() return the response body, which for a CDN's refusal
+	// is its challenge page, in place of the message the exception was built with
+	private static final HttpClientErrorDecoder MESSAGE_AS_BUILT = new HttpClientErrorDecoder() {
+		@Override
+		public Optional<String> getMessage(Object error) {
+			return Optional.empty();
+		}
+	};
 
 	private final HttpClient httpClient;
 	private final KohaClientConfig config; // Assuming you create a Koha version of AlmaClientConfig
@@ -130,6 +152,7 @@ public class KohaApiClientImpl implements KohaApiClient {
 			.accept(APPLICATION_JSON);
 
 		return Mono.from(httpClient.retrieve(request, KohaAuthResponse.class))
+			.onErrorMap(HttpClientResponseException.class, refused -> namingItsSource(request, refused))
 			.doOnError(e -> log.error("Failed to fetch Koha OAuth token", e));
 	}
 
@@ -272,7 +295,29 @@ public class KohaApiClientImpl implements KohaApiClient {
 							.build());
 					}
 				}
-				return Mono.error(ex);
+				return Mono.error(namingItsSource(request, ex));
 			});
+	}
+
+	// The path only: a query string carries a card number or userid
+	private static HttpClientResponseException namingItsSource(HttpRequest<?> request, HttpClientResponseException refused) {
+		final var response = refused.getResponse();
+
+		final var source = SOURCE_HEADERS.stream()
+			.flatMap(name -> response.getHeaders().getFirst(name).stream()
+				.map(value -> name + ": " + bounded(value)))
+			.collect(Collectors.joining(", "));
+
+		final var message = "%s %s: HTTP %d %s".formatted(request.getMethod(), request.getPath(),
+			response.code(), response.reason())
+			+ (source.isEmpty() ? "" : " (" + source + ")");
+
+		return new HttpClientResponseException(message, refused, response, MESSAGE_AS_BUILT);
+	}
+
+	private static String bounded(String value) {
+		return value.length() <= MAX_HEADER_VALUE_LENGTH
+			? value
+			: value.substring(0, MAX_HEADER_VALUE_LENGTH) + "...";
 	}
 }

@@ -7,11 +7,14 @@ import static services.k_int.utils.MapUtils.getAsOptionalString;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.commons.lang3.NotImplementedException;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Item;
+import org.olf.dcb.core.model.PatronIdentity;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.interops.ConfigType;
 
 import io.micronaut.core.annotation.NonNull;
@@ -293,12 +296,53 @@ public interface HostLmsClient
 	}
 
 	/**
+	 * How this system can remove a virtual patron DCB created in it, when staff ask. Empty when it
+	 * can do neither. {@link VirtualPatronRemoval#DELETE} uses {@link #deletePatron(String)}.
+	 */
+	default Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of();
+	}
+
+	/**
+	 * Expire a virtual patron DCB created here, for a system that cannot delete one; DCB renews an
+	 * expired one when it next needs it. A record that is not DCB's virtual patron is refused with
+	 * {@link NotDcbsVirtualPatronException}, checked against the barcode DCB recorded for the identity
+	 * when there is one; a record that no longer exists fails with {@link VirtualPatronNotFound}.
+	 */
+	default Mono<Void> retireVirtualPatron(PatronIdentity virtualIdentity) {
+		return Mono.error(new UnsupportedOperationException(
+			"Retiring a virtual patron is not supported by " + getHostLmsCode()));
+	}
+
+	/**
 	 * Once DCB has terminated the supplier hold for an item that is out, can this system still report the
 	 * item coming home? False parks the request flagged for a person to confirm the item is back. It must
 	 * never gate cleanup or finalisation: docs/cancellation-handling.md §7.4.
 	 */
 	default boolean canReportItemReturnedAfterHoldTerminated() {
 		return true;
+	}
+
+	/**
+	 * On the return leg of a loan, does what DCB last read of the supplier's copy and hold show that the copy
+	 * has been checked in at the supplier? The request completes as supplied when it does.
+	 * <p>
+	 * By default only a copy back on the shelf (available, or received) or a hold the supplier reports
+	 * closed counts. A system that answers yes to anything more must be sure the copy cannot read that way
+	 * while it is still on its way home: FOLIO, for one, reports a copy its borrower has checked in as in
+	 * transit.
+	 */
+	default boolean showsCheckInAtSupplier(SupplierRequest supplierRequest) {
+		return isBackOnShelfOrClosed(supplierRequest);
+	}
+
+	/** The default answer to {@link #showsCheckInAtSupplier}, also used where no client could be built. */
+	static boolean isBackOnShelfOrClosed(SupplierRequest supplierRequest) {
+		final var itemStatus = getValueOrNull(supplierRequest, SupplierRequest::getLocalItemStatus);
+
+		return HostLmsItem.ITEM_AVAILABLE.equals(itemStatus)
+			|| HostLmsItem.ITEM_RECEIVED.equals(itemStatus)
+			|| "CLOSED".equals(getValueOrNull(supplierRequest, SupplierRequest::getLocalStatus));
 	}
 
 	/**
@@ -311,6 +355,15 @@ public interface HostLmsClient
 	 */
 	default boolean canHoldTwoVirtualItemsForOneCopy() {
 		return false;
+	}
+
+	/**
+	 * The barcode the virtual item for a supplier copy carries in this system: the copy's own,
+	 * unless this system names its virtual items differently. Resolution asks for it when it looks
+	 * for a virtual item that is already there.
+	 */
+	default String virtualItemBarcodeFor(String supplierBarcode) {
+		return supplierBarcode;
 	}
 
 	/**

@@ -3,8 +3,6 @@ package org.olf.dcb.graphql;
 import graphql.schema.DataFetcher;
 import graphql.schema.DataFetchingEnvironment;
 import io.micronaut.data.r2dbc.operations.R2dbcOperations;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.exceptions.HttpStatusException;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.exceptions.EntityCreationException;
@@ -12,7 +10,6 @@ import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.storage.AgencyRepository;
 import reactor.core.publisher.Mono;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -43,18 +40,11 @@ public class UpdateAgencyDataFetcher implements DataFetcher<CompletableFuture<Da
 		Map<String, Object> input_map = env.getArgument("input");
 		log.debug("UpdateAgencyDataFetcher code={} fields={}", input_map.get("code"), input_map.keySet());
 
-		// Role check. Only consortium administrators can change this.
-		Collection<String> roles = env.getGraphQlContext().get("roles");
+		GraphQLRoles.require(env, "updateAgency", GraphQLRoles.CONSORTIUM);
+
 		String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
 			.map(Object::toString)
 			.orElse("User not detected");
-
-		if (roles == null || (!roles.contains("CONSORTIUM_ADMIN"))) {
-			// Named for what this actually is. A refusal logged under another fetcher's
-			// name, describing another fetcher's operation, is a refusal nobody can find.
-			log.warn("updateAgencyDataFetcher: Access denied for user {}: user does not have the required role to update an agency.", userString);
-			throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to update an agency.");
-		}
 
 		// Get the agency code and the editable values
 		String code = input_map.get("code").toString();

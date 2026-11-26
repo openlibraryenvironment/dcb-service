@@ -1,8 +1,6 @@
 package org.olf.dcb.api;
 
 import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -25,6 +23,7 @@ import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RE
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.SUPPLIER_ROLE;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -62,8 +61,8 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
  * supplier is a Koha behind the mock REST API. What moves the request on the Koha side
  * is what Koha staff do: pull the hold and check the item in (Koha sends it in transit to
  * the sharing branch), and check it in again when it comes home. DCB itself lends the item
- * to its virtual patron when the borrower lends it to the real one, confirming the
- * in-transit prompt Koha would show staff.
+ * to its virtual patron when the borrower lends it to the real one; Koha asks nothing, because
+ * the copy is held for that patron.
  */
 @MockServerMicronautTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -81,7 +80,6 @@ class KohaSupplierScenarioTests {
 	private static final String VIRTUAL_PATRON_ID = "90";
 	private static final String HOLD_ID = "601";
 	private static final String CHECKOUT_ID = "7";
-	private static final String CONFIRMATION_TOKEN = "confirmation-jwt";
 	private static final String BORROWING_PATRON_LOCAL_ID = "872321";
 	private static final String COMMON_PATRON_TYPE = "15";
 	private static final String PICKUP_TRANSIT_STATE = "PICKUP_TRANSIT";
@@ -188,12 +186,12 @@ class KohaSupplierScenarioTests {
 		patronRequestApiClient.updatePatronRequest(requestId);
 		assertRequestIsInExpectedStatus(requestId, READY_FOR_PICKUP);
 
-		log.info("The borrowing library lends the item; DCB lends the real one to its virtual patron, confirming the in-transit prompt");
+		log.info("The borrowing library lends the item; DCB lends the real one to its virtual patron");
 		hostLmsFixture.setDummyState(BORROWING_HOST_LMS_CODE, LOANED_STATE, BORROWER_ROLE, RET_STD_RESPONSE_TYPE);
 		patronRequestApiClient.updatePatronRequest(requestId);
 		assertRequestIsInExpectedStatus(requestId, LOANED);
 		koha.verifyCheckedOut("{\"patron_id\": 90, \"item_id\": 71}");
-		koha.verifyCheckoutConfirmedWith(CONFIRMATION_TOKEN);
+		koha.verifyCheckoutNeverConfirmed();
 
 		// Koha has filled the hold and the item is on loan to the virtual patron
 		koha.replaceHoldWithOldHold(hold().status("F").build());
@@ -302,16 +300,12 @@ class KohaSupplierScenarioTests {
 		koha.mockPatron(virtualPatron());
 		koha.mockPlaceHold(hold().build());
 		koha.mockHold(hold().build());
-		koha.mockCheckoutConfirmed(CONFIRMATION_TOKEN, KohaCheckout.builder()
+		koha.mockCheckout(KohaCheckout.builder()
 			.checkoutId(Long.valueOf(CHECKOUT_ID))
 			.patronId(Long.valueOf(VIRTUAL_PATRON_ID))
 			.itemId(Long.valueOf(ITEM_ID))
 			.dueDate("2026-11-19T23:59:00Z")
 			.build());
-		koha.mockCheckoutNeedsConfirmation();
-		koha.mockCheckoutAvailability(VIRTUAL_PATRON_ID, ITEM_ID,
-			"{\"blockers\": {}, \"confirms\": {\"TRANSFERRED\": 1}, \"warnings\": {}, \"confirmation_token\": \""
-				+ CONFIRMATION_TOKEN + "\"}");
 	}
 
 	private static KohaItem.KohaItemBuilder kohaItem() {
@@ -406,11 +400,6 @@ class KohaSupplierScenarioTests {
 	}
 
 	private void awaitRequest(UUID requestId, String expectation, Predicate<PatronRequest> condition) {
-		await().alias(expectation).atMost(30, SECONDS).until(() -> {
-			final var request = patronRequestsFixture.findById(requestId);
-			log.debug("Request {} is {} (renewals {}, {})", requestId, request.getStatus(),
-				request.getRenewalCount(), request.getRenewalStatus());
-			return condition.test(request);
-		});
+		patronRequestsFixture.awaitRequest(requestId, expectation, condition, Duration.ofSeconds(30));
 	}
 }

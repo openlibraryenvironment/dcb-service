@@ -171,10 +171,10 @@ public interface KohaApiClient {
 	 * Koha answers {"id": biblionumber}, and refuses a record matching one it holds unless
 	 * x-confirm-not-duplicate is sent, which a virtual copy of a title always would.
 	 */
-	default Mono<KohaCreatedBiblio> createBibRecord(String bibXml) {
-		// Note: Koha explicitly requires the 'application/marcxml+xml' content type for XML payloads
-		return post("/api/v1/biblios", bibXml, KohaCreatedBiblio.class, Collections.emptyMap(),
-			Map.of("x-confirm-not-duplicate", "1"), "application/marcxml+xml");
+	default Mono<KohaCreatedBiblio> createBibRecord(String marcInJson) {
+		// Koha picks the MARC parser from the content type, and answers 406 to any it does not list
+		return post("/api/v1/biblios", marcInJson, KohaCreatedBiblio.class, Collections.emptyMap(),
+			Map.of("x-confirm-not-duplicate", "1"), KohaVirtualBib.MARC_IN_JSON);
 	}
 
 	/**
@@ -342,15 +342,15 @@ public interface KohaApiClient {
 	}
 
 	/**
-	 * Get active holds for an item.
-	 * Filters out old (completed/cancelled) holds using the 'old=false' query parameter. This is used for the DCB hold count.
-	 * We have something similar in Polaris, as we cannot trust the holdsCount variable to give us active holds.
+	 * A biblio's current holds, on one copy or on the title, at most perPage of them.
+	 * Filters out old (completed/cancelled) holds using the 'old=false' query parameter.
 	 * <p>
 	 * API docs: <a href="https://api.koha-community.org/#tag/holds/operation/listHolds">List holds</a>
 	 * </p>
 	 */
-	default Mono<Object[]> getActiveHoldsForItem(String itemId) {
-		return get("/api/v1/holds", Object[].class, Map.of("item_id", itemId, "old", false));
+	default Mono<KohaHoldResponse[]> getActiveHoldsForBiblio(String biblioId, int perPage) {
+		return get("/api/v1/holds", KohaHoldResponse[].class,
+			Map.of("biblio_id", biblioId, "old", false, "_per_page", perPage));
 	}
 
 	/**
@@ -396,15 +396,6 @@ public interface KohaApiClient {
 	 */
 	default Mono<KohaCheckout> checkoutItem(KohaCheckoutRequest request) {
 		return post("/api/v1/checkouts", request, KohaCheckout.class);
-	}
-
-	/**
-	 * The same checkout, answering the confirmations Koha asked for with the token the
-	 * availability read issued.
-	 * API: POST /api/v1/checkouts?confirmation={token}
-	 */
-	default Mono<KohaCheckout> checkoutItem(KohaCheckoutRequest request, String confirmationToken) {
-		return post("/api/v1/checkouts", request, KohaCheckout.class, Map.of("confirmation", confirmationToken));
 	}
 
 	/**

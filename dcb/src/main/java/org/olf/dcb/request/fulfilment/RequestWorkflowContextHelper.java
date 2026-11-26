@@ -162,10 +162,23 @@ public class RequestWorkflowContextHelper {
 		// leaves lenderSystem null -> instance-wide fallback -> IMPERATIVE.
 		return hostLmsService.findByCode(lenderSystemCode)
 			.map(ctx::setLenderSystem)
+			.flatMap(this::decorateWithLenderClient)
 			.onErrorResume(error -> {
 				log.warn("Supplier Host LMS '{}' could not be loaded ({}); SUPPLIER capability "
 					+ "resolution falls back to instance-wide configuration",
 					lenderSystemCode, error.toString());
+				return Mono.just(ctx);
+			})
+			.defaultIfEmpty(ctx);
+	}
+
+	// An enrichment like the Host LMS itself: a client that cannot be built leaves the loaded Host LMS in place
+	private Mono<RequestWorkflowContext> decorateWithLenderClient(RequestWorkflowContext ctx) {
+		return Mono.defer(() -> hostLmsService.getClientFor(ctx.getLenderSystem()))
+			.map(ctx::setLenderClient)
+			.onErrorResume(error -> {
+				log.warn("No client could be built for supplier Host LMS '{}' ({}); its supplier rules fall back "
+					+ "to the defaults", ctx.getLenderSystemCode(), error.toString());
 				return Mono.just(ctx);
 			})
 			.defaultIfEmpty(ctx);

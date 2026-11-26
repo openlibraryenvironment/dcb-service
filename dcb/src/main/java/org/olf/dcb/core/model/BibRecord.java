@@ -32,7 +32,6 @@ import lombok.Singular;
 import lombok.experimental.Accessors;
 import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 
-
 @Builder(toBuilder = true)
 @Data
 @AllArgsConstructor
@@ -41,12 +40,12 @@ import services.k_int.tests.ExcludeFromGeneratedCoverageReport;
 @ExcludeFromGeneratedCoverageReport
 @Accessors(chain = true)
 public class BibRecord implements CoreBibliographicMetadata {
-	
+
 	@Creator()
-  public BibRecord() {
-  	 canonicalMetadata = new HashMap<>();
-  }
-	
+	public BibRecord() {
+		canonicalMetadata = new HashMap<>();
+	}
+
 	@NotNull
 	@NonNull
 	@Id
@@ -70,8 +69,9 @@ public class BibRecord implements CoreBibliographicMetadata {
 	@NonNull
 	@Size(max = 256)
 	private String sourceRecordId;
-	
-	// might have to think about adding serialize = false to @Relation to prevent cycles
+
+	// might have to think about adding serialize = false to @Relation to prevent
+	// cycles
 //	@NonNull
 //	@NotNull
 	@Relation(value = Relation.Kind.MANY_TO_ONE)
@@ -110,10 +110,11 @@ public class BibRecord implements CoreBibliographicMetadata {
 	@Nullable
 	Integer processVersion;
 
-  // Added to allow us to point directly to the source record that gave rise to this bib, so we can 
-  // mark it needs reporocessing in some scenarios
+	// Added to allow us to point directly to the source record that gave rise to
+	// this bib, so we can
+	// mark it needs reporocessing in some scenarios
 	@Nullable
-  UUID sourceRecordUuid;
+	UUID sourceRecordUuid;
 
 //	@Override
 //	@Nullable
@@ -126,7 +127,7 @@ public class BibRecord implements CoreBibliographicMetadata {
 //	public String getRecordStatus() {
 //		return CoreBibliographicMetadata.super.getRecordStatus();
 //	}
-	
+
 	@Override
 	@Nullable
 	@TypeDef(type = DataType.STRING)
@@ -148,19 +149,19 @@ public class BibRecord implements CoreBibliographicMetadata {
 		return CoreBibliographicMetadata.super.getPlaceOfPublication();
 	}
 
-  @Override
-  @Transient
-  @Nullable
-  public String getFormOfItem() {
-    return CoreBibliographicMetadata.super.getFormOfItem();
-  }
+	@Override
+	@Transient
+	@Nullable
+	public String getFormOfItem() {
+		return CoreBibliographicMetadata.super.getFormOfItem();
+	}
 
-  @Override
-  @Transient
-  @Nullable
-  public String getDerivedFormOfItem() {
-    return CoreBibliographicMetadata.super.getDerivedFormOfItem();
-  }
+	@Override
+	@Transient
+	@Nullable
+	public String getDerivedFormOfItem() {
+		return CoreBibliographicMetadata.super.getDerivedFormOfItem();
+	}
 
 	@Override
 	@Transient
@@ -189,16 +190,18 @@ public class BibRecord implements CoreBibliographicMetadata {
 		// Return type of boolean is incompatible with null, supply default.
 		return CoreBibliographicMetadata.super.isLargePrint();
 	}
-	
+
 	public static class BibRecordBuilder {
 		public BibRecordBuilder title(String title) {
 			this.canonicalMetadata(MD_TITLE, title);
 			return this;
 		}
+
 		public BibRecordBuilder recordStatus(String recordStatus) {
 			this.canonicalMetadata(MD_RECORD_STATUS, recordStatus);
 			return this;
 		}
+
 		public BibRecordBuilder derivedType(String derivedType) {
 			this.canonicalMetadata(MD_DERIVED_TYPE, derivedType);
 			return this;

@@ -5,6 +5,8 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Location;
@@ -88,22 +91,30 @@ class AlmaSupplierHoldTests {
 
 		// Measured on an Alma sandbox: a HOLD offered to this patron on this copy, and the POST
 		// still refused because the pickup library was the Resource Sharing Library
+		assertThat("DCB's own pickup configuration is not the lender's refusal",
+			error, not(instanceOf(SupplierRefusedRequestProblem.class)));
 		assertThat(error.getMessage(), allOf(
-			containsString("Alma offers this patron a hold on this item"),
+			startsWith("Alma offers this patron a hold on item item-1"),
 			containsString("the refusal is the pickup library"),
 			containsString("RES_SHARE")));
 	}
 
 	@Test
-	void shouldBlameTheUserGroupWhenAlmaOffersThePatronNoHold() {
+	void shouldBlameTheItemLocationsFulfilmentUnitWhenAlmaOffersThePatronNoHold() {
 		refuseWith("401129", "No items can fulfill the submitted request.");
 		almaOffers("DIGITIZATION");
 
 		final var error = placeSupplierHold("bib-1", "barcode-1");
 
-		assertThat(error.getMessage(), allOf(
-			containsString("no hold on this item (offered: DIGITIZATION)"),
-			containsString("user group has no Request term of use")));
+		// The item is the lender's own, so only the lending library can change its fulfilment unit's rules
+		assertThat(error, instanceOf(SupplierRefusedRequestProblem.class));
+		final var refusal = (SupplierRefusedRequestProblem) error;
+		assertThat(refusal.getHostLmsCode(), is("ALMA"));
+		assertThat(refusal.getTitle(), is("ALMA's Alma has no Request rule for user group \"DCB-GROUP\" "
+			+ "in the fulfilment unit of this item's location (offered: DIGITIZATION)"));
+		assertThat(refusal.getDetail(), allOf(
+			startsWith("Alma offers this patron no hold on item item-1 (offered: DIGITIZATION)"),
+			containsString("fulfilment unit of the item's location has no Request rule")));
 	}
 
 	@Test
@@ -116,9 +127,25 @@ class AlmaSupplierHoldTests {
 
 		assertThat(error, instanceOf(AlmaHostLmsClientException.class));
 		assertThat(error.getMessage(), allOf(
+			startsWith("Alma could not say why it refused a hold on item item-1"),
 			containsString("RES_SHARE"),
-			containsString("Alma could not be asked which")));
+			containsString("Alma is unavailable")));
 		assertThat(error.getCause(), instanceOf(AlmaApiException.class));
+	}
+
+	@Test
+	void shouldAskAlmaWhyForABorrowerHoldOnTheVirtualItemItCreated() {
+		refuseWith("401129", "No items can fulfill the submitted request.");
+		when(almaApi.retrieveItemRequestOptions("bib-1", "holding-1", "item-1", "patron-1"))
+			.thenReturn(Mono.just(AlmaRequestOptions.builder().requestOptions(List.of()).build()));
+
+		// A virtual item has no barcode lookup to fall back on; DCB holds its bib and holding
+		final var error = placeBorrowerHold("bib-1", "holding-1");
+
+		assertThat(error.getMessage(), allOf(
+			startsWith("Alma offers this patron no hold on item item-1 (offered: nothing)"),
+			containsString("fulfilment unit of the item's location has no Request rule"),
+			containsString("virtual-item-location-code")));
 	}
 
 	@Test
@@ -169,6 +196,22 @@ class AlmaSupplierHoldTests {
 				.localItemId("item-1")
 				.localBibId(localBibId)
 				.localItemBarcode(localItemBarcode)
+				.localPatronType("DCB-GROUP")
+				.pickupLocation(Location.builder().code("PICKUP").localId("PICKUP").build())
+				.activeWorkflow("RET-STD")
+				.patronRequestId("pr-1")
+				.build())
+			.map(request -> (Throwable) new IllegalStateException("Alma refused, but the hold succeeded"))
+			.onErrorResume(error -> Mono.just(error))
+			.block();
+	}
+
+	private Throwable placeBorrowerHold(String localBibId, String localHoldingId) {
+		return client.placeHoldRequestAtBorrowingAgency(PlaceHoldRequestParameters.builder()
+				.localPatronId("patron-1")
+				.localItemId("item-1")
+				.localBibId(localBibId)
+				.localHoldingId(localHoldingId)
 				.pickupLocation(Location.builder().code("PICKUP").localId("PICKUP").build())
 				.activeWorkflow("RET-STD")
 				.patronRequestId("pr-1")

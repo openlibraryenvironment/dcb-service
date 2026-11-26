@@ -1,8 +1,6 @@
 package org.olf.dcb.api;
 
 import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -10,6 +8,7 @@ import static org.olf.dcb.core.model.PatronRequest.Status.HANDED_OFF_AS_LOCAL;
 import static org.olf.dcb.core.model.WorkflowConstants.LOCAL_WORKFLOW;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
+import java.time.Duration;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
@@ -126,11 +125,7 @@ class KohaLocalRequestScenarioTests {
 		assertThat(placed.body(), is(notNullValue()));
 		final var requestId = placed.body().getId();
 
-		await().atMost(30, SECONDS).until(() -> {
-			final var status = patronRequestsFixture.findById(requestId).getStatus();
-			log.debug("Request {} is {}", requestId, status);
-			return HANDED_OFF_AS_LOCAL.equals(status);
-		});
+		patronRequestsFixture.awaitStatus(requestId, HANDED_OFF_AS_LOCAL, Duration.ofSeconds(30));
 
 		final var request = patronRequestsFixture.findById(requestId);
 		assertThat(request, hasActiveWorkflow(LOCAL_WORKFLOW));
@@ -165,8 +160,7 @@ class KohaLocalRequestScenarioTests {
 		assertThat(placed.body(), is(notNullValue()));
 		final var requestId = placed.body().getId();
 
-		await().atMost(30, SECONDS).until(() ->
-			HANDED_OFF_AS_LOCAL.equals(patronRequestsFixture.findById(requestId).getStatus()));
+		patronRequestsFixture.awaitStatus(requestId, HANDED_OFF_AS_LOCAL, Duration.ofSeconds(30));
 
 		assertThat(patronRequestsFixture.findById(requestId), hasActiveWorkflow(LOCAL_WORKFLOW));
 		koha.verifyHoldPlaced("{\"patron_id\": 12, \"biblio_id\": 4002, \"item_id\": 56, \"pickup_library_id\": \"BRANCH-N\"}");

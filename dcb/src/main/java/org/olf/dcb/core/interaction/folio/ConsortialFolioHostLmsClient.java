@@ -81,8 +81,11 @@ import java.time.Duration;
 import java.util.Map;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.error.DcbError;
@@ -137,6 +140,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 	private static final HostLmsPropertyDefinition PATRON_ACCOUNT_SETTING
 		= booleanPropertyDefinition("patron-account",
 			"Whether edge-patron is deployed for this FOLIO tenant", FALSE);
+
+	private static final String REQUEST_POLICY_REFUSAL_CODE = "REQUEST_NOT_ALLOWED_FOR_PATRON_ITEM_COMBINATION";
+	private static final Pattern REFUSED_REQUEST_TYPE
+		= Pattern.compile("\"key\"\\s*:\\s*\"requestType\"\\s*,\\s*\"value\"\\s*:\\s*\"([A-Za-z]+)\"");
 
 	private final HostLms hostLms;
 
@@ -325,7 +332,12 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 						.localStatus(HOLD_CONFIRMED)
 						.rawLocalStatus(response.getStatus())
 						.build());
-			});
+			})
+			// Only here is the refusing policy the lending library's, so only here is it a supplier refusal
+			.onErrorMap(FolioRequestPolicyRefusedProblem.class, refusal -> new SupplierRefusedRequestProblem(
+				getHostLmsCode(),
+				FolioRequestPolicyRefusedProblem.reason(getHostLmsCode(), refusal.getRequestType(), refusal.getPatronGroup()),
+				refusal.getRefusal(), refusal.getResponseException(), refusal.getRequest()));
 	}
 
 	private String getLibraryCode(PlaceHoldRequestParameters parameters) {
@@ -347,7 +359,7 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 					error -> interpretValidationError(error, request)));
 	}
 
-	private CannotPlaceRequestProblem interpretValidationError(Throwable error,
+	private AbstractHttpResponseProblem interpretValidationError(Throwable error,
 		MutableHttpRequest<CreateTransactionRequest> request) {
 
 		log.debug("Received validation error", error);
@@ -360,6 +372,10 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 				.map(ValidationError::getFirstError)
 				.orElse("Unknown validation error");
 
+			if (firstError.contains(REQUEST_POLICY_REFUSAL_CODE)) {
+				return requestPolicyRefusal(firstError, clientResponseException, request);
+			}
+
 			return new CannotPlaceRequestProblem(getHostLmsCode(),
 				firstError, clientResponseException, request);
 		}
@@ -367,6 +383,28 @@ public class ConsortialFolioHostLmsClient implements HostLmsClient {
 			return new CannotPlaceRequestProblem(getHostLmsCode(),
 				"Unknown validation error", null, request);
 		}
+	}
+
+	/**
+	 * mod-dcb wraps mod-circulation's refusal as text inside its own VALIDATION_ERROR, so the
+	 * circulation code and the request type it refused are read out of the message.
+	 */
+	private FolioRequestPolicyRefusedProblem requestPolicyRefusal(String firstError,
+		HttpClientResponseException responseException,
+		MutableHttpRequest<CreateTransactionRequest> request) {
+
+		final var requestType = Optional.of(REFUSED_REQUEST_TYPE.matcher(firstError))
+			.filter(Matcher::find)
+			.map(matcher -> matcher.group(1))
+			.orElse("Page or Hold");
+
+		final var patronGroup = request.getBody()
+			.map(CreateTransactionRequest::getPatron)
+			.map(CreateTransactionRequest.Patron::getGroup)
+			.orElse("unknown");
+
+		return new FolioRequestPolicyRefusedProblem(getHostLmsCode(), requestType, patronGroup,
+			firstError, responseException, request);
 	}
 
 	@Override

@@ -5,8 +5,9 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
+import static org.mockserver.model.HttpResponse.response;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
@@ -129,6 +130,91 @@ public class PatronRequestTrackingTests {
 	}
 
 	@Test
+	void aFailedReadOfTheSupplierHoldKeepsItsStatusAndIsAuditedOncePerRun() {
+		// Arrange
+		final var patronRequest = createPatronRequest(
+			request -> request.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY));
+
+		final var localRequestId = "11601";
+		final var localItemId = "84356401";
+
+		final var supplierRequest = createSupplierRequest(patronRequest,
+			request -> request
+				.localId(localRequestId)
+				.localItemId(localItemId)
+				.statusCode(PLACED)
+				.localStatus("PLACED"));
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId, exampleSierraItem(localItemId));
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, response().withStatusCode(500));
+
+		// Act - the lender fails twice
+		trackingFixture.trackRequest(patronRequest);
+		trackingFixture.trackRequest(patronRequest);
+
+		// Assert
+		final var failing = supplierRequestsFixture.findById(supplierRequest.getId());
+		assertThat("A failed read is not a status", failing, hasLocalStatus("PLACED"));
+		assertThat(failing.getLocalReadFailingSince(), is(notNullValue()));
+		assertThat("One audit entry for the run, not one per poll",
+			auditEntriesStartingWith(patronRequest, "Tracking : Supplier hold could not be read"), is(1L));
+
+		// Act - the lender answers again
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, placedHold(localRequestId));
+		trackingFixture.trackRequest(patronRequest);
+
+		// Assert
+		final var recovered = supplierRequestsFixture.findById(supplierRequest.getId());
+		assertThat(recovered, hasLocalStatus("PLACED"));
+		assertThat(recovered.getLocalReadFailingSince(), is(nullValue()));
+		assertThat(auditEntriesStartingWith(patronRequest, "Tracking : Supplier hold read again"), is(1L));
+	}
+
+	@Test
+	void aRequestWhoseSupplierHoldCannotBeReadIsPolledLessOften() {
+		// Without a status timestamp the workflow fails before it schedules the next poll
+		final var patronRequest = createPatronRequest(
+			request -> request.status(REQUEST_PLACED_AT_SUPPLYING_AGENCY).currentStatusTimestamp(Instant.now()));
+
+		final var localRequestId = "11602";
+		final var localItemId = "84356402";
+
+		createSupplierRequest(patronRequest,
+			request -> request
+				.localId(localRequestId)
+				.localItemId(localItemId)
+				.statusCode(PLACED)
+				.localStatus("PLACED"));
+
+		sierraItemsAPIFixture.mockGetItemById(localItemId, exampleSierraItem(localItemId));
+		sierraPatronsAPIFixture.mockGetHoldById(localRequestId, response().withStatusCode(500));
+
+		final var trackedAt = Instant.now();
+		trackingFixture.trackRequest(patronRequest);
+
+		// This status is normally polled again after a second
+		assertThat(patronRequestsFixture.findById(patronRequest.getId()).getNextScheduledPoll()
+			.isAfter(trackedAt.plus(Duration.ofMinutes(4))), is(true));
+	}
+
+	private long auditEntriesStartingWith(PatronRequest patronRequest, String message) {
+		return patronRequestsFixture.findAuditEntries(patronRequest).stream()
+			.filter(audit -> audit.getBriefDescription() != null
+				&& audit.getBriefDescription().startsWith(message))
+			.count();
+	}
+
+	private static SierraPatronHold placedHold(String localRequestId) {
+		return SierraPatronHold.builder()
+			.id("https://sandbox.iii.com/iii/sierra-api/v6/patrons/holds/" + localRequestId)
+			.patron("https://sandbox.iii.com/iii/sierra-api/v6/patrons/6747241")
+			.recordType("b")
+			.record("https://sandbox.iii.com/iii/sierra-api/v6/items/4735431")
+			.status(SierraCodeTuple.builder().code("0").build())
+			.build();
+	}
+
+	@Test
 	void trackingServiceShouldTrackMissingStateForMissingRequests() {
 		log.debug("RUNNING trackingServiceShouldTrackMissingStateForMissingRequests"); // So we can find this test in the logs
 
@@ -167,8 +253,8 @@ public class PatronRequestTrackingTests {
 		// Assert
 
 		// Workflow will propagate the request to an ultimate state of isFinalised, via isCanceled());
-		await().atMost(5, SECONDS)
-			.until(() -> getPatronRequest(patronRequest.getId()), hasProperty("localRequestStatus", is("MISSING")));
+		patronRequestsFixture.awaitRequest(patronRequest.getId(), "localRequestStatus MISSING",
+			request -> "MISSING".equals(request.getLocalRequestStatus()), Duration.ofSeconds(5));
 	}
 
 	@Test
@@ -197,9 +283,8 @@ public class PatronRequestTrackingTests {
 		trackingFixture.trackRequest(patronRequest);
 
 		// Assert: the poll reached the host LMS, which a parked request never did
-		await().atMost(5, SECONDS)
-			.until(() -> getPatronRequest(patronRequest.getId()),
-				hasProperty("localRequestStatus", is("MISSING")));
+		patronRequestsFixture.awaitRequest(patronRequest.getId(), "localRequestStatus MISSING",
+			request -> "MISSING".equals(request.getLocalRequestStatus()), Duration.ofSeconds(5));
 
 		final var tracked = getPatronRequest(patronRequest.getId());
 

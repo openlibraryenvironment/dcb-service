@@ -23,10 +23,10 @@ public interface PostgresMatchPointRepository extends ReactiveStreamsPageableRep
 	@NonNull
 	@Override
 	@Query("""
-		SELECT * FROM match_point
-		  INNER JOIN bib_record ON bib_id = bib_record.id
-		WHERE value IN (:points)
+		SELECT mp.* FROM match_point mp
+		  INNER JOIN bib_record ON mp.bib_id = bib_record.id
+		WHERE mp.value IN (:points)
 		  AND bib_record.derived_type = :derivedType
-		ORDER BY bib_id;""")
+		ORDER BY mp.bib_id;""")
 	Publisher<MatchPoint> getMatchesByDerrivedType (String derivedType, Collection<UUID> points );
 }
