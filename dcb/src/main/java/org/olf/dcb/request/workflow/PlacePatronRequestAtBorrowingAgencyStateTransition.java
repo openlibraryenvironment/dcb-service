@@ -1,5 +1,6 @@
 package org.olf.dcb.request.workflow;
 
+import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.interaction.UnexpectedHttpResponseProblem.hasUnknownOutcome;
 import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
@@ -214,7 +215,14 @@ public class PlacePatronRequestAtBorrowingAgencyStateTransition implements Patro
 	public boolean isApplicableFor(RequestWorkflowContext ctx) {
 		// Local should only be handed off to the local system.
 		if (ctx.getPatronRequest().isUsingLocalWorkflow()) return false;
-		
+
+		// A cancelled or missing supplier hold is HandleSupplierRequestCancelled's, which this transition
+		// otherwise outranks by name: a rollback to CONFIRMED would place a borrower hold with nothing to fill it.
+		final var supplierHoldStatus = getValueOrNull(ctx, RequestWorkflowContext::getSupplierRequest,
+			SupplierRequest::getLocalStatus);
+
+		if (HOLD_CANCELLED.equals(supplierHoldStatus) || HOLD_MISSING.equals(supplierHoldStatus)) return false;
+
 		return getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus());
 	}
 

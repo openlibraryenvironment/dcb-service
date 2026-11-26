@@ -98,7 +98,7 @@ public class PatronFixture {
 		return saveIdentityAndReturn(pi);
 	}
 
-	private PatronIdentity saveIdentityAndReturn(PatronIdentity identity) {
+	public PatronIdentity saveIdentityAndReturn(PatronIdentity identity) {
 		return singleValueFrom(patronIdentityRepository.save(identity));
 	}
 

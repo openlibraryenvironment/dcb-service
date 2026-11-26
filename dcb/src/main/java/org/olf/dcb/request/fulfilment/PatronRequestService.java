@@ -36,6 +36,8 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Prototype
 public class PatronRequestService {
+	public static final String ROLLBACK_ACTIONED = "Rollback actioned.";
+
 	private final PatronRequestRepository patronRequestRepository;
 	private final PatronRequestWorkflowService requestWorkflow;
 	private final PatronService patronService;
@@ -446,7 +448,7 @@ public class PatronRequestService {
 			auditDataMap.put("rollback-from-status", patronRequest.getStatus());
 			auditDataMap.put("rollback-to-status", patronRequest.getPreviousStatus());
 
-			return audit(patronRequest, "Rollback actioned.", auditDataMap)
+			return audit(patronRequest, ROLLBACK_ACTIONED, auditDataMap)
 				.map(PatronRequestAudit::getPatronRequest);
 		};
 	}

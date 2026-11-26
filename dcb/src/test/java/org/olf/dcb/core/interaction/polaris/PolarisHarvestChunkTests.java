@@ -1,6 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
 import static java.util.stream.Collectors.joining;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.dataimport.job.SourceRecordImportChunk;
 import org.olf.dcb.dataimport.job.model.SourceRecord;
+import org.olf.dcb.storage.AlarmRepository;
 import org.olf.dcb.test.HostLmsFixture;
 import org.olf.dcb.test.TestResourceLoaderProvider;
 
@@ -36,6 +39,7 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import services.k_int.test.mockserver.MockServerMicronautTest;
 
 /**
@@ -48,7 +52,7 @@ import services.k_int.test.mockserver.MockServerMicronautTest;
  */
 @Slf4j
 @MockServerMicronautTest
-@MicronautTest(transactional = false, rebuildContext = true,
+@MicronautTest(transactional = false,
 	contextBuilder = org.olf.dcb.test.DcbTestContainerContextBuilder.class)
 @TestInstance(PER_CLASS)
 class PolarisHarvestChunkTests {
@@ -70,6 +74,8 @@ class PolarisHarvestChunkTests {
 
 	@Inject
 	private TestResourceLoaderProvider testResourceLoaderProvider;
+	@Inject
+	private AlarmRepository alarmRepository;
 
 	@Inject
 	private HostLmsFixture hostLmsFixture;
@@ -237,6 +243,113 @@ class PolarisHarvestChunkTests {
 		assertThat("The id cursor must reset, otherwise the harvest stays wedged",
 			checkpoint.getLastId(), is(0));
 		assertThat(checkpoint.getStartdatemodified(), is(notNullValue()));
+	}
+
+	@Test
+	void theEndOfAWalkCarriesTheBibsPolarisReportsDeleted() {
+		// Arrange
+		mockPolarisFixture.mockGetUpdatedBibs(0, updatedBibsResponse(10, 20, 30));
+		mockPolarisFixture.mockGetBibsById("10,20,30", bibsByIdResponse(10, 20, 30));
+		mockPolarisFixture.mockGetUpdatedBibs(30, updatedBibsResponse());
+		mockPolarisFixture.mockGetDeletedBibs(0, updatedBibsResponse(77, 78));
+
+		// Act
+		final var first = singleValueFrom(client.getChunk(Optional.of(deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 0))));
+		final var last = singleValueFrom(client.getChunk(Optional.of(first.getCheckpoint())));
+
+		// Assert
+		assertThat(last.isLastChunk(), is(true));
+		assertThat(remoteIds(last), contains("77", "78"));
+
+		final var deleted = singleValueFrom(client.convertSourceToIngestRecord(last.getData().iterator().next()));
+		assertThat("Ingest removes the bib", deleted.getDeleted(), is(true));
+
+		final var checkpoint = checkpointOf(last);
+		assertThat(checkpoint.getDeletedSince(), is(notNullValue()));
+		assertThat(checkpoint.getDeletedLastId(), is(0));
+	}
+
+	@Test
+	void aFailedReadOfDeletionsLeavesTheirWatermarkForTheNextRun() {
+		// Arrange
+		mockPolarisFixture.mockGetUpdatedBibs(0, updatedBibsResponse());
+		mockPolarisFixture.mockGetDeletedBibsServerError();
+
+		// Act
+		final var last = singleValueFrom(client.getChunk(Optional.of(deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 0))));
+
+		// Assert - the update harvest is not held up
+		assertThat(last.isLastChunk(), is(true));
+		assertThat(last.getData(), hasSize(0));
+		assertThat(checkpointOf(last).getDeletedSince(), is(nullValue()));
+		assertThat(checkpointOf(last).getDeletionsFailedAt(), is(notNullValue()));
+	}
+
+	@Test
+	void aFailedReadOfDeletionsIsNotRepeatedOnEveryRun() {
+		// Arrange - a server that refuses the deletions read refuses it every time
+		mockPolarisFixture.mockGetUpdatedBibs(0, updatedBibsResponse());
+		mockPolarisFixture.mockGetDeletedBibsServerError();
+
+		// Act - the next run follows straight on, as a two-minute harvest would
+		final var first = singleValueFrom(client.getChunk(Optional.of(deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 0))));
+		final var failedAt = checkpointOf(first).getDeletionsFailedAt();
+		final var second = singleValueFrom(client.getChunk(Optional.of(first.getCheckpoint())));
+
+		// Assert - not asked again: a second failure would have moved the time
+		assertThat(failedAt, is(notNullValue()));
+		assertThat(checkpointOf(second).getDeletionsFailedAt(), is(failedAt));
+	}
+
+	@Test
+	void aRowThatCannotBeReadRaisesAnAlarmNamingTheBib() {
+		// Arrange - bib 40 arrives without the modification date the walk reads
+		mockPolarisFixture.mockGetPagedBibs(0, """
+			{ "PAPIErrorCode": 0, "ErrorMessage": null, "LastID": 90, "GetBibsPagedRows": [%s] }"""
+			.formatted(String.join(",", row(10), """
+				{ "BibliographicRecordID": 40, "IsDisplayInPAC": true,
+				  "BibliographicRecordXML": "<marc:collection/>" }""")));
+
+		// Act
+		singleValueFrom(client.getChunk(Optional.empty()));
+
+		// Assert
+		final var alarmCode = "ILS." + HOST_LMS_CODE + ".POLARIS_HARVEST_UNSTAGED";
+		await().atMost(2, TimeUnit.SECONDS).until(() -> Mono.from(alarmRepository.findByCode(alarmCode))
+			.blockOptional().isPresent());
+
+		final var alarm = Mono.from(alarmRepository.findByCode(alarmCode)).block();
+		assertThat(alarm.getAlarmDetails().get("unstagedBibs"), is(List.of("40")));
+	}
+
+	/**
+	 * A bib edited behind the cursor while a walk runs carries a date older than the newest one the
+	 * walk saw. A watermark taken from the newest date alone skips it for good (audit H-2).
+	 */
+	@Test
+	void deltaWatermarkDoesNotPassTheStartOfTheWalk() {
+		// Arrange - one bib in the window was modified after the walk began
+		final var beforeWalk = Instant.now();
+		final var startingCheckpoint = deltaCheckpoint(Instant.ofEpochMilli(MOD_BASE), 0);
+
+		mockPolarisFixture.mockGetUpdatedBibs(0, updatedBibsResponse(10, 20, 30));
+		mockPolarisFixture.mockGetBibsById("10,20,30", """
+			{ "PAPIErrorCode": 0, "ErrorMessage": null, "GetBibsByIDRows": [%s] }"""
+			.formatted(String.join(",", row(10), row(20),
+				rowModifiedAt(30, beforeWalk.plus(Duration.ofHours(1)).toEpochMilli()))));
+		mockPolarisFixture.mockGetUpdatedBibs(30, updatedBibsResponse());
+
+		// Act
+		final var first = singleValueFrom(client.getChunk(Optional.of(startingCheckpoint)));
+		final var second = singleValueFrom(client.getChunk(Optional.of(first.getCheckpoint())));
+
+		// Assert
+		assertThat(second.isLastChunk(), is(true));
+
+		final var checkpoint = checkpointOf(second);
+		assertThat("The watermark must not pass the moment the walk began",
+			checkpoint.getStartdatemodified().isBefore(beforeWalk), is(true));
+		assertThat("The next walk starts its own clock", checkpoint.getWalkStartedAt(), is(nullValue()));
 	}
 
 	/**
@@ -565,6 +678,16 @@ class PolarisHarvestChunkTests {
 		return IntStream.of(bibIds)
 			.mapToObj(PolarisHarvestChunkTests::row)
 			.collect(joining(","));
+	}
+
+	private static String rowModifiedAt(int bibId, long modifiedEpochMillis) {
+		return """
+			{ "BibliographicRecordID": %d, "IsDisplayInPAC": true,
+			  "CreationDate": "/Date(%d+0000)/",
+			  "FirstAvailableDate": "/Date(%d+0000)/",
+			  "ModificationDate": "/Date(%d+0000)/",
+			  "BibliographicRecordXML": "<marc:collection/>" }"""
+			.formatted(bibId, MOD_BASE, MOD_BASE, modifiedEpochMillis);
 	}
 
 	private static String row(int bibId) {

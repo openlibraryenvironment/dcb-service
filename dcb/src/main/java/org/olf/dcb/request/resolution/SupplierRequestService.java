@@ -6,6 +6,7 @@ import static org.olf.dcb.request.fulfilment.SupplierRequestStatusCode.PENDING;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValueOrNull;
 
 import java.util.List;
+import java.util.Set;
 
 import org.olf.dcb.core.model.DataAgency;
 import org.olf.dcb.core.model.InactiveSupplierRequest;
@@ -117,19 +118,26 @@ public class SupplierRequestService {
 			.build();
 	}
 
-	public Flux<DataAgency> findAllSupplyingAgencies(PatronRequest patronRequest) {
-		return findAgenciesFromSupplierRequests(patronRequest)
-			.concatWith(findAgenciesFromInactiveSupplierRequests(patronRequest));
+	/** The agencies of this request's supplier requests, active or not, apart from those at the given systems. */
+	public Flux<DataAgency> findSupplyingAgencies(PatronRequest patronRequest, Set<String> exceptAtHostLmsCodes) {
+		return findAgenciesFromSupplierRequests(patronRequest, exceptAtHostLmsCodes)
+			.concatWith(findAgenciesFromInactiveSupplierRequests(patronRequest, exceptAtHostLmsCodes));
 	}
 
-	private Flux<DataAgency> findAgenciesFromSupplierRequests(PatronRequest patronRequest) {
+	private Flux<DataAgency> findAgenciesFromSupplierRequests(PatronRequest patronRequest,
+		Set<String> exceptAtHostLmsCodes) {
+
 		return Flux.from(supplierRequestRepository.findAllByPatronRequest(patronRequest))
+			.filter(supplierRequest -> !exceptAtHostLmsCodes.contains(supplierRequest.getHostLmsCode()))
 			.flatMap(this::includeResolvedAgency)
 			.mapNotNull(SupplierRequest::getResolvedAgency);
 	}
 
-	private Flux<DataAgency> findAgenciesFromInactiveSupplierRequests(PatronRequest patronRequest) {
+	private Flux<DataAgency> findAgenciesFromInactiveSupplierRequests(PatronRequest patronRequest,
+		Set<String> exceptAtHostLmsCodes) {
+
 		return Flux.from(inactiveSupplierRequestRepository.findAllByPatronRequest(patronRequest))
+			.filter(supplierRequest -> !exceptAtHostLmsCodes.contains(supplierRequest.getHostLmsCode()))
 			.flatMap(this::includeResolvedAgency)
 			.mapNotNull(InactiveSupplierRequest::getResolvedAgency);
 	}

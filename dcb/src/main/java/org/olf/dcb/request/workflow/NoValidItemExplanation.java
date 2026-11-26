@@ -7,8 +7,10 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.olf.dcb.core.interaction.SupplierPreflight;
+import org.olf.dcb.core.model.DerivedLoanPolicy;
 import org.olf.dcb.core.model.Item;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
@@ -59,6 +61,47 @@ public class NoValidItemExplanation {
 				.map(preflight -> new Fault(supplier, preflight)))
 			.collectList()
 			.onErrorReturn(List.of());
+	}
+
+	/**
+	 * The libraries whose copies resolution excluded because the library does not lend them to this
+	 * borrower: never lent, reference only, or lent only within its own system. These explain a request
+	 * that found no item; they do not make a chosen copy's request an error.
+	 */
+	public List<Fault> notLentBy(Collection<Item> excludedItems) {
+		final var bySupplier = new LinkedHashMap<String, Fault>();
+
+		excludedItems.stream()
+			.filter(item -> item.getHostLmsCode() != null && NOT_LENT.contains(item.getDerivedLoanPolicy()))
+			.forEach(item -> bySupplier.putIfAbsent(item.getHostLmsCode(), new Fault(item.getHostLmsCode(),
+				SupplierPreflight.cannotSupply(notLentReason(item), NOT_LENT_REMEDY))));
+
+		return List.copyOf(bySupplier.values());
+	}
+
+	private static final Set<DerivedLoanPolicy> NOT_LENT = Set.of(
+		DerivedLoanPolicy.NO_LEND, DerivedLoanPolicy.LOCAL_ONLY, DerivedLoanPolicy.REFERENCE_ONLY);
+
+	private static final String NOT_LENT_REMEDY = "The library's own settings for this copy keep it from "
+		+ "being lent to this borrower. If it should be lent, change those settings in the library's system.";
+
+	private static String notLentReason(Item item) {
+		final var entries = item.getDecisionLogEntries();
+
+		return (entries == null ? List.<String>of() : entries).stream()
+			.filter(entry -> entry.startsWith("LoanPolicy "))
+			.reduce((first, last) -> last)
+			.orElse("LoanPolicy " + item.getDerivedLoanPolicy());
+	}
+
+	/** Faults first, then the libraries that do not lend, each library once. */
+	public static List<Fault> withNotLent(List<Fault> faults, List<Fault> notLent) {
+		final var bySupplier = new LinkedHashMap<String, Fault>();
+
+		faults.forEach(fault -> bySupplier.putIfAbsent(fault.supplierHostLmsCode(), fault));
+		notLent.forEach(fault -> bySupplier.putIfAbsent(fault.supplierHostLmsCode(), fault));
+
+		return List.copyOf(bySupplier.values());
 	}
 
 	/** The suppliers that refused this request before a hold was placed, as recorded when they did. */

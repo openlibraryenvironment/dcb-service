@@ -157,7 +157,7 @@ class BrandingValidatorTests {
 	}
 
 	/**
-	 * These are the values MOBIUS actually holds today, which V9_0_004 carries into
+	 * URLs of the shape production already holds, which V9_0_004 carries into
 	 * brand_header_icon_url and brand_logo_url. They were stored before this validator
 	 * existed, so the migration moves unvalidated data into columns that are validated.
 	 *
@@ -166,11 +166,11 @@ class BrandingValidatorTests {
 	 */
 	@Test
 	void shouldAcceptTheBlobUrlsAlreadyStoredInProduction() {
-		final var header = "https://djlwg7trj3cacjdl.public.blob.vercel-storage.com/"
-			+ "consortiumMOBIUSuserCasey%20Henderson-gumS5rLc7TlM9wMI5xlXC167lurg5x.png";
+		final var header = "https://k3v9q2mx7tbw4hzd.public.blob.vercel-storage.com/"
+			+ "consortiumNORTHFIELDuserJane%20Doe-Tq8Lw2Vd5Rk9Hs3Xp7Bn4Mc6Jf1Gz0.png";
 
-		final var about = "https://djlwg7trj3cacjdl.public.blob.vercel-storage.com/"
-			+ "consortiumMOBIUSuserCasey%20Henderson-B6LRGChh4s8v5bQnztEksQrYIJFAwF.png";
+		final var about = "https://k3v9q2mx7tbw4hzd.public.blob.vercel-storage.com/"
+			+ "consortiumNORTHFIELDuserJane%20Doe-Yp4Ns8Kw1Dq6Fm3Rt9Vx2Hb7Lc5Gj0.png";
 
 		assertThat("Percent-encoding in the path must survive untouched",
 			validator.logoUrl(header), is(header));

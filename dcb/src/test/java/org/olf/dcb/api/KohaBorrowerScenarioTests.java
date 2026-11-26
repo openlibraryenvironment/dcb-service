@@ -1,8 +1,6 @@
 package org.olf.dcb.api;
 
 import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -31,6 +29,7 @@ import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.RE
 import static org.olf.dcb.devtools.interaction.dummy.responder.DummyConstants.SUPPLIER_ROLE;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -570,11 +569,6 @@ class KohaBorrowerScenarioTests {
 	}
 
 	private void awaitRequest(UUID requestId, String expectation, Predicate<PatronRequest> condition) {
-		await().alias(expectation).atMost(30, SECONDS).until(() -> {
-			final var request = patronRequestsFixture.findById(requestId);
-			log.debug("Request {} is {} (renewals {}, {})", requestId, request.getStatus(),
-				request.getRenewalCount(), request.getRenewalStatus());
-			return condition.test(request);
-		});
+		patronRequestsFixture.awaitRequest(requestId, expectation, condition, Duration.ofSeconds(30));
 	}
 }

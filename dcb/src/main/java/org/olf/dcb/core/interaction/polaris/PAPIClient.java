@@ -35,6 +35,7 @@ import org.olf.dcb.core.interaction.polaris.PolarisLmsClient.BibsPagedResult;
 import org.olf.dcb.core.interaction.polaris.exceptions.FindVirtualPatronException;
 import org.reactivestreams.Publisher;
 import org.zalando.problem.Problem;
+import org.zalando.problem.ThrowableProblem;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -121,7 +122,7 @@ public class PAPIClient {
 	}
 
 	public Mono<PatronRegistrationCreateResult> patronRegistrationCreate(Patron patron) {
-		log.info("patronRegistrationCreate {}", patron);
+		log.debug("patronRegistrationCreate {}", patron);
 
 		final var path = createPath(PUBLIC_PARAMETERS, "patron");
 
@@ -245,7 +246,9 @@ public class PAPIClient {
 			// passing empty patron credentials will allow public requests without patron auth
 			.flatMap(req -> authFilter.ensurePatronAuth(req, emptyCredentials(), TRUE)),
 			Argument.of(PatronCirculationBlocksResult.class))
-			.flatMap(result -> checkForPAPIErrorCode(result, CannotGetPatronBlocksProblem::new));
+			.flatMap(result -> checkForPAPIErrorCode(result, CannotGetPatronBlocksProblem::new))
+			.filter(result -> result.getCanPatronCirculate() != null)
+			.switchIfEmpty(Mono.error(CannotGetPatronBlocksProblem::withoutCanPatronCirculate));
 	}
 
 	/**
@@ -274,6 +277,18 @@ public class PAPIClient {
 
 	private static Throwable toListFailure(Integer errorCode, String errorMessage) {
 		return new IllegalStateException("PAPI error " + errorCode + ": " + errorMessage);
+	}
+
+	// PAPI's answer when the patron's blocks stop a checkout. The documented code; PatronBlockFlags
+	// on the result says which blocks, as a bitmask whose values PAPI does not document.
+	static final int PATRON_BLOCKED_ERROR_CODE = -6101;
+	static final int GENERAL_FAILURE = -1;
+	static final String PAPI_ERROR_CODE_PARAMETER = "papiErrorCode";
+
+	static boolean isPatronBlockRefusal(Throwable error) {
+		return error instanceof ThrowableProblem problem
+			&& Integer.valueOf(PATRON_BLOCKED_ERROR_CODE)
+				.equals(problem.getParameters().get(PAPI_ERROR_CODE_PARAMETER));
 	}
 
 	public Mono<ItemOperationResult> itemCheckoutPost(String itemBarcode, String patronBarcode) {
@@ -336,6 +351,7 @@ public class PAPIClient {
 
 		throw Problem.builder()
 			.withTitle("Polaris " + operation + " failed")
+			.with(PAPI_ERROR_CODE_PARAMETER, errorCode)
 			.withDetail(itemOperationResult.getErrorMessage() != null ? itemOperationResult.getErrorMessage() : "Error message was null")
 			.with(operation, itemOperationResult)
 			.build();
@@ -354,7 +370,8 @@ public class PAPIClient {
 			Argument.of(HoldRequestCancelResult.class))
 			.map(result -> {
 
-				if (result.getPapiErrorCode() >= 0) {
+				// No error code is not a success
+				if (result.getPapiErrorCode() != null && result.getPapiErrorCode() >= 0) {
 					return requestID;
 				}
 
@@ -362,7 +379,7 @@ public class PAPIClient {
 					.withTitle("Failed to cancel hold request")
 					.withDetail(result.getErrorMessage() != null ? result.getErrorMessage()
 						: "HoldRequestCancelResult error message was null")
-					.with("PatronBarcode", patronBarcode)
+					.with("papiErrorCode", String.valueOf(result.getPapiErrorCode()))
 					.with("RequestID", requestID)
 					.with("userid", userid)
 					.with("wsid", wsid)
@@ -377,9 +394,9 @@ public class PAPIClient {
 	public Publisher<BibsPagedResult> synch_BibsPagedGet(String startdatemodified, Integer lastId, Integer nrecs) {
 		
 		return Mono.from( synch_BibsPagedGetRaw (startdatemodified, lastId, nrecs) )
-      .doOnNext( jsonNode -> log.info("SYNC BIB PAGED GET RESPONSE: {}",jsonNode.toString()) )
+      .doOnNext( jsonNode -> log.trace("SYNC BIB PAGED GET RESPONSE: {}",jsonNode) )
 			.map( node -> conversionService.convertRequired(node, BibsPagedResult.class))
-      .doOnNext( bpr -> log.info("BPR: {}",bpr ))
+      .doOnNext( bpr -> log.trace("BPR: {}",bpr ))
       .doOnError( e -> log.error("Problem in  synch_BibsPagedGet {}",e) );
 	}
 
@@ -424,7 +441,19 @@ public class PAPIClient {
 			.queryParam("nrecs", nrecs))
 			.flatMap(authFilter::ensureStaffAuth),
 			Argument.of(GetBibsPagedResult.class))
-			.doOnNext(result -> log.info("Result of synch_GetUpdatedBibsPaged {}",result));
+			.doOnNext(result -> log.trace("Result of synch_GetUpdatedBibsPaged {}",result));
+	}
+
+	// Bib ids deleted since deletedate, paged by bib id from lastid
+	@SingleResult
+	public Publisher<GetBibsPagedResult> synch_GetDeletedBibsPaged(String deletedate, Integer nrecs, Integer lastId) {
+		final var path = createPath(PROTECTED_PARAMETERS, "synch", "bibs", "deleted", "paged");
+		return client.retrieve(createRequest(GET, path, uri -> uri
+			.queryParam("deletedate", deletedate)
+			.queryParam("lastid", lastId)
+			.queryParam("nrecs", nrecs))
+			.flatMap(authFilter::ensureStaffAuth),
+			Argument.of(GetBibsPagedResult.class));
 	}
 
 	// https://documentation.iii.com/polaris/PAPI/7.4/PAPIService/Synch_BibsMaxIDGet.htm
@@ -500,8 +529,30 @@ public class PAPIClient {
 			.flatMap(authFilter::ensureStaffAuth)
 			.delayElement(Duration.ofSeconds(findDelay)),
 			Argument.of(PatronSearchResult.class))
-			.flatMap(result -> checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
+			.flatMap(result -> isGeneralFailure(result)
+				? observeGeneralFailure(result).thenReturn(result)
+				: checkForPAPIErrorCode(result, PAPIClient::toFindVirtualPatronException))
 			.map(checkForUniquePatronResult(path, ccl));
+	}
+
+	private static boolean isGeneralFailure(PatronSearchResult result) {
+		return getValue(result, PapiResult::getPapiErrorCode, 0) == GENERAL_FAILURE;
+	}
+
+	// Every -1 reads as no match, as before. Only an empty -1 with no rows is known to mean that (Polaris
+	// 8.1, 2 Nov 2026); any other is reported, so a server that fails searches can be told from one that
+	// words "no match" differently before a -1 is ever refused
+	private Mono<Void> observeGeneralFailure(PatronSearchResult result) {
+		final var message = getValueOrNull(result, PapiResult::getErrorMessage);
+		final var rows = getValueOrNull(result, PatronSearchResult::getPatronSearchRows);
+
+		if ((message == null || message.isBlank()) && (rows == null || rows.isEmpty())) {
+			return Mono.empty();
+		}
+
+		return client.raiseUnconfirmedNoMatchAlarm(message == null || message.isBlank()
+			? "(no message, " + rows.size() + " rows)"
+			: message);
 	}
 
 	private Function<PatronSearchResult, PatronSearchRow> checkForUniquePatronResult(String path, String ccl) {
@@ -534,7 +585,7 @@ public class PAPIClient {
 			}
 
 			// Return the PatronSearchRow
-			log.info("checkForUniquePatronResult passed: {}", patronSearchResult);
+			log.debug("checkForUniquePatronResult passed: {}", patronSearchResult);
 			return patronSearchResult.getPatronSearchRows().get(0);
 		};
 	}
@@ -594,16 +645,6 @@ public class PAPIClient {
 		// ref: https://documentation.iii.com/polaris/PAPI/current/PAPIService/PAPIServiceOverview.htm#papiserviceoverview_3170935956_1210888
 		// 0 = Success
 		if (errorCode < 0) {
-			// we assume (-1, general failure) translates to no results found
-			final var generalFailureCode = -1;
-
-			if (errorCode == generalFailureCode) {
-				log.info("PAPIService returned 'General Failure' for the virtual patron search: {}, {}",
-					errorCode, errorMessage);
-
-				return Mono.just(result);
-			}
-
 			log.error("PAPIService returned error code: {}, with message: '{}'", errorCode, errorMessage);
 
 			return Mono.error(toThrowableMapper.apply(errorCode, errorMessage));
@@ -820,6 +861,17 @@ public class PAPIClient {
 		private String errorMessage;
 		@JsonProperty("CanPatronCirculate")
 		private Boolean canPatronCirculate;
+		@JsonProperty("Blocks")
+		private List<CirculationBlock> blocks;
+	}
+
+	@Builder
+	@Data
+	@AllArgsConstructor
+	@Serdeable
+	public static class CirculationBlock {
+		@JsonProperty("BlockDescription")
+		private String blockDescription;
 	}
 
 	@Builder
@@ -1058,6 +1110,10 @@ public class PAPIClient {
 		@JsonProperty("ModificationDate")
 		@JsonInclude(JsonInclude.Include.NON_NULL)
 		private String ModificationDate;
+		@JsonProperty("NonCirculating")
+		private Boolean NonCirculating;
+		@JsonProperty("LoanableOutsideSystem")
+		private Boolean LoanableOutsideSystem;
 	}
 
 	@Builder

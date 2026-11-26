@@ -1,9 +1,8 @@
 package org.olf.dcb.api;
 
+import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_PICKUP_AGENCY;
 import static io.micronaut.http.HttpStatus.OK;
 import static java.lang.Integer.parseInt;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -13,6 +12,7 @@ import static org.mockserver.model.HttpRequest.request;
 import static org.olf.dcb.core.model.WorkflowConstants.PICKUP_ANYWHERE_WORKFLOW;
 import static org.olf.dcb.test.matchers.PatronRequestMatchers.hasActiveWorkflow;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -341,34 +341,14 @@ class PickupAnywhereWorkflowPatronRequestApiTests {
 	}
 
 	private void assertRequestPlacedAtPickupAgency(UUID requestUUID) {
-		final String expectedStatus = "REQUEST_PLACED_AT_PICKUP_AGENCY";
 		// Pickup-anywhere places at the supplying, borrowing AND pickup agency, and the
 		// whole chain measures ~29s. 30s was therefore 1.03x the operation and failed
 		// roughly half the time - twice observed missing by a single poll, the placement
 		// landing 1ms after the last poll read the status. This is a ceiling, not a
 		// duration: awaitility returns as soon as the condition holds.
-		final int timeoutInSeconds = 90;
-
-		log.info("Verifying that request ID {} is placed at the pickup agency...", requestUUID);
-
-		try {
-			await()
-				.atMost(timeoutInSeconds, SECONDS)
-				.until(() -> isRequestPlacedAtPickupAgency(requestUUID, expectedStatus));
-
-			log.info("Request ID {} successfully placed at the pickup agency.", requestUUID);
-		} catch (Exception e) {
-			log.error("Verification failed for request ID {} within {} seconds.", requestUUID, timeoutInSeconds, e);
-			throw new AssertionError("Request was not placed at the pickup agency as expected", e);
-		}
+		patronRequestsFixture.awaitStatus(requestUUID, REQUEST_PLACED_AT_PICKUP_AGENCY, Duration.ofSeconds(90));
 	}
 
-	private boolean isRequestPlacedAtPickupAgency(UUID requestUUID, String expectedStatus) {
-		var response = adminApiClient.getPatronRequestViaAdminApi(requestUUID);
-		String currentStatus = response.getStatus().getCode();
-		log.debug("Current status for request ID {}: {}", requestUUID, currentStatus);
-		return expectedStatus.equals(currentStatus);
-	}
 
 	private void assertPatronRequestUsesPickupAnywhereWorkflow(UUID placedRequestUUID) {
 		final var patronRequest = patronRequestsFixture.findById(placedRequestUUID);

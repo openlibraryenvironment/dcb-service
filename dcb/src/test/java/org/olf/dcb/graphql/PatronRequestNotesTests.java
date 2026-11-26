@@ -14,6 +14,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.graphql.GraphQLSecurityContextCustomizer.AGENCY_CODES;
+import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
 import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.time.Duration;
@@ -180,16 +181,17 @@ class PatronRequestNotesTests {
 		requestId = request.getId();
 	}
 
+	// deleteAll() is not @SingleResult: read as a single value it is cancelled, and about 1 delete in 10 rolls back
 	@BeforeEach
 	void deleteNotesAndTags() {
-		singleValueFrom(notes.deleteAll());
-		singleValueFrom(appliedTags.deleteAll());
+		manyValuesFrom(notes.deleteAll());
+		manyValuesFrom(appliedTags.deleteAll());
 	}
 
 	@AfterAll
 	void deleteAll() {
-		singleValueFrom(notes.deleteAll());
-		singleValueFrom(appliedTags.deleteAll());
+		manyValuesFrom(notes.deleteAll());
+		manyValuesFrom(appliedTags.deleteAll());
 		for (var code : List.of("TEST_TAG", "RETIRED_TAG", "KEEP_TAG", "SPARE_TAG")) {
 			singleValueFrom(vocabulary.deleteById(code));
 		}

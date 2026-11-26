@@ -18,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.olf.dcb.request.fulfilment.PatronRequestService;
 import org.olf.dcb.request.fulfilment.PlacePatronRequestCommand;
 import org.olf.dcb.request.workflow.ConfirmItemReturnedService;
+import org.olf.dcb.request.workflow.RetryLenderCheckoutService;
 import org.olf.dcb.request.workflow.ManualCleanupService;
 import org.olf.dcb.security.PatronRequestAccessGuard;
 import org.olf.dcb.security.StaffClients;
@@ -40,6 +41,7 @@ class PlacedByStaffTests {
 
 		controller = new PatronRequestController(patronRequestService,
 			mock(ConfirmItemReturnedService.class),
+			mock(RetryLenderCheckoutService.class),
 			mock(PatronRequestRepository.class), mock(PatronRequestAccessGuard.class),
 			mock(ManualCleanupService.class), mock(TrackingService.class),
 			new StaffClients(List.of("dcb-admin", " dcb-admin-for-libraries ")));

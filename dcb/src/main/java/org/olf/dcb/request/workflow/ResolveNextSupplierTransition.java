@@ -4,6 +4,7 @@ import static io.micronaut.core.util.StringUtils.isEmpty;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_CANCELLED;
 import static org.olf.dcb.core.interaction.HostLmsRequest.HOLD_MISSING;
 import static org.olf.dcb.core.model.FunctionalSettingType.RE_RESOLUTION;
+import static org.olf.dcb.core.model.PatronRequest.Status.ERROR;
 import static org.olf.dcb.core.model.PatronRequest.Status.NOT_SUPPLIED_CURRENT_SUPPLIER;
 import static org.olf.dcb.core.model.PatronRequest.Status.NO_ITEMS_SELECTABLE_AT_ANY_AGENCY;
 import static org.olf.dcb.request.resolution.SupplierRequestService.mapToSupplierRequest;
@@ -14,6 +15,7 @@ import static reactor.function.TupleUtils.function;
 import static services.k_int.utils.MapUtils.putNonNullValue;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,6 +62,8 @@ import org.olf.dcb.core.model.SupplierRequest;
 public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTransition
 	implements PatronRequestStateTransition {
 
+	public static final String NO_OTHER_SUPPLIER = "No other supplier after a configuration refusal";
+
 	private final HostLmsService hostLmsService;
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final PatronRequestResolutionService patronRequestResolutionService;
@@ -69,6 +73,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 	private final ActiveWorkflowService activeWorkflowService;
 	private final ResolutionAuditService resolutionAuditService;
 	private final NoValidItemExplanation noValidItemExplanation;
+	private final SupplierRefusalHistory supplierRefusalHistory;
 
 	public ResolveNextSupplierTransition(HostLmsService hostLmsService,
 		PatronRequestAuditService patronRequestAuditService,
@@ -77,7 +82,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		BeanProvider<SupplierRequestService> supplierRequestServiceProvider,
 		ConsortiumService consortiumService,
 		ActiveWorkflowService activeWorkflowService,
-		ResolutionAuditService resolutionAuditService, NoValidItemExplanation noValidItemExplanation) {
+		ResolutionAuditService resolutionAuditService, NoValidItemExplanation noValidItemExplanation,
+		SupplierRefusalHistory supplierRefusalHistory) {
 
 		super(List.of(NOT_SUPPLIED_CURRENT_SUPPLIER));
 
@@ -90,6 +96,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		this.activeWorkflowService = activeWorkflowService;
 		this.resolutionAuditService = resolutionAuditService;
 		this.noValidItemExplanation = noValidItemExplanation;
+		this.supplierRefusalHistory = supplierRefusalHistory;
 	}
 
 	@Override
@@ -142,7 +149,8 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 				Stream.concat(faults.getT1().stream(), faults.getT2().stream())
 					.forEach(fault -> bySupplier.putIfAbsent(fault.supplierHostLmsCode(), fault));
 
-				return List.copyOf(bySupplier.values());
+				return NoValidItemExplanation.withNotLent(List.copyOf(bySupplier.values()),
+					noValidItemExplanation.notLentBy(excludedItems));
 			})
 			.flatMap(faults -> noValidItemExplanation.explain(getPatronRequestFromContext(context), faults))
 			.thenReturn(context);
@@ -219,8 +227,12 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 		RequestWorkflowContext context) {
 
 		final var supplierRequestService = supplierRequestServiceProvider.get();
+		final var patronRequest = getPatronRequestFromContext(context);
 
-		return supplierRequestService.findAllSupplyingAgencies(getPatronRequestFromContext(context))
+		// A supplier that refused before staff rolled the request back is tried again: the rollback says it was fixed
+		return supplierRefusalHistory.refusedOnlyBeforeLastRollback(patronRequest)
+			.doOnNext(retried -> log.debug("Suppliers tried again after a rollback: {}", retried))
+			.flatMapMany(retried -> supplierRequestService.findSupplyingAgencies(patronRequest, retried))
 			.mapNotNull(agency -> getValueOrNull(agency, DataAgency::getCode))
 			.collectList()
 			.doOnSuccess(codes -> log.debug("Excluded agency codes: {}", codes))
@@ -240,9 +252,26 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 			return applySuccessfulResolution(resolution, context);
 		}
 		else {
-			return cancelRequest(context, resolution.getExcludedItems())
-				.then();
+			final var patronRequest = getPatronRequestFromContext(context);
+
+			return supplierRefusalHistory.wasRefused(patronRequest)
+				.flatMap(refused -> refused
+					? noValidItemExplanation.faultsRecordedOn(patronRequest).flatMap(faults -> stayInError(context, faults))
+					: cancelRequest(context, resolution.getExcludedItems()).then());
 		}
+	}
+
+	// The copies a supplier refused still exist and a change to its configuration would let it supply them,
+	// so the request is not ended with no valid item. Its local holds are kept for when staff roll it back.
+	// A request whose suppliers only the preflight ruled out still ends with no valid item
+	private Mono<Void> stayInError(RequestWorkflowContext context, List<NoValidItemExplanation.Fault> faults) {
+		return noValidItemExplanation.explain(getPatronRequestFromContext(context), faults)
+			.flatMap(explained -> patronRequestAuditService.addAuditEntry(explained, NO_OTHER_SUPPLIER, Map.of(
+					"next", "Once a library that refused has changed its configuration, roll the request back from "
+						+ "ERROR. DCB then looks again at every library that refused it before the rollback."))
+				.thenReturn(explained))
+			.map(explained -> context.setPatronRequest(explained.setStatus(ERROR)))
+			.then();
 	}
 
 	private Mono<Void> applySuccessfulResolution(Resolution resolution,
@@ -456,6 +485,7 @@ public class ResolveNextSupplierTransition extends AbstractPatronRequestStateTra
 
 	@Override
 	public List<DCBTransitionResult> getOutcomes() {
-		return List.of(new DCBTransitionResult("NO_ITEMS_SELECTABLE_AT_ANY_AGENCY", NO_ITEMS_SELECTABLE_AT_ANY_AGENCY.toString()));
+		return List.of(new DCBTransitionResult("NO_ITEMS_SELECTABLE_AT_ANY_AGENCY", NO_ITEMS_SELECTABLE_AT_ANY_AGENCY.toString()),
+			new DCBTransitionResult("ERROR", ERROR.toString()));
 	}
 }

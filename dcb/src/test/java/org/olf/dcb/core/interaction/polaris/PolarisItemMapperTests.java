@@ -1,5 +1,7 @@
 package org.olf.dcb.core.interaction.polaris;
 
+import static org.olf.dcb.core.model.DerivedLoanPolicy.LOCAL_ONLY;
+import org.olf.dcb.core.model.DerivedLoanPolicy;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -7,6 +9,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.GENERAL;
+import static org.olf.dcb.core.model.DerivedLoanPolicy.NO_LEND;
 import static org.olf.dcb.core.model.DerivedLoanPolicy.SHORT_LOAN;
 import static org.olf.dcb.core.model.ItemStatusCode.AVAILABLE;
 import static org.olf.dcb.core.model.ItemStatusCode.CHECKED_OUT;
@@ -51,6 +54,8 @@ class PolarisItemMapperTests {
 	private static final String HOST_LMS_CODE = "polaris-item-mapper-host-lms";
 	private static final String DEFAULT_AGENCY_CODE = "default-agency";
 
+	@Inject
+	private io.micrometer.core.instrument.MeterRegistry meterRegistry;
 	@Inject
 	private PolarisItemMapper mapper;
 
@@ -158,6 +163,112 @@ class PolarisItemMapperTests {
 			notNullValue(),
 			hasDerivedLoanPolicy(expectedPolicy)
 		));
+	}
+
+	@Test
+	void shouldNotLendAnItemPolarisSaysIsNotHoldable() {
+		// Arrange
+		final var locationName = "Mapped Location";
+		final var config = locationToPolicyMapConfig(Map.of(locationName, GENERAL.name()));
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation(locationName)
+			.Holdable(false)
+			.build(), config);
+
+		// Assert
+		assertThat(item, hasDerivedLoanPolicy(NO_LEND));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"GENERAL", "SHORT_LOAN"})
+	void shouldLendAnItemPolarisSaysIsNotLoanableOutsideTheSystemOnlyWithinIt(String shelfPolicy) {
+		// Arrange
+		final var locationName = "Mapped Location";
+		final var config = locationToPolicyMapConfig(Map.of(locationName, shelfPolicy));
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation(locationName)
+			.Holdable(true)
+			.NonCirculating(false)
+			.LoanableOutsideSystem(false)
+			.build(), config);
+
+		// Assert - the library's own patrons still borrow it; other libraries do not
+		assertThat(item, hasDerivedLoanPolicy(LOCAL_ONLY));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"NO_LEND", "REFERENCE_ONLY"})
+	void shouldKeepAStricterShelfPolicyForAnItemNotLoanableOutsideTheSystem(String shelfPolicy) {
+		// Arrange
+		final var locationName = "Mapped Location";
+		final var config = locationToPolicyMapConfig(Map.of(locationName, shelfPolicy));
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation(locationName)
+			.Holdable(true)
+			.LoanableOutsideSystem(false)
+			.build(), config);
+
+		// Assert
+		assertThat(item, hasDerivedLoanPolicy(DerivedLoanPolicy.valueOf(shelfPolicy)));
+	}
+
+	@Test
+	void shouldLendAnItemPolarisSaysIsLoanableOutsideTheSystem() {
+		// Arrange
+		final var locationName = "Mapped Location";
+		final var config = locationToPolicyMapConfig(Map.of(locationName, GENERAL.name()));
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation(locationName)
+			.Holdable(true)
+			.LoanableOutsideSystem(true)
+			.build(), config);
+
+		// Assert
+		assertThat(item, hasDerivedLoanPolicy(GENERAL));
+	}
+
+	@Test
+	void shouldCountACopyNotLentByLibraryPolicyAndReason() {
+		final var before = notLentCount("NO_LEND", "not_holdable");
+
+		mapItem(ItemGetRow.builder()
+			.ShelfLocation("Unmapped Location")
+			.Holdable(false)
+			.build(), locationToPolicyMapConfig(Map.of()));
+
+		assertThat(notLentCount("NO_LEND", "not_holdable"), is(before + 1));
+	}
+
+	private double notLentCount(String policy, String reason) {
+		final var counter = meterRegistry.find(PolarisItemMapper.NOT_LENT_METRIC)
+			.tags("lms", HOST_LMS_CODE, "policy", policy, "reason", reason)
+			.counter();
+
+		return counter == null ? 0 : counter.count();
+	}
+
+	@Test
+	void shouldNotLendAnItemPolarisSaysIsNonCirculating() {
+		// Arrange
+		final var config = locationToPolicyMapConfig(Map.of());
+
+		// Act
+		final var item = mapItem(ItemGetRow.builder()
+			.ShelfLocation("Unmapped Location")
+			.Holdable(true)
+			.NonCirculating(true)
+			.build(), config);
+
+		// Assert
+		assertThat(item, hasDerivedLoanPolicy(NO_LEND));
 	}
 
 	@Test

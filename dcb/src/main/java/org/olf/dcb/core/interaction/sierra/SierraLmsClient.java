@@ -1038,7 +1038,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		*/
 		String pickup_location_code = parameters.getPickupNote();
 
-		return placeHoldRequest(parameters, parameters.getPickupLocationCode(), "supplier");
+		return placeHoldRequest(parameters, parameters.getPickupLocationCode(), "supplier")
+			// What XCirc refuses for the virtual patron's record only the lending library's staff can clear
+			.onErrorMap(PatronRecordProblem.class, refusal -> new SupplierRefusedRequestProblem(getHostLmsCode(),
+				"%s's Sierra refused the hold because of DCB's patron record there (P TYPE %s), not because of the item"
+					.formatted(getHostLmsCode(), Objects.requireNonNullElse(parameters.getLocalPatronType(), "unknown")),
+				refusal));
 	}
 
 	@Override
@@ -2068,6 +2073,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 		return Mono.from(client.deleteHold(id)).thenReturn("OK").defaultIfEmpty("ERROR");
 	}
 
+	@Override
+	public Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of(VirtualPatronRemoval.DELETE);
+	}
+
+  @Override
   public Mono<String> deletePatron(String id) {
 		log.info("Sierra delete patron {}",id);
 		return Mono.from(client.deletePatron(id)).thenReturn("OK").defaultIfEmpty("ERROR");

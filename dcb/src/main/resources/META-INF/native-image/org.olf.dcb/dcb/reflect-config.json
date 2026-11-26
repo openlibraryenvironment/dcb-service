@@ -224,6 +224,16 @@
     "allDeclaredMethods": true
   },
   {
+    "name": "services.k_int.interaction.oaipmh.ListIdentifiersResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "services.k_int.interaction.oaipmh.GetRecordResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
     "name": "services.k_int.interaction.oaipmh.OaiRecord",
     "allDeclaredConstructors": true,
     "allDeclaredMethods": true

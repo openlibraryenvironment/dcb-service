@@ -4,12 +4,10 @@ import static org.olf.dcb.core.model.PatronRequest.Status.CONFIRMED;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_BORROWING_AGENCY;
 import static org.olf.dcb.core.model.PatronRequest.Status.REQUEST_PLACED_AT_SUPPLYING_AGENCY;
 import static org.olf.dcb.request.fulfilment.PatronRequestAuditService.auditThrowable;
-import static org.olf.dcb.tracking.StateChangeFactory.SUPPLIER_REQUEST_ERROR;
 import static org.olf.dcb.tracking.StateChangeFactory.patronRequestStatusChanged;
 import static org.olf.dcb.tracking.StateChangeFactory.pickupItemStatusChanged;
 import static org.olf.dcb.tracking.StateChangeFactory.pickupRequestStatusChanged;
 import static org.olf.dcb.tracking.StateChangeFactory.supplierItemStatusChanged;
-import static org.olf.dcb.tracking.StateChangeFactory.supplierRequestErrored;
 import static org.olf.dcb.tracking.StateChangeFactory.supplierRequestStatusChanged;
 import static org.olf.dcb.tracking.StateChangeFactory.virtualItemRenewalCountChanged;
 import static org.olf.dcb.tracking.StateChangeFactory.virtualItemStatusChanged;
@@ -71,6 +69,7 @@ public class TrackingServiceV4 implements TrackingService {
 	private final PatronRequestAuditService patronRequestAuditService;
 	private final RequestTrackingPolicy requestTrackingPolicy;
 	private final TooLongPolicy tooLongPolicy;
+	private final SupplierHoldReadFailures supplierHoldReadFailures;
 
 	@Value("${dcb.tracking.dryRun:false}")
 	private Boolean dryRun;
@@ -90,7 +89,8 @@ public class TrackingServiceV4 implements TrackingService {
 		RequestWorkflowContextHelper requestWorkflowContextHelper,
 		PatronRequestAuditService patronRequestAuditService,
 		RequestTrackingPolicy requestTrackingPolicy,
-		TooLongPolicy tooLongPolicy) {
+		TooLongPolicy tooLongPolicy,
+		SupplierHoldReadFailures supplierHoldReadFailures) {
 
 		this.patronRequestRepository = patronRequestRepository;
 		this.supplierRequestRepository = supplierRequestRepository;
@@ -103,6 +103,7 @@ public class TrackingServiceV4 implements TrackingService {
 		this.patronRequestAuditService = patronRequestAuditService;
 		this.requestTrackingPolicy = requestTrackingPolicy;
 		this.tooLongPolicy = tooLongPolicy;
+		this.supplierHoldReadFailures = supplierHoldReadFailures;
 	}
 
 	@Timed("tracking.run")
@@ -605,6 +606,7 @@ public class TrackingServiceV4 implements TrackingService {
 		// these operations fail, we don't update the state - which will cause the handler to re-fire until
 		// successful completion.
 		return supplyingAgencyService.getRequest(sr.getHostLmsCode(), hostlmsRequest)
+			.flatMap(hold -> supplierHoldReadFailures.recordRecovery(sr).thenReturn(hold))
 			.flatMap( hold -> {
 				// For systems that populate hold counts on requests (i.e. FOLIO). Ignore otherwise and update as normal
 				if (hold.getRequestedItemHoldCount() != null)
@@ -636,20 +638,7 @@ public class TrackingServiceV4 implements TrackingService {
 
 				}
 			})
-			.onErrorResume( error -> Mono.defer(() -> {
-				log.error("TRACKING Error occurred: " + error.getMessage(), error);
-
-				if ( ! SUPPLIER_REQUEST_ERROR.equals(sr.getLocalStatus()) ) {
-
-					StateChange sc = supplierRequestErrored(sr, error);
-
-					return trackingEventSink.onTrackingEvent(sc)
-						.thenReturn(sr);
-				}
-				else {
-					return Mono.just(sr);
-				}
-			}));
+			.onErrorResume(error -> supplierHoldReadFailures.recordFailure(sr, error));
 	}
 
 	@Transactional(Transactional.TxType.REQUIRES_NEW)

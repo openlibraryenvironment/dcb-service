@@ -1,6 +1,5 @@
 package org.olf.dcb.graphql;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -38,16 +37,7 @@ public class UpdateConsortialMaxLoansDataFetcher implements DataFetcher<Completa
 			Map<String, Object> input_map = env.getArgument("input");
 			log.debug("updateConsortialMaxLoansDataFetcher {}", input_map);
 
-			// Role check. Only consortium administrators can change this.
-			Collection<String> roles = env.getGraphQlContext().get("roles");
-			String userString = Optional.ofNullable(env.getGraphQlContext().get("userName"))
-				.map(Object::toString)
-				.orElse("User not detected");
-
-			if (roles == null || (!roles.contains("CONSORTIUM_ADMIN"))) {
-				log.warn("updateConsortialMaxLoansDataFetcher: Access denied for user {}: user does not have the required role to update consortial max loans.", userString);
-				throw new HttpStatusException(HttpStatus.UNAUTHORIZED, "Access denied: you do not have the required role to update consortial max loans.");
-			}
+			GraphQLRoles.require(env, "updateConsortialMaxLoans", GraphQLRoles.CONSORTIUM);
 
 			// Get the agency code and the value
 			String code = input_map.get("code").toString();

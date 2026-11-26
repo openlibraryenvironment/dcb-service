@@ -8,6 +8,7 @@ import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequest.Status;
+import org.olf.dcb.core.model.SupplierRequest;
 import org.olf.dcb.request.fulfilment.PatronRequestAuditService;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContext;
 import org.olf.dcb.request.fulfilment.RequestWorkflowContextHelper;
@@ -37,6 +38,9 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 	private HostLmsService hostLmsService;
 
 	private static final List<Status> possibleSourceStatus = List.of(Status.RETURN_TRANSIT);
+
+	static final String CHECKED_IN_AUDIT =
+		"Returned: %s shows the copy back (item %s, hold %s), so the request is complete";
 	
 	public HandleSupplierItemAvailable(PatronRequestRepository patronRequestRepository,
 		SupplierRequestRepository supplierRequestRepository,
@@ -76,14 +80,17 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
   public boolean isApplicableFor(RequestWorkflowContext ctx) {
     return ( getPossibleSourceStatus().contains(ctx.getPatronRequest().getStatus()) ) &&
       ( ctx.getSupplierRequest() != null ) &&
-			// N.B. CLOSED is somewhat FOLIO specific - should be revisited soon
-			// Received is a sierra state
-      ( 
-				(HostLmsItem.ITEM_RECEIVED.equals(ctx.getSupplierRequest().getLocalItemStatus())) || 
-				(HostLmsItem.ITEM_AVAILABLE.equals(ctx.getSupplierRequest().getLocalItemStatus())) ||
-				( ("CLOSED".equals(ctx.getSupplierRequest().getLocalStatus() ) ) ) 
-			);
+			supplierShowsCheckIn(ctx);
   }
+
+	private static boolean supplierShowsCheckIn(RequestWorkflowContext ctx) {
+		final var supplierRequest = ctx.getSupplierRequest();
+		final var lenderClient = ctx.getLenderClient();
+
+		return lenderClient != null
+			? lenderClient.showsCheckInAtSupplier(supplierRequest)
+			: HostLmsClient.isBackOnShelfOrClosed(supplierRequest);
+	}
 
 	@Override
 	public Mono<RequestWorkflowContext> attempt(RequestWorkflowContext ctx) {
@@ -97,7 +104,10 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 				.saveOrUpdate(ctx.getSupplierRequest()))
 				.thenReturn(pr))
 			.flatMap( pr -> Mono.from(patronRequestRepository.saveOrUpdate(pr)) )
-			.flatMap( spr -> auditService.addAuditEntry(spr, "Supplier Item Available - Infers item back on the shelf after loan. Completing request") )
+			.flatMap( spr -> auditService.addAuditEntry(spr, CHECKED_IN_AUDIT.formatted(
+				getValueOrNull(ctx.getSupplierRequest(), SupplierRequest::getHostLmsCode),
+				getValueOrNull(ctx.getSupplierRequest(), SupplierRequest::getLocalItemStatus),
+				getValueOrNull(ctx.getSupplierRequest(), SupplierRequest::getLocalStatus))) )
 			.thenReturn(ctx);
 	}
 
@@ -123,7 +133,7 @@ public class HandleSupplierItemAvailable implements PatronRequestStateTransition
 
 	@Override
 	public List<DCBGuardCondition> getGuardConditions() {
-		return List.of( new DCBGuardCondition("DCBPatronRequest state is RETURN_TRANSIT and Supplier item status is AVAILABLE"));
+		return List.of( new DCBGuardCondition("DCBPatronRequest state is RETURN_TRANSIT and the supplying system shows the item checked in"));
 	}
 
 	@Override

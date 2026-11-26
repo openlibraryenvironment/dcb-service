@@ -249,11 +249,13 @@ public class KohaHostLmsClient implements HostLmsClient {
 	 * BorrowingAgencyService, and the pickup <em>agency</em> code from the supplying and
 	 * pickup agency transitions. Koha's library_id is a branchcode of at most 10
 	 * characters, so neither can name a branch, and sending them only ever produced a
-	 * hold Koha rejected. A pickup location with no localId is a configuration error,
-	 * which LocationInputValidator now refuses to create.
+	 * hold Koha rejected.
 	 * <p>
-	 * External pickup falls back to the sharing library, which is the branch that
-	 * stands for "a borrower outside this Koha".
+	 * Every caller holds for a patron collecting at a branch of this Koha: the borrower's
+	 * own pickup, a walk-up's desk, a pickup-anywhere library or a local hold. A location
+	 * with no localId is refused rather than sent to the sharing library, which no patron
+	 * collects from. LocationInputValidator refuses to create one through GraphQL or an
+	 * import, but POST /locations and a location update do not pass through it.
 	 */
 	private String resolveLibraryCode(PlaceHoldRequestParameters p) {
 
@@ -264,20 +266,19 @@ public class KohaHostLmsClient implements HostLmsClient {
 			return localId;
 		}
 
-		log.warn("Pickup location \"{}\" on request {} has no localId, so the hold goes to sharing library \"{}\" "
-				+ "rather than the branch the patron expects. Set the Koha branch code as the location's localId.",
-			getValueOrNull(p, PlaceHoldRequestParameters::getPickupLocation, Location::getCode),
-			p.getPatronRequestId(), getDcbSharingLibraryCode());
-
-		return getDcbSharingLibraryCode();
+		throw Problem.builder()
+			.withTitle("Pickup location has no Koha branch")
+			.withStatus(Status.UNPROCESSABLE_ENTITY)
+			.withDetail("Pickup location \"%s\" has no local ID, so DCB cannot tell which branch of %s the hold is for"
+				.formatted(getValueOrNull(p, PlaceHoldRequestParameters::getPickupLocation, Location::getCode),
+					getHostLmsCode()))
+			.with("remedy", "Set the pickup location's local ID to its Koha branch code (library_id).")
+			.with("hostLmsCode", getHostLmsCode())
+			.build();
 	}
 
 	/*** Patron operations ***/
 
-	// We're going to need a way of getting the library
-	// Think AspenCat
-	// Can we use agencies for this
-	// 1 system
 	@Override
 	public Mono<String> createPatron(Patron patron) {
 		// For creating a virtual patron
@@ -328,6 +329,11 @@ public class KohaHostLmsClient implements HostLmsClient {
 			.filter(barcode -> !isBlank(barcode))
 			.findFirst()
 			.orElse(null);
+	}
+
+	@Override
+	public Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of(VirtualPatronRemoval.DELETE);
 	}
 
 	@Override

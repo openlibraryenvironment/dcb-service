@@ -23,10 +23,7 @@ import java.util.concurrent.ThreadFactory;
 @Singleton
 public class PolarisClientConfig extends DefaultHttpClientConfiguration {
 
-	// Polaris systems seem to have particular problems with read timeouts.
-	// So let's wait for those slow Polarises. But not too long ...
-	// Use .timeout() operator if you need a smaller timeout on an individual basis ...
-	// can this be set environmentally?
+	// Shared by every Polaris; a library's response-timeout-seconds can shorten it, not raise it
 	final Optional<Duration> polarisTimeout = Optional.of( Duration.ofSeconds(120) );
 	HttpClientConfiguration defaultConfig;
 

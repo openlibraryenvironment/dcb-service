@@ -62,14 +62,17 @@ public class OfficeHours {
 		OffsetTime timeStart = getStart().orElse(DEFAULT_START);
 		OffsetTime timeEnd = getEnd().orElse(DEFAULT_END);
 		
-		int startComp = timeToCompare.compareTo(timeStart);		
-		int endComp = timeToCompare.compareTo(timeEnd);
-		
-		boolean inside = startComp > -1 && endComp < 1;
+		boolean afterStart = timeToCompare.compareTo(timeStart) > -1;
+		boolean beforeEnd = timeToCompare.compareTo(timeEnd) < 1;
+
+		// A start later than the end is a window across midnight, such as 22:00 to 06:00
+		boolean inside = timeStart.isAfter(timeEnd)
+			? afterStart || beforeEnd
+			: afterStart && beforeEnd;
 
 		log.debug("[{}] Evaluated as {} office hours [{} -> {}]", timeToCompare, (inside ? "inside" : "ouside"), timeStart, timeEnd);
-		
-		return startComp > -1 && endComp < 1;
+
+		return inside;
 	}
 	
 	public boolean isOutsideHours( @NonNull @NotNull OffsetTime time ) {

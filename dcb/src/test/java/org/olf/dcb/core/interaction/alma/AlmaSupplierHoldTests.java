@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.olf.dcb.core.ConsortiumService;
 import org.olf.dcb.core.interaction.PlaceHoldRequestParameters;
+import org.olf.dcb.core.interaction.SupplierRefusedRequestProblem;
 import org.olf.dcb.core.interaction.folio.MaterialTypeToItemTypeMappingService;
 import org.olf.dcb.core.model.HostLms;
 import org.olf.dcb.core.model.Location;
@@ -89,6 +91,8 @@ class AlmaSupplierHoldTests {
 
 		// Measured on an Alma sandbox: a HOLD offered to this patron on this copy, and the POST
 		// still refused because the pickup library was the Resource Sharing Library
+		assertThat("DCB's own pickup configuration is not the lender's refusal",
+			error, not(instanceOf(SupplierRefusedRequestProblem.class)));
 		assertThat(error.getMessage(), allOf(
 			startsWith("Alma offers this patron a hold on item item-1"),
 			containsString("the refusal is the pickup library"),
@@ -102,7 +106,13 @@ class AlmaSupplierHoldTests {
 
 		final var error = placeSupplierHold("bib-1", "barcode-1");
 
-		assertThat(error.getMessage(), allOf(
+		// The item is the lender's own, so only the lending library can change its fulfilment unit's rules
+		assertThat(error, instanceOf(SupplierRefusedRequestProblem.class));
+		final var refusal = (SupplierRefusedRequestProblem) error;
+		assertThat(refusal.getHostLmsCode(), is("ALMA"));
+		assertThat(refusal.getTitle(), is("ALMA's Alma has no Request rule for user group \"DCB-GROUP\" "
+			+ "in the fulfilment unit of this item's location (offered: DIGITIZATION)"));
+		assertThat(refusal.getDetail(), allOf(
 			startsWith("Alma offers this patron no hold on item item-1 (offered: DIGITIZATION)"),
 			containsString("fulfilment unit of the item's location has no Request rule")));
 	}
@@ -186,6 +196,7 @@ class AlmaSupplierHoldTests {
 				.localItemId("item-1")
 				.localBibId(localBibId)
 				.localItemBarcode(localItemBarcode)
+				.localPatronType("DCB-GROUP")
 				.pickupLocation(Location.builder().code("PICKUP").localId("PICKUP").build())
 				.activeWorkflow("RET-STD")
 				.patronRequestId("pr-1")

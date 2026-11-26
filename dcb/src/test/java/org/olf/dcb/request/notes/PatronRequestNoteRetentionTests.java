@@ -53,10 +53,11 @@ class PatronRequestNoteRetentionTests {
 		deleteAll();
 	}
 
+	// deleteAll() is not @SingleResult: read as a single value it is cancelled, and about 1 delete in 10 rolls back
 	@AfterAll
 	void deleteAll() {
-		singleValueFrom(notes.deleteAll());
-		singleValueFrom(tags.deleteAll());
+		manyValuesFrom(notes.deleteAll());
+		manyValuesFrom(tags.deleteAll());
 		patronRequestsFixture.deleteAll();
 		patronFixture.deleteAllPatrons();
 	}

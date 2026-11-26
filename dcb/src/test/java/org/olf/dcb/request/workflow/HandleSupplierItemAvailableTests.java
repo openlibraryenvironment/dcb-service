@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.olf.dcb.core.HostLmsService;
 import org.olf.dcb.core.interaction.HostLmsClient;
 import org.olf.dcb.core.interaction.HostLmsItem;
+import org.olf.dcb.core.interaction.HostLmsRequest;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.model.PatronRequestAudit;
 import org.olf.dcb.core.model.SupplierRequest;
@@ -55,7 +56,7 @@ class HandleSupplierItemAvailableTests {
 			.saveOrUpdate(fixture.patronRequest());
 		verify(fixture.auditService()).addAuditEntry(
 			fixture.patronRequest(),
-			"Supplier Item Available - Infers item back on the shelf after loan. Completing request");
+			"Returned: supplier-host shows the copy back (item AVAILABLE, hold null), so the request is complete");
 	}
 
 	@Test
@@ -92,6 +93,45 @@ class HandleSupplierItemAvailableTests {
 		assertThat(fixture.transition().isApplicableFor(fixture.context()), is(true));
 		fixture.patronRequest().setStatus(PatronRequest.Status.COMPLETED);
 		assertThat(fixture.transition().isApplicableFor(fixture.context()), is(false));
+	}
+
+	@Test
+	void theSuppliersClientDecidesWhetherARoutedCopyWasCheckedIn() {
+		final var fixture = fixture();
+		final var lenderClient = mock(HostLmsClient.class);
+		fixture.context().setLenderClient(lenderClient);
+		fixture.supplierRequest()
+			.setLocalItemStatus(HostLmsItem.ITEM_TRANSIT)
+			.setLocalStatus(HostLmsRequest.HOLD_MISSING);
+
+		when(lenderClient.showsCheckInAtSupplier(fixture.supplierRequest())).thenReturn(true);
+		assertThat(fixture.transition().isApplicableFor(fixture.context()), is(true));
+
+		when(lenderClient.showsCheckInAtSupplier(fixture.supplierRequest())).thenReturn(false);
+		assertThat(fixture.transition().isApplicableFor(fixture.context()), is(false));
+	}
+
+	@Test
+	void withoutTheSuppliersClientOnlyACopyBackOnTheShelfCounts() {
+		final var fixture = fixture();
+		fixture.supplierRequest()
+			.setLocalItemStatus(HostLmsItem.ITEM_TRANSIT)
+			.setLocalStatus(HostLmsRequest.HOLD_MISSING);
+
+		assertThat(fixture.transition().isApplicableFor(fixture.context()), is(false));
+	}
+
+	@Test
+	void theDefaultRuleDoesNotTreatACopyInTransitAsBack() {
+		// FOLIO keeps the default: it reports a copy its borrower has checked in as in transit
+		final var supplierRequest = SupplierRequest.builder()
+			.localItemStatus(HostLmsItem.ITEM_TRANSIT)
+			.localStatus(HostLmsRequest.HOLD_MISSING)
+			.build();
+
+		assertThat(HostLmsClient.isBackOnShelfOrClosed(supplierRequest), is(false));
+		assertThat(HostLmsClient.isBackOnShelfOrClosed(supplierRequest.setLocalItemStatus(HostLmsItem.ITEM_AVAILABLE)),
+			is(true));
 	}
 
 	private static Fixture fixture() {

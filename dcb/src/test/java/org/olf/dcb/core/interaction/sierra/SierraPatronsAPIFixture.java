@@ -103,6 +103,22 @@ public class SierraPatronsAPIFixture {
 		return sierraMockServerRequests.delete("/holds/*");
 	}
 
+	public void mockDeletePatron(String patronId) {
+		mockServer.replaceMock(deletePatronRequest(patronId), noContent());
+	}
+
+	public void verifyDeletePatronRequestMade(String patronId) {
+		mockServer.verify(deletePatronRequest(patronId));
+	}
+
+	public void verifyNoDeletePatronRequestMade(String patronId) {
+		mockServer.verifyNever(deletePatronRequest(patronId));
+	}
+
+	private HttpRequest deletePatronRequest(String patronId) {
+		return sierraMockServerRequests.delete("/" + patronId);
+	}
+
 	public void postPatronResponse(String uniqueId, int returnId, String linkBaseUrl) {
 		mockServer.mock(postPatronRequest(uniqueId), patronPlacedResponse(returnId, linkBaseUrl));
 	}
@@ -140,6 +156,14 @@ public class SierraPatronsAPIFixture {
 				.recordType(expectedRecordType)
 				.recordNumber(null)
 				.build()), problemWithLibraryRecord());
+	}
+
+	/** The library has fixed what made it refuse: the same hold request is now accepted. */
+	public void acceptHoldRequestAfterProblemWithLibraryRecord(String patronId, String expectedRecordType) {
+		mockServer.replaceMock(postPatronHoldRequest(patronId, PatronHoldPost.builder()
+				.recordType(expectedRecordType)
+				.recordNumber(null)
+				.build()), noContent());
 	}
 
 	public void verifyCreatePatronRequestMade(String uniqueId) {

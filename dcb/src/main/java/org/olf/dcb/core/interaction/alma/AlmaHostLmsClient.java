@@ -174,6 +174,8 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.flatMap(pickup -> submitLibraryHold(new MinimumAlmaHold(
 				p.getLocalPatronId(), p.getLocalItemId(), pickup.libraryCode(), pickup.deskCode(), p.getNote(),
 				p.getPatronRequestId(), p.getLocalBibId(), p.getLocalHoldingId(), p.getLocalItemBarcode())))
+			.onErrorMap(AlmaHostLmsClient::isUserGroupRefusal,
+				error -> userGroupRefusal(p, (AlmaNoItemCanFulfilException) error))
 			.doOnSubscribe(s -> log.info("placeHoldRequestAtSupplyingAgency patron={} item={}",
 				p.getLocalPatronId(), p.getLocalItemId()));
 	}
@@ -326,7 +328,24 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			.flatMap(options -> Mono.error(noItemCanFulfil(hold, options, refusal)));
 	}
 
-	private static AlmaHostLmsClientException noItemCanFulfil(MinimumAlmaHold hold,
+	// Only the lending library can give its user group a Request term of use; a refused pickup library is DCB's configuration
+	private static boolean isUserGroupRefusal(Throwable error) {
+		return error instanceof AlmaNoItemCanFulfilException refusal && refusal.getOptions().refusesHold();
+	}
+
+	private SupplierRefusedRequestProblem userGroupRefusal(PlaceHoldRequestParameters p,
+		AlmaNoItemCanFulfilException refusal) {
+
+		final var offered = refusal.getOptions().requestTypes();
+
+		return new SupplierRefusedRequestProblem(getHostLmsCode(),
+			"%s's Alma has no Request rule for user group \"%s\" in the fulfilment unit of this item's location (offered: %s)"
+				.formatted(getHostLmsCode(), Objects.requireNonNullElse(p.getLocalPatronType(), "unknown"),
+					offered.isEmpty() ? "nothing" : String.join(", ", offered)),
+			refusal);
+	}
+
+	private static AlmaNoItemCanFulfilException noItemCanFulfil(MinimumAlmaHold hold,
 		RequestOptionsReport options, Throwable cause) {
 
 		final var library = hold.pickupLibraryCode();
@@ -335,7 +354,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// Diagnosis first: the request's error message and an audit's brief description are cut at 256
 		// Alma's answer takes no pickup location, so an offered hold points at the destination
 		if (options.offersHold()) {
-			return new AlmaHostLmsClientException(("Alma offers this patron a hold on item %s, so the "
+			return new AlmaNoItemCanFulfilException(options, ("Alma offers this patron a hold on item %s, so the "
 				+ "refusal is the pickup library: check that '%s' is a pickup location for the item's "
 				+ "fulfilment unit and not a resource sharing library (401129).").formatted(item, library), cause);
 		}
@@ -343,7 +362,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 		// Measured on a sandbox: the same user group was offered a hold in one library's "Stacks"
 		// and nothing in another's, so the item's location is the first suspect, not the group
 		if (options.refusesHold()) {
-			return new AlmaHostLmsClientException(("Alma offers this patron no hold on item %s (offered: "
+			return new AlmaNoItemCanFulfilException(options, ("Alma offers this patron no hold on item %s (offered: "
 				+ "%s), so the fulfilment unit of the item's location has no Request rule for the patron's "
 				+ "user group. For an item DCB created, use a virtual-item-location-code whose unit has one. "
 				+ "Alma refused the hold for pickup at library '%s' (401129).").formatted(item,
@@ -351,7 +370,7 @@ public class AlmaHostLmsClient implements HostLmsClient {
 					library), cause);
 		}
 
-		return new AlmaHostLmsClientException(("Alma could not say why it refused a hold on item %s for "
+		return new AlmaNoItemCanFulfilException(options, ("Alma could not say why it refused a hold on item %s for "
 			+ "pickup at library '%s' (401129): %s. Check that '%s' is a pickup location for the item's "
 			+ "fulfilment unit, and that the unit gives the patron's user group a Request term of use.")
 			.formatted(item, library, options.detail(), library), cause);
@@ -1588,6 +1607,11 @@ public class AlmaHostLmsClient implements HostLmsClient {
 			// A fulfilled request is HISTORY in Alma, and cancelling it answers 401694
 			.onErrorResume(AlmaHostLmsClient::isRequestNotFound,
 				error -> Mono.just("Request not found in Alma"));
+	}
+
+	@Override
+	public Set<VirtualPatronRemoval> virtualPatronRemovals() {
+		return Set.of(VirtualPatronRemoval.DELETE);
 	}
 
   public Mono<String> deletePatron(String id) {

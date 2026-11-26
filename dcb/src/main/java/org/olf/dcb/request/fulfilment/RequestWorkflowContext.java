@@ -53,6 +53,8 @@ public class RequestWorkflowContext {
 	// The supplier/lender Host LMS, loaded so SUPPLIER-role capability and tracking
 	// can be resolved per-host (mirrors patronSystem for the borrower side).
 	DataHostLms lenderSystem;
+	// Null whenever lenderSystem is, or its client could not be built: callers fall back to the default rules
+	HostLmsClient lenderClient;
 
 	PatronIdentity patronHomeIdentity;
 	PatronIdentity patronVirtualIdentity;

@@ -31,6 +31,7 @@ public class IntMessageService {
 		Map.entry("EXCEEDS_AGENCY_LIMIT", "You have reached the number of active requests your library allows. Please wait for a current request to finish, or contact your library."),
 		Map.entry("PATRON_HOLD_LIMIT_REACHED", "You have reached the maximum number of holds allowed on your account. Please cancel an existing hold, or contact your library for additional information."),
 		Map.entry("PREFLIGHT_CHECKS_TIMED_OUT", "We could not finish checking this request in time. Please try again in a few minutes."),
+		Map.entry("PATRON_STATUS_UNCHECKED", "We couldn't check your library account just now, so your request has not been placed. Please try again in a few minutes. If this keeps happening, contact your library: they can check your account."),
 		Map.entry("REQUEST_LIMITS_UNCHECKED", "We are unable to check your request limits at the moment. Please try again later, or contact your library if this persists."),
 		Map.entry("WALK_UP_SAME_LIBRARY", "This borrower belongs to this library. Check the item out to them in your own system rather than through a walk-up."),
 		Map.entry("WALK_UP_ITEM_AGENCY_MISMATCH", "This library is not on the library system named for the item. Check the library and system selected."),

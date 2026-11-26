@@ -42,10 +42,17 @@ standard flow, and both workflows with your library as the lender, are unaffecte
    the sharing library: where supplier holds are collected for dispatch and where DCB's
    virtual patrons belong. It must be its own branch: Koha puts a filled hold in transit
    only when the pickup branch differs from the branch checking the item in, and DCB
-   waits for that transit.
+   waits for that transit. Give your OpenRS team the branch **code**, not its name: a
+   name in `sharing-library-code` matches no branch, and every virtual patron is refused.
 3. **A patron category for visiting patrons.** `DCB`, with an enrolment period long
    enough never to expire a virtual patron, and messaging preferences off; otherwise
-   every consortium hold and checkout notice goes to the consortium mailbox.
+   every consortium hold and checkout notice goes to the consortium mailbox. **Create it
+   before anything is lent: the patron type mappings put every virtual patron in it, and
+   Koha refuses a patron in a category it does not have, so no copy of yours can be
+   lent.** It is easily missed, because nothing else in Koha needs it and
+   Koha's REST API cannot create a category: do it in the staff interface
+   (Administration → Patron categories → New category). The configuration check
+   reports `virtual-patron-category` as `MISSING` until it exists.
 4. **The DCB API patron and its keys.** A staff patron in the sharing branch with the
    permissions in the hosting guide; `RESTOAuth2ClientCredentials` enabled; keys generated
    under Manage API keys. The secret is shown once. With `IndependentBranches` on, the API
@@ -202,11 +209,17 @@ value mappings only. Use `patronType` reference value mappings.
 Get the codes from Administration → Patron categories, or
 `GET /api/v1/patron_categories`.
 
-A visiting patron whose DCB patron type has no mapping yet is created in the
-category named by `virtual-patron-category`, `DCB` when unset. Koha refuses the
-patron unless that category exists, so create it or point the setting at one
-that does. The Host LMS configuration check reports it as missing when it is not
-in Koha's list.
+**Map every DCB patron type a borrower can arrive with to your `DCB` category.**
+When you lend, DCB looks up the borrower's DCB patron type in the outbound mapping
+to choose the virtual patron's category; a type with no row fails the request at
+your library with "Unable to map canonical patron type", not a fallback. The
+`virtual-patron-category` setting, `DCB` when unset, is used only for a virtual
+patron DCB creates with no patron type at all. Koha refuses the patron unless the
+category exists; the Host LMS configuration check reports it as missing when it is
+not in Koha's list.
+
+**Map the `DCB` category itself to `NOT_ELIGIBLE` inbound**, so a virtual patron
+can never place a request of its own.
 
 ```csv
 fromContext,fromCategory,fromValue,toContext,toCategory,toValue
@@ -215,8 +228,21 @@ KOHA-EXAMPLE,patronType,YA,DCB,patronType,YOUNG_ADULT
 KOHA-EXAMPLE,patronType,CH,DCB,patronType,CHILD
 KOHA-EXAMPLE,patronType,ST,DCB,patronType,STAFF
 KOHA-EXAMPLE,patronType,B,DCB,patronType,NOT_ELIGIBLE
+KOHA-EXAMPLE,patronType,DCB,DCB,patronType,NOT_ELIGIBLE
 DCB,patronType,ADULT,KOHA-EXAMPLE,patronType,DCB
+DCB,patronType,CHILD,KOHA-EXAMPLE,patronType,DCB
+DCB,patronType,FACULTY,KOHA-EXAMPLE,patronType,DCB
+DCB,patronType,GRADUATE,KOHA-EXAMPLE,patronType,DCB
+DCB,patronType,PATRON,KOHA-EXAMPLE,patronType,DCB
+DCB,patronType,POSTDOC,KOHA-EXAMPLE,patronType,DCB
+DCB,patronType,SENIOR,KOHA-EXAMPLE,patronType,DCB
+DCB,patronType,STAFF,KOHA-EXAMPLE,patronType,DCB
+DCB,patronType,UNDERGRADUATE,KOHA-EXAMPLE,patronType,DCB
+DCB,patronType,YOUNG_ADULT,KOHA-EXAMPLE,patronType,DCB
 ```
+
+`NOT_ELIGIBLE` has no outbound row on purpose: a borrower the consortium has
+refused gets no virtual patron here.
 
 Map the categories that should *not* borrow to `NOT_ELIGIBLE` rather than
 leaving them out. An unmapped category fails the request with "not mapped to a
@@ -354,8 +380,10 @@ both.
 
 Run the Host LMS configuration check in DCB Admin: it lists your item types, patron
 categories and branches, and confirms the sharing branch, the virtual item branch and
-the `DCB` category exist. Then verify end to end as the pickup locations section above
-describes.
+the `DCB` category exist. Do not go on while any of them reads `MISSING`: a missing
+sharing branch or `DCB` category stops every loan from your library, and a missing
+virtual item branch stops borrowing for a patron whose own branch DCB cannot place.
+Then verify end to end as the pickup locations section above describes.
 
 What DCB checks about a patron before it asks any supplier: that Koha knows them, that
 their category is mapped and not mapped as ineligible, that they are not restricted and

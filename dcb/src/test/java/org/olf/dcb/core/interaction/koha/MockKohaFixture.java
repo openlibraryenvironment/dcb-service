@@ -384,6 +384,24 @@ public class MockKohaFixture {
 			response().withStatusCode(403).withBody(json(Map.of("error", "Authorization failure"))));
 	}
 
+	/** A CDN in front of Koha challenging the token request, so Koha never sees it. */
+	public void mockTokenRefusedByCdn(String rayId) {
+		mockServer.replaceMock(commonRequests.post(TOKEN_PATH), refusedByCdn(rayId));
+	}
+
+	public void mockLibrariesRefusedByCdn(String rayId) {
+		mockServer.mock(commonRequests.get(LIBRARIES_PATH), refusedByCdn(rayId));
+	}
+
+	private static HttpResponse refusedByCdn(String rayId) {
+		return response().withStatusCode(403)
+			.withHeader("server", "cloudflare")
+			.withHeader("cf-ray", rayId)
+			.withHeader("cf-mitigated", "challenge")
+			.withHeader("content-type", "text/html; charset=UTF-8")
+			.withBody("<!DOCTYPE html><html><head><title>Just a moment...</title></head></html>");
+	}
+
 	private HttpRequest everyEntryOf(String path) {
 		return commonRequests.get(path, "_per_page", "-1");
 	}
@@ -617,6 +635,10 @@ public class MockKohaFixture {
 	public void mockHoldRefused(int status, String reason) {
 		mockServer.mock(commonRequests.post(HOLDS_PATH),
 			response().withStatusCode(status).withBody(json(Map.of("error", reason))));
+	}
+
+	public void verifyNoHoldPlaced() {
+		client.verify(commonRequests.post(HOLDS_PATH), VerificationTimes.never());
 	}
 
 	public void verifyHoldPlacedOverridingPatronBlocks() {

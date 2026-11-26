@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
-import java.util.Optional;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -38,12 +37,11 @@ import reactor.core.publisher.Mono;
 @Slf4j
 class PAPIAuthFilter {
 	private final PolarisConfig polarisConfig;
-	private AuthToken currentToken;
-	private PatronAuthToken patronAuthToken;
 	private final PolarisLmsClient client;
 	private final String URI_PARAMETERS;
+	// Authentication requests, and public requests made without a patron, are signed without one
+	private static final String NO_SECRET = "";
 	private final PolarisTokenCache tokenCache;
-	private Boolean isPublicMethod;
 	private final static DateTimeFormatter FORMATTER = DateTimeFormatter.RFC_1123_DATE_TIME
 			.withZone(ZoneId.of("UTC"));
 
@@ -58,30 +56,24 @@ class PAPIAuthFilter {
 
 	Mono<MutableHttpRequest<?>> ensureStaffAuth(MutableHttpRequest<?> request) {
 		// By default, we assume any method requiring staff authentication is protected
-		isPublicMethod = FALSE;
-
 		return staffAuthentication(request, FALSE);
 	}
 
 	Mono<MutableHttpRequest<?>> ensurePatronAuth(MutableHttpRequest<?> request,
 		PatronCredentials patronCredentials, Boolean isRequestPublicMethod) {
 		// Since some methods requiring patron authentication can also be authenticated by staff, we require this to be declared alongside the request
-		isPublicMethod = isRequestPublicMethod;
-
 		return patronAuthentication(request, patronCredentials, isRequestPublicMethod);
 	}
 
 	private Mono<MutableHttpRequest<?>> staffAuthentication(MutableHttpRequest<?> request, Boolean isRequestPublicMethod) {
 		// Cached per Host LMS: this filter is rebuilt for every PolarisLmsClient, so a token
 		// held on the instance would mean re-authenticating on every single request.
-		// currentToken is still assigned because getAccessSecret reads it to sign the request.
 		return tokenCache.get(client.getHostLmsCode(), PAPI_STAFF,
 				polarisConfig.getTokenCacheMaxTtl(),
 				token -> PolarisDates.ttlFromAuthExpDate(token.getAuthExpDate()),
 				this::staffAuthenticator)
-			.doOnSuccess(newToken -> currentToken = newToken)
-			.map(validToken -> createStaffRequest(request, validToken, isRequestPublicMethod))
-			.map(this::authorization);
+			.map(validToken -> authorization(createStaffRequest(request, validToken, isRequestPublicMethod),
+				validToken.getAccessSecret()));
 	}
 
 	private Mono<AuthToken> staffAuthenticator() {
@@ -129,12 +121,11 @@ class PAPIAuthFilter {
 		if (patronCredentials.getBarcode() == null || patronCredentials.getPassword() == null) {
 			log.debug("patronAuthentication with empty credentials: {}", PolarisLmsClient.redactedPath(request.getPath()));
 
-			return Mono.just(authorization(request));
+			return Mono.just(authorization(request, NO_SECRET));
 		}
 
 		return patronAuthenticator(patronCredentials)
-			.doOnNext(newToken -> patronAuthToken = newToken)
-			.map(token -> authorization(request));
+			.map(token -> authorization(request, token.getAccessSecret()));
 	}
 
 	private Mono<PatronAuthToken> patronAuthenticator(PatronCredentials patronCredentials) {
@@ -168,7 +159,7 @@ class PAPIAuthFilter {
 				.Username(username)
 				.Password(password)
 				.build())
-			.map(this::authorization);
+			.map(request -> authorization(request, NO_SECRET));
 	}
 
 	private Mono<MutableHttpRequest<?>> createPatronAuthRequest(
@@ -176,7 +167,8 @@ class PAPIAuthFilter {
 
 		final var patronAuthUri = "/PAPIService/REST/public" + URI_PARAMETERS + "/authenticator/patron";
 
-		return createAuthRequest(patronAuthUri, patronCredentials).map(this::authorization);
+		return createAuthRequest(patronAuthUri, patronCredentials)
+			.map(request -> authorization(request, NO_SECRET));
 	}
 
 	private Mono<MutableHttpRequest<?>> createAuthRequest(String path, Object requestBody) {
@@ -186,56 +178,20 @@ class PAPIAuthFilter {
 			.map(request -> request.body(requestBody)));
 	}
 
-	private MutableHttpRequest<?> authorization(MutableHttpRequest<?> request) {
+	// The secret is passed in, never read from this filter: one filter signs many requests at once,
+	// and a field written by one would sign another
+	private MutableHttpRequest<?> authorization(MutableHttpRequest<?> request, String accessSecret) {
 
 		final var id = polarisConfig.getAccessId();
 		final var key = polarisConfig.getAccessKey();
 		final var method = request.getMethod().name();
 		final var path = request.getUri().toString();
 		final var date = generateUTCFormattedDateTime();
-		final var accessSecret = getAccessSecret(request);
 
 		final var signature = calculateApiSignature(key, method, path, date, accessSecret);
 		final var token = "PWS " + id + ":" + signature;
 
 		return request.header(HttpHeaders.AUTHORIZATION, token).header("PolarisDate", date);
-	}
-
-	private String getAccessSecret(MutableHttpRequest<?> request) {
-		final var path = request.getPath();
-
-		// Currently there is an instance in which the we can claim to be using a public method but still require staff auth
-		// This conditional ensures that when hitting staff auth endpoint we still dont pass an access key
-		if (isPublicMethod && path.contains("/authenticator/staff")) {
-			return "";
-		}
-
-		else if (isPublicMethod) {
-			return Optional.ofNullable(currentToken)
-				.map(AuthToken::getAccessSecret)
-				.orElse("");
-		}
-
-		else if (path.contains("protected") && !path.contains("/authenticator/staff")) {
-			return Optional.ofNullable(currentToken)
-				.map(AuthToken::getAccessSecret)
-				.orElse("");
-		}
-
-		else if (path.contains("/authenticator/staff")) {
-			return "";
-		}
-
-		else if (path.contains("public")) {
-			return Optional.ofNullable(patronAuthToken)
-				.map(PatronAuthToken::getAccessSecret)
-				.orElse("");
-		}
-
-		else {
-			log.warn("returning empty string to calculate api sig for request: {}", PolarisLmsClient.redactedPath(path));
-			return "";
-		}
 	}
 
 	private String calculateApiSignature(String accessKey, String method,

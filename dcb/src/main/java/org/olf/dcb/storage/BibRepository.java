@@ -42,7 +42,6 @@ public interface BibRepository {
 	Publisher<String> findPhysicalDescriptionsForCluster(@NonNull UUID clusterId);
 
 	@NonNull
-	@SingleResult
 	@Join(value = "contributesTo")
 	Publisher<BibRecord> getAllByIdIn( @NonNull Collection<UUID> ids);
 	

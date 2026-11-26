@@ -944,6 +944,18 @@ public class DataFetchers {
 	 * LMS. Asking which agencies sit on a system and taking the first works by accident
 	 * on a dedicated system and is wrong on every shared one.
 	 */
+	public DataFetcher<CompletableFuture<DataHostLms>> getHostLmsForPatronIdentityDataFetcher() {
+		return env -> {
+			final PatronIdentity identity = env.getSource();
+
+			final var hostLmsId = getValueOrNull(identity, PatronIdentity::getHostLms, DataHostLms::getId);
+
+			return hostLmsId == null
+				? CompletableFuture.completedFuture(null)
+				: Mono.from(hostLmsRepository.findById(hostLmsId)).toFuture();
+		};
+	}
+
 	public DataFetcher<CompletableFuture<DataAgency>> getResolvedAgencyForPatronIdentityDataFetcher() {
 		return env -> {
 			final PatronIdentity identity = env.getSource();
