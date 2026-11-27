@@ -30,6 +30,10 @@ GRADLE_USER_HOME="$PWD/.gradle-codex" timeout 30m ./gradlew test --no-daemon --n
 
 Do not terminate full-suite runs early unless there is a confirmed infrastructure/process issue.
 
+## Regression Tests
+
+Cover a DCB behaviour that can regress. Reuse an existing integration fixture when it can exercise that behaviour. A new application or container setup needs a test case that the existing fixture cannot cover.
+
 ## Definition Of Done
 
 - Relevant tests or a clear reason they were not run.

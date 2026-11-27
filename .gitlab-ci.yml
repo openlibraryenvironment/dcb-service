@@ -30,9 +30,12 @@ test:
   artifacts:
     when: always
     reports:
-      junit: dcb/build/test-results/test/TEST-*.xml
+      junit:
+        - dcb/build/test-results/test/TEST-*.xml
+        - dcb/build/test-results/architectureTest/TEST-*.xml
     paths:
       - dcb/build/reports/tests/test/
+      - dcb/build/reports/tests/architectureTest/
     expire_in: 1 week
   cache:
     key: "$CI_COMMIT_REF_SLUG"
