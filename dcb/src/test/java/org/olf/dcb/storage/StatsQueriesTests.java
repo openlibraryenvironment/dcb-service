@@ -130,7 +130,7 @@ class StatsQueriesTests {
 
 	private List<TradingPartnerStat> tradingPartners(String libraryCode, Sort sort) {
 		return singleValueFrom(patronRequestRepository.findTopTradingPartners(
-			libraryCode, null, null, Pageable.from(0, 25, sort))).getContent();
+			libraryCode, null, null, null, Pageable.from(0, 25, sort))).getContent();
 	}
 
 	/**
@@ -308,7 +308,7 @@ class StatsQueriesTests {
 		saveAudit(pr, ERROR, sameDay.plusSeconds(7200));
 
 		final var points = manyValuesFrom(patronRequestRepository.findStatusFlowTimeSeries(
-			"day", null, utc("2025-01-15T00:00:00Z"), utc("2025-01-16T00:00:00Z"), 1001));
+			"day", null, null, utc("2025-01-15T00:00:00Z"), utc("2025-01-16T00:00:00Z"), 1001));
 
 		// All three audits fall in one day bucket: LOANED x2, ERROR x1.
 		final var bySeries = points.stream()
@@ -328,7 +328,7 @@ class StatsQueriesTests {
 		saveAudit(pr, LOANED, Instant.parse("2025-03-03T10:00:00Z"));
 
 		final var counts = manyValuesFrom(patronRequestRepository.findStatusFlowTimeSeries(
-				"day", null, utc("2025-03-01T00:00:00Z"), utc("2025-03-04T00:00:00Z"), 1001))
+				"day", null, null, utc("2025-03-01T00:00:00Z"), utc("2025-03-04T00:00:00Z"), 1001))
 			.stream()
 			.filter(point -> "LOANED".equals(point.series()))
 			.collect(Collectors.toMap(TimeSeriesPoint::bucket, TimeSeriesPoint::count));
@@ -347,7 +347,7 @@ class StatsQueriesTests {
 		saveAudit(pr, LOANED, Instant.parse("2025-04-02T00:00:00Z"));
 
 		final var points = manyValuesFrom(patronRequestRepository.findStatusFlowTimeSeries(
-			"day", null, utc("2025-04-01T00:00:00Z"), utc("2025-04-02T00:00:00Z"), 1001));
+			"day", null, null, utc("2025-04-01T00:00:00Z"), utc("2025-04-02T00:00:00Z"), 1001));
 
 		assertThat(points.stream().map(TimeSeriesPoint::series).toList(), not(hasItem("LOANED")));
 	}
@@ -361,7 +361,7 @@ class StatsQueriesTests {
 		saveAudit(pr, LOANED, Instant.parse("2025-05-01T10:00:00Z"));
 
 		final var buckets = manyValuesFrom(patronRequestRepository.findStatusFlowTimeSeries(
-				"day", null, utc("2025-05-01T00:00:00Z"), utc("2025-05-10T00:00:00Z"), 3))
+				"day", null, null, utc("2025-05-01T00:00:00Z"), utc("2025-05-10T00:00:00Z"), 3))
 			.stream()
 			.map(TimeSeriesPoint::bucket)
 			.distinct()
@@ -389,7 +389,7 @@ class StatsQueriesTests {
 			saveAudit(pr, LOANED, Instant.parse("2025-07-01T10:00:00Z"));
 
 			final var buckets = manyValuesFrom(patronRequestRepository.findStatusFlowTimeSeries(
-					"day", null, utc("2025-07-01T00:00:00Z"), utc("2025-07-02T00:00:00Z"), 1001))
+					"day", null, null, utc("2025-07-01T00:00:00Z"), utc("2025-07-02T00:00:00Z"), 1001))
 				.stream()
 				.map(TimeSeriesPoint::bucket)
 				.distinct()
@@ -427,7 +427,7 @@ class StatsQueriesTests {
 		}
 
 		final var turnaround = singleValueFrom(
-			patronRequestRepository.findTurnaroundToStatus(null, "LOANED", null, null));
+			patronRequestRepository.findTurnaroundToStatus(null, null, "LOANED", null, null));
 
 		assertThat(turnaround.p50Seconds(), closeTo(1200.0, 1.0));
 		assertThat(turnaround.p95Seconds() >= turnaround.p50Seconds(), equalTo(true));
@@ -439,7 +439,7 @@ class StatsQueriesTests {
 		saveAudit(local, LOANED, local.getDateCreated().plusSeconds(100));
 
 		final var turnaround = singleValueFrom(
-			patronRequestRepository.findTurnaroundToStatus(null, "LOANED", null, null));
+			patronRequestRepository.findTurnaroundToStatus(null, null, "LOANED", null, null));
 
 		// Only RET-LOCAL rows exist, so the window is effectively empty -> COALESCE to 0.
 		assertThat(turnaround.p50Seconds(), equalTo(0.0));
@@ -455,7 +455,7 @@ class StatsQueriesTests {
 		saveRequest(CONFIRMED, "LIB_A", "SUP_A", NO_ITEMS_SELECTABLE_AT_ANY_AGENCY, STANDARD_WORKFLOW);
 
 		final var taxonomy = manyValuesFrom(
-			patronRequestRepository.findFailureTaxonomy(null, null, null));
+			patronRequestRepository.findFailureTaxonomy(null, null, null, null));
 
 		final var byReason = taxonomy.stream()
 			.collect(Collectors.toMap(FailureReasonStat::reason, FailureReasonStat::count));
@@ -474,7 +474,7 @@ class StatsQueriesTests {
 		saveRequest(ERROR, "LIB_A", "SUP_A", REQUEST_PLACED_AT_SUPPLYING_AGENCY, STANDARD_WORKFLOW);
 
 		final var reliability = manyValuesFrom(
-			patronRequestRepository.findSupplierReliability("SUP_A", null, null));
+			patronRequestRepository.findSupplierReliability("SUP_A", null, null, null));
 
 		assertThat(reliability, hasSize(1));
 		final var supA = reliability.get(0);
@@ -493,7 +493,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_B", "LIB_A", null, STANDARD_WORKFLOW);
 
 		final var netFlow = manyValuesFrom(
-			patronRequestRepository.findNetFlow("LIB_A", null, null));
+			patronRequestRepository.findNetFlow("LIB_A", null, null, null));
 
 		assertThat(netFlow, hasSize(1));
 		final var libA = netFlow.get(0);
@@ -514,7 +514,7 @@ class StatsQueriesTests {
 		saveTransition(pr, RESOLVED, LOANED);
 
 		final var dwell = manyValuesFrom(
-			patronRequestRepository.findTimeInStatus(null, null, null));
+			patronRequestRepository.findTimeInStatus(null, null, null, null));
 		final var byStatus = dwell.stream()
 			.collect(Collectors.toMap(StatusDwellStat::status, s -> s));
 
@@ -534,7 +534,7 @@ class StatsQueriesTests {
 		saveTransition(pr, REQUEST_PLACED_AT_SUPPLYING_AGENCY, CONFIRMED);
 
 		final var sla = manyValuesFrom(
-			patronRequestRepository.findSupplierResponseSla("SUP_A", null, null));
+			patronRequestRepository.findSupplierResponseSla("SUP_A", null, null, null));
 
 		assertThat(sla, hasSize(1));
 		assertThat(sla.get(0).supplierCode(), equalTo("SUP_A"));
@@ -552,7 +552,7 @@ class StatsQueriesTests {
 		saveRequest(CONFIRMED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
 
 		final var cells = manyValuesFrom(
-			patronRequestRepository.findDemandHeatmap(null, null, null));
+			patronRequestRepository.findDemandHeatmap(null, null, null, null));
 
 		final long total = cells.stream()
 			.mapToLong(DemandHeatCell::requestCount)
@@ -573,7 +573,7 @@ class StatsQueriesTests {
 		saveRequest(CONFIRMED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW); // never loaned
 
 		final var rate = singleValueFrom(
-			patronRequestRepository.findCheckoutRate(null, null, null));
+			patronRequestRepository.findCheckoutRate(null, null, null, null));
 
 		assertThat(rate.totalCount(), equalTo(2L));
 		assertThat(rate.reachedCount(), equalTo(1L));
@@ -590,7 +590,7 @@ class StatsQueriesTests {
 		saveRequestForCluster(LOANED, "LIB_A", titleY);
 
 		final var summary = singleValueFrom(
-			patronRequestRepository.findCollectionSummary(null, null, null));
+			patronRequestRepository.findCollectionSummary(null, null, null, null));
 
 		assertThat(summary.totalRequests(), equalTo(3L));
 		assertThat(summary.uniqueTitlesRequested(), equalTo(2L));
@@ -609,7 +609,7 @@ class StatsQueriesTests {
 		saveRequestForCluster(LOANED, "LIB_A", wanted);
 
 		final var page = singleValueFrom(patronRequestRepository
-			.findMostRequestedTitles(null, null, null, Pageable.from(0, 10)));
+			.findMostRequestedTitles(null, null, null, null, Pageable.from(0, 10)));
 
 		assertThat(page.getContent(), hasSize(1));
 		assertThat(page.getContent().get(0).getClusterId(), equalTo(wanted));
@@ -629,7 +629,7 @@ class StatsQueriesTests {
 		}
 
 		final var page = singleValueFrom(patronRequestRepository
-			.findMostRequestedTitles(null, null, null, Pageable.from(0, 2)));
+			.findMostRequestedTitles(null, null, null, null, Pageable.from(0, 2)));
 
 		assertThat(page.getContent(), hasSize(2));
 		assertThat(page.getContent().get(0).getClusterId(), equalTo(clusters.get(4)));
@@ -649,18 +649,18 @@ class StatsQueriesTests {
 
 		// Single library, consortium (null) and a combination all execute and return a stat.
 		assertThat(
-			singleValueFrom(patronRequestRepository.findTurnaroundToStatus("LIB_A", "LOANED", null, null)).p50Seconds(),
+			singleValueFrom(patronRequestRepository.findTurnaroundToStatus("LIB_A", null, "LOANED", null, null)).p50Seconds(),
 			notNullValue());
 		assertThat(
-			singleValueFrom(patronRequestRepository.findTurnaroundToStatus(null, "LOANED", null, null)).p50Seconds(),
+			singleValueFrom(patronRequestRepository.findTurnaroundToStatus(null, null, "LOANED", null, null)).p50Seconds(),
 			notNullValue());
 		assertThat(
-			singleValueFrom(patronRequestRepository.findTurnaroundToStatus("LIB_A,LIB_B", "LOANED", null, null)).p50Seconds(),
+			singleValueFrom(patronRequestRepository.findTurnaroundToStatus("LIB_A,LIB_B", null, "LOANED", null, null)).p50Seconds(),
 			notNullValue());
 		// A code that matches nothing yields the COALESCE(0) fallback - proves the CSV
 		// membership filter actually excludes.
 		final var none = singleValueFrom(
-			patronRequestRepository.findTurnaroundToStatus("NO_SUCH_LIB", "LOANED", null, null));
+			patronRequestRepository.findTurnaroundToStatus("NO_SUCH_LIB", null, "LOANED", null, null));
 		assertThat(none.p50Seconds(), equalTo(0.0));
 		assertThat(none.p95Seconds(), equalTo(0.0));
 	}
@@ -695,16 +695,16 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_C", "LIB_A", null, STANDARD_WORKFLOW);
 
 		assertThat(singleValueFrom(
-			patronRequestRepository.countBorrowedForLibrary("LIB_A,LIB_B", null, null)),
+			patronRequestRepository.countBorrowedForLibrary("LIB_A,LIB_B", null, null, null)),
 			equalTo(2L));
 
 		assertThat(singleValueFrom(
-			patronRequestRepository.countSuppliedForLibrary("LIB_A,LIB_B", null, null)),
+			patronRequestRepository.countSuppliedForLibrary("LIB_A,LIB_B", null, null, null)),
 			equalTo(1L));
 
 		// One code still means exactly what it meant before.
 		assertThat(singleValueFrom(
-			patronRequestRepository.countBorrowedForLibrary("LIB_A", null, null)),
+			patronRequestRepository.countBorrowedForLibrary("LIB_A", null, null, null)),
 			equalTo(1L));
 	}
 
@@ -718,12 +718,12 @@ class StatsQueriesTests {
 
 		// Library A alone does not hold it, so it is unmet demand for library A.
 		assertThat(manyValuesFrom(patronRequestRepository
-			.findUnmetLocalDemandForLibrary("LIB_A", null, null)), hasSize(1));
+			.findUnmetLocalDemandForLibrary("LIB_A", null, null, null)), hasSize(1));
 
 		// The group holds it, so the group has no gap - the acquisition question changes
 		// with the boundary, which is the whole point of scoping it to a set.
 		assertThat(manyValuesFrom(patronRequestRepository
-			.findUnmetLocalDemandForLibrary("LIB_A,LIB_B", null, null)), hasSize(0));
+			.findUnmetLocalDemandForLibrary("LIB_A,LIB_B", null, null, null)), hasSize(0));
 	}
 
 	@Test
@@ -739,14 +739,14 @@ class StatsQueriesTests {
 		saveSupply("LIB_C", "LIB_A", alsoOutside);
 
 		final var forTheGroup = manyValuesFrom(patronRequestRepository
-			.findUniqueContributions("LIB_A,LIB_B", null, null));
+			.findUniqueContributions("LIB_A,LIB_B", null, null, null));
 
 		assertThat(forTheGroup, hasSize(1));
 		assertThat(forTheGroup.get(0).clusterId(), equalTo(insideOnly));
 
 		// For library A alone, both clusters have another holder, so neither is unique.
 		assertThat(manyValuesFrom(patronRequestRepository
-			.findUniqueContributions("LIB_A", null, null)), hasSize(0));
+			.findUniqueContributions("LIB_A", null, null, null)), hasSize(0));
 	}
 
 	@Test
@@ -760,7 +760,7 @@ class StatsQueriesTests {
 		saveSupply("LIB_C", "LIB_B", shared);
 
 		final var rows = manyValuesFrom(patronRequestRepository
-			.findConsortialLifelineForLibrary("LIB_A,LIB_B", null, null));
+			.findConsortialLifelineForLibrary("LIB_A,LIB_B", null, null, null));
 
 		// One row per supplying member, each counting its own request. Joining host_lms on
 		// the requested SET instead of the supplying code pairs every request with every
@@ -802,7 +802,7 @@ class StatsQueriesTests {
 		saveAudit(second, LOANED, Instant.parse("2025-02-12T00:00:00Z"));
 
 		final var points = manyValuesFrom(patronRequestRepository.findTurnaroundTrend(
-			"week", "LOANED", null,
+			"week", "LOANED", null, null,
 			utc("2025-02-01T00:00:00Z"), utc("2025-03-01T00:00:00Z"), 1001));
 
 		assertThat(points, hasSize(2));
@@ -821,7 +821,7 @@ class StatsQueriesTests {
 		saveAudit(pr, LOANED, Instant.parse("2025-04-09T00:00:00Z"));
 
 		final var points = manyValuesFrom(patronRequestRepository.findTurnaroundTrend(
-			"month", "LOANED", null,
+			"month", "LOANED", null, null,
 			utc("2025-04-01T00:00:00Z"), utc("2025-05-01T00:00:00Z"), 1001));
 
 		assertThat(points, hasSize(1));
@@ -829,7 +829,7 @@ class StatsQueriesTests {
 		assertThat(points.get(0).p50Seconds(), closeTo(86400.0, 1.0));
 
 		assertThat(singleValueFrom(patronRequestRepository
-				.findTurnaroundToStatus(null, "LOANED", null, null)).p50Seconds(),
+				.findTurnaroundToStatus(null, null, "LOANED", null, null)).p50Seconds(),
 			closeTo(86400.0, 1.0));
 	}
 
@@ -848,7 +848,7 @@ class StatsQueriesTests {
 		saveAudit(inside, LOANED, Instant.parse("2025-09-06T00:00:00Z"));
 
 		final var points = manyValuesFrom(patronRequestRepository.findTurnaroundTrend(
-			"month", "LOANED", null,
+			"month", "LOANED", null, null,
 			utc("2025-09-01T00:00:00Z"), utc("2025-10-01T00:00:00Z"), 1001));
 
 		assertThat(points, hasSize(1));
@@ -864,7 +864,7 @@ class StatsQueriesTests {
 		saveAudit(pr, CONFIRMED, Instant.parse("2025-05-02T06:00:00Z"));
 
 		final var points = manyValuesFrom(patronRequestRepository.findSupplierResponseTrend(
-			"month", "SUP_A", utc("2025-05-01T00:00:00Z"), utc("2025-06-01T00:00:00Z"), 1001));
+			"month", "SUP_A", null, utc("2025-05-01T00:00:00Z"), utc("2025-06-01T00:00:00Z"), 1001));
 
 		// Six hours from placed to confirmed, NOT the day and a half since creation.
 		assertThat(points, hasSize(1));
@@ -878,7 +878,7 @@ class StatsQueriesTests {
 		saveAudit(pr, PICKUP_TRANSIT, RECEIVED_AT_PICKUP, Instant.parse("2025-06-03T00:00:00Z"));
 
 		final var transit = manyValuesFrom(patronRequestRepository.findStatusDwellTrend(
-			"month", "PICKUP_TRANSIT", null,
+			"month", "PICKUP_TRANSIT", null, null,
 			utc("2025-06-01T00:00:00Z"), utc("2025-07-01T00:00:00Z"), 1001));
 
 		assertThat(transit, hasSize(1));
@@ -888,7 +888,7 @@ class StatsQueriesTests {
 		// A status nothing dwelled in returns no bucket at all, rather than a zero that
 		// would read as instant.
 		assertThat(manyValuesFrom(patronRequestRepository.findStatusDwellTrend(
-			"month", "RETURN_TRANSIT", null,
+			"month", "RETURN_TRANSIT", null, null,
 			utc("2025-06-01T00:00:00Z"), utc("2025-07-01T00:00:00Z"), 1001)), hasSize(0));
 	}
 
@@ -903,7 +903,7 @@ class StatsQueriesTests {
 		saveAudit(theirs, LOANED, Instant.parse("2025-07-03T00:00:00Z"));
 
 		final var scoped = manyValuesFrom(patronRequestRepository.findTurnaroundTrend(
-			"month", "LOANED", "LIB_A,LIB_B",
+			"month", "LOANED", "LIB_A,LIB_B", null,
 			utc("2025-07-01T00:00:00Z"), utc("2025-08-01T00:00:00Z"), 1001));
 
 		assertThat(scoped, hasSize(1));
@@ -923,7 +923,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_B", "SUP_A", null, STANDARD_WORKFLOW);
 
 		final var byLibrary = manyValuesFrom(
-			patronRequestRepository.findLibraryBreakdown(null, null, null)).stream()
+			patronRequestRepository.findLibraryBreakdown(null, null, null, null)).stream()
 			.collect(Collectors.toMap(LibraryBreakdownStat::libraryCode, row -> row));
 
 		assertThat(byLibrary.get("LIB_A").totalRequests(), equalTo(3L));
@@ -946,7 +946,7 @@ class StatsQueriesTests {
 		saveWalkUp("LIB_A", "SUP_A");
 
 		final var row = manyValuesFrom(
-			patronRequestRepository.findLibraryBreakdown("LIB_A", null, null)).get(0);
+			patronRequestRepository.findLibraryBreakdown("LIB_A", null, null, null)).get(0);
 
 		assertThat(row.walkUpRequests() + row.shippedRequests(), equalTo(row.totalRequests()));
 		assertThat(row.shippedRequests(), equalTo(1L));
@@ -960,7 +960,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_B", "SUP_A", null, STANDARD_WORKFLOW);
 
 		final var scoped = manyValuesFrom(
-			patronRequestRepository.findLibraryBreakdown("LIB_A", null, null));
+			patronRequestRepository.findLibraryBreakdown("LIB_A", null, null, null));
 
 		assertThat(scoped, hasSize(1));
 		assertThat(scoped.get(0).libraryCode(), equalTo("LIB_A"));
@@ -977,7 +977,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_UNKNOWN", "SUP_A", null, STANDARD_WORKFLOW);
 
 		final var byLibrary = manyValuesFrom(
-			patronRequestRepository.findLibraryBreakdown(null, null, null)).stream()
+			patronRequestRepository.findLibraryBreakdown(null, null, null, null)).stream()
 			.collect(Collectors.toMap(LibraryBreakdownStat::libraryCode, row -> row));
 
 		assertThat(byLibrary.get("LIB_A").libraryName(), equalTo("Riverside Public Library"));
@@ -1008,7 +1008,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_B", "LIB_A", null, STANDARD_WORKFLOW);
 
 		final var suppliers = manyValuesFrom(
-			patronRequestRepository.findTopSuppliersForLibrary("LIB_A", null, null));
+			patronRequestRepository.findTopSuppliersForLibrary("LIB_A", null, null, null));
 
 		assertThat(suppliers, hasSize(1));
 		assertThat(suppliers.get(0).partnerCode(), equalTo("SUP_A"));
@@ -1018,7 +1018,7 @@ class StatsQueriesTests {
 		// The mirror. Who borrowed FROM us is a different question, and the two lists must not
 		// be derivable from one another - LIB_B appears here and nowhere above.
 		final var borrowers = manyValuesFrom(
-			patronRequestRepository.findTopBorrowersFromLibrary("LIB_A", null, null));
+			patronRequestRepository.findTopBorrowersFromLibrary("LIB_A", null, null, null));
 
 		assertThat(borrowers, hasSize(1));
 		assertThat(borrowers.get(0).partnerCode(), equalTo("LIB_B"));
@@ -1034,7 +1034,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_A", "SUP_UNKNOWN", null, STANDARD_WORKFLOW);
 
 		final var suppliers = manyValuesFrom(
-			patronRequestRepository.findTopSuppliersForLibrary("LIB_A", null, null));
+			patronRequestRepository.findTopSuppliersForLibrary("LIB_A", null, null, null));
 
 		assertThat(suppliers, hasSize(1));
 		assertThat(suppliers.get(0).partnerCode(), equalTo("SUP_UNKNOWN"));
@@ -1049,7 +1049,7 @@ class StatsQueriesTests {
 			STANDARD_WORKFLOW);
 
 		assertThat(manyValuesFrom(
-			patronRequestRepository.findTopSuppliersForLibrary("LIB_A", null, null)), hasSize(0));
+			patronRequestRepository.findTopSuppliersForLibrary("LIB_A", null, null, null)), hasSize(0));
 	}
 
 	@Test
@@ -1060,7 +1060,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_A", "SUP_A", null, STANDARD_WORKFLOW);
 
 		assertThat(manyValuesFrom(patronRequestRepository
-			.findConsortialLifelineForLibrary("SUP_A", null, null)), hasSize(0));
+			.findConsortialLifelineForLibrary("SUP_A", null, null, null)), hasSize(0));
 	}
 
 	@Test
@@ -1073,7 +1073,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_B", "SUP_A", null, STANDARD_WORKFLOW);
 
 		final var suppliers = manyValuesFrom(
-			patronRequestRepository.findTopSuppliersForLibrary(null, null, null));
+			patronRequestRepository.findTopSuppliersForLibrary(null, null, null, null));
 
 		// No "we" to exclude, so every supplier counts and the three requests land together.
 		assertThat(suppliers, hasSize(1));
@@ -1081,7 +1081,7 @@ class StatsQueriesTests {
 		assertThat(suppliers.get(0).requestCount(), equalTo(3L));
 
 		final var borrowers = manyValuesFrom(
-			patronRequestRepository.findTopBorrowersFromLibrary(null, null, null));
+			patronRequestRepository.findTopBorrowersFromLibrary(null, null, null, null));
 
 		assertThat(borrowers.stream().map(PartnerStat::partnerCode).toList(),
 			containsInAnyOrder("LIB_A", "LIB_B"));
@@ -1096,7 +1096,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_B", "SUP_A", null, STANDARD_WORKFLOW);
 
 		final var suppliers = manyValuesFrom(
-			patronRequestRepository.findTopSuppliersForLibrary("LIB_A,LIB_B", null, null));
+			patronRequestRepository.findTopSuppliersForLibrary("LIB_A,LIB_B", null, null, null));
 
 		assertThat(suppliers, hasSize(1));
 		assertThat(suppliers.get(0).requestCount(), equalTo(2L));
@@ -1162,7 +1162,7 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_A", "PEER_Z", null, STANDARD_WORKFLOW);
 
 		final var firstPage = singleValueFrom(patronRequestRepository.findTopTradingPartners(
-			"LIB_A", null, null, Pageable.from(0, 2, RANKED_BY_TOTAL)));
+			"LIB_A", null, null, null, Pageable.from(0, 2, RANKED_BY_TOTAL)));
 
 		// totalSize counts PARTNERS, not requests - the count query groups the union the same
 		// way the page does. Six requests, three partners.
@@ -1173,7 +1173,7 @@ class StatsQueriesTests {
 
 		// The tail a fixed top-N would have hidden.
 		final var secondPage = singleValueFrom(patronRequestRepository.findTopTradingPartners(
-			"LIB_A", null, null, Pageable.from(1, 2, RANKED_BY_TOTAL)));
+			"LIB_A", null, null, null, Pageable.from(1, 2, RANKED_BY_TOTAL)));
 
 		assertThat(secondPage.getContent(), hasSize(1));
 		assertThat(secondPage.getContent().get(0).partnerCode(), equalTo("PEER_Z"));
@@ -1188,12 +1188,12 @@ class StatsQueriesTests {
 		saveRequest(LOANED, "LIB_B", "LIB_A", null, STANDARD_WORKFLOW); // LIB_A supplies
 
 		final CollectionBalanceStat scoped = singleValueFrom(
-			patronRequestRepository.findLendBorrowTotals("LIB_A", null, null));
+			patronRequestRepository.findLendBorrowTotals("LIB_A", null, null, null));
 		assertThat(scoped.borrowedCount(), equalTo(1L));
 		assertThat(scoped.suppliedCount(), equalTo(1L));
 
 		final CollectionBalanceStat consortium = singleValueFrom(
-			patronRequestRepository.findLendBorrowTotals(null, null, null));
+			patronRequestRepository.findLendBorrowTotals(null, null, null, null));
 		assertThat(consortium.borrowedCount(), equalTo(2L));
 		assertThat(consortium.suppliedCount(), equalTo(2L));
 	}

@@ -39,4 +39,8 @@ public class RequestTag {
 	@NonNull
 	@NotNull
 	private Boolean active;
+
+	/** One of PatronRequestTagService.TAG_COLOURS, or null for the app's default. */
+	@Nullable
+	private String colour;
 }

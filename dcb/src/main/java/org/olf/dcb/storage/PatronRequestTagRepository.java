@@ -24,16 +24,17 @@ public interface PatronRequestTagRepository {
 	Publisher<? extends PatronRequestTag> save(@Valid @NotNull @NonNull PatronRequestTag tag);
 
 	/**
-	 * Bounded by the vocabulary times the request's parties. Both author kinds are named so the two
-	 * partial unique indexes serve it: no other index leads with patron_request_id.
+	 * Bounded by the vocabulary times each request's parties times the requests asked for, which the
+	 * caller caps. Both author kinds are named so the two partial unique indexes serve it: no other
+	 * index leads with patron_request_id.
 	 */
 	@NonNull
 	@Query(value = """
 		SELECT * FROM patron_request_tag
-		WHERE patron_request_id = :patronRequestId
+		WHERE patron_request_id IN (:patronRequestIds)
 		  AND (author_kind = 'LIBRARY' OR author_kind = 'CONSORTIUM')
 		""", nativeQuery = true)
-	Publisher<PatronRequestTag> findByPatronRequestId(@NonNull UUID patronRequestId);
+	Publisher<PatronRequestTag> findByPatronRequestIdIn(@NonNull Collection<UUID> patronRequestIds);
 
 	@NonNull
 	@SingleResult

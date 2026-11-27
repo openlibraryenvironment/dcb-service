@@ -63,6 +63,9 @@ netty:
       max-order: 3
 
 dcb:
+  preferences:
+    # Fixed, so preference keys are the same across a run
+    secret: test-preferences-secret
   scheduled-tasks:
     enabled: false
   requestability:

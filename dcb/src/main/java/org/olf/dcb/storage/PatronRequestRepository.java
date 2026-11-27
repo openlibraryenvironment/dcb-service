@@ -545,7 +545,7 @@ public interface PatronRequestRepository {
 			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
 			WHERE (:startDate IS NULL OR pr.date_created >= :startDate)
 			AND (:endDate IS NULL OR pr.date_created <= :endDate)
-			AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			AND cr.is_deleted IS NULL
 			GROUP BY cr.id, cr.title
 			ORDER BY request_count DESC, cr.id
@@ -557,14 +557,15 @@ public interface PatronRequestRepository {
 			    JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
 			    WHERE (:startDate IS NULL OR pr.date_created >= :startDate)
 			    AND (:endDate IS NULL OR pr.date_created <= :endDate)
-			    AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			    AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			    AND cr.is_deleted IS NULL
 			    GROUP BY cr.id, cr.title
 			) AS count_query
 		""",
 		nativeQuery = true
 	)
-	Publisher<Page<RequestedTitleStat>> findMostRequestedTitles(@Nullable Instant startDate, @Nullable Instant endDate, @Nullable String libraryCode, Pageable pageable);
+	Publisher<Page<RequestedTitleStat>> findMostRequestedTitles(@Nullable Instant startDate, @Nullable Instant endDate, @Nullable String libraryCode,
+		@Nullable String agencyCodes, Pageable pageable);
 
 	@Query(
 		value = """
@@ -576,7 +577,7 @@ public interface PatronRequestRepository {
 			JOIN patron_identity pi ON pr.patron_id = pi.patron_id
 			WHERE pi.home_identity = TRUE
 			AND pr.status_code IN (:activeStates)
-			AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			GROUP BY pi.local_barcode, pr.patron_hostlms_code
 		""",
 		countQuery = """
@@ -586,16 +587,19 @@ public interface PatronRequestRepository {
 			    JOIN patron_identity pi ON pr.patron_id = pi.patron_id
 			    WHERE pi.home_identity = TRUE
 					AND pr.status_code IN (:activeStates)
-					AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+					AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			    GROUP BY pi.local_barcode, pr.patron_hostlms_code
 			) AS count_query
 		""",
 		nativeQuery = true
 	)
-	Publisher<Page<TopRequestorStat>> findTopRequestors(@Nullable String libraryCode, Collection<String> activeStates, Pageable pageable);
+	Publisher<Page<TopRequestorStat>> findTopRequestors(@Nullable String libraryCode,
+		@Nullable String agencyCodes, Collection<String> activeStates, Pageable pageable);
 
-	default Publisher<Page<TopRequestorStat>> findTopRequestors(@Nullable String libraryCode, Pageable pageable) {
-		return findTopRequestors(libraryCode, Status.ACTIVE_STATE_CODES, pageable);
+	default Publisher<Page<TopRequestorStat>> findTopRequestors(@Nullable String libraryCode,
+		@Nullable String agencyCodes, Pageable pageable) {
+
+		return findTopRequestors(libraryCode, agencyCodes, Status.ACTIVE_STATE_CODES, pageable);
 	}
 
 
@@ -617,7 +621,7 @@ public interface PatronRequestRepository {
 			) pra ON pra.patron_request_id = pr.id
 			WHERE pr.status_code != 'ERROR'
 			AND active_workflow != 'RET-LOCAL'
-			AND (:libraryCodes IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCodes, ',')))
+			AND (:libraryCodes IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCodes, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			AND (:endDate IS NULL OR pr.date_created <= :endDate)
 		""",
@@ -625,6 +629,7 @@ public interface PatronRequestRepository {
 	)
 	Publisher<TurnaroundStat> findTurnaroundToStatus(
 		@Nullable String libraryCodes,
+		@Nullable String agencyCodes,
 		String targetStatus,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
@@ -650,7 +655,7 @@ public interface PatronRequestRepository {
 				FROM patron_request_audit pra
 				JOIN patron_request pr ON pr.id = pra.patron_request_id
 				WHERE pra.to_status IS NOT NULL
-				  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+				  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 				  AND pra.audit_date >= :seriesStart
 				  AND pra.audit_date < :seriesEnd
 				GROUP BY 1, 2
@@ -677,6 +682,7 @@ public interface PatronRequestRepository {
 	Flux<TimeSeriesPoint> findStatusFlowTimeSeries(
 		String bucket,
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		LocalDateTime seriesStart,
 		LocalDateTime seriesEnd,
 		int maxBuckets
@@ -718,7 +724,7 @@ public interface PatronRequestRepository {
 			JOIN reached ON reached.patron_request_id = pr.id
 			WHERE pr.status_code != 'ERROR'
 			  AND pr.active_workflow != 'RET-LOCAL'
-			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND NOT EXISTS (
 				SELECT 1 FROM patron_request_audit earlier
 				WHERE earlier.patron_request_id = reached.patron_request_id
@@ -735,6 +741,7 @@ public interface PatronRequestRepository {
 		String bucket,
 		String targetStatus,
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		LocalDateTime seriesStart,
 		LocalDateTime seriesEnd,
 		int maxBuckets
@@ -772,7 +779,7 @@ public interface PatronRequestRepository {
 			) placed ON TRUE
 			WHERE pr.local_item_hostlms_code IS NOT NULL
 			  AND conf.first_date >= placed.first_date
-			  AND (:libraryCode IS NULL OR pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ',')))))
 			  AND NOT EXISTS (
 				SELECT 1 FROM patron_request_audit earlier
 				WHERE earlier.patron_request_id = pr.id
@@ -788,6 +795,7 @@ public interface PatronRequestRepository {
 	Flux<TrendPoint> findSupplierResponseTrend(
 		String bucket,
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		LocalDateTime seriesStart,
 		LocalDateTime seriesEnd,
 		int maxBuckets
@@ -812,6 +820,8 @@ public interface PatronRequestRepository {
 				JOIN patron_request pr ON pr.id = pra.patron_request_id
 				WHERE pra.audit_date >= :seriesStart
 				  AND pra.audit_date < :seriesEnd
+
+				  AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))
 			)
 			SELECT date_trunc(:bucket, left_at) AT TIME ZONE 'UTC' AS bucket,
 			       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY dwell_seconds) AS p50_seconds,
@@ -831,6 +841,7 @@ public interface PatronRequestRepository {
 		String bucket,
 		String status,
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		LocalDateTime seriesStart,
 		LocalDateTime seriesEnd,
 		int maxBuckets
@@ -850,7 +861,7 @@ public interface PatronRequestRepository {
 			FROM patron_request pr
 			WHERE (pr.status_code IN ('ERROR', 'CANCELLED')
 			       OR pr.previous_status_code = 'NO_ITEMS_SELECTABLE_AT_ANY_AGENCY')
-			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			GROUP BY reason
@@ -860,6 +871,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<FailureReasonStat> findFailureTaxonomy(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -879,7 +891,7 @@ public interface PatronRequestRepository {
 			WHERE pr.local_item_hostlms_code IS NOT NULL
 			  AND (pr.status_code IN ('LOANED', 'COMPLETED', 'FINALISED', 'ERROR', 'CANCELLED')
 			       OR pr.previous_status_code = 'NO_ITEMS_SELECTABLE_AT_ANY_AGENCY')
-			  AND (:libraryCode IS NULL OR pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ',')))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			GROUP BY pr.local_item_hostlms_code
@@ -890,6 +902,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<SupplierReliabilityStat> findSupplierReliability(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -904,14 +917,14 @@ public interface PatronRequestRepository {
 			FROM (
 				SELECT patron_hostlms_code AS lib, COUNT(*) AS borrowed, 0 AS supplied
 				FROM patron_request
-				WHERE patron_hostlms_code IS NOT NULL AND status_code != 'ERROR'
+				WHERE patron_hostlms_code IS NOT NULL AND status_code != 'ERROR' AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))
 				  AND (:startDate IS NULL OR date_created >= :startDate)
 				  AND (:endDate IS NULL OR date_created <= :endDate)
 				GROUP BY patron_hostlms_code
 				UNION ALL
 				SELECT local_item_hostlms_code AS lib, 0 AS borrowed, COUNT(*) AS supplied
 				FROM patron_request
-				WHERE local_item_hostlms_code IS NOT NULL AND status_code != 'ERROR'
+				WHERE local_item_hostlms_code IS NOT NULL AND status_code != 'ERROR' AND (:agencyCodes IS NULL OR local_item_agency_code = ANY(string_to_array(:agencyCodes, ',')))
 				  AND (:startDate IS NULL OR date_created >= :startDate)
 				  AND (:endDate IS NULL OR date_created <= :endDate)
 				GROUP BY local_item_hostlms_code
@@ -924,6 +937,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<NetFlowStat> findNetFlow(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -940,7 +954,7 @@ public interface PatronRequestRepository {
 						OVER (PARTITION BY pra.patron_request_id ORDER BY pra.audit_date))) AS dwell_seconds
 				FROM patron_request_audit pra
 				JOIN patron_request pr ON pr.id = pra.patron_request_id
-				WHERE (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+				WHERE (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 				  AND (:startDate IS NULL OR pra.audit_date >= :startDate)
 				  AND (:endDate IS NULL OR pra.audit_date <= :endDate)
 			)
@@ -957,6 +971,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<StatusDwellStat> findTimeInStatus(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -985,7 +1000,7 @@ public interface PatronRequestRepository {
 			) conf ON conf.patron_request_id = pr.id
 			WHERE pr.local_item_hostlms_code IS NOT NULL
 			  AND conf.first_date >= placed.first_date
-			  AND (:libraryCode IS NULL OR pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ',')))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			GROUP BY pr.local_item_hostlms_code
@@ -996,6 +1011,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<SupplierResponseStat> findSupplierResponseSla(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1010,7 +1026,7 @@ public interface PatronRequestRepository {
 				COUNT(*) AS request_count
 			FROM patron_request pr
 			WHERE pr.status_code != 'ERROR'
-			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			GROUP BY 1, 2
@@ -1020,6 +1036,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<DemandHeatCell> findDemandHeatmap(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1035,7 +1052,7 @@ public interface PatronRequestRepository {
 			LEFT JOIN (
 				SELECT DISTINCT patron_request_id FROM patron_request_audit WHERE to_status = 'LOANED'
 			) loaned ON loaned.patron_request_id = pr.id
-			WHERE (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			WHERE (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 		""",
@@ -1043,9 +1060,68 @@ public interface PatronRequestRepository {
 	)
 	Publisher<CheckoutRateStat> findCheckoutRate(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
+
+	// What other libraries ask a library to supply, scoped on the supplier's Host LMS as
+	// countSuppliedForLibrary is. Groups below :minimum are left out; the caller counts them as other.
+	@Query(
+		value = """
+			SELECT cr.id AS cluster_id, cr.title, COUNT(pr.id) AS request_count
+			FROM patron_request pr
+			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+			WHERE (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ','))))
+			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
+			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
+			  AND cr.is_deleted IS NULL
+			GROUP BY cr.id, cr.title
+			HAVING COUNT(pr.id) >= :minimum
+			ORDER BY request_count DESC, cr.id
+			LIMIT :maximum
+		""",
+		nativeQuery = true
+	)
+	Flux<LentTitleStat> findMostLentTitles(String libraryCode,
+		@Nullable String agencyCodes, @Nullable Instant startDate,
+		@Nullable Instant endDate, int minimum, int maximum);
+
+	@Query(
+		value = """
+			SELECT COALESCE(br.canonical_metadata->>'derivedType', 'Unknown') AS format,
+				COUNT(pr.id) AS request_count
+			FROM patron_request pr
+			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+			LEFT JOIN bib_record br ON cr.selected_bib = br.id
+			WHERE (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ','))))
+			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
+			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
+			GROUP BY COALESCE(br.canonical_metadata->>'derivedType', 'Unknown')
+			HAVING COUNT(pr.id) >= :minimum
+			ORDER BY request_count DESC
+		""",
+		nativeQuery = true
+	)
+	Flux<LendingFormatStat> findLendingByFormat(String libraryCode,
+		@Nullable String agencyCodes, @Nullable Instant startDate,
+		@Nullable Instant endDate, int minimum);
+
+	@Query(
+		value = """
+			SELECT COUNT(pr.id)
+			FROM patron_request pr
+			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
+			WHERE (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ','))))
+			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
+			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
+		""",
+		nativeQuery = true
+	)
+	@SingleResult
+	Publisher<Long> countRequestsSuppliedBy(String libraryCode,
+		@Nullable String agencyCodes, @Nullable Instant startDate,
+		@Nullable Instant endDate);
 
 	// Consortial collection analysis - demand by canonical format (derivedType).
 	@Query(
@@ -1057,7 +1133,7 @@ public interface PatronRequestRepository {
 			JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
 			LEFT JOIN bib_record br ON cr.selected_bib = br.id
 			WHERE pr.status_code != 'ERROR'
-			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			GROUP BY COALESCE(br.canonical_metadata->>'derivedType', 'Unknown')
@@ -1067,6 +1143,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<FormatDemandStat> findDemandByFormat(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1080,7 +1157,7 @@ public interface PatronRequestRepository {
 			FROM patron_request pr
 			WHERE pr.status_code != 'ERROR'
 			  AND pr.bib_cluster_id IS NOT NULL
-			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 		""",
@@ -1088,6 +1165,7 @@ public interface PatronRequestRepository {
 	)
 	Publisher<CollectionSummaryStat> findCollectionSummary(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1119,7 +1197,7 @@ public interface PatronRequestRepository {
 				COUNT(*) FILTER (WHERE pr.is_expedited_checkout IS NOT TRUE) AS shipped_requests
 			FROM patron_request pr
 			WHERE pr.patron_hostlms_code IS NOT NULL
-			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			GROUP BY pr.patron_hostlms_code
@@ -1133,6 +1211,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<LibraryBreakdownStat> findLibraryBreakdown(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1187,7 +1266,7 @@ public interface PatronRequestRepository {
 			CROSS JOIN LATERAL jsonb_array_elements_text(
 				COALESCE(br.canonical_metadata->'language', '[]'::jsonb)) AS lang
 			WHERE pr.status_code != 'ERROR'
-			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			GROUP BY lang
@@ -1198,6 +1277,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<DimensionDemandStat> findDemandByLanguage(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1212,7 +1292,7 @@ public interface PatronRequestRepository {
 			CROSS JOIN LATERAL jsonb_array_elements_text(
 				COALESCE(br.canonical_metadata->'subjects', '[]'::jsonb)) AS subj
 			WHERE pr.status_code != 'ERROR'
-			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 			  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			GROUP BY subj
@@ -1223,6 +1303,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<DimensionDemandStat> findDemandBySubject(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1238,7 +1319,7 @@ public interface PatronRequestRepository {
 				JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
 				LEFT JOIN bib_record br ON cr.selected_bib = br.id
 				WHERE pr.status_code != 'ERROR'
-				  AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+				  AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 				  AND (:startDate IS NULL OR pr.date_created >= :startDate)
 				  AND (:endDate IS NULL OR pr.date_created <= :endDate)
 			) t
@@ -1250,6 +1331,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<DimensionDemandStat> findDemandByPublicationDecade(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1261,9 +1343,9 @@ public interface PatronRequestRepository {
 		value = """
 			SELECT
 				COUNT(*) FILTER (WHERE :libraryCode IS NULL
-					OR patron_hostlms_code = ANY(string_to_array(:libraryCode, ','))) AS borrowed_count,
+					OR (patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ',')))))) AS borrowed_count,
 				COUNT(*) FILTER (WHERE :libraryCode IS NULL
-					OR local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))) AS supplied_count
+					OR (local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR local_item_agency_code = ANY(string_to_array(:agencyCodes, ','))))) AS supplied_count
 			FROM patron_request
 			WHERE status_code != 'ERROR'
 			  AND (:startDate IS NULL OR date_created >= :startDate)
@@ -1273,6 +1355,7 @@ public interface PatronRequestRepository {
 	)
 	Publisher<CollectionBalanceStat> findLendBorrowTotals(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1310,7 +1393,7 @@ public interface PatronRequestRepository {
 			         WHERE h.code = pr.local_item_hostlms_code) AS partner_name,
 			       COUNT(pr.id) as request_count
 			FROM patron_request pr
-			WHERE (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			WHERE (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
 			  AND pr.local_item_hostlms_code IS NOT NULL
 			  AND (:libraryCode IS NULL OR pr.local_item_hostlms_code <> ALL(string_to_array(:libraryCode, ',')))
 			  AND pr.status_code != 'ERROR'
@@ -1325,6 +1408,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<PartnerStat> findTopSuppliersForLibrary(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1339,7 +1423,7 @@ public interface PatronRequestRepository {
 			         WHERE h.code = pr.patron_hostlms_code) AS partner_name,
 			       COUNT(pr.id) as request_count
 			FROM patron_request pr
-			WHERE (:libraryCode IS NULL OR pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+			WHERE (:libraryCode IS NULL OR (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ',')))))
 			  AND pr.patron_hostlms_code IS NOT NULL
 			  AND (:libraryCode IS NULL OR pr.patron_hostlms_code <> ALL(string_to_array(:libraryCode, ',')))
 			  AND pr.status_code != 'ERROR'
@@ -1354,6 +1438,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<PartnerStat> findTopBorrowersFromLibrary(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1377,7 +1462,7 @@ public interface PatronRequestRepository {
 			WITH traffic AS (
 			    SELECT pr.local_item_hostlms_code AS partner_code, 1 AS borrowed, 0 AS supplied
 			    FROM patron_request pr
-			    WHERE pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			    WHERE (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ',')))))
 			      AND pr.local_item_hostlms_code IS NOT NULL
 			      AND pr.local_item_hostlms_code <> ALL(string_to_array(:libraryCode, ','))
 			      AND pr.status_code != 'ERROR'
@@ -1387,7 +1472,7 @@ public interface PatronRequestRepository {
 			    UNION ALL
 			    SELECT pr.patron_hostlms_code AS partner_code, 0 AS borrowed, 1 AS supplied
 			    FROM patron_request pr
-			    WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			    WHERE (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ','))))
 			      AND pr.patron_hostlms_code IS NOT NULL
 			      AND pr.patron_hostlms_code <> ALL(string_to_array(:libraryCode, ','))
 			      AND pr.status_code != 'ERROR'
@@ -1413,7 +1498,7 @@ public interface PatronRequestRepository {
 			    FROM (
 			        SELECT pr.local_item_hostlms_code AS partner_code
 			        FROM patron_request pr
-			        WHERE pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			        WHERE (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ',')))))
 			          AND pr.local_item_hostlms_code IS NOT NULL
 			          AND pr.local_item_hostlms_code <> ALL(string_to_array(:libraryCode, ','))
 			          AND pr.status_code != 'ERROR'
@@ -1423,7 +1508,7 @@ public interface PatronRequestRepository {
 			        UNION ALL
 			        SELECT pr.patron_hostlms_code AS partner_code
 			        FROM patron_request pr
-			        WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+			        WHERE (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ','))))
 			          AND pr.patron_hostlms_code IS NOT NULL
 			          AND pr.patron_hostlms_code <> ALL(string_to_array(:libraryCode, ','))
 			          AND pr.status_code != 'ERROR'
@@ -1438,6 +1523,7 @@ public interface PatronRequestRepository {
 	)
 	Publisher<Page<TradingPartnerStat>> findTopTradingPartners(
 		String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate,
 		Pageable pageable
@@ -1456,7 +1542,7 @@ public interface PatronRequestRepository {
                 COUNT(pr.id) AS request_count
             FROM patron_request pr
             JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
-            WHERE pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+            WHERE (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ',')))))
               AND pr.status_code != 'ERROR'
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
@@ -1475,6 +1561,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<TopClusterStat> findUnmetLocalDemandForLibrary(
 		String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1495,7 +1582,7 @@ public interface PatronRequestRepository {
             JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
             JOIN host_lms hl ON hl.code = pr.local_item_hostlms_code
             JOIN bib_record br ON br.contributes_to = cr.id AND br.source_system_id = hl.id
-            WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+            WHERE (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ','))))
               AND pr.status_code != 'ERROR'
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
@@ -1506,6 +1593,7 @@ public interface PatronRequestRepository {
 		nativeQuery = true
 	)
 	Flux<ConsortialLifelineStat> findConsortialLifelineForLibrary(String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate, @Nullable Instant endDate);
 
 	@Query(
@@ -1517,7 +1605,7 @@ public interface PatronRequestRepository {
             JOIN patron_identity pi ON pr.requesting_identity_id = pi.id
             WHERE pr.status_code != 'ERROR'
               AND pi.canonical_ptype IS NOT NULL
-              AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+              AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
             GROUP BY pi.canonical_ptype
@@ -1527,6 +1615,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<PatronGroupDemandStat> findDemandByPatronGroup(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1541,7 +1630,7 @@ public interface PatronRequestRepository {
             LEFT JOIN location l ON pr.pickup_location_code = l.code
             WHERE pr.status_code != 'ERROR'
               AND pr.pickup_location_code IS NOT NULL
-              AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+              AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
             GROUP BY pr.pickup_location_code, l.name
@@ -1552,6 +1641,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<PickupLocationDemandStat> findDemandByPickupLocation(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1562,7 +1652,7 @@ public interface PatronRequestRepository {
             FROM patron_request pr
             WHERE pr.status_code != 'ERROR'
               AND pr.pickup_location_code = :pickupLocationCode
-              AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+              AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
         """,
@@ -1570,6 +1660,7 @@ public interface PatronRequestRepository {
 	)
 	Publisher<Long> countDemandForPickupLocation(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		String pickupLocationCode,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
@@ -1611,27 +1702,29 @@ public interface PatronRequestRepository {
 		value = """
             SELECT COUNT(id)
             FROM patron_request
-            WHERE patron_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+            WHERE (patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ',')))))
               AND status_code != 'ERROR'
               AND (:startDate IS NULL OR date_created >= :startDate)
               AND (:endDate IS NULL OR date_created <= :endDate)
         """,
 		nativeQuery = true
 	)
-	Publisher<Long> countBorrowedForLibrary(String libraryCode, @Nullable Instant startDate, @Nullable Instant endDate);
+	Publisher<Long> countBorrowedForLibrary(String libraryCode,
+		@Nullable String agencyCodes, @Nullable Instant startDate, @Nullable Instant endDate);
 
 	@Query(
 		value = """
             SELECT COUNT(id)
             FROM patron_request
-            WHERE local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+            WHERE (local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR local_item_agency_code = ANY(string_to_array(:agencyCodes, ','))))
               AND status_code != 'ERROR'
               AND (:startDate IS NULL OR date_created >= :startDate)
               AND (:endDate IS NULL OR date_created <= :endDate)
         """,
 		nativeQuery = true
 	)
-	Publisher<Long> countSuppliedForLibrary(String libraryCode, @Nullable Instant startDate, @Nullable Instant endDate);
+	Publisher<Long> countSuppliedForLibrary(String libraryCode,
+		@Nullable String agencyCodes, @Nullable Instant startDate, @Nullable Instant endDate);
 
 	@Query(
 		value = """
@@ -1645,7 +1738,7 @@ public interface PatronRequestRepository {
             LEFT JOIN bib_record br ON cr.selected_bib = br.id
             WHERE pr.previous_status_code = 'NO_ITEMS_SELECTABLE_AT_ANY_AGENCY'
               AND (pr.is_manually_selected_item IS NULL OR pr.is_manually_selected_item = false)
-              AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+              AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
             GROUP BY cr.id, br.id
@@ -1656,6 +1749,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<UnfillableDemandStat> findUnfillableDemand(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1667,7 +1761,7 @@ public interface PatronRequestRepository {
             WHERE resolution_count > 1
               AND error_message IS NULL
               AND status_code IN ('LOANED', 'FINALISED')
-              AND (:libraryCode IS NULL OR patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+              AND (:libraryCode IS NULL OR (patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
               AND (:startDate IS NULL OR date_created >= :startDate)
               AND (:endDate IS NULL OR date_created <= :endDate)
         """,
@@ -1675,6 +1769,7 @@ public interface PatronRequestRepository {
 	)
 	Publisher<Long> countSavedByReresolution(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1690,7 +1785,7 @@ public interface PatronRequestRepository {
             FROM patron_request pr
             WHERE (pr.status_code IN ('LOANED', 'COMPLETED', 'FINALISED', 'ERROR', 'CANCELLED') 
                    OR pr.previous_status_code = 'NO_ITEMS_SELECTABLE_AT_ANY_AGENCY')
-              AND (:libraryCode IS NULL OR pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+              AND (:libraryCode IS NULL OR (pr.patron_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR EXISTS (SELECT 1 FROM patron_identity scope_pi JOIN agency scope_a ON scope_a.id = scope_pi.resolved_agency_id WHERE scope_pi.id = pr.requesting_identity_id AND scope_a.code = ANY(string_to_array(:agencyCodes, ','))))))
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
         """,
@@ -1698,6 +1793,7 @@ public interface PatronRequestRepository {
 	)
 	Publisher<FulfillmentStat> getBorrowerFulfillmentStats(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1714,7 +1810,7 @@ public interface PatronRequestRepository {
             FROM patron_request pr
             WHERE (pr.status_code IN ('LOANED', 'COMPLETED', 'FINALISED', 'ERROR', 'CANCELLED') 
                    OR pr.previous_status_code = 'NO_ITEMS_SELECTABLE_AT_ANY_AGENCY')
-              AND (:libraryCode IS NULL OR pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')))
+              AND (:libraryCode IS NULL OR (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ',')))))
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
         """,
@@ -1722,6 +1818,7 @@ public interface PatronRequestRepository {
 	)
 	Publisher<FulfillmentStat> getSupplierFulfillmentStats(
 		@Nullable String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);
@@ -1742,7 +1839,7 @@ public interface PatronRequestRepository {
             JOIN cluster_record cr ON pr.bib_cluster_id = cr.id
             JOIN host_lms hl ON hl.code = pr.local_item_hostlms_code
             JOIN bib_record br ON br.contributes_to = cr.id AND br.source_system_id = hl.id
-            WHERE pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ','))
+            WHERE (pr.local_item_hostlms_code = ANY(string_to_array(:libraryCode, ',')) AND (:agencyCodes IS NULL OR pr.local_item_agency_code = ANY(string_to_array(:agencyCodes, ','))))
               AND pr.status_code != 'ERROR'
               AND (:startDate IS NULL OR pr.date_created >= :startDate)
               AND (:endDate IS NULL OR pr.date_created <= :endDate)
@@ -1761,6 +1858,7 @@ public interface PatronRequestRepository {
 	)
 	Flux<RareGem> findUniqueContributions(
 		String libraryCode,
+		@Nullable String agencyCodes,
 		@Nullable Instant startDate,
 		@Nullable Instant endDate
 	);

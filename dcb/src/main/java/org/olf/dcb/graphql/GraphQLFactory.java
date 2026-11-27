@@ -69,6 +69,7 @@ public class GraphQLFactory {
 			UpdateHostLmsDataFetcher updateHostLmsDataFetcher,
 			LibraryUserDataFetchers libraryUserDataFetchers,
 			PatronRequestNoteDataFetchers patronRequestNoteDataFetchers,
+			StaffNotificationDataFetcher staffNotificationDataFetcher,
 			DataFetchers dataFetchers) {
 
 		log.debug("GraphQLFactory::graphQL");
@@ -116,6 +117,7 @@ public class GraphQLFactory {
 						.dataFetcher("libraryUsers", libraryUserDataFetchers.getLibraryUsersDataFetcher())
 						.dataFetcher("libraryUserProvisioningAvailable", libraryUserDataFetchers.getProvisioningAvailableDataFetcher())
 						.dataFetcher("requestTags", patronRequestNoteDataFetchers.requestTags())
+						.dataFetcher("staffNotifications", staffNotificationDataFetcher)
 				)
 				.type("Mutation",
 					typeWiring -> typeWiring
@@ -245,6 +247,8 @@ public class GraphQLFactory {
 		log.debug("returning {}", graphQLSchema.toString());
 
 		// Return the GraphQL bean.
-		return GraphQL.newGraphQL(graphQLSchema).build();
+		return GraphQL.newGraphQL(graphQLSchema)
+			.instrumentation(new PerExecutionDataLoaderRegistry())
+			.build();
 	}
 }

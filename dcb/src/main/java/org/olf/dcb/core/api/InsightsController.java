@@ -18,6 +18,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.olf.dcb.core.api.serde.*;
 import org.olf.dcb.core.svc.CollectionAnalysisService;
+import org.olf.dcb.core.svc.LendingAnalysisService;
 import org.olf.dcb.core.model.PatronRequest;
 import org.olf.dcb.core.svc.TimeBucket;
 import org.olf.dcb.core.svc.TrendMetric;
@@ -74,12 +75,15 @@ public class InsightsController {
 
 	/** Owns the concurrency limit and cache for the catalogue-wide queries. */
 	private final CollectionAnalysisService collectionAnalysisService;
+	private final LendingAnalysisService lendingAnalysisService;
 
 	public InsightsController(PatronRequestRepository patronRequestRepository,
 			ClusterRecordRepository clusterRecordRepository,
 			StatsScopeGuard statsScopeGuard,
-			CollectionAnalysisService collectionAnalysisService) {
+			CollectionAnalysisService collectionAnalysisService,
+			LendingAnalysisService lendingAnalysisService) {
 
+		this.lendingAnalysisService = lendingAnalysisService;
 		this.patronRequestRepository = patronRequestRepository;
 		this.clusterRecordRepository = clusterRecordRepository;
 		this.statsScopeGuard = statsScopeGuard;
@@ -90,14 +94,16 @@ public class InsightsController {
 	@Get("/top-requestors")
 	public Mono<Page<TopRequestorStat>> getTopRequestors(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		Pageable pageable,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Mono.from(patronRequestRepository.findTopRequestors(libraryCode, pageable));
+					return Mono.from(patronRequestRepository.findTopRequestors(libraryCode, agencyCodes, pageable));
 			});
 	}
 
@@ -107,14 +113,16 @@ public class InsightsController {
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		Pageable pageable,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Mono.from(patronRequestRepository.findMostRequestedTitles(startDate, endDate, libraryCode, pageable));
+					return Mono.from(patronRequestRepository.findMostRequestedTitles(startDate, endDate, libraryCode, agencyCodes, pageable));
 			});
 	}
 
@@ -122,28 +130,30 @@ public class InsightsController {
 	@Get("/dashboard-metrics")
 	public Mono<DashboardMetrics> getDashboardMetrics(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
 					// Percentile turnaround (p50/p95); fall back to zeroed stat if the window is empty.
 					Mono<TurnaroundStat> turnaroundToLoaned = Mono.from(patronRequestRepository
-							.findTurnaroundToStatus(libraryCode, "LOANED", startDate, endDate))
+							.findTurnaroundToStatus(libraryCode, agencyCodes, "LOANED", startDate, endDate))
 						.defaultIfEmpty(new TurnaroundStat(0.0, 0.0));
 
 					Mono<TurnaroundStat> turnaroundToFinalised = Mono.from(patronRequestRepository
-							.findTurnaroundToStatus(libraryCode, "FINALISED", startDate, endDate))
+							.findTurnaroundToStatus(libraryCode, agencyCodes, "FINALISED", startDate, endDate))
 						.defaultIfEmpty(new TurnaroundStat(0.0, 0.0));
 
 					Mono<List<PartnerStat>> topSuppliers = patronRequestRepository
-						.findTopSuppliersForLibrary(libraryCode, startDate, endDate).collectList();
+						.findTopSuppliersForLibrary(libraryCode, agencyCodes, startDate, endDate).collectList();
 
 					Mono<List<PartnerStat>> topBorrowers = patronRequestRepository
-						.findTopBorrowersFromLibrary(libraryCode, startDate, endDate).collectList();
+						.findTopBorrowersFromLibrary(libraryCode, agencyCodes, startDate, endDate).collectList();
 
 					// Combine all queries asynchronously and map them to the return record
 					return Mono.zip(turnaroundToLoaned, turnaroundToFinalised, topSuppliers, topBorrowers)
@@ -166,13 +176,15 @@ public class InsightsController {
 	public Mono<List<TimeSeriesPoint>> getStatusFlowTimeSeries(
 		@Nullable @QueryValue String interval,
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
 					// TimeBucket owns the unit and the window contract. An unknown name is
 					// REJECTED, never collapsed to 'day'.
@@ -183,7 +195,7 @@ public class InsightsController {
 					final var start = startDate == null ? end.minus(DEFAULT_STATS_WINDOW) : startDate;
 
 					return Flux.from(patronRequestRepository.findStatusFlowTimeSeries(
-							bucket.getDateTruncUnit(), libraryCode,
+							bucket.getDateTruncUnit(), libraryCode, agencyCodes,
 							utc(start), utc(end), TimeBucket.MAX_BUCKETS + 1))
 						.collectList()
 						.flatMap(points -> distinctBuckets(points) > TimeBucket.MAX_BUCKETS
@@ -208,13 +220,15 @@ public class InsightsController {
 		@QueryValue(defaultValue = "LOANED") String targetStatus,
 		@QueryValue(defaultValue = "PICKUP_TRANSIT") String status,
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
 					// Both enums REJECT an unknown name rather than collapsing to a default,
 					// and the status names are checked against the workflow's own vocabulary -
@@ -228,12 +242,12 @@ public class InsightsController {
 
 					final Flux<TrendPoint> points = switch (trendMetric) {
 						case TURNAROUND_TO_STATUS -> Flux.from(patronRequestRepository.findTurnaroundTrend(
-							bucket.getDateTruncUnit(), knownStatus(targetStatus), libraryCode,
+							bucket.getDateTruncUnit(), knownStatus(targetStatus), libraryCode, agencyCodes,
 							utc(start), utc(end), cap));
 						case SUPPLIER_RESPONSE -> Flux.from(patronRequestRepository.findSupplierResponseTrend(
-							bucket.getDateTruncUnit(), libraryCode, utc(start), utc(end), cap));
+							bucket.getDateTruncUnit(), libraryCode, agencyCodes, utc(start), utc(end), cap));
 						case STATUS_DWELL -> Flux.from(patronRequestRepository.findStatusDwellTrend(
-							bucket.getDateTruncUnit(), knownStatus(status), libraryCode,
+							bucket.getDateTruncUnit(), knownStatus(status), libraryCode, agencyCodes,
 							utc(start), utc(end), cap));
 					};
 
@@ -276,15 +290,17 @@ public class InsightsController {
 	@Get("/failure-taxonomy")
 	public Mono<List<FailureReasonStat>> getFailureTaxonomy(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findFailureTaxonomy(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findFailureTaxonomy(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -293,15 +309,17 @@ public class InsightsController {
 	@Get("/supplier-reliability")
 	public Mono<List<SupplierReliabilityStat>> getSupplierReliability(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findSupplierReliability(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findSupplierReliability(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -310,15 +328,17 @@ public class InsightsController {
 	@Get("/net-flow")
 	public Mono<List<NetFlowStat>> getNetFlow(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findNetFlow(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findNetFlow(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -328,15 +348,17 @@ public class InsightsController {
 	@Get("/time-in-status")
 	public Mono<List<StatusDwellStat>> getTimeInStatus(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findTimeInStatus(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findTimeInStatus(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -346,15 +368,17 @@ public class InsightsController {
 	@Get("/supplier-response-sla")
 	public Mono<List<SupplierResponseStat>> getSupplierResponseSla(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findSupplierResponseSla(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findSupplierResponseSla(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -364,15 +388,17 @@ public class InsightsController {
 	@Get("/demand-heatmap")
 	public Mono<List<DemandHeatCell>> getDemandHeatmap(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findDemandHeatmap(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findDemandHeatmap(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -382,15 +408,17 @@ public class InsightsController {
 	@Get("/checkout-rate")
 	public Mono<CheckoutRateStat> getCheckoutRate(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Mono.from(patronRequestRepository.findCheckoutRate(libraryCode, startDate, endDate))
+					return Mono.from(patronRequestRepository.findCheckoutRate(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(new CheckoutRateStat(0L, 0L));
 			});
 	}
@@ -400,15 +428,17 @@ public class InsightsController {
 	@Get("/demand-by-format")
 	public Mono<List<FormatDemandStat>> getDemandByFormat(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findDemandByFormat(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findDemandByFormat(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -418,15 +448,17 @@ public class InsightsController {
 	@Get("/collection-summary")
 	public Mono<CollectionSummaryStat> getCollectionSummary(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Mono.from(patronRequestRepository.findCollectionSummary(libraryCode, startDate, endDate))
+					return Mono.from(patronRequestRepository.findCollectionSummary(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(new CollectionSummaryStat(0L, 0L));
 			});
 	}
@@ -440,44 +472,46 @@ public class InsightsController {
 	@Get("/dashboard")
 	public Mono<DashboardSummary> getDashboard(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
 					// Prior window = the equal-length window immediately before this one (for deltas).
 					final Mono<FulfillmentStat> priorMono;
 					if (startDate != null && endDate != null) {
 						final long windowMs = endDate.toEpochMilli() - startDate.toEpochMilli();
 						final Instant priorStart = startDate.minusMillis(windowMs);
-						priorMono = Mono.from(patronRequestRepository.getBorrowerFulfillmentStats(libraryCode, priorStart, startDate))
+						priorMono = Mono.from(patronRequestRepository.getBorrowerFulfillmentStats(libraryCode, agencyCodes, priorStart, startDate))
 							.defaultIfEmpty(new FulfillmentStat(0L, 0L));
 					} else {
 						priorMono = Mono.just(new FulfillmentStat(0L, 0L));
 					}
 
-					final Mono<FulfillmentStat> current = Mono.from(patronRequestRepository.getBorrowerFulfillmentStats(libraryCode, startDate, endDate))
+					final Mono<FulfillmentStat> current = Mono.from(patronRequestRepository.getBorrowerFulfillmentStats(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(new FulfillmentStat(0L, 0L));
-					final Mono<TurnaroundStat> turnaround = Mono.from(patronRequestRepository.findTurnaroundToStatus(libraryCode, "LOANED", startDate, endDate))
+					final Mono<TurnaroundStat> turnaround = Mono.from(patronRequestRepository.findTurnaroundToStatus(libraryCode, agencyCodes, "LOANED", startDate, endDate))
 						.defaultIfEmpty(new TurnaroundStat(0.0, 0.0));
-					final Mono<CheckoutRateStat> checkout = Mono.from(patronRequestRepository.findCheckoutRate(libraryCode, startDate, endDate))
+					final Mono<CheckoutRateStat> checkout = Mono.from(patronRequestRepository.findCheckoutRate(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(new CheckoutRateStat(0L, 0L));
-					final Mono<CollectionBalanceStat> totals = Mono.from(patronRequestRepository.findLendBorrowTotals(libraryCode, startDate, endDate))
+					final Mono<CollectionBalanceStat> totals = Mono.from(patronRequestRepository.findLendBorrowTotals(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(new CollectionBalanceStat(0L, 0L));
-					final Mono<Long> saved = Mono.from(patronRequestRepository.countSavedByReresolution(libraryCode, startDate, endDate))
+					final Mono<Long> saved = Mono.from(patronRequestRepository.countSavedByReresolution(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(0L);
-					final Mono<CollectionSummaryStat> summary = Mono.from(patronRequestRepository.findCollectionSummary(libraryCode, startDate, endDate))
+					final Mono<CollectionSummaryStat> summary = Mono.from(patronRequestRepository.findCollectionSummary(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(new CollectionSummaryStat(0L, 0L));
 
 					// Paired because Mono.zip stops at eight sources, and these two were the
 					// header's only remaining separate round-trips.
 					final Mono<Tuple2<FulfillmentStat, TurnaroundStat>> supplySide = Mono.zip(
-						Mono.from(patronRequestRepository.getSupplierFulfillmentStats(libraryCode, startDate, endDate))
+						Mono.from(patronRequestRepository.getSupplierFulfillmentStats(libraryCode, agencyCodes, startDate, endDate))
 							.defaultIfEmpty(new FulfillmentStat(0L, 0L)),
-						Mono.from(patronRequestRepository.findTurnaroundToStatus(libraryCode, "FINALISED", startDate, endDate))
+						Mono.from(patronRequestRepository.findTurnaroundToStatus(libraryCode, agencyCodes, "FINALISED", startDate, endDate))
 							.defaultIfEmpty(new TurnaroundStat(0.0, 0.0)));
 
 					return Mono.zip(current, priorMono, turnaround, checkout, totals, saved, summary, supplySide)
@@ -509,7 +543,7 @@ public class InsightsController {
 				final var codes = scope.isUnscoped() ? libraryCodes : scope.libraryCode();
 
 				return Mono.from(patronRequestRepository
-						.findTurnaroundToStatus(codes, targetStatus, startDate, endDate))
+						.findTurnaroundToStatus(codes, scope.agencyCodes(), targetStatus, startDate, endDate))
 					.defaultIfEmpty(new TurnaroundStat(0.0, 0.0));
 			});
 	}
@@ -523,13 +557,14 @@ public class InsightsController {
 	@Get("/library-breakdown")
 	public Mono<List<LibraryBreakdownStat>> getLibraryBreakdown(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> Flux.from(patronRequestRepository.findLibraryBreakdown(
-					scope.libraryCode(), startDate, endDate))
+					scope.libraryCode(), scope.agencyCodes(), startDate, endDate))
 				.collectList());
 	}
 
@@ -562,20 +597,22 @@ public class InsightsController {
 	public Mono<List<DimensionDemandStat>> getDemandByDimension(
 		@QueryValue(defaultValue = "format") String dimension,
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
 					final Flux<DimensionDemandStat> result = switch (dimension.toLowerCase()) {
-						case "language" -> Flux.from(patronRequestRepository.findDemandByLanguage(libraryCode, startDate, endDate));
-						case "subject" -> Flux.from(patronRequestRepository.findDemandBySubject(libraryCode, startDate, endDate));
-						case "decade" -> Flux.from(patronRequestRepository.findDemandByPublicationDecade(libraryCode, startDate, endDate));
+						case "language" -> Flux.from(patronRequestRepository.findDemandByLanguage(libraryCode, agencyCodes, startDate, endDate));
+						case "subject" -> Flux.from(patronRequestRepository.findDemandBySubject(libraryCode, agencyCodes, startDate, endDate));
+						case "decade" -> Flux.from(patronRequestRepository.findDemandByPublicationDecade(libraryCode, agencyCodes, startDate, endDate));
 						// Reuse the existing, already-verified format query, mapped onto the generic shape.
-						default -> Flux.from(patronRequestRepository.findDemandByFormat(libraryCode, startDate, endDate))
+						default -> Flux.from(patronRequestRepository.findDemandByFormat(libraryCode, agencyCodes, startDate, endDate))
 							.map(f -> new DimensionDemandStat(f.format(), f.requestCount()));
 					};
 
@@ -588,15 +625,17 @@ public class InsightsController {
 	@Get("/unmet-local-demand")
 	public Mono<List<TopClusterStat>> getUnmetLocalDemand(
 		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findUnmetLocalDemandForLibrary(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findUnmetLocalDemandForLibrary(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -606,13 +645,15 @@ public class InsightsController {
 	@Get("/acquisition-opportunities")
 	public Mono<List<TopClusterStat>> getAcquisitionOpportunities(
 		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
 					return Flux.from(clusterRecordRepository.findAcquisitionOpportunitiesForLibrary(libraryCode, startDate, endDate))
 						.collectList();
@@ -623,15 +664,17 @@ public class InsightsController {
 	@Get("/consortial-lifeline")
 	public Mono<List<ConsortialLifelineStat>> getConsortialLifeline(
 		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findConsortialLifelineForLibrary(libraryCode, startDate, endDate)).collectList();
+					return Flux.from(patronRequestRepository.findConsortialLifelineForLibrary(libraryCode, agencyCodes, startDate, endDate)).collectList();
 			});
 	}
 
@@ -639,15 +682,17 @@ public class InsightsController {
 	@Get("/demand-by-patron-group")
 	public Mono<List<PatronGroupDemandStat>> getDemandByPatronGroup(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findDemandByPatronGroup(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findDemandByPatronGroup(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -657,15 +702,17 @@ public class InsightsController {
 	public Mono<Long> getDemandForSinglePickupLocation(
 		@PathVariable String pickupLocationCode,
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Mono.from(patronRequestRepository.countDemandForPickupLocation(libraryCode, pickupLocationCode, startDate, endDate))
+					return Mono.from(patronRequestRepository.countDemandForPickupLocation(libraryCode, agencyCodes, pickupLocationCode, startDate, endDate))
 						.defaultIfEmpty(0L);
 			});
 	}
@@ -674,15 +721,17 @@ public class InsightsController {
 	@Get("/demand-by-pickup-location")
 	public Mono<List<PickupLocationDemandStat>> getDemandByPickupLocation(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findDemandByPickupLocation(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findDemandByPickupLocation(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -691,14 +740,16 @@ public class InsightsController {
 	@Get("/new-acquisitions-performance")
 	public Mono<List<NewAcquisitionPerformanceStat>> getNewAcquisitionsPerformance(
 		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@NotNull @QueryValue Instant acquiredSince,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
 					return Flux.from(patronRequestRepository.findNewAcquisitionsPerformance(libraryCode, acquiredSince, startDate, endDate))
 						.collectList();
@@ -709,17 +760,19 @@ public class InsightsController {
 	@Get("/collection-balance")
 	public Mono<CollectionBalanceStat> getCollectionBalance(
 		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
 					// Default to 0L to ensure Mono.zip doesn't drop empty results
-					Mono<Long> borrowed = Mono.from(patronRequestRepository.countBorrowedForLibrary(libraryCode, startDate, endDate)).defaultIfEmpty(0L);
-					Mono<Long> supplied = Mono.from(patronRequestRepository.countSuppliedForLibrary(libraryCode, startDate, endDate)).defaultIfEmpty(0L);
+					Mono<Long> borrowed = Mono.from(patronRequestRepository.countBorrowedForLibrary(libraryCode, agencyCodes, startDate, endDate)).defaultIfEmpty(0L);
+					Mono<Long> supplied = Mono.from(patronRequestRepository.countSuppliedForLibrary(libraryCode, agencyCodes, startDate, endDate)).defaultIfEmpty(0L);
 
 					return Mono.zip(borrowed, supplied)
 						.map(tuple -> new CollectionBalanceStat(tuple.getT1(), tuple.getT2()));
@@ -727,19 +780,49 @@ public class InsightsController {
 	}
 
 
+	/** What other libraries ask this one to supply most, a year at most, small groups folded. */
 	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
-	@Get("/unfillable-demand")
-	public Mono<List<UnfillableDemandStat>> getUnfillableDemand(
-		@Nullable @QueryValue String requestedLibraryCode,
+	@Get("/most-lent-titles")
+	public Mono<LendingAnalysis<LentTitleStat>> getMostLentTitles(
+		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
+			.flatMap(scope -> lendingAnalysisService.mostLent(scope.libraryCode(), scope.agencyCodes(), startDate, endDate));
+	}
+
+	/** The same, by canonical format. */
+	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
+	@Get("/lending-by-format")
+	public Mono<LendingAnalysis<LendingFormatStat>> getLendingByFormat(
+		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
+		@Nullable @QueryValue Instant startDate,
+		@Nullable @QueryValue Instant endDate,
+		Authentication authentication) {
+
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
+			.flatMap(scope -> lendingAnalysisService.byFormat(scope.libraryCode(), scope.agencyCodes(), startDate, endDate));
+	}
+
+	@Secured({CONSORTIUM_ADMIN, LIBRARY_ADMIN, ADMINISTRATOR})
+	@Get("/unfillable-demand")
+	public Mono<List<UnfillableDemandStat>> getUnfillableDemand(
+		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
+		@Nullable @QueryValue Instant startDate,
+		@Nullable @QueryValue Instant endDate,
+		Authentication authentication) {
+
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findUnfillableDemand(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findUnfillableDemand(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -748,15 +831,17 @@ public class InsightsController {
 	@Get("/saved-by-re-resolution")
 	public Mono<Long> getSavedByReResolution(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Mono.from(patronRequestRepository.countSavedByReresolution(libraryCode, startDate, endDate))
+					return Mono.from(patronRequestRepository.countSavedByReresolution(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(0L);
 			});
 	}
@@ -765,15 +850,17 @@ public class InsightsController {
 	@Get("/fulfillment/borrower")
 	public Mono<FulfillmentStat> getBorrowerFulfillmentRate(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Mono.from(patronRequestRepository.getBorrowerFulfillmentStats(libraryCode, startDate, endDate))
+					return Mono.from(patronRequestRepository.getBorrowerFulfillmentStats(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(new FulfillmentStat(0L, 0L));
 			});
 	}
@@ -782,15 +869,17 @@ public class InsightsController {
 	@Get("/fulfillment/supplier")
 	public Mono<FulfillmentStat> getSupplierFulfillmentRate(
 		@Nullable @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Mono.from(patronRequestRepository.getSupplierFulfillmentStats(libraryCode, startDate, endDate))
+					return Mono.from(patronRequestRepository.getSupplierFulfillmentStats(libraryCode, agencyCodes, startDate, endDate))
 						.defaultIfEmpty(new FulfillmentStat(0L, 0L));
 			});
 	}
@@ -799,15 +888,17 @@ public class InsightsController {
 	@Get("/unique-contributions")
 	public Mono<List<RareGem>> getUniqueContributions(
 		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> {
 				final var libraryCode = scope.libraryCode();
+				final var agencyCodes = scope.agencyCodes();
 
-					return Flux.from(patronRequestRepository.findUniqueContributions(libraryCode, startDate, endDate))
+					return Flux.from(patronRequestRepository.findUniqueContributions(libraryCode, agencyCodes, startDate, endDate))
 						.collectList();
 			});
 	}
@@ -823,14 +914,15 @@ public class InsightsController {
 	@Get("/top-partners")
 	public Mono<Page<TradingPartnerStat>> getTopTradingPartners(
 		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		@Nullable @QueryValue Instant startDate,
 		@Nullable @QueryValue Instant endDate,
 		@Nullable Pageable pageable,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> Mono.from(patronRequestRepository.findTopTradingPartners(
-				scope.libraryCode(), startDate, endDate, rankedByTotal(pageable))));
+				scope.libraryCode(), scope.agencyCodes(), startDate, endDate, rankedByTotal(pageable))));
 	}
 
 	/**
@@ -897,9 +989,10 @@ public class InsightsController {
 	@Get("/collection-overlap")
 	public Mono<List<CollectionOverlapStat>> getCollectionOverlap(
 		@NotNull @QueryValue String requestedLibraryCode,
+		@Nullable @QueryValue String requestedAgencyCodes,
 		Authentication authentication) {
 
-		return statsScopeGuard.resolve(authentication, requestedLibraryCode)
+		return statsScopeGuard.resolve(authentication, requestedLibraryCode, requestedAgencyCodes)
 			.flatMap(scope -> collectionAnalysisService.overlapFor(scope.libraryCode()));
 	}
 }

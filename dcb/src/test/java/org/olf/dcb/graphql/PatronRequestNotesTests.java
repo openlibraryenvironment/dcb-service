@@ -12,6 +12,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.olf.dcb.graphql.GraphQLSecurityContextCustomizer.AGENCY_CODES;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
@@ -24,7 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.dataloader.DataLoaderRegistry;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,6 +68,9 @@ import reactor.core.publisher.Flux;
 class PatronRequestNotesTests {
 	private static final List<String> LIBRARY_ADMIN = List.of("LIBRARY_ADMIN");
 	private static final List<String> CONSORTIUM_ADMIN = List.of("CONSORTIUM_ADMIN");
+
+	private static final Set<String> STARTING_TAGS =
+		Set.of("DAMAGED", "MISSING_PIECES", "PATRON_CONTACTED", "RETURN_DISPUTED", "SLOW_TO_SHIP");
 
 	private static final String USER_NAME = "jane.librarian";
 	private static final String USER_EMAIL = "jane@library.example";
@@ -192,7 +198,7 @@ class PatronRequestNotesTests {
 	void deleteAll() {
 		manyValuesFrom(notes.deleteAll());
 		manyValuesFrom(appliedTags.deleteAll());
-		for (var code : List.of("TEST_TAG", "RETIRED_TAG", "KEEP_TAG", "SPARE_TAG")) {
+		for (var code : List.of("TEST_TAG", "RETIRED_TAG", "KEEP_TAG", "SPARE_TAG", "COLOUR_TAG", "PLAIN_TAG", "HEX_TAG")) {
 			singleValueFrom(vocabulary.deleteById(code));
 		}
 		patronRequestsFixture.deleteAll();
@@ -346,17 +352,23 @@ class PatronRequestNotesTests {
 	@Test
 	void theNotesResolverChecksInvolvementItselfWhenHandedARequest() throws Exception {
 		addNote(LIBRARY_ADMIN, List.of("NOTES_B"), "Private to the parties", null);
+		execute(TAG, Map.of("id", requestId.toString(), "tag", "DAMAGED"), LIBRARY_ADMIN, List.of("NOTES_B"));
 
+		final var dataLoaders = new DataLoaderRegistry();
 		final var env = DataFetchingEnvironmentImpl.newDataFetchingEnvironment()
 			.source(PatronRequest.builder().id(requestId).build())
 			.arguments(Map.of())
 			.graphQLContext(GraphQLContext.of(Map.<Object, Object>of(
 				"roles", LIBRARY_ADMIN, AGENCY_CODES, List.of("NOTES_X"))))
+			.dataLoaderRegistry(dataLoaders)
 			.build();
 
 		final Page<PatronRequestNote> page = noteDataFetchers.notesOfPatronRequest().get(env).get();
 		assertThat(page.getContent(), is(empty()));
-		assertThat(noteDataFetchers.tagsOfPatronRequest().get(env).get(), is(empty()));
+
+		final var tags = noteDataFetchers.tagsOfPatronRequest().get(env);
+		dataLoaders.dispatchAll();
+		assertThat(tags.get(), is(empty()));
 		assertThat(noteDataFetchers.involvedAgencyCodesOfPatronRequest().get(env).get(), is(empty()));
 	}
 
@@ -431,8 +443,7 @@ class PatronRequestNotesTests {
 		final List<Map<String, Object>> tags = cast(execute("{ requestTags { code label active } }", Map.of(),
 			List.of("LIBRARY_READ_ONLY"), List.of("NOTES_B")).<Map<String, Object>>getData().get("requestTags"));
 
-		assertThat(tags.stream().map(tag -> (String) tag.get("code")).filter(Set.of(
-				"DAMAGED", "MISSING_PIECES", "PATRON_CONTACTED", "RETURN_DISPUTED", "SLOW_TO_SHIP")::contains).toList(),
+		assertThat(tags.stream().map(tag -> (String) tag.get("code")).filter(STARTING_TAGS::contains).toList(),
 			contains("DAMAGED", "MISSING_PIECES", "PATRON_CONTACTED", "RETURN_DISPUTED", "SLOW_TO_SHIP"));
 	}
 
@@ -482,6 +493,78 @@ class PatronRequestNotesTests {
 	}
 
 	@Test
+	void theStartingTagsHaveTheColoursTheAppsShowedForThem() {
+		final List<Map<String, Object>> tags = cast(execute("{ requestTags { code colour } }", Map.of(),
+			List.of("LIBRARY_READ_ONLY"), List.of("NOTES_B")).<Map<String, Object>>getData().get("requestTags"));
+
+		final Map<String, Object> colours = tags.stream()
+			.filter(tag -> STARTING_TAGS.contains((String) tag.get("code")))
+			.collect(Collectors.toMap(tag -> (String) tag.get("code"), tag -> tag.get("colour")));
+
+		assertThat(colours, is(Map.of(
+			"DAMAGED", "error",
+			"MISSING_PIECES", "warning",
+			"PATRON_CONTACTED", "info",
+			"RETURN_DISPUTED", "secondary",
+			"SLOW_TO_SHIP", "primary")));
+	}
+
+	@Test
+	void aTagColourIsAPaletteNameThatAnUpdateKeepsUnlessItIsSent() {
+		final var created = data(execute("""
+			mutation { createRequestTag(input: { code: "COLOUR_TAG", label: "Colour", colour: "success" }) { colour } }""",
+			Map.of(), CONSORTIUM_ADMIN, List.of()), "createRequestTag");
+		assertThat(created, hasEntry("colour", "success"));
+		assertThat(colourOf("COLOUR_TAG"), is("success"));
+
+		final var renamed = data(execute("""
+			mutation { updateRequestTag(input: { code: "COLOUR_TAG", label: "Coloured" }) { label colour } }""",
+			Map.of(), CONSORTIUM_ADMIN, List.of()), "updateRequestTag");
+		assertThat(renamed, hasEntry("label", "Coloured"));
+		assertThat("an omitted colour is kept", renamed, hasEntry("colour", "success"));
+
+		final var recoloured = data(execute("""
+			mutation { updateRequestTag(input: { code: "COLOUR_TAG", label: "Coloured", colour: "warning" }) { colour } }""",
+			Map.of(), CONSORTIUM_ADMIN, List.of()), "updateRequestTag");
+		assertThat(recoloured, hasEntry("colour", "warning"));
+
+		assertThat(errorOf(execute("""
+			mutation { updateRequestTag(input: { code: "COLOUR_TAG", label: "Coloured", colour: "#ff0000" }) { colour } }""",
+			Map.of(), CONSORTIUM_ADMIN, List.of())), containsString(
+				"A tag colour must be one of: default, primary, secondary, info, success, warning, error; "
+					+ "or null for the app's default."));
+		assertThat(colourOf("COLOUR_TAG"), is("warning"));
+
+		final var cleared = data(execute("""
+			mutation { updateRequestTag(input: { code: "COLOUR_TAG", label: "Coloured", colour: null }) { colour } }""",
+			Map.of(), CONSORTIUM_ADMIN, List.of()), "updateRequestTag");
+		assertThat("an explicit null clears it", cleared, hasEntry("colour", null));
+		assertThat(colourOf("COLOUR_TAG"), is((String) null));
+	}
+
+	@Test
+	void aTagCreatedWithoutAColourHasNoneAndOneWithAnUnknownColourIsNotCreated() {
+		assertThat(errorOf(execute("""
+			mutation { createRequestTag(input: { code: "PLAIN_TAG", label: "Plain", colour: "Red" }) { colour } }""",
+			Map.of(), CONSORTIUM_ADMIN, List.of())), containsString("A tag colour must be one of:"));
+		assertThat(vocabularyCodes(), not(hasItem("PLAIN_TAG")));
+
+		assertThat(data(execute("""
+			mutation { createRequestTag(input: { code: "PLAIN_TAG", label: "Plain" }) { colour } }""",
+			Map.of(), CONSORTIUM_ADMIN, List.of()), "createRequestTag"), hasEntry("colour", null));
+	}
+
+	@Test
+	void theDatabaseRefusesAColourThatIsNotAPaletteName() {
+		final var hex = RequestTag.builder().code("HEX_TAG").label("Hex").active(true).colour("#ff0000").build();
+
+		final var refused = assertThrows(RuntimeException.class, () -> singleValueFrom(vocabularyWriter.save(hex)));
+
+		assertThat(refused.getMessage(), containsString("ck_request_tag_colour"));
+		assertThat(vocabularyCodes(), not(hasItem("HEX_TAG")));
+	}
+
+	@Test
 	void aTagIsDeletedOnlyWhileNoRequestCarriesIt() {
 		execute("""
 			mutation { createRequestTag(input: { code: "SPARE_TAG", label: "Spare" }) { code } }""",
@@ -501,6 +584,17 @@ class PatronRequestNotesTests {
 			hasEntry("success", true));
 		assertThat(vocabularyCodes(), not(hasItem("SPARE_TAG")));
 		assertThat(errorOf(execute(delete, Map.of(), CONSORTIUM_ADMIN, List.of())), containsString("No such tag"));
+	}
+
+	private String colourOf(String code) {
+		final List<Map<String, Object>> tags = cast(execute("{ requestTags { code colour } }", Map.of(),
+			CONSORTIUM_ADMIN, List.of()).<Map<String, Object>>getData().get("requestTags"));
+
+		return (String) tags.stream()
+			.filter(tag -> code.equals(tag.get("code")))
+			.findFirst()
+			.orElseThrow()
+			.get("colour");
 	}
 
 	private List<String> vocabularyCodes() {

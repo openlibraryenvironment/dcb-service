@@ -61,7 +61,7 @@ public class LegacyStatsController {
 
 		warn("top-requestors");
 
-		return insights.getTopRequestors(requestedLibraryCode, pageable, authentication);
+		return insights.getTopRequestors(requestedLibraryCode, null, pageable, authentication);
 	}
 
 	@Deprecated(forRemoval = true)
@@ -77,7 +77,7 @@ public class LegacyStatsController {
 
 		warn("top-requested-titles");
 
-		return insights.getMostRequestedTitles(startDate, endDate, requestedLibraryCode,
+		return insights.getMostRequestedTitles(startDate, endDate, requestedLibraryCode, null,
 			pageable, authentication);
 	}
 

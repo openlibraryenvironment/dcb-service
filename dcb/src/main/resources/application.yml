@@ -266,6 +266,14 @@ dcb:
       # Postgres cancels a whole-catalogue pass that runs longer than this.
       statement-timeout: 10m
 
+  # Library staff asking why one of their patrons would be refused (PatronCheckController).
+  patron-checks:
+    enabled: true
+    # Every check is a live read of a library system DCB does not own.
+    per-caller-per-minute: 10
+    per-host-lms-per-minute: 30
+    timeout: 10s
+
   # discovery: off unless dcb.discovery.enabled is true. Settings and defaults: DiscoveryConfig.
   # How an image gets in, for each store: docs/branding.md.
   branding:
