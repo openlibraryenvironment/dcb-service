@@ -53,34 +53,6 @@ stored value stays, and send `description: null` to clear it. `deleteRequestTag`
 while no request carries it, so a tag added by mistake can go; once a request carries a tag, retire
 it instead. The list holds at most 100 tags.
 
-A tag can have a `colour`. It is a name from the admin apps' theme palette, not a colour value:
-`default`, `primary`, `secondary`, `info`, `success`, `warning` or `error`, in lower case. Each app
-shows that name in its own theme's colour, so a tag changes with the theme and keeps its contrast.
-DCB refuses any other value. A tag without a colour is shown in the app's default. As with
-`description`, an update that leaves `colour` out keeps it, and `colour: null` clears it. The five
-starting tags have colours: `DAMAGED` `error`, `MISSING_PIECES` `warning`, `PATRON_CONTACTED`
-`info`, `RETURN_DISPUTED` `secondary` and `SLOW_TO_SHIP` `primary`.
-
-## Searching
-
-The `patronRequests` query takes two fields that read notes and tags. Both combine with `AND`,
-`OR`, `NOT` and every other field, and both stay inside the caller's scope: a library finds only
-requests it is involved in, which are exactly the requests whose notes and tags it can already
-read.
-
-- `tagCode:DAMAGED` finds requests carrying the tag, whoever applied it. A request tagged by
-  several libraries is listed once. The value must be a tag code: 2 to 32 capital letters, digits
-  or underscores, starting with a letter. For example `(tagCode:DAMAGED OR tagCode:SLOW_TO_SHIP)`,
-  or `*:* AND NOT (tagCode:DAMAGED)` for requests without it.
-- `noteText:"returned with water damage"` finds requests with a note containing the text,
-  ignoring case. Quote a phrase, and escape `"` and `\` inside the quotes with a backslash; a
-  single word needs no quotes. `%`, `_` and `\` match themselves. Retracted notes never match.
-  The text must be at least 3 characters once trimmed: note text has no index, so every search
-  reads every live note, and the minimum stops a one-letter search from matching nearly all of
-  them.
-
-Wildcards (`*`, `?`) are not supported in either field.
-
 ## Limits
 
 - A note is plain text of up to 2,000 characters. It is shown as text, never as markup.
@@ -109,9 +81,6 @@ treated as ended, because it can still be rolled back into the workflow.
 
 - The tables are `patron_request_note`, `patron_request_tag` and `request_tag`, created by the
   `patron_request_notes_and_tags` migration. They have no foreign key onto `patron_request`, so the migration takes no lock on it.
-- `request_tag_colour` adds the nullable `colour` column to `request_tag`, a check constraint
-  holding it to the palette names, and the starting tags' colours. It touches only that table, which
-  holds at most 100 rows.
 - `supplier_request` has no index on `patron_request_id`, so finding a request's current supplier
   for notes scans that table, as other lookups of a request's supplier already do. Check the cost
   on a large consortium before relying on it at scale.
