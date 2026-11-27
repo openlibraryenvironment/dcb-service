@@ -4,6 +4,7 @@ import static org.olf.dcb.test.MockServerCommonResponses.noContent;
 import static org.olf.dcb.utils.PropertyAccessUtils.getValue;
 
 import java.util.List;
+import java.util.Map;
 
 import org.olf.dcb.test.MockServer;
 import org.olf.dcb.test.MockServerCommonRequests;
@@ -37,6 +38,14 @@ public class SierraBibsAPIFixture {
 				.start(0)
 				.total(getValue(bibs, List::size, 0))
 				.build());
+	}
+
+	public void mockHarvestPage(int offset, String updatedSince, List<String> bibIds) {
+		var request = mockServerCommonRequests.get(bibsPath())
+			.withQueryStringParameter("offset", Integer.toString(offset))
+			.withQueryStringParameter("updatedDate", updatedSince + "Z?");
+		var entries = bibIds.stream().map(id -> Map.of("id", id)).toList();
+		mockServer.mock(request, Map.of("entries", entries));
 	}
 
 	public void createPostBibsMock(BibPatch bibPatch, Integer returnId) {
