@@ -216,7 +216,7 @@ dependencies {
 	testImplementation("org.testcontainers:testcontainers-postgresql")
 
 	// ArchUnit backs the host-interaction boundary guardrails (LifecycleArchitectureTests).
-	testImplementation('com.tngtech.archunit:archunit-junit5:1.3.0')
+	testImplementation('com.tngtech.archunit:archunit-junit5:1.5.1')
 
 	implementation("io.micronaut.graphql:micronaut-graphql")
 	implementation("com.graphql-java:graphql-java-extended-scalars" )
@@ -531,7 +531,19 @@ gitProperties {
     // dotGitDirectory = "${project.rootDir}/../.git"
 }
 
+def architectureTest = tasks.register('architectureTest', Test) {
+	group = 'verification'
+	description = 'Checks lifecycle boundaries in a dedicated test JVM.'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform { includeEngines 'archunit' }
+	include 'org/olf/dcb/request/lifecycle/LifecycleArchitectureTests.class'
+	maxHeapSize = '512m'
+}
+
 test {
+	dependsOn architectureTest
+	useJUnitPlatform { excludeEngines 'archunit' }
 	// Keep machine-readable reports compact.
 	reports.junitXml.outputPerTestCase = false
 	if (System.getenv('CI')) {

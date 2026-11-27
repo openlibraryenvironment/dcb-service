@@ -394,12 +394,12 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 				.fields(List.of("id", "updatedDate", "createdDate", "deletedDate", "deleted", "marc", "suppressed", "fixedFields", "varFields" ));
 
 			if (since != null) {
-				params.updatedDate(dtr -> {
+				params.updatedDate(DateTimeRange.build(dtr -> {
 					LocalDateTime from_as_local_date_time = since.atZone(java.time.ZoneId.of("UTC")).toLocalDateTime();
 					log.trace("Setting from date for {} to {}", lms.getName(), from_as_local_date_time);
 
 					dtr.to(LocalDateTime.now()).fromDate(from_as_local_date_time);
-				});
+				}));
 			}
 		})).doOnSubscribe(_s -> log.info("Fetching batch from Sierra {} with since={} offset={} limit={}", lms.getName(),
 				since, offset, limit));
@@ -566,6 +566,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			
 			_lmsBibSuppressionRuleset = refetchLms()
 				.mapNotNull( HostLms::getSuppressionRulesetName )
+				.filter(name -> !name.isBlank())
 				.flatMap( name -> objectRuleService.findByName(name)
 						.doOnSuccess(val -> {
 							if (val == null) {

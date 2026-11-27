@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockserver.model.HttpResponse.notFoundResponse;
 import static org.olf.dcb.test.PublisherUtils.manyValuesFrom;
+import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 import static services.k_int.interaction.sierra.SierraTestUtils.okJson;
 
 import org.junit.jupiter.api.*;
@@ -14,6 +15,7 @@ import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.audit.ProcessAuditService;
 import org.olf.dcb.core.model.BibRecord;
 import org.olf.dcb.ingest.model.IngestRecord;
+import org.olf.dcb.storage.HostLmsRepository;
 import org.olf.dcb.test.ClusterRecordFixture;
 import org.olf.dcb.test.HostLmsFixture;
 
@@ -49,6 +51,8 @@ class IngestTests {
 	@Inject
 	private HostLmsFixture hostLmsFixture;
 	@Inject
+	private HostLmsRepository hostLmsRepository;
+	@Inject
 	private ClusterRecordFixture clusterRecordFixture;
 	
 	private Flux<BibRecord> getIngestStream() {
@@ -65,7 +69,9 @@ class IngestTests {
 
 		hostLmsFixture.deleteAll();
 
-		hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		var host = hostLmsFixture.createSierraHostLms(HOST_LMS_CODE, KEY, SECRET, BASE_URL, "item");
+		host.setSuppressionRulesetName("");
+		singleValueFrom(hostLmsRepository.update(host));
 
 		var mockSierra = SierraTestUtils.mockFor(mock, BASE_URL)
 			.setValidCredentials(KEY, SECRET, TOKEN, 3600);
@@ -86,7 +92,7 @@ class IngestTests {
 	}
 
 	@Test
-	void ingestFromSierra() {
+	void ingestFromSierraWithEmptyBibSuppressionRuleset() {
 		// Run the ingest process
 		final var bibs =  getIngestStream().collectList().block();
 

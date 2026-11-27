@@ -11,6 +11,8 @@ import static org.olf.dcb.test.PublisherUtils.singleValueFrom;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -18,8 +20,11 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.client.MockServerClient;
 import org.olf.dcb.core.interaction.sierra.SierraApiFixtureProvider;
 import org.olf.dcb.core.interaction.sierra.SierraBibsAPIFixture;
+import org.olf.dcb.core.interaction.sierra.SierraLmsClient;
+import org.olf.dcb.dataimport.job.model.SourceRecord;
 import org.olf.dcb.test.HostLmsFixture;
 
+import io.micronaut.json.tree.JsonNode;
 import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.extern.slf4j.Slf4j;
@@ -93,6 +98,21 @@ class SierraApiBibTests {
 		final var bibIds = response.entries().stream().map(BibResult::id).toList();
 
 		assertThat(bibIds, contains(firstBibId, secondBibId, thirdBibId));
+	}
+
+	@Test
+	void resumesDeltaHarvestAtNextOffsetWithOriginalDateFilter() {
+		final var since = "2026-11-20T10:00:35";
+		final var checkpoint = JsonNode.from(Map.of("offset", 0, "updatedDate", Map.of("fromDate", since)));
+		final var firstPageIds = IntStream.rangeClosed(1, 500).mapToObj(Integer::toString).toList();
+		sierraBibsAPIFixture.mockHarvestPage(0, since, firstPageIds);
+		sierraBibsAPIFixture.mockHarvestPage(500, since, List.of("501"));
+
+		final var client = (SierraLmsClient) hostLmsFixture.createClient(HOST_LMS_CODE);
+		final var first = singleValueFrom(client.getChunk(Optional.of(checkpoint)));
+		final var next = singleValueFrom(client.getChunk(Optional.of(first.getCheckpoint())));
+
+		assertThat(next.getData().stream().map(SourceRecord::getRemoteId).toList(), contains("501"));
 	}
 
 	@Test
