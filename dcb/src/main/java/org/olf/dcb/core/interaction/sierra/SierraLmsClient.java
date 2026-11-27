@@ -566,6 +566,7 @@ public class SierraLmsClient implements HostLmsClient, MarcIngestSource<BibResul
 			
 			_lmsBibSuppressionRuleset = refetchLms()
 				.mapNotNull( HostLms::getSuppressionRulesetName )
+				.filter(name -> !name.isBlank())
 				.flatMap( name -> objectRuleService.findByName(name)
 						.doOnSuccess(val -> {
 							if (val == null) {
