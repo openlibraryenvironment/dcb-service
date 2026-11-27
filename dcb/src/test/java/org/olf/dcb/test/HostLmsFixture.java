@@ -195,7 +195,7 @@ public class HostLmsFixture {
 		return createSierraHostLms(code, clientConfig);
 	}
 
-	private DataHostLms createSierraHostLms(String code, Map<String, Object> config) {
+	public DataHostLms createSierraHostLms(String code, Map<String, Object> config) {
 		log.debug("Creating numeric range mapping");
 
 		numericRangeMappingFixture.createMapping(code, "ItemType", 998L, 1001L, "DCB", "BKM");
