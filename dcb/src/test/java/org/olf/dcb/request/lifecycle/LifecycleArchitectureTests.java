@@ -1,14 +1,16 @@
 package org.olf.dcb.request.lifecycle;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.hamcrest.MatcherAssert.assertThat;
 
+import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
 /**
- * PR-8 guardrails for the unified host-interaction model.
+ * Guardrails for the unified host-interaction model.
  *
  * The declarative NCIP leaf ({@code request.lifecycle.ncip}) must stay removable:
  * deleting it and its config must leave imperative behaviour intact. That only
@@ -27,6 +29,18 @@ import com.tngtech.archunit.lang.ArchRule;
 class LifecycleArchitectureTests {
 
 	private static final String DECLARATIVE_NCIP = "org.olf.dcb.request.lifecycle.ncip..";
+
+	// ArchUnit skips a class file newer than it can read with only a log warning, and the
+	// rules below then pass over Micronaut's generated classes alone.
+	@ArchTest
+	static void imports_hand_written_classes(JavaClasses classes) {
+		assertImported(classes, "org.olf.dcb.request.workflow.AbstractPatronRequestStateTransition");
+		assertImported(classes, "org.olf.dcb.request.lifecycle.ncip.NcipController");
+	}
+
+	private static void assertImported(JavaClasses classes, String className) {
+		assertThat("ArchUnit did not import " + className, classes.contain(className));
+	}
 
 	@ArchTest
 	static final ArchRule workflow_must_not_depend_on_declarative_ncip = noClasses()
@@ -67,6 +81,8 @@ class LifecycleArchitectureTests {
 			"org.olf.dcb.core.interaction.polaris..",
 			"org.olf.dcb.core.interaction.folio..",
 			"org.olf.dcb.core.interaction.alma..",
-			"org.olf.dcb.core.interaction.foundation..")
+			"org.olf.dcb.core.interaction.foundation..",
+			"org.olf.dcb.core.interaction.koha..",
+			"org.olf.dcb.core.interaction.ors..")
 		.should().dependOnClassesThat().resideInAPackage(DECLARATIVE_NCIP);
 }
