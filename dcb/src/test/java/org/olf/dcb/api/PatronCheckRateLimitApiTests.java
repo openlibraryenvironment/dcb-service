@@ -2,7 +2,6 @@ package org.olf.dcb.api;
 
 import static java.util.UUID.randomUUID;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -102,9 +101,6 @@ class PatronCheckRateLimitApiTests {
 
 		assertThat(callerLimited.getStatus(), is(HttpStatus.TOO_MANY_REQUESTS));
 		assertThat(callerLimited.getResponse().header("Retry-After"), is("60"));
-		// The admin apps are on another origin: without this the browser hides Retry-After from them
-		assertThat(callerLimited.getResponse().header("Access-Control-Expose-Headers"),
-			containsString("Retry-After"));
 
 		// The system has answered two; a second member of staff gets the third and no more
 		assertThat(checkAs("second"), is(HttpStatus.OK));
@@ -131,8 +127,6 @@ class PatronCheckRateLimitApiTests {
 
 	private static HttpRequest<?> request(String staff, String barcode) {
 		return HttpRequest.POST("/patrons/eligibility-checks", Map.of("identifier", barcode))
-			// A localhost origin: Micronaut forbids any other to a server on localhost that allows any
-			.header("Origin", "http://localhost:4174")
 			.bearerAuth("patron-check-limit-" + staff);
 	}
 }

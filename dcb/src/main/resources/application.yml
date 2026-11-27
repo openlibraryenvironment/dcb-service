@@ -8,12 +8,6 @@ micronaut:
   server:
     cors:
       enabled: true
-      configurations:
-        # Any origin, as before; a named configuration is the only way to expose a header.
-        # Retry-After on a 429, which a browser otherwise hides from the admin apps.
-        all:
-          exposed-headers:
-            - Retry-After
     multipart:
       # There is deliberately no `enabled` here: absent is not the same as false, and only
       # an explicit false refuses. See docs/branding.md.
