@@ -12,6 +12,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.oneOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.olf.dcb.security.RoleNames.ADMINISTRATOR;
 import static org.olf.dcb.security.RoleNames.CONSORTIUM_ADMIN;
 import static org.olf.dcb.security.RoleNames.LIBRARY_ADMIN;
 import static org.olf.dcb.security.RoleNames.LIBRARY_READ_ONLY;
@@ -71,6 +72,7 @@ class PatronCheckApiTests {
 	private static final String OWN_STAFF_TOKEN = "patron-check-own-staff";
 	private static final String READ_ONLY_TOKEN = "patron-check-read-only";
 	private static final String CONSORTIUM_TOKEN = "patron-check-consortium";
+	private static final String ADMIN_TOKEN = "patron-check-admin";
 
 	@Inject
 	@Client("/")
@@ -104,6 +106,7 @@ class PatronCheckApiTests {
 			List.of(LIBRARY_READ_ONLY), Map.of("code", OWN_AGENCY));
 		TestStaticTokenValidator.add(CONSORTIUM_TOKEN, "consortium-staff",
 			List.of(CONSORTIUM_ADMIN), Map.of("code", OWN_AGENCY));
+		TestStaticTokenValidator.add(ADMIN_TOKEN, "admin", List.of(ADMINISTRATOR), Map.of());
 
 		patronFixture.deleteAllPatrons();
 		referenceValueMappingFixture.deleteAll();
@@ -233,15 +236,57 @@ class PatronCheckApiTests {
 	}
 
 	@Test
-	void readOnlyAndConsortiumStaffCannotCheckPatrons() {
-		for (final var token : List.of(READ_ONLY_TOKEN, CONSORTIUM_TOKEN)) {
-			final var failure = assertThrows(HttpClientResponseException.class,
-				() -> client.toBlocking().exchange(request(
-					Map.of("identifier", generateBarcode()), token)));
+	void readOnlyStaffCannotCheckPatrons() {
+		final var failure = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().exchange(request(
+				Map.of("identifier", generateBarcode()), READ_ONLY_TOKEN)));
 
-			// dcb-service refuses a role it does not allow as unauthenticated, as BrandAssetApiTests accepts
-			assertThat(failure.getStatus(), is(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)));
-		}
+		// dcb-service refuses a role it does not allow as unauthenticated, as BrandAssetApiTests accepts
+		assertThat(failure.getStatus(), is(oneOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)));
+	}
+
+	@Test
+	void consortiumStaffCanCheckAPatronOfAnotherLibrary() {
+		final var barcode = generateBarcode();
+
+		patronAtSierra(barcode, patron(OTHER_LIBRARY_LOCATION, barcode)
+			.blockInfo(Block.builder().code("blocked").build())
+			.build());
+
+		final var body = check(barcode, OTHER_AGENCY, CONSORTIUM_TOKEN);
+
+		assertThat(body.get("outcome"), is("REFUSED"));
+		assertThat((List<?>) body.get("reasons"), contains("BLOCKED"));
+	}
+
+	@Test
+	void anAdministratorCanCheckAPatronOfAnyLibraryOnTheSystemAsked() {
+		final var barcode = generateBarcode();
+
+		patronAtSierra(barcode, patron(OTHER_LIBRARY_LOCATION, barcode)
+			.blockInfo(Block.builder().code("blocked").build())
+			.build());
+
+		assertThat((List<?>) check(barcode, OWN_AGENCY, ADMIN_TOKEN).get("reasons"), contains("BLOCKED"));
+	}
+
+	@Test
+	void consortiumStaffAreToldAnUnmappedHomeLibraryOnASharedSystem() {
+		final var barcode = generateBarcode();
+
+		patronAtSierra(barcode, patron("nobody-maps-this", barcode).build());
+
+		assertThat((List<?>) check(barcode, OWN_AGENCY, CONSORTIUM_TOKEN).get("reasons"),
+			contains("NO_HOME_LIBRARY_MAPPING"));
+	}
+
+	@Test
+	void consortiumStaffMustSayWhichLibraryToAsk() {
+		final var failure = assertThrows(HttpClientResponseException.class,
+			() -> client.toBlocking().exchange(request(
+				Map.of("identifier", generateBarcode()), CONSORTIUM_TOKEN)));
+
+		assertThat(failure.getStatus(), is(HttpStatus.BAD_REQUEST));
 	}
 
 	@Test
@@ -323,6 +368,12 @@ class PatronCheckApiTests {
 	private Map<String, Object> check(String identifier) {
 		return client.toBlocking().retrieve(
 			request(Map.of("identifier", identifier), OWN_STAFF_TOKEN), Map.class);
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> check(String identifier, String agencyCode, String token) {
+		return client.toBlocking().retrieve(
+			request(Map.of("identifier", identifier, "agencyCode", agencyCode), token), Map.class);
 	}
 
 	private static HttpRequest<?> request(Map<String, String> body, String token) {

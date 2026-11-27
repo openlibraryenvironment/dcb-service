@@ -82,6 +82,17 @@ public class PatronCheckService {
 			.switchIfEmpty(Mono.fromSupplier(() -> PatronCheckResult.refused(List.of(PatronCheckReason.NOT_FOUND))));
 	}
 
+	/**
+	 * As {@link #check}, for consortium staff: any patron of any library on the asked library's
+	 * system, so a refusal is always explained rather than reported as NOT_FOUND.
+	 */
+	public Mono<PatronCheckResult> checkForConsortium(DataAgency agency, String identifier) {
+		return Flux.from(agencyRepository.findByHostLmsIds(List.of(agency.getHostLms().getId())))
+			.map(DataAgency::getCode)
+			.collectList()
+			.flatMap(everyLibraryOnTheSystem -> check(agency, everyLibraryOnTheSystem, identifier));
+	}
+
 	private Mono<PatronCheckResult> judge(Patron patron, DataHostLms hostLms,
 		Collection<String> callerAgencyCodes) {
 
